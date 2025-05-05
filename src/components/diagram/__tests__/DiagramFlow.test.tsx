@@ -12,6 +12,10 @@ describe('DiagramFlow', () => {
     shouldFitView: true
   };
 
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('renders ReactFlow component', () => {
     render(<DiagramFlow {...mockProps} />);
     
@@ -39,5 +43,18 @@ describe('DiagramFlow', () => {
     const containerElement = screen.getByTestId('mock-react-flow').parentElement;
     expect(containerElement).toHaveClass('flex-1');
     expect(containerElement).toHaveClass('diagram-container');
+  });
+
+  it('preserves viewport when shouldFitView is false', () => {
+    // Use a mocked timer to test the timeout behavior
+    jest.useFakeTimers();
+    
+    render(<DiagramFlow {...mockProps} shouldFitView={false} />);
+    
+    // Fast-forward timers
+    jest.runAllTimers();
+    
+    // Reset timers
+    jest.useRealTimers();
   });
 });

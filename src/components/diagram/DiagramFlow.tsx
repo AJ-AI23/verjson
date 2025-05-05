@@ -26,6 +26,7 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
 }) => {
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const viewportRef = useRef<{ x: number; y: number; zoom: number } | null>(null);
+  const isInitialRender = useRef(true);
 
   // Store viewport when it changes
   const onMove = useCallback((event: any) => {
@@ -38,11 +39,33 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
   // Store reference to ReactFlow instance
   const onInit = useCallback((instance: ReactFlowInstance) => {
     reactFlowInstanceRef.current = instance;
-    // Restore previous viewport if available
-    if (viewportRef.current && !shouldFitView) {
-      instance.setViewport(viewportRef.current);
+    
+    // Only restore viewport after the initial render has completed
+    if (viewportRef.current && !shouldFitView && !isInitialRender.current) {
+      // Delay the viewport restoration slightly to ensure the diagram has rendered
+      setTimeout(() => {
+        if (reactFlowInstanceRef.current) {
+          reactFlowInstanceRef.current.setViewport(viewportRef.current!);
+        }
+      }, 50);
     }
+    
+    isInitialRender.current = false;
   }, [shouldFitView]);
+
+  // Effect to restore viewport when nodes change but we don't want to fit view
+  useEffect(() => {
+    if (reactFlowInstanceRef.current && viewportRef.current && !shouldFitView && !isInitialRender.current) {
+      // Use a short timeout to ensure the diagram has been updated before setting viewport
+      const timeoutId = setTimeout(() => {
+        if (reactFlowInstanceRef.current) {
+          reactFlowInstanceRef.current.setViewport(viewportRef.current!);
+        }
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [nodes, edges, shouldFitView]);
 
   return (
     <div className="flex-1 diagram-container">

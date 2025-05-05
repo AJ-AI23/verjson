@@ -46,7 +46,7 @@ jest.mock('@xyflow/react', () => ({
     if (onInit) {
       const mockInstance = {
         getViewport: () => ({ x: 0, y: 0, zoom: 1 }),
-        setViewport: () => {}
+        setViewport: jest.fn()
       };
       setTimeout(() => onInit(mockInstance), 0);
     }
