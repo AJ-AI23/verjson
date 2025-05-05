@@ -11,9 +11,9 @@ const customRender = (
 export * from '@testing-library/react';
 export { customRender as render };
 
-// Mock Jest functionality for tests
+// Ensure Jest mock functions are available for tests
 if (typeof jest !== 'undefined') {
-  // Make sure jest.fn is available
+  // Make sure common Jest utilities are available
   if (!jest.fn) {
     (jest as any).fn = (implementation?: any) => {
       const mockFn = implementation || (() => {});
@@ -22,14 +22,12 @@ if (typeof jest !== 'undefined') {
     };
   }
   
-  // Make sure jest.mock is available
   if (!jest.mock) {
     (jest as any).mock = (path: string) => ({
       __esModule: true
     });
   }
   
-  // Make sure jest.clearAllMocks is available
   if (!jest.clearAllMocks) {
     (jest as any).clearAllMocks = () => {};
   }
