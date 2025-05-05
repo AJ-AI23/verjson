@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { SplitPane } from '@/components/SplitPane';
 import { JsonEditor } from '@/components/JsonEditor';
 import { SchemaDiagram } from '@/components/SchemaDiagram';
@@ -29,12 +30,13 @@ export const Editor = () => {
   const [schemaType, setSchemaType] = useState<SchemaType>('json-schema');
   const [groupProperties, setGroupProperties] = useState(false);
 
-  useEffect(() => {
+  // Debounced schema validation to avoid excessive processing
+  const validateSchema = useCallback((schemaText: string, type: SchemaType) => {
     try {
       // Parse and validate the schema based on the selected type
-      const parsed = validateJsonSchema(schema, schemaType);
+      const parsed = validateJsonSchema(schemaText, type);
       // Extract the relevant schema components for visualization
-      const schemaForDiagram = extractSchemaComponents(parsed, schemaType);
+      const schemaForDiagram = extractSchemaComponents(parsed, type);
       setParsedSchema(schemaForDiagram);
       setError(null);
     } catch (err) {
@@ -43,7 +45,11 @@ export const Editor = () => {
         description: (err as Error).message,
       });
     }
-  }, [schema, schemaType]);
+  }, []);
+
+  useEffect(() => {
+    validateSchema(schema, schemaType);
+  }, [schema, schemaType, validateSchema]);
 
   const handleEditorChange = (value: string) => {
     setSchema(value);

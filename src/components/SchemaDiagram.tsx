@@ -27,6 +27,7 @@ export const SchemaDiagram = ({ schema, error, groupProperties = false }: Schema
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [prevGroupSetting, setPrevGroupSetting] = useState(groupProperties);
+  const [schemaKey, setSchemaKey] = useState(0); // Key for tracking schema changes
   const nodePositionsRef = useRef<Record<string, { x: number, y: number }>>({});
 
   // Store node positions when they change
@@ -39,6 +40,13 @@ export const SchemaDiagram = ({ schema, error, groupProperties = false }: Schema
       nodePositionsRef.current = newPositions;
     }
   }, [nodes]);
+
+  // Generate a new schema key when schema changes to force complete re-evaluation
+  useEffect(() => {
+    if (schema) {
+      setSchemaKey(prev => prev + 1);
+    }
+  }, [schema, error, groupProperties]);
 
   // Effect for schema or error changes
   useEffect(() => {
@@ -58,13 +66,18 @@ export const SchemaDiagram = ({ schema, error, groupProperties = false }: Schema
       
       // Always reset both nodes and edges completely to avoid orphaned edges
       setNodes(positionedNodes);
-      setEdges(newEdges);
+      // Ensure we start with a clean slate for edges
+      setEdges([]);
+      // Then add the new edges after a small delay to ensure nodes are rendered
+      setTimeout(() => {
+        setEdges(newEdges);
+      }, 50);
     } else {
       // Clear both nodes and edges when there's an error or no schema
       setNodes([]);
       setEdges([]);
     }
-  }, [schema, error, groupProperties, setNodes, setEdges]);
+  }, [schema, error, groupProperties, setNodes, setEdges, schemaKey]);
 
   // Effect specifically for groupProperties toggle changes
   useEffect(() => {
@@ -86,32 +99,49 @@ export const SchemaDiagram = ({ schema, error, groupProperties = false }: Schema
           return node;
         });
         
+        // Clear edges before setting nodes to avoid orphaned edges
+        setEdges([]);
         setNodes(positionedNodes);
-        setEdges(newEdges);
+        
+        // Add edges after a small delay to ensure nodes are rendered
+        setTimeout(() => {
+          validateAndSetEdges(newEdges);
+        }, 50);
       }
     }
   }, [groupProperties, prevGroupSetting, schema, error, setNodes, setEdges]);
 
   // Validate edges against nodes to ensure no orphaned edges
   useEffect(() => {
-    if (nodes.length > 0 && edges.length > 0) {
-      // Get all valid node IDs
-      const nodeIds = new Set(nodes.map(node => node.id));
-      
-      // Filter edges to only include those where both source and target exist
-      const validEdges = edges.filter(edge => 
-        nodeIds.has(edge.source) && nodeIds.has(edge.target)
-      );
-      
-      // If we filtered out any edges, update the edges state
-      if (validEdges.length < edges.length) {
-        setEdges(validEdges);
-      }
+    if (nodes.length > 0) {
+      validateAndSetEdges(edges);
     } else if (nodes.length === 0 && edges.length > 0) {
       // If there are no nodes but there are edges, clear the edges
       setEdges([]);
     }
-  }, [nodes, edges, setEdges]);
+  }, [nodes, edges.length, setEdges]);
+
+  // Helper function to validate edges
+  const validateAndSetEdges = (currentEdges: Edge[]) => {
+    if (nodes.length === 0) {
+      setEdges([]);
+      return;
+    }
+    
+    // Get all valid node IDs
+    const nodeIds = new Set(nodes.map(node => node.id));
+    
+    // Filter edges to only include those where both source and target exist
+    const validEdges = currentEdges.filter(edge => 
+      nodeIds.has(edge.source) && nodeIds.has(edge.target)
+    );
+    
+    // If we filtered out any edges, update the edges state
+    if (validEdges.length !== currentEdges.length) {
+      console.log(`Removed ${currentEdges.length - validEdges.length} orphaned edges`);
+      setEdges(validEdges);
+    }
+  };
 
   if (error) {
     return (
@@ -150,6 +180,7 @@ export const SchemaDiagram = ({ schema, error, groupProperties = false }: Schema
       </div>
       <div className="flex-1 diagram-container">
         <ReactFlow
+          key={`flow-${schemaKey}`}
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
