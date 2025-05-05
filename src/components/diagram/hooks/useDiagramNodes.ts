@@ -41,6 +41,8 @@ export const useDiagramNodes = (
     if (validEdges.length !== currentEdges.length) {
       console.log(`Removed ${currentEdges.length - validEdges.length} orphaned edges`);
       setEdges(validEdges);
+    } else {
+      setEdges(currentEdges);
     }
   }, [nodes, setEdges]);
 
@@ -58,14 +60,14 @@ export const useDiagramNodes = (
       setEdges([]);
       // Then add the new edges after a small delay to ensure nodes are rendered
       setTimeout(() => {
-        setEdges(newEdges);
+        validateAndSetEdges(newEdges);
       }, 50);
     } else {
       // Clear both nodes and edges when there's an error or no schema
       setNodes([]);
       setEdges([]);
     }
-  }, [schema, error, groupProperties, setNodes, setEdges, schemaKey, applyStoredPositions]);
+  }, [schema, error, groupProperties, setNodes, setEdges, schemaKey, applyStoredPositions, validateAndSetEdges]);
 
   // Effect specifically for groupProperties toggle changes
   useEffect(() => {
