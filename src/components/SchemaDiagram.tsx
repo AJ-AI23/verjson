@@ -30,10 +30,34 @@ export const SchemaDiagram = ({ schema, error, groupProperties = false }: Schema
   useEffect(() => {
     if (schema && !error) {
       const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties);
+      
+      // Always reset both nodes and edges completely to avoid orphaned edges
       setNodes(newNodes);
       setEdges(newEdges);
+    } else {
+      // Clear both nodes and edges when there's an error or no schema
+      setNodes([]);
+      setEdges([]);
     }
   }, [schema, error, groupProperties, setNodes, setEdges]);
+
+  // Also validate edges against nodes to ensure no orphaned edges
+  useEffect(() => {
+    if (nodes.length > 0 && edges.length > 0) {
+      // Get all valid node IDs
+      const nodeIds = new Set(nodes.map(node => node.id));
+      
+      // Filter edges to only include those where both source and target exist
+      const validEdges = edges.filter(edge => 
+        nodeIds.has(edge.source) && nodeIds.has(edge.target)
+      );
+      
+      // If we filtered out any edges, update the edges state
+      if (validEdges.length < edges.length) {
+        setEdges(validEdges);
+      }
+    }
+  }, [nodes, edges, setEdges]);
 
   if (error) {
     return (
