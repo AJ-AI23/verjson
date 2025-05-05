@@ -46,23 +46,48 @@ export const generateGroupedLayout = (schema: any): DiagramElements => {
     result.edges.push(edge);
     
     // Process nested objects
-    Object.entries(objProperties).forEach(([propName, propSchema]: [string, any]) => {
+    Object.entries(objProperties).forEach(([propName, propSchema]: [string, any], index) => {
+      // Calculate horizontal offset for multiple objects at same level
+      const xOffset = (index % 2 === 0) ? -200 : 200;
+      
       if (propSchema && propSchema.type === 'object' && propSchema.properties) {
+        // Create a dedicated node for this object property
+        const objectNodeId = `${groupNode.id}-${propName}-object`;
+        const objectNode = {
+          id: objectNodeId,
+          type: 'schemaType',
+          position: { x: xOffset, y: yPosition + 150 },
+          data: {
+            label: `${propName} (Object)`,
+            type: 'object',
+            description: propSchema.description,
+            properties: Object.keys(propSchema.properties).length
+          }
+        };
+        result.nodes.push(objectNode);
+        
+        // Edge from group to object
+        const objEdge = createEdge(groupNode.id, objectNodeId);
+        result.edges.push(objEdge);
+        
+        // Queue this object for processing
         objectsToProcess.push({
-          parentId: groupNode.id,
+          parentId: objectNodeId,
           schema: {
             properties: propSchema.properties,
             required: propSchema.required || []
           },
-          yPosition: yPosition + 150
+          yPosition: yPosition + 300
         });
       }
       
       // Process arrays with object items
-      if (propSchema && propSchema.type === 'array' && propSchema.items && 
+      else if (propSchema && propSchema.type === 'array' && propSchema.items && 
           propSchema.items.type === 'object' && propSchema.items.properties) {
         
         const arrayNode = createArrayNode(groupNode.id, propName, propSchema, yPosition + 150);
+        // Adjust position based on index to avoid overlapping
+        arrayNode.position.x = xOffset;
         result.nodes.push(arrayNode);
         
         // Edge from group to array
