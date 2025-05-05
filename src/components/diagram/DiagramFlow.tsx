@@ -10,6 +10,8 @@ interface DiagramFlowProps {
   onEdgesChange: (changes: any) => void;
   schemaKey: number;
   shouldFitView: boolean;
+  onNodeClick?: (event: React.MouseEvent, node: any) => void;
+  onPaneClick?: () => void;
 }
 
 const nodeTypes = {
@@ -22,7 +24,9 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
   onNodesChange,
   onEdgesChange,
   schemaKey,
-  shouldFitView
+  shouldFitView,
+  onNodeClick,
+  onPaneClick
 }) => {
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const viewportRef = useRef<{ x: number; y: number; zoom: number }>({ x: 0, y: 0, zoom: 1 });
@@ -70,6 +74,8 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
         onMove={onMove}
         onMoveEnd={onMove}
         defaultViewport={viewportRef.current} // Use stored viewport as default
+        onNodeClick={onNodeClick}
+        onPaneClick={onPaneClick}
       >
         <Controls />
         <Background gap={16} size={1} color="#e5e7eb" />

@@ -1,12 +1,12 @@
-
 import { Node, Edge } from '@xyflow/react';
 import { DiagramElements } from './types';
-import { 
-  createPropertyNode, 
-  createNestedPropertyNode, 
-  createArrayItemNode 
-} from './nodeGenerator';
-import { createEdge } from './edgeGenerator';
+import { createPropertyNode, createEdge } from './nodeGenerator';
+
+const BASE_X_OFFSET = 200;
+const BASE_Y_OFFSET = 150;
+const X_OFFSET = 250;
+const Y_OFFSET = 120;
+const COLUMNS_PER_ROW = 3;
 
 export const generateExpandedLayout = (schema: any): DiagramElements => {
   const result: DiagramElements = {
@@ -14,92 +14,158 @@ export const generateExpandedLayout = (schema: any): DiagramElements => {
     edges: []
   };
 
-  if (!schema || !schema.type || schema.type !== 'object' || !schema.properties) {
-    return result;
-  }
-
-  // We assume the root node is already added to the result nodes
-  
-  const properties = schema.properties;
-  const requiredProps = schema.required || [];
-  let xOffset = -200;
-  const yOffset = 150;
-  const xSpacing = 200;
-  
-  // Calculate starting x position to center the nodes
-  const totalWidth = Object.keys(properties).length * xSpacing;
-  xOffset = -totalWidth / 2 + xSpacing / 2;
-  
-  Object.entries(properties).forEach(([propName, propSchema]: [string, any], index) => {
-    // Skip if propSchema is null or undefined
-    if (!propSchema) return;
+  if (schema.properties) {
+    const propertyNames = Object.keys(schema.properties);
+    const requiredProps = schema.required || [];
     
-    const xPos = xOffset + index * xSpacing;
-    
-    // Create node for property
-    const propNode = createPropertyNode(propName, propSchema, requiredProps, xPos, yOffset);
-    
-    // Add edge from root to property
-    const edge = createEdge('root', propNode.id);
-    
-    result.nodes.push(propNode);
-    result.edges.push(edge);
-    
-    // If the property is an object with nested properties
-    if (propSchema.type === 'object' && propSchema.properties) {
-      const nestedProps = propSchema.properties;
-      const nestedRequired = propSchema.required || [];
-      const nestedYOffset = yOffset + 150;
+    propertyNames.forEach((propName, index) => {
+      const propertySchema = schema.properties[propName];
       
-      // Update the parent node data with property count
-      propNode.data.properties = Object.keys(nestedProps).length;
+      // Build nodes for this property
+      const propertyNode = createPropertyNode(
+        propName,
+        propertySchema,
+        BASE_X_OFFSET + (index % COLUMNS_PER_ROW) * X_OFFSET,
+        BASE_Y_OFFSET + Math.floor(index / COLUMNS_PER_ROW) * Y_OFFSET,
+        requiredProps.includes(propName),
+        'root'  // Pass the base path
+      );
       
-      // Calculate nested properties positioning
-      const totalNestedWidth = Object.keys(nestedProps).length * (xSpacing * 0.8);
-      let nestedXOffset = xPos - totalNestedWidth / 2 + (xSpacing * 0.8) / 2;
+      result.nodes.push(propertyNode);
       
-      Object.entries(nestedProps).forEach(([nestedName, nestedSchema]: [string, any], nestedIndex) => {
-        // Skip if nestedSchema is null or undefined
-        if (!nestedSchema) return;
-        
-        const nestedXPos = nestedXOffset + nestedIndex * (xSpacing * 0.8);
-        
-        // Create node for nested property
-        const nestedNode = createNestedPropertyNode(
-          propNode.id, 
-          nestedName, 
-          nestedSchema, 
-          nestedRequired, 
-          nestedXPos, 
-          nestedYOffset
+      // Add edge connecting this property to the root schema
+      result.edges.push(
+        createEdge('root', propertyNode.id)
+      );
+      
+      // Recursively process nested properties if they exist
+      if (propertySchema.type === 'object' && propertySchema.properties) {
+        const nestedElements = processNestedObject(
+          propertySchema,
+          propertyNode.id,
+          `root.properties.${propName}`  // Pass the full path
         );
-        
-        // Add edge from parent property to nested property
-        const nestedEdge = createEdge(propNode.id, nestedNode.id);
-        
-        result.nodes.push(nestedNode);
-        result.edges.push(nestedEdge);
-      });
-    }
+        result.nodes.push(...nestedElements.nodes);
+        result.edges.push(...nestedElements.edges);
+      }
+      
+      // Process array items if they exist
+      if (propertySchema.type === 'array' && propertySchema.items) {
+        const itemsElements = processArrayItems(
+          propertySchema.items,
+          propertyNode.id,
+          `root.properties.${propName}.items`  // Pass the full path
+        );
+        result.nodes.push(...itemsElements.nodes);
+        result.edges.push(...itemsElements.edges);
+      }
+    });
+  }
+  
+  return result;
+};
+
+// Process a nested object schema and its properties
+const processNestedObject = (
+  schema: any, 
+  parentId: string,
+  basePath: string = ''
+): DiagramElements => {
+  const result: DiagramElements = {
+    nodes: [],
+    edges: []
+  };
+  
+  if (schema.properties) {
+    const propertyNames = Object.keys(schema.properties);
+    const requiredProps = schema.required || [];
     
-    // If the property is an array, add its items
-    if (propSchema.type === 'array' && propSchema.items) {
-      const itemSchema = propSchema.items;
+    propertyNames.forEach((propName, index) => {
+      const propertySchema = schema.properties[propName];
       
-      // Update the parent node with minItems/maxItems if defined
-      propNode.data.minItems = propSchema.minItems;
-      propNode.data.maxItems = propSchema.maxItems;
+      // Build nodes for this property
+      const propertyNode = createPropertyNode(
+        propName,
+        propertySchema,
+        BASE_X_OFFSET + (index % COLUMNS_PER_ROW) * X_OFFSET,
+        BASE_Y_OFFSET + Math.floor(index / COLUMNS_PER_ROW) * Y_OFFSET,
+        requiredProps.includes(propName),
+        basePath
+      );
       
-      // Create node for array items
-      const itemNode = createArrayItemNode(propNode.id, itemSchema, xPos, yOffset);
+      result.nodes.push(propertyNode);
       
-      // Add edge from array to items
-      const itemsEdge = createEdge(propNode.id, itemNode.id, 'items');
+      // Add edge connecting this property to the parent
+      result.edges.push(
+        createEdge(parentId, propertyNode.id)
+      );
       
-      result.nodes.push(itemNode);
-      result.edges.push(itemsEdge);
+      // Recursively process nested properties if they exist
+      if (propertySchema.type === 'object' && propertySchema.properties) {
+        const nestedElements = processNestedObject(
+          propertySchema,
+          propertyNode.id,
+          `${basePath}.properties.${propName}`
+        );
+        result.nodes.push(...nestedElements.nodes);
+        result.edges.push(...nestedElements.edges);
+      }
+      
+      // Process array items if they exist
+      if (propertySchema.type === 'array' && propertySchema.items) {
+        const itemsElements = processArrayItems(
+          propertySchema.items,
+          propertyNode.id,
+          `${basePath}.properties.${propName}.items`
+        );
+        result.nodes.push(...itemsElements.nodes);
+        result.edges.push(...itemsElements.edges);
+      }
+    });
+  }
+  
+  return result;
+};
+
+// Process array item schema
+const processArrayItems = (
+  itemsSchema: any,
+  parentId: string,
+  basePath: string = ''
+): DiagramElements => {
+  const result: DiagramElements = {
+    nodes: [],
+    edges: []
+  };
+  
+  if (itemsSchema.type === 'object' || itemsSchema.properties) {
+    const itemNode = createPropertyNode(
+      'items',
+      itemsSchema,
+      BASE_X_OFFSET,
+      BASE_Y_OFFSET,
+      false,
+      basePath
+    );
+    
+    result.nodes.push(itemNode);
+    
+    // Add edge connecting this item to the parent
+    result.edges.push(
+      createEdge(parentId, itemNode.id)
+    );
+    
+    // Process nested properties if they exist
+    if (itemsSchema.type === 'object' && itemsSchema.properties) {
+      const nestedElements = processNestedObject(
+        itemsSchema,
+        itemNode.id,
+        `${basePath}.properties`
+      );
+      result.nodes.push(...nestedElements.nodes);
+      result.edges.push(...nestedElements.edges);
     }
-  });
+  }
   
   return result;
 };
