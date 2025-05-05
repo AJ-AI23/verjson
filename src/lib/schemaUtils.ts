@@ -2,8 +2,14 @@
 import Ajv from 'ajv';
 import metaSchema from 'ajv/lib/refs/json-schema-draft-07.json';
 
+// Create a singleton instance of Ajv
 const ajv = new Ajv({ allErrors: true });
-ajv.addMetaSchema(metaSchema);
+
+// Only add the meta schema if it hasn't been added yet
+// This check prevents the "schema already exists" error
+if (!ajv.getSchema(metaSchema.$id)) {
+  ajv.addMetaSchema(metaSchema);
+}
 
 export const validateJsonSchema = (jsonString: string): any => {
   try {
