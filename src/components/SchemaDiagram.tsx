@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { 
   ReactFlow,
   Background, 
@@ -27,14 +27,37 @@ export const SchemaDiagram = ({ schema, error, groupProperties = false }: Schema
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [prevGroupSetting, setPrevGroupSetting] = useState(groupProperties);
+  const nodePositionsRef = useRef<Record<string, { x: number, y: number }>>({});
+
+  // Store node positions when they change
+  useEffect(() => {
+    if (nodes.length > 0) {
+      const newPositions: Record<string, { x: number, y: number }> = {};
+      nodes.forEach(node => {
+        newPositions[node.id] = { x: node.position.x, y: node.position.y };
+      });
+      nodePositionsRef.current = newPositions;
+    }
+  }, [nodes]);
 
   // Effect for schema or error changes
   useEffect(() => {
     if (schema && !error) {
       const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties);
       
+      // Apply saved positions to new nodes where possible
+      const positionedNodes = newNodes.map(node => {
+        if (nodePositionsRef.current[node.id]) {
+          return {
+            ...node,
+            position: nodePositionsRef.current[node.id]
+          };
+        }
+        return node;
+      });
+      
       // Always reset both nodes and edges completely to avoid orphaned edges
-      setNodes(newNodes);
+      setNodes(positionedNodes);
       setEdges(newEdges);
     } else {
       // Clear both nodes and edges when there's an error or no schema
@@ -51,7 +74,19 @@ export const SchemaDiagram = ({ schema, error, groupProperties = false }: Schema
       
       if (schema && !error) {
         const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties);
-        setNodes(newNodes);
+        
+        // When changing group mode, try to maintain positions where possible
+        const positionedNodes = newNodes.map(node => {
+          if (nodePositionsRef.current[node.id]) {
+            return {
+              ...node,
+              position: nodePositionsRef.current[node.id]
+            };
+          }
+          return node;
+        });
+        
+        setNodes(positionedNodes);
         setEdges(newEdges);
       }
     }
@@ -120,7 +155,7 @@ export const SchemaDiagram = ({ schema, error, groupProperties = false }: Schema
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           nodeTypes={nodeTypes}
-          fitView
+          fitView={nodes.length > 0 && !Object.keys(nodePositionsRef.current).length}
           fitViewOptions={{ padding: 0.2 }}
           minZoom={0.5}
           maxZoom={2}
