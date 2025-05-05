@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { 
   ReactFlow,
@@ -11,7 +10,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { SchemaTypeNode } from '@/components/SchemaTypeNode';
-import { generateNodesAndEdges } from '@/lib/diagramUtils';
+import { generateNodesAndEdges } from '@/lib/diagram';
 
 interface SchemaDiagramProps {
   schema: any;
