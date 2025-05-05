@@ -27,6 +27,22 @@ declare global {
     interface Lifecycle {
       (fn: () => any): any;
     }
+    
+    // Add Mock type to fix TS2694 errors
+    type Mock<T = any> = {
+      (...args: any[]): any;
+      mockImplementation: (fn: (...args: any[]) => any) => Mock<T>;
+      mockReturnValue: (value: any) => Mock<T>;
+      mockReset: () => Mock<T>;
+      mockRestore: () => void;
+      mockClear: () => Mock<T>;
+      mock: {
+        calls: any[][];
+        instances: any[];
+        contexts: any[];
+        results: any[];
+      };
+    };
   }
   
   const expect: jest.Expect;

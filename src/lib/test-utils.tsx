@@ -18,6 +18,10 @@ if (typeof jest !== 'undefined') {
     (jest as any).fn = (implementation?: any) => {
       const mockFn = implementation || (() => {});
       mockFn.mockImplementation = (fn: any) => fn;
+      mockFn.mockReturnValue = (val: any) => {
+        mockFn.implementation = () => val;
+        return mockFn;
+      };
       return mockFn;
     };
   }

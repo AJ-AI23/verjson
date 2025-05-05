@@ -1,6 +1,8 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { useDiagramNodes } from '../useDiagramNodes';
+import { useSchemaProcessor } from '../useSchemaProcessor';
+import { useEdgeValidator } from '../useEdgeValidator';
 
 // Mock dependencies
 jest.mock('@xyflow/react', () => ({
@@ -29,6 +31,17 @@ jest.mock('../useNodePositions', () => ({
   })
 }));
 
+jest.mock('../useSchemaProcessor', () => ({
+  useSchemaProcessor: jest.fn(() => ({
+    generatedElements: { nodes: [], edges: [] },
+    schemaKey: 0
+  }))
+}));
+
+jest.mock('../useEdgeValidator', () => ({
+  useEdgeValidator: jest.fn(() => jest.fn())
+}));
+
 describe('useDiagramNodes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -43,20 +56,34 @@ describe('useDiagramNodes', () => {
     expect(result.current.edges).toEqual([]);
   });
   
-  it('should increment schemaKey when schema changes', () => {
-    const { result, rerender } = renderHook(
-      (props: any) => useDiagramNodes(props.schema, props.error, props.groupProperties),
-      { initialProps: { schema: null, error: false, groupProperties: false } }
+  it('should use the schemaKey from useSchemaProcessor', () => {
+    // Mock the schemaKey value
+    (useSchemaProcessor as jest.Mock<any>).mockReturnValue({
+      generatedElements: { nodes: [], edges: [] },
+      schemaKey: 42
+    });
+    
+    const { result } = renderHook(() => 
+      useDiagramNodes({ type: 'object' }, false, false)
     );
     
-    const initialSchemaKey = result.current.schemaKey;
-    
-    // Change the schema
-    rerender({ schema: { type: 'object' }, error: false, groupProperties: false });
-    
-    // Check that schemaKey incremented
-    expect(result.current.schemaKey).toBe(initialSchemaKey + 1);
+    expect(result.current.schemaKey).toBe(42);
   });
   
-  // More tests would be added here for validateAndSetEdges and other functionality
+  // Test that validateAndSetEdges is called with the right arguments
+  it('should use the edge validator', () => {
+    const mockValidator = jest.fn();
+    (useEdgeValidator as jest.Mock<any>).mockReturnValue(mockValidator);
+    
+    (useSchemaProcessor as jest.Mock<any>).mockReturnValue({
+      generatedElements: { nodes: [{ id: 'test' }], edges: [{ id: 'edge1' }] },
+      schemaKey: 1
+    });
+    
+    renderHook(() => 
+      useDiagramNodes({ type: 'object' }, false, false)
+    );
+    
+    expect(mockValidator).toHaveBeenCalledWith([{ id: 'edge1' }]);
+  });
 });

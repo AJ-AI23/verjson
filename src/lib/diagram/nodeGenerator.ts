@@ -1,123 +1,137 @@
-import { Node, Edge } from '@xyflow/react';
-import { v4 as uuidv4 } from 'uuid';
-import { DiagramElements, PropertyDetails } from './types';
 
-// Constants for layout
-const BASE_X_OFFSET = 200;
-const BASE_Y_OFFSET = 100;
-const X_OFFSET = 300;
-const Y_OFFSET = 150;
-const COLUMNS_PER_ROW = 3;
+import { Node } from '@xyflow/react';
+import { PropertyDetails } from './types';
 
-// Helper function to generate a unique ID
-const uniqueId = () => uuidv4();
-
-// Helper function to determine the type of a schema
-const determineType = (schema: any): string => {
-  if (schema.$ref) return 'reference';
-  if (schema.type) return schema.type;
-  if (schema.properties) return 'object';
-  if (schema.items) return 'array';
-  return 'unknown';
-};
-
-// Helper function to create an edge
-const createEdge = (source: string, target: string): Edge => {
+export const createRootNode = (schema: any): Node => {
   return {
-    id: `edge-${source}-${target}`,
-    source: source,
-    target: target,
-    type: 'smoothstep',
-    animated: true,
-  };
-};
-
-// Add the jsonPath to the node data
-export const createRootNode = (schema: any, basePath: string = ''): Node => {
-  const { type, title, description, properties } = schema;
-  const nodeId = 'root';
-
-  return {
-    id: nodeId,
+    id: 'root',
     type: 'schemaType',
     position: { x: 0, y: 0 },
     data: {
-      label: title || 'Root Schema',
-      type: type || 'object',
-      description,
+      label: schema.title || 'Root Schema',
+      type: schema.type,
+      description: schema.description,
       isRoot: true,
-      properties: properties ? Object.keys(properties).length : 0,
-      jsonPath: basePath || 'root'  // Add the JSON path
-    }
-  };
-};
-
-export const createPropertyNode = (
-  propertyName: string,
-  propertySchema: any,
-  x: number,
-  y: number,
-  required: boolean = false,
-  basePath: string = ''
-): Node => {
-  const hasProperties = propertySchema.properties !== undefined;
-  
-  // Create the JSON path for this property
-  const jsonPath = basePath 
-    ? `${basePath}.properties.${propertyName}` 
-    : `properties.${propertyName}`;
-  
-  return {
-    id: `${propertyName}-${uniqueId()}`,
-    type: 'schemaType',
-    position: { x, y },
-    data: {
-      label: propertyName,
-      type: propertySchema.type || determineType(propertySchema),
-      description: propertySchema.description,
-      format: propertySchema.format,
-      required,
-      reference: propertySchema.$ref,
-      properties: hasProperties ? Object.keys(propertySchema.properties).length : undefined,
-      minItems: propertySchema.minItems,
-      maxItems: propertySchema.maxItems,
-      jsonPath   // Add the JSON path
+      properties: schema.properties ? Object.keys(schema.properties).length : 0
     }
   };
 };
 
 export const createGroupNode = (
-  groupName: string,
-  properties: { [key: string]: any },
-  required: string[] = [],
-  x: number,
-  y: number,
-  basePath: string = ''
+  parentId: string, 
+  properties: Record<string, any>, 
+  requiredProps: string[], 
+  yPosition: number
 ): Node => {
-  const propertyDetails: PropertyDetails[] = Object.entries(properties).map(([key, schema]) => ({
-    name: key,
-    type: schema.type || determineType(schema),
-    required: required.includes(key),
-    format: schema.format,
-    description: schema.description,
-    reference: schema.$ref,
-  }));
+  const groupNodeId = parentId === 'root' ? 'props' : `${parentId}-props`;
   
-  // Create the JSON path for this group
-  const jsonPath = basePath 
-    ? `${basePath}.properties` 
-    : 'properties';
-
   return {
-    id: `group-${groupName}-${uniqueId()}`,
+    id: groupNodeId,
     type: 'schemaType',
-    position: { x, y },
+    position: { x: 0, y: yPosition },
     data: {
-      label: `${groupName} Properties`,
+      label: parentId === 'root' ? 'Properties' : 'Nested Properties',
       type: 'object',
       isGroup: true,
-      propertyDetails: propertyDetails,
-      jsonPath   // Add the JSON path
+      properties: Object.keys(properties).length,
+      propertyDetails: Object.entries(properties).map(([name, prop]: [string, any]) => ({
+        name,
+        type: prop.type || (prop.$ref ? 'reference' : 'unknown'),
+        required: requiredProps.includes(name),
+        format: prop.format,
+        description: prop.description,
+        reference: prop.$ref
+      } as PropertyDetails))
+    }
+  };
+};
+
+export const createArrayNode = (
+  groupNodeId: string,
+  propName: string,
+  propSchema: any,
+  yPosition: number
+): Node => {
+  const arrayNodeId = `${groupNodeId}-${propName}-array`;
+  
+  return {
+    id: arrayNodeId,
+    type: 'schemaType',
+    position: { x: -200, y: yPosition },
+    data: {
+      label: `${propName} (Array)`,
+      type: 'array',
+      minItems: propSchema.minItems,
+      maxItems: propSchema.maxItems
+    }
+  };
+};
+
+export const createPropertyNode = (
+  propName: string,
+  propSchema: any,
+  requiredProps: string[],
+  xPos: number,
+  yOffset: number
+): Node => {
+  const nodeId = `prop-${propName}`;
+  
+  return {
+    id: nodeId,
+    type: 'schemaType',
+    position: { x: xPos, y: yOffset },
+    data: {
+      label: propName,
+      type: propSchema.type || 'object', // Default to object for OAS refs
+      description: propSchema.description,
+      required: requiredProps.includes(propName),
+      format: propSchema.format,
+    }
+  };
+};
+
+export const createNestedPropertyNode = (
+  parentNodeId: string,
+  nestedName: string,
+  nestedSchema: any,
+  nestedRequired: string[],
+  nestedXPos: number,
+  nestedYOffset: number
+): Node => {
+  const nestedNodeId = `${parentNodeId}-${nestedName}`;
+  
+  return {
+    id: nestedNodeId,
+    type: 'schemaType',
+    position: { x: nestedXPos, y: nestedYOffset },
+    data: {
+      label: nestedName,
+      type: nestedSchema.type || 'unknown',
+      description: nestedSchema.description,
+      required: nestedRequired.includes(nestedName),
+      format: nestedSchema.format
+    }
+  };
+};
+
+export const createArrayItemNode = (
+  parentNodeId: string,
+  itemSchema: any,
+  xPos: number,
+  yOffset: number
+): Node => {
+  const itemNodeId = `${parentNodeId}-items`;
+  
+  return {
+    id: itemNodeId,
+    type: 'schemaType',
+    position: { x: xPos, y: yOffset + 150 },
+    data: {
+      label: 'Array Item',
+      type: itemSchema.type || (itemSchema.$ref ? 'reference' : 'unknown'),
+      description: itemSchema.description,
+      format: itemSchema.format,
+      reference: itemSchema.$ref
     }
   };
 };

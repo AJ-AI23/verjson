@@ -1,6 +1,6 @@
 
-import React, { useCallback, useEffect, useRef } from 'react';
-import { ReactFlow, Background, Controls, Node, Edge, ReactFlowInstance, useReactFlow } from '@xyflow/react';
+import React, { useCallback, useEffect, useRef, memo } from 'react';
+import { ReactFlow, Background, Controls, Node, Edge, ReactFlowInstance } from '@xyflow/react';
 import { SchemaTypeNode } from '@/components/SchemaTypeNode';
 
 interface DiagramFlowProps {
@@ -10,56 +10,66 @@ interface DiagramFlowProps {
   onEdgesChange: (changes: any) => void;
   schemaKey: number;
   shouldFitView: boolean;
-  onNodeClick?: (event: React.MouseEvent, node: any) => void;
-  onPaneClick?: () => void;
 }
 
 const nodeTypes = {
   schemaType: SchemaTypeNode,
 };
 
-export const DiagramFlow: React.FC<DiagramFlowProps> = ({
+// Memoize the component to prevent unnecessary re-renders
+export const DiagramFlow: React.FC<DiagramFlowProps> = memo(({
   nodes,
   edges,
   onNodesChange,
   onEdgesChange,
   schemaKey,
-  shouldFitView,
-  onNodeClick,
-  onPaneClick
+  shouldFitView
 }) => {
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const viewportRef = useRef<{ x: number; y: number; zoom: number }>({ x: 0, y: 0, zoom: 1 });
+  const containerRef = useRef<HTMLDivElement>(null);
   
-  // Store viewport when it changes
+  // Store viewport when it changes - memoize the callback
   const onMove = useCallback(() => {
     if (reactFlowInstanceRef.current) {
       const currentViewport = reactFlowInstanceRef.current.getViewport();
       viewportRef.current = currentViewport;
-      console.log('Stored viewport:', currentViewport);
     }
   }, []);
 
-  // Store reference to ReactFlow instance
+  // Store reference to ReactFlow instance - memoize the callback
   const onInit = useCallback((instance: ReactFlowInstance) => {
     console.log('ReactFlow initialized');
     reactFlowInstanceRef.current = instance;
     
     // If we have a stored viewport and shouldn't fit view, set it immediately
     if (!shouldFitView && viewportRef.current) {
-      setTimeout(() => {
+      // Use requestAnimationFrame instead of setTimeout for smoother rendering
+      requestAnimationFrame(() => {
         if (instance) {
           instance.setViewport(viewportRef.current);
-          console.log('Applied initial viewport:', viewportRef.current);
         }
-      }, 50);
+      });
     }
   }, [shouldFitView]);
 
+  // Ensure container stays visible
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.style.visibility = 'visible';
+    }
+  }, [nodes, edges]);
+
+  // Ensure ReactFlow instance is properly cleaned up on unmount
+  useEffect(() => {
+    return () => {
+      reactFlowInstanceRef.current = null;
+    };
+  }, []);
+
   return (
-    <div className="flex-1 diagram-container">
+    <div className="flex-1 diagram-container" ref={containerRef}>
       <ReactFlow
-        key={`flow-${schemaKey}`}
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
@@ -74,12 +84,13 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
         onMove={onMove}
         onMoveEnd={onMove}
         defaultViewport={viewportRef.current} // Use stored viewport as default
-        onNodeClick={onNodeClick}
-        onPaneClick={onPaneClick}
       >
         <Controls />
         <Background gap={16} size={1} color="#e5e7eb" />
       </ReactFlow>
     </div>
   );
-};
+});
+
+// Add display name for better debugging
+DiagramFlow.displayName = 'DiagramFlow';

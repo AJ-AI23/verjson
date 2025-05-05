@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { SplitPane } from '@/components/SplitPane';
 import { JsonEditor } from '@/components/JsonEditor';
-import { SchemaDiagram } from '@/components/diagram/SchemaDiagram';
+import { SchemaDiagram } from '@/components/SchemaDiagram';
 import { toast } from 'sonner';
 import { defaultSchema } from '@/lib/defaultSchema';
 import { defaultOasSchema } from '@/lib/defaultOasSchema';
@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileJson, FileCode, BoxSelect, Rows3, ToggleLeft, ToggleRight } from 'lucide-react';
+import { FileJson, FileCode, BoxSelect, Rows3 } from 'lucide-react';
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
@@ -29,8 +29,6 @@ export const Editor = () => {
   const [error, setError] = useState<string | null>(null);
   const [schemaType, setSchemaType] = useState<SchemaType>('json-schema');
   const [groupProperties, setGroupProperties] = useState(false);
-  const [highlightEnabled, setHighlightEnabled] = useState(false);
-  const [selectedNodePath, setSelectedNodePath] = useState<string | null>(null);
 
   // Debounced schema validation to avoid excessive processing
   const validateSchema = useCallback((schemaText: string, type: SchemaType) => {
@@ -53,19 +51,6 @@ export const Editor = () => {
     validateSchema(schema, schemaType);
   }, [schema, schemaType, validateSchema]);
 
-  // Clear selected node when highlighting is disabled
-  useEffect(() => {
-    if (!highlightEnabled) {
-      setSelectedNodePath(null);
-    }
-  }, [highlightEnabled]);
-
-  const handleNodeSelect = useCallback((path: string | null) => {
-    if (highlightEnabled) {
-      setSelectedNodePath(path);
-    }
-  }, [highlightEnabled]);
-
   const handleEditorChange = (value: string) => {
     setSchema(value);
   };
@@ -84,11 +69,6 @@ export const Editor = () => {
   const handleGroupPropertiesChange = (checked: boolean) => {
     setGroupProperties(checked);
     toast.success(`${checked ? 'Grouped' : 'Expanded'} properties view`);
-  };
-
-  const handleHighlightChange = (checked: boolean) => {
-    setHighlightEnabled(checked);
-    toast.success(`${checked ? 'Enabled' : 'Disabled'} JSON highlighting`);
   };
 
   return (
@@ -116,30 +96,16 @@ export const Editor = () => {
             : 'OpenAPI 3.1 specification format with JSON Schema components'}
         </span>
         
-        <div className="flex items-center space-x-4 ml-auto">
-          <div className="flex items-center space-x-2">
-            <Switch 
-              id="highlight-json" 
-              checked={highlightEnabled}
-              onCheckedChange={handleHighlightChange}
-            />
-            <Label htmlFor="highlight-json" className="flex items-center gap-2 cursor-pointer">
-              {highlightEnabled ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
-              <span>Highlight JSON</span>
-            </Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Switch 
-              id="group-properties" 
-              checked={groupProperties}
-              onCheckedChange={handleGroupPropertiesChange}
-            />
-            <Label htmlFor="group-properties" className="flex items-center gap-2 cursor-pointer">
-              {groupProperties ? <BoxSelect className="h-4 w-4" /> : <Rows3 className="h-4 w-4" />}
-              <span>Group Properties</span>
-            </Label>
-          </div>
+        <div className="flex items-center space-x-2 ml-auto">
+          <Switch 
+            id="group-properties" 
+            checked={groupProperties}
+            onCheckedChange={handleGroupPropertiesChange}
+          />
+          <Label htmlFor="group-properties" className="flex items-center gap-2 cursor-pointer">
+            {groupProperties ? <BoxSelect className="h-4 w-4" /> : <Rows3 className="h-4 w-4" />}
+            <span>Group Properties</span>
+          </Label>
         </div>
       </div>
       <SplitPane>
@@ -147,14 +113,11 @@ export const Editor = () => {
           value={schema} 
           onChange={handleEditorChange} 
           error={error}
-          highlightPath={selectedNodePath}
         />
         <SchemaDiagram 
           schema={parsedSchema}
           error={error !== null}
           groupProperties={groupProperties}
-          highlightEnabled={highlightEnabled}
-          onNodeSelect={handleNodeSelect}
         />
       </SplitPane>
     </div>
