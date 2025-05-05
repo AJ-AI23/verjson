@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Node, Edge, useNodesState, useEdgesState } from '@xyflow/react';
 import { generateNodesAndEdges } from '@/lib/diagram';
 import { useNodePositions } from './useNodePositions';
@@ -23,7 +23,7 @@ export const useDiagramNodes = (
   }, [schema, error, groupProperties]);
 
   // Validate edges against nodes to ensure no orphaned edges
-  const validateAndSetEdges = (currentEdges: Edge[]) => {
+  const validateAndSetEdges = useCallback((currentEdges: Edge[]) => {
     if (nodes.length === 0) {
       setEdges([]);
       return;
@@ -42,7 +42,7 @@ export const useDiagramNodes = (
       console.log(`Removed ${currentEdges.length - validEdges.length} orphaned edges`);
       setEdges(validEdges);
     }
-  };
+  }, [nodes, setEdges]);
 
   // Effect for schema or error changes
   useEffect(() => {
@@ -99,7 +99,7 @@ export const useDiagramNodes = (
       // If there are no nodes but there are edges, clear the edges
       setEdges([]);
     }
-  }, [nodes, edges.length, setEdges, edges, validateAndSetEdges]);
+  }, [nodes, edges, setEdges, validateAndSetEdges]);
 
   return {
     nodes,
