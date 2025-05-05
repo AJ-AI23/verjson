@@ -31,6 +31,19 @@ if (typeof jest !== 'undefined') {
   if (!jest.clearAllMocks) {
     (jest as any).clearAllMocks = () => {};
   }
+
+  // Add timer-related functions
+  if (!jest.useFakeTimers) {
+    (jest as any).useFakeTimers = () => {};
+  }
+  
+  if (!jest.useRealTimers) {
+    (jest as any).useRealTimers = () => {};
+  }
+  
+  if (!jest.runAllTimers) {
+    (jest as any).runAllTimers = () => {};
+  }
 }
 
 // Mock ReactFlow to avoid errors in tests

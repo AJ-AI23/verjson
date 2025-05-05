@@ -8,6 +8,9 @@ declare global {
     fn: (implementation?: any) => any;
     mock: (moduleName: string, factory?: any) => void;
     clearAllMocks: () => void;
+    useFakeTimers: () => void;
+    useRealTimers: () => void;
+    runAllTimers: () => void;
   };
   
   // Extend the NodeJS namespace for TypeScript
