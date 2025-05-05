@@ -58,7 +58,7 @@ describe('useDiagramNodes', () => {
   
   it('should use the schemaKey from useSchemaProcessor', () => {
     // Mock the schemaKey value
-    (useSchemaProcessor as jest.Mock).mockReturnValue({
+    (useSchemaProcessor as jest.Mock<any>).mockReturnValue({
       generatedElements: { nodes: [], edges: [] },
       schemaKey: 42
     });
@@ -73,9 +73,9 @@ describe('useDiagramNodes', () => {
   // Test that validateAndSetEdges is called with the right arguments
   it('should use the edge validator', () => {
     const mockValidator = jest.fn();
-    (useEdgeValidator as jest.Mock).mockReturnValue(mockValidator);
+    (useEdgeValidator as jest.Mock<any>).mockReturnValue(mockValidator);
     
-    (useSchemaProcessor as jest.Mock).mockReturnValue({
+    (useSchemaProcessor as jest.Mock<any>).mockReturnValue({
       generatedElements: { nodes: [{ id: 'test' }], edges: [{ id: 'edge1' }] },
       schemaKey: 1
     });

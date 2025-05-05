@@ -45,7 +45,7 @@ describe('useSchemaProcessor', () => {
   it('should call generateNodesAndEdges when schema is valid', () => {
     const mockSchema = { type: 'object', properties: {} };
     
-    (generateNodesAndEdges as jest.Mock).mockReturnValue({
+    (generateNodesAndEdges as jest.Mock<any>).mockReturnValue({
       nodes: [{ id: 'node1' }],
       edges: [{ id: 'edge1' }]
     });
