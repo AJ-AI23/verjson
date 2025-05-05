@@ -19,13 +19,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileJson, FileCode } from 'lucide-react';
+import { FileJson, FileCode, BoxSelect, Rows3 } from 'lucide-react';
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 export const Editor = () => {
   const [schema, setSchema] = useState(defaultSchema);
   const [parsedSchema, setParsedSchema] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [schemaType, setSchemaType] = useState<SchemaType>('json-schema');
+  const [groupProperties, setGroupProperties] = useState(false);
 
   useEffect(() => {
     try {
@@ -58,9 +61,14 @@ export const Editor = () => {
     toast.success(`Switched to ${value === 'json-schema' ? 'JSON Schema' : 'OpenAPI 3.1'} mode`);
   };
 
+  const handleGroupPropertiesChange = (checked: boolean) => {
+    setGroupProperties(checked);
+    toast.success(`${checked ? 'Grouped' : 'Expanded'} properties view`);
+  };
+
   return (
     <div className="json-schema-editor">
-      <div className="mb-4 flex items-center gap-4">
+      <div className="mb-4 flex flex-wrap items-center gap-4">
         <Select value={schemaType} onValueChange={(value) => handleSchemaTypeChange(value as SchemaType)}>
           <SelectTrigger className="w-[200px]">
             <div className="flex items-center gap-2">
@@ -82,6 +90,18 @@ export const Editor = () => {
             ? 'Standard JSON Schema format'
             : 'OpenAPI 3.1 specification format with JSON Schema components'}
         </span>
+        
+        <div className="flex items-center space-x-2 ml-auto">
+          <Switch 
+            id="group-properties" 
+            checked={groupProperties}
+            onCheckedChange={handleGroupPropertiesChange}
+          />
+          <Label htmlFor="group-properties" className="flex items-center gap-2 cursor-pointer">
+            {groupProperties ? <BoxSelect className="h-4 w-4" /> : <Rows3 className="h-4 w-4" />}
+            <span>Group Properties</span>
+          </Label>
+        </div>
       </div>
       <SplitPane>
         <JsonEditor 
@@ -92,6 +112,7 @@ export const Editor = () => {
         <SchemaDiagram 
           schema={parsedSchema}
           error={error !== null}
+          groupProperties={groupProperties}
         />
       </SplitPane>
     </div>

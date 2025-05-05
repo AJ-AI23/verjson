@@ -4,6 +4,15 @@ import { Handle, Position } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
+interface PropertyDetail {
+  name: string;
+  type: string;
+  required?: boolean;
+  format?: string;
+  description?: string;
+  reference?: string;
+}
+
 interface SchemaTypeNodeProps {
   data: {
     label: string;
@@ -15,7 +24,9 @@ interface SchemaTypeNodeProps {
     minItems?: number;
     maxItems?: number;
     isRoot?: boolean;
+    isGroup?: boolean;
     reference?: string;
+    propertyDetails?: PropertyDetail[];
   };
   id: string;
   isConnectable: boolean;
@@ -32,16 +43,33 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
     minItems,
     maxItems,
     isRoot,
+    isGroup,
     reference,
+    propertyDetails,
   } = data;
+
+  const getTypeBadgeClasses = (type: string) => {
+    return cn(
+      'text-xs px-2',
+      type === 'string' && 'bg-blue-100 text-blue-800 border-blue-200',
+      type === 'number' && 'bg-green-100 text-green-800 border-green-200',
+      type === 'integer' && 'bg-green-100 text-green-800 border-green-200',
+      type === 'boolean' && 'bg-purple-100 text-purple-800 border-purple-200',
+      type === 'array' && 'bg-amber-100 text-amber-800 border-amber-200',
+      type === 'object' && 'bg-slate-100 text-slate-800 border-slate-200',
+      type === 'reference' && 'bg-pink-100 text-pink-800 border-pink-200',
+    );
+  };
 
   return (
     <div
       className={cn(
-        'px-3 py-2 rounded-md shadow-sm border min-w-[160px] max-w-[240px]',
+        'px-3 py-2 rounded-md shadow-sm border min-w-[160px]',
+        isGroup ? 'max-w-[380px]' : 'max-w-[240px]',
         `node-${type}`,
         required && 'node-required',
-        isRoot && 'border-2 border-blue-500 bg-blue-50'
+        isRoot && 'border-2 border-blue-500 bg-blue-50',
+        isGroup && 'border-2 border-slate-300 bg-slate-50'
       )}
     >
       {!isRoot && (
@@ -58,16 +86,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
           <span className="font-medium text-sm truncate" title={label}>
             {label}
           </span>
-          <Badge variant="outline" className={cn(
-            'text-xs px-2',
-            type === 'string' && 'bg-blue-100 text-blue-800 border-blue-200',
-            type === 'number' && 'bg-green-100 text-green-800 border-green-200',
-            type === 'integer' && 'bg-green-100 text-green-800 border-green-200',
-            type === 'boolean' && 'bg-purple-100 text-purple-800 border-purple-200',
-            type === 'array' && 'bg-amber-100 text-amber-800 border-amber-200',
-            type === 'object' && 'bg-slate-100 text-slate-800 border-slate-200',
-            type === 'reference' && 'bg-pink-100 text-pink-800 border-pink-200',
-          )}>
+          <Badge variant="outline" className={getTypeBadgeClasses(type)}>
             {type}
           </Badge>
         </div>
@@ -93,7 +112,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
           </div>
         )}
 
-        {properties !== undefined && (
+        {properties !== undefined && !isGroup && (
           <div className="text-xs">
             <span className="text-slate-500">properties:</span> {properties}
           </div>
@@ -107,8 +126,37 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
           </div>
         )}
 
-        {required && (
+        {required && !isGroup && (
           <div className="text-xs font-medium text-blue-600">Required</div>
+        )}
+        
+        {isGroup && propertyDetails && propertyDetails.length > 0 && (
+          <div className="mt-2 border-t pt-2">
+            <div className="text-xs font-medium mb-1">Properties:</div>
+            <div className="grid gap-2">
+              {propertyDetails.map((prop, index) => (
+                <div key={index} className="flex items-start gap-1 text-xs">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium">{prop.name}</span>
+                      {prop.required && (
+                        <span className="text-[10px] text-blue-600">*</span>
+                      )}
+                    </div>
+                    {prop.description && (
+                      <p className="text-slate-500 text-[10px] truncate" title={prop.description}>
+                        {prop.description}
+                      </p>
+                    )}
+                  </div>
+                  <Badge variant="outline" className={cn("text-[9px] py-0 px-1 h-4", getTypeBadgeClasses(prop.type))}>
+                    {prop.type}
+                    {prop.format && `:${prop.format}`}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 

@@ -16,23 +16,24 @@ import { generateNodesAndEdges } from '@/lib/diagramUtils';
 interface SchemaDiagramProps {
   schema: any;
   error: boolean;
+  groupProperties?: boolean;
 }
 
 const nodeTypes = {
   schemaType: SchemaTypeNode,
 };
 
-export const SchemaDiagram = ({ schema, error }: SchemaDiagramProps) => {
+export const SchemaDiagram = ({ schema, error, groupProperties = false }: SchemaDiagramProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
   useEffect(() => {
     if (schema && !error) {
-      const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema);
+      const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties);
       setNodes(newNodes);
       setEdges(newEdges);
     }
-  }, [schema, error, setNodes, setEdges]);
+  }, [schema, error, groupProperties, setNodes, setEdges]);
 
   if (error) {
     return (
