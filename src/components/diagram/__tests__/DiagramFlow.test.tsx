@@ -49,12 +49,24 @@ describe('DiagramFlow', () => {
     // Use a mocked timer to test the timeout behavior
     jest.useFakeTimers();
     
+    // Render with shouldFitView=false to test viewport preservation
     render(<DiagramFlow {...mockProps} shouldFitView={false} />);
     
-    // Fast-forward timers
+    // Fast-forward timers to trigger any setTimeout calls
     jest.runAllTimers();
     
     // Reset timers
     jest.useRealTimers();
+  });
+  
+  it('updates viewport reference when shouldFitView changes', () => {
+    // Start with fitting the view
+    const { rerender } = render(<DiagramFlow {...mockProps} shouldFitView={true} />);
+    
+    // Then change to not fitting the view
+    rerender(<DiagramFlow {...mockProps} shouldFitView={false} />);
+    
+    // The update should happen (we can't test the actual viewport since it's all mocked)
+    // But at least we're testing that the component doesn't crash
   });
 });

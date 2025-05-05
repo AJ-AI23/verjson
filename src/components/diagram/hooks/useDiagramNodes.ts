@@ -14,13 +14,23 @@ export const useDiagramNodes = (
   const [prevGroupSetting, setPrevGroupSetting] = useState(groupProperties);
   const [schemaKey, setSchemaKey] = useState(0);
   const { nodePositionsRef, applyStoredPositions } = useNodePositions(nodes);
+  
+  // Track schema changes to avoid unnecessary regeneration
+  const schemaStringRef = useRef<string>('');
 
-  // Generate a new schema key when schema changes to force complete re-evaluation
+  // Generate a new schema key when schema really changes
   useEffect(() => {
     if (schema) {
-      setSchemaKey(prev => prev + 1);
+      // Convert schema to string for comparison
+      const schemaString = JSON.stringify(schema);
+      
+      // Only update schema key if schema actually changed or error/group settings changed
+      if (schemaString !== schemaStringRef.current || prevGroupSetting !== groupProperties) {
+        schemaStringRef.current = schemaString;
+        setSchemaKey(prev => prev + 1);
+      }
     }
-  }, [schema, error, groupProperties]);
+  }, [schema, error, groupProperties, prevGroupSetting]);
 
   // Validate edges against nodes to ensure no orphaned edges
   const validateAndSetEdges = useCallback((currentEdges: Edge[]) => {
@@ -40,10 +50,9 @@ export const useDiagramNodes = (
     // If we filtered out any edges, update the edges state
     if (validEdges.length !== currentEdges.length) {
       console.log(`Removed ${currentEdges.length - validEdges.length} orphaned edges`);
-      setEdges(validEdges);
-    } else {
-      setEdges(validEdges);
     }
+    
+    setEdges(validEdges);
   }, [nodes, setEdges]);
 
   // Effect for schema or error changes
@@ -54,14 +63,15 @@ export const useDiagramNodes = (
       // Apply saved positions to new nodes where possible
       const positionedNodes = applyStoredPositions(newNodes);
       
-      // Always reset both nodes and edges completely to avoid orphaned edges
+      // Set nodes first
       setNodes(positionedNodes);
-      // Ensure we start with a clean slate for edges
-      setEdges([]);
-      // Then add the new edges after a small delay to ensure nodes are rendered
-      setTimeout(() => {
+      
+      // Then add edges after a small delay
+      const timeoutId = setTimeout(() => {
         validateAndSetEdges(newEdges);
-      }, 50);
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
     } else {
       // Clear both nodes and edges when there's an error or no schema
       setNodes([]);
@@ -81,27 +91,28 @@ export const useDiagramNodes = (
         // When changing group mode, try to maintain positions where possible
         const positionedNodes = applyStoredPositions(newNodes);
         
-        // Clear edges before setting nodes to avoid orphaned edges
-        setEdges([]);
+        // Set nodes
         setNodes(positionedNodes);
         
-        // Add edges after a small delay to ensure nodes are rendered
-        setTimeout(() => {
+        // Add edges after a delay
+        const timeoutId = setTimeout(() => {
           validateAndSetEdges(newEdges);
-        }, 50);
+        }, 100);
+        
+        return () => clearTimeout(timeoutId);
       }
     }
   }, [groupProperties, prevGroupSetting, schema, error, setNodes, setEdges, applyStoredPositions, validateAndSetEdges]);
 
   // Validate edges against nodes
   useEffect(() => {
-    if (nodes.length > 0) {
+    if (nodes.length > 0 && edges.length > 0) {
       validateAndSetEdges(edges);
     } else if (nodes.length === 0 && edges.length > 0) {
       // If there are no nodes but there are edges, clear the edges
       setEdges([]);
     }
-  }, [nodes, edges, validateAndSetEdges, setEdges]);
+  }, [nodes.length, edges.length, validateAndSetEdges, setEdges, edges]);
 
   return {
     nodes,
