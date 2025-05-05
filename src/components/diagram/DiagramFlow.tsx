@@ -1,6 +1,6 @@
 
 import React, { useCallback, useEffect, useRef } from 'react';
-import { ReactFlow, Background, Controls, Node, Edge, ReactFlowInstance } from '@xyflow/react';
+import { ReactFlow, Background, Controls, Node, Edge, ReactFlowInstance, useReactFlow } from '@xyflow/react';
 import { SchemaTypeNode } from '@/components/SchemaTypeNode';
 
 interface DiagramFlowProps {
@@ -25,13 +25,14 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
   shouldFitView
 }) => {
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null);
-  const viewportRef = useRef<{ x: number; y: number; zoom: number } | null>(null);
+  const viewportRef = useRef<{ x: number; y: number; zoom: number }>({ x: 0, y: 0, zoom: 1 });
   
   // Store viewport when it changes
   const onMove = useCallback(() => {
     if (reactFlowInstanceRef.current) {
-      viewportRef.current = reactFlowInstanceRef.current.getViewport();
-      console.log('Stored viewport:', viewportRef.current);
+      const currentViewport = reactFlowInstanceRef.current.getViewport();
+      viewportRef.current = currentViewport;
+      console.log('Stored viewport:', currentViewport);
     }
   }, []);
 
@@ -39,22 +40,17 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
   const onInit = useCallback((instance: ReactFlowInstance) => {
     console.log('ReactFlow initialized');
     reactFlowInstanceRef.current = instance;
-  }, []);
-
-  // Simple effect to restore viewport after nodes and edges are ready
-  useEffect(() => {
-    if (!shouldFitView && viewportRef.current && reactFlowInstanceRef.current && nodes.length > 0) {
-      // Use a short timeout to ensure nodes are rendered
-      const timeoutId = setTimeout(() => {
-        if (reactFlowInstanceRef.current && viewportRef.current) {
-          console.log('Restoring viewport to:', viewportRef.current);
-          reactFlowInstanceRef.current.setViewport(viewportRef.current);
+    
+    // If we have a stored viewport and shouldn't fit view, set it immediately
+    if (!shouldFitView && viewportRef.current) {
+      setTimeout(() => {
+        if (instance) {
+          instance.setViewport(viewportRef.current);
+          console.log('Applied initial viewport:', viewportRef.current);
         }
-      }, 100);
-      
-      return () => clearTimeout(timeoutId);
+      }, 50);
     }
-  }, [nodes, edges, shouldFitView]);
+  }, [shouldFitView]);
 
   return (
     <div className="flex-1 diagram-container">
@@ -73,6 +69,7 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
         onInit={onInit}
         onMove={onMove}
         onMoveEnd={onMove}
+        defaultViewport={viewportRef.current} // Use stored viewport as default
       >
         <Controls />
         <Background gap={16} size={1} color="#e5e7eb" />

@@ -17,6 +17,7 @@ export const useDiagramNodes = (
   
   // Track schema changes
   const schemaStringRef = useRef<string>('');
+  const updateTimeoutRef = useRef<number | null>(null);
 
   // Generate a new schema key when schema really changes
   useEffect(() => {
@@ -26,9 +27,15 @@ export const useDiagramNodes = (
       
       // Only update schema key if schema or grouping changed
       if (schemaString !== schemaStringRef.current || prevGroupSetting !== groupProperties) {
-        console.log('Schema or groupProperties changed, updating schema key');
+        console.log('Schema or groupProperties changed');
         schemaStringRef.current = schemaString;
-        // Use simple counter for schema key instead of timestamp
+        
+        // Clear any pending updates
+        if (updateTimeoutRef.current !== null) {
+          clearTimeout(updateTimeoutRef.current);
+        }
+        
+        // Use simple counter for schema key
         setSchemaKey(prev => prev + 1);
       }
     }
@@ -67,13 +74,12 @@ export const useDiagramNodes = (
       const positionedNodes = applyStoredPositions(newNodes);
       console.log(`Generated ${positionedNodes.length} nodes and ${newEdges.length} edges`);
       
-      // Set nodes first
-      setNodes(positionedNodes);
-      
-      // Then add edges after a small delay
-      setTimeout(() => {
+      // Batch the updates to minimize re-renders
+      updateTimeoutRef.current = window.setTimeout(() => {
+        setNodes(positionedNodes);
         validateAndSetEdges(newEdges);
-      }, 50);
+        updateTimeoutRef.current = null;
+      }, 10);
     } else {
       // Clear both nodes and edges when there's an error or no schema
       if (nodes.length > 0 || edges.length > 0) {
@@ -82,6 +88,13 @@ export const useDiagramNodes = (
         setEdges([]);
       }
     }
+    
+    // Cleanup
+    return () => {
+      if (updateTimeoutRef.current !== null) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+    };
   }, [schema, error, groupProperties, setNodes, setEdges, schemaKey, applyStoredPositions, validateAndSetEdges, nodes.length, edges.length]);
 
   // Effect specifically for groupProperties toggle changes
