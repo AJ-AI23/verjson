@@ -36,7 +36,22 @@ if (typeof jest !== 'undefined') {
 // Mock ReactFlow to avoid errors in tests
 jest.mock('@xyflow/react', () => ({
   __esModule: true,
-  ReactFlow: ({ children }: { children: React.ReactNode }) => <div data-testid="mock-react-flow">{children}</div>,
+  ReactFlow: ({ children, onInit, onMove, onMoveEnd }: { 
+    children: React.ReactNode, 
+    onInit?: (instance: any) => void,
+    onMove?: (event: any) => void,
+    onMoveEnd?: (event: any) => void
+  }) => {
+    // Call onInit with a mock instance if provided
+    if (onInit) {
+      const mockInstance = {
+        getViewport: () => ({ x: 0, y: 0, zoom: 1 }),
+        setViewport: () => {}
+      };
+      setTimeout(() => onInit(mockInstance), 0);
+    }
+    return <div data-testid="mock-react-flow">{children}</div>;
+  },
   Background: () => <div data-testid="mock-background" />,
   Controls: () => <div data-testid="mock-controls" />,
   Handle: ({ type, position }: { type: string; position: string }) => (
