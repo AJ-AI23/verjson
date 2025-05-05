@@ -15,6 +15,7 @@ interface SchemaTypeNodeProps {
     minItems?: number;
     maxItems?: number;
     isRoot?: boolean;
+    reference?: string;
   };
   id: string;
   isConnectable: boolean;
@@ -31,6 +32,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
     minItems,
     maxItems,
     isRoot,
+    reference,
   } = data;
 
   return (
@@ -64,6 +66,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
             type === 'boolean' && 'bg-purple-100 text-purple-800 border-purple-200',
             type === 'array' && 'bg-amber-100 text-amber-800 border-amber-200',
             type === 'object' && 'bg-slate-100 text-slate-800 border-slate-200',
+            type === 'reference' && 'bg-pink-100 text-pink-800 border-pink-200',
           )}>
             {type}
           </Badge>
@@ -78,6 +81,15 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
         {format && (
           <div className="text-xs">
             <span className="text-slate-500">format:</span> {format}
+          </div>
+        )}
+
+        {reference && (
+          <div className="text-xs">
+            <span className="text-slate-500">$ref:</span>{' '}
+            <span className="font-mono text-[10px] truncate" title={reference}>
+              {reference}
+            </span>
           </div>
         )}
 
@@ -100,7 +112,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
         )}
       </div>
 
-      {(type === 'object' || type === 'array') && (
+      {(type === 'object' || type === 'array' || type === 'reference') && (
         <Handle
           type="source"
           position={Position.Bottom}

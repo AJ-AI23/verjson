@@ -46,6 +46,9 @@ export const generateNodesAndEdges = (schema: any): DiagramElements => {
     xOffset = -totalWidth / 2 + xSpacing / 2;
     
     Object.entries(properties).forEach(([propName, propSchema]: [string, any], index) => {
+      // Skip if propSchema is null or undefined
+      if (!propSchema) return;
+      
       const nodeId = `prop-${propName}`;
       const xPos = xOffset + index * xSpacing;
       
@@ -56,7 +59,7 @@ export const generateNodesAndEdges = (schema: any): DiagramElements => {
         position: { x: xPos, y: yOffset },
         data: {
           label: propName,
-          type: propSchema.type,
+          type: propSchema.type || 'object', // Default to object for OAS refs
           description: propSchema.description,
           required: requiredProps.includes(propName),
           format: propSchema.format,
@@ -89,6 +92,9 @@ export const generateNodesAndEdges = (schema: any): DiagramElements => {
         let nestedXOffset = xPos - totalNestedWidth / 2 + (xSpacing * 0.8) / 2;
         
         Object.entries(nestedProps).forEach(([nestedName, nestedSchema]: [string, any], nestedIndex) => {
+          // Skip if nestedSchema is null or undefined
+          if (!nestedSchema) return;
+          
           const nestedNodeId = `${nodeId}-${nestedName}`;
           const nestedXPos = nestedXOffset + nestedIndex * (xSpacing * 0.8);
           
@@ -99,7 +105,7 @@ export const generateNodesAndEdges = (schema: any): DiagramElements => {
             position: { x: nestedXPos, y: nestedYOffset },
             data: {
               label: nestedName,
-              type: nestedSchema.type,
+              type: nestedSchema.type || 'unknown',
               description: nestedSchema.description,
               required: nestedRequired.includes(nestedName),
               format: nestedSchema.format
@@ -136,9 +142,10 @@ export const generateNodesAndEdges = (schema: any): DiagramElements => {
           position: { x: xPos, y: yOffset + 150 },
           data: {
             label: 'Array Item',
-            type: itemSchema.type,
+            type: itemSchema.type || (itemSchema.$ref ? 'reference' : 'unknown'),
             description: itemSchema.description,
-            format: itemSchema.format
+            format: itemSchema.format,
+            reference: itemSchema.$ref
           }
         };
         

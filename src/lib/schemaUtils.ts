@@ -11,18 +11,30 @@ if (!ajv.getSchema(metaSchema.$id)) {
   ajv.addMetaSchema(metaSchema);
 }
 
-export const validateJsonSchema = (jsonString: string): any => {
+export type SchemaType = 'json-schema' | 'oas-3.1';
+
+export const validateJsonSchema = (jsonString: string, schemaType: SchemaType = 'json-schema'): any => {
   try {
     // Parse JSON
     const parsedSchema = JSON.parse(jsonString);
     
-    // Check if it has the basic structure of a JSON Schema
-    if (!parsedSchema.type) {
-      throw new Error('Schema is missing "type" property');
+    // Validate based on schema type
+    if (schemaType === 'json-schema') {
+      // Check if it has the basic structure of a JSON Schema
+      if (!parsedSchema.type) {
+        throw new Error('Schema is missing "type" property');
+      }
+    } else if (schemaType === 'oas-3.1') {
+      // Check if it has the basic structure of an OAS 3.1 document
+      if (!parsedSchema.openapi) {
+        throw new Error('Schema is missing "openapi" property');
+      }
+      
+      if (!parsedSchema.components?.schemas) {
+        throw new Error('Schema is missing "components.schemas" section');
+      }
     }
     
-    // For schema validation, we would use ajv.compile, but for simplicity, 
-    // we're just doing basic structure validation here
     return parsedSchema;
   } catch (e) {
     if (e instanceof SyntaxError) {
@@ -46,4 +58,21 @@ export const formatJsonSchema = (schema: any): string => {
   } catch (e) {
     return '';
   }
+};
+
+// Extract schema components from OAS schema for diagram visualization
+export const extractSchemaComponents = (schema: any, schemaType: SchemaType = 'json-schema'): any => {
+  if (schemaType === 'json-schema') {
+    return schema;
+  } else if (schemaType === 'oas-3.1' && schema?.components?.schemas) {
+    // For OAS, we'll visualize the schema components
+    // Create a root object that points to all the schemas
+    return {
+      type: "object",
+      title: "API Schemas",
+      description: "Components from OpenAPI specification",
+      properties: schema.components.schemas
+    };
+  }
+  return schema;
 };

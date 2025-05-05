@@ -9,7 +9,7 @@ const Index = () => {
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold text-blue-600">JSON Schema Visual Blueprint</h1>
           <div className="text-sm text-slate-500">
-            Edit and visualize JSON schemas in real-time
+            Edit and visualize JSON Schema and OpenAPI 3.1 schemas in real-time
           </div>
         </div>
       </header>
@@ -19,7 +19,7 @@ const Index = () => {
       </main>
       
       <footer className="py-2 px-6 border-t text-center text-xs text-slate-500">
-        JSON Schema Editor - Built with React, XY Flow, and Monaco Editor
+        Schema Editor - Supporting JSON Schema and OpenAPI 3.1
       </footer>
     </div>
   );
