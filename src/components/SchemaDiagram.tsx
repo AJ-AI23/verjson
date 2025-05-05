@@ -26,7 +26,9 @@ const nodeTypes = {
 export const SchemaDiagram = ({ schema, error, groupProperties = false }: SchemaDiagramProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [prevGroupSetting, setPrevGroupSetting] = useState(groupProperties);
 
+  // Effect for schema or error changes
   useEffect(() => {
     if (schema && !error) {
       const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties);
@@ -41,7 +43,21 @@ export const SchemaDiagram = ({ schema, error, groupProperties = false }: Schema
     }
   }, [schema, error, groupProperties, setNodes, setEdges]);
 
-  // Also validate edges against nodes to ensure no orphaned edges
+  // Effect specifically for groupProperties toggle changes
+  useEffect(() => {
+    if (prevGroupSetting !== groupProperties) {
+      // Force a complete reset of edges when toggling the grouping mode
+      setPrevGroupSetting(groupProperties);
+      
+      if (schema && !error) {
+        const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties);
+        setNodes(newNodes);
+        setEdges(newEdges);
+      }
+    }
+  }, [groupProperties, prevGroupSetting, schema, error, setNodes, setEdges]);
+
+  // Validate edges against nodes to ensure no orphaned edges
   useEffect(() => {
     if (nodes.length > 0 && edges.length > 0) {
       // Get all valid node IDs
@@ -56,6 +72,9 @@ export const SchemaDiagram = ({ schema, error, groupProperties = false }: Schema
       if (validEdges.length < edges.length) {
         setEdges(validEdges);
       }
+    } else if (nodes.length === 0 && edges.length > 0) {
+      // If there are no nodes but there are edges, clear the edges
+      setEdges([]);
     }
   }, [nodes, edges, setEdges]);
 
@@ -105,6 +124,7 @@ export const SchemaDiagram = ({ schema, error, groupProperties = false }: Schema
           fitViewOptions={{ padding: 0.2 }}
           minZoom={0.5}
           maxZoom={2}
+          deleteKeyCode={null} // Disable deletion with Delete key
         >
           <Controls />
           <Background gap={16} size={1} color="#e5e7eb" />

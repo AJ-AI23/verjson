@@ -58,11 +58,20 @@ export const Editor = () => {
     } else if (value === 'oas-3.1') {
       setSchema(defaultOasSchema);
     }
+    // Reset the parsed schema to force a complete diagram redraw
+    setParsedSchema(null);
     toast.success(`Switched to ${value === 'json-schema' ? 'JSON Schema' : 'OpenAPI 3.1'} mode`);
   };
 
   const handleGroupPropertiesChange = (checked: boolean) => {
     setGroupProperties(checked);
+    // Temporarily set parsedSchema to null to force a complete diagram redraw
+    const currentSchema = parsedSchema;
+    setParsedSchema(null);
+    // Use setTimeout to ensure the diagram is fully reset before setting the schema again
+    setTimeout(() => {
+      setParsedSchema(currentSchema);
+    }, 10);
     toast.success(`${checked ? 'Grouped' : 'Expanded'} properties view`);
   };
 
