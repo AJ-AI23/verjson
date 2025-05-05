@@ -1,6 +1,5 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Resizable } from 'react-resizable-panels';
 import { SplitPane } from '@/components/SplitPane';
 import { JsonEditor } from '@/components/JsonEditor';
 import { SchemaDiagram } from '@/components/SchemaDiagram';

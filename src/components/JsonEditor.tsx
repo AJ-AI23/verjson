@@ -1,7 +1,7 @@
 
 import React, { useRef, useEffect } from 'react';
-import Editor from '@monaco-editor/react';
 import { toast } from 'sonner';
+import Editor from '@monaco-editor/react';
 
 interface JsonEditorProps {
   value: string;
