@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Node, Edge, useNodesState, useEdgesState } from '@xyflow/react';
 import { generateNodesAndEdges } from '@/lib/diagram';
 import { useNodePositions } from './useNodePositions';
@@ -9,8 +9,8 @@ export const useDiagramNodes = (
   error: boolean, 
   groupProperties: boolean
 ) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node[]>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [prevGroupSetting, setPrevGroupSetting] = useState(groupProperties);
   const [schemaKey, setSchemaKey] = useState(0);
   const { nodePositionsRef, applyStoredPositions } = useNodePositions(nodes);
@@ -42,7 +42,7 @@ export const useDiagramNodes = (
       console.log(`Removed ${currentEdges.length - validEdges.length} orphaned edges`);
       setEdges(validEdges);
     } else {
-      setEdges(currentEdges);
+      setEdges(validEdges);
     }
   }, [nodes, setEdges]);
 
@@ -101,7 +101,7 @@ export const useDiagramNodes = (
       // If there are no nodes but there are edges, clear the edges
       setEdges([]);
     }
-  }, [nodes, edges, setEdges, validateAndSetEdges]);
+  }, [nodes, edges, validateAndSetEdges, setEdges]);
 
   return {
     nodes,

@@ -13,16 +13,26 @@ export { customRender as render };
 
 // Mock Jest functionality for tests
 if (typeof jest !== 'undefined') {
-  // Mock functions
-  (global as any).jest = {
-    fn: () => ({
-      mockImplementation: (fn: Function) => fn
-    }),
-    mock: (path: string) => ({
+  // Make sure jest.fn is available
+  if (!jest.fn) {
+    (jest as any).fn = (implementation?: any) => {
+      const mockFn = implementation || (() => {});
+      mockFn.mockImplementation = (fn: any) => fn;
+      return mockFn;
+    };
+  }
+  
+  // Make sure jest.mock is available
+  if (!jest.mock) {
+    (jest as any).mock = (path: string) => ({
       __esModule: true
-    }),
-    clearAllMocks: () => {}
-  };
+    });
+  }
+  
+  // Make sure jest.clearAllMocks is available
+  if (!jest.clearAllMocks) {
+    (jest as any).clearAllMocks = () => {};
+  }
 }
 
 // Mock ReactFlow to avoid errors in tests
@@ -42,14 +52,14 @@ jest.mock('@xyflow/react', () => ({
   },
   useNodesState: () => {
     const nodes: any[] = [];
-    const setNodes = () => {};
-    const onNodesChange = () => {};
+    const setNodes = jest.fn();
+    const onNodesChange = jest.fn();
     return [nodes, setNodes, onNodesChange];
   },
   useEdgesState: () => {
     const edges: any[] = [];
-    const setEdges = () => {};
-    const onEdgesChange = () => {};
+    const setEdges = jest.fn();
+    const onEdgesChange = jest.fn();
     return [edges, setEdges, onEdgesChange];
   },
 }));
