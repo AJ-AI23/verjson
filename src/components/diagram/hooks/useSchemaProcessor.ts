@@ -24,29 +24,7 @@ export const useSchemaProcessor = (
     schema ? JSON.stringify(schema) : '',
   [schema]);
 
-  // Update schema key when necessary
-  useEffect(() => {
-    // Only update schema key if schema or grouping changed
-    if (
-      schemaString !== schemaStringRef.current || 
-      prevGroupSettingRef.current !== groupProperties
-    ) {
-      console.log('Schema or groupProperties changed');
-      schemaStringRef.current = schemaString;
-      prevGroupSettingRef.current = groupProperties;
-      
-      // Clear any pending updates
-      if (updateTimeoutRef.current !== null) {
-        clearTimeout(updateTimeoutRef.current);
-        updateTimeoutRef.current = null;
-      }
-      
-      // Use simple counter for schema key
-      setSchemaKey(prev => prev + 1);
-    }
-  }, [schemaString, groupProperties]);
-
-  // Effect for schema or error changes - separated from key changes
+  // Effect for handling schema or groupProperties changes
   useEffect(() => {
     // Skip processing if there's no schema or there's an error
     if (!schema || error) {
@@ -57,15 +35,31 @@ export const useSchemaProcessor = (
       return;
     }
 
-    // Process the schema - only when we have a valid schema without errors
-    console.log('Generating nodes and edges');
-    const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties);
-    
-    // Batch the updates to minimize re-renders
-    updateTimeoutRef.current = window.setTimeout(() => {
-      setGeneratedElements({ nodes: newNodes, edges: newEdges });
-      updateTimeoutRef.current = null;
-    }, 10);
+    // Only update schema key if schema or grouping changed
+    if (
+      schemaString !== schemaStringRef.current || 
+      prevGroupSettingRef.current !== groupProperties
+    ) {
+      console.log('Schema or groupProperties changed, updating schema key');
+      schemaStringRef.current = schemaString;
+      prevGroupSettingRef.current = groupProperties;
+      
+      // Clear any pending updates
+      if (updateTimeoutRef.current !== null) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+      
+      // Generate nodes and edges
+      const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties);
+      
+      // Use a small delay to prevent excessive updates
+      updateTimeoutRef.current = window.setTimeout(() => {
+        console.log(`Setting ${newNodes.length} nodes and ${newEdges.length} edges from schema change`);
+        setGeneratedElements({ nodes: newNodes, edges: newEdges });
+        setSchemaKey(prev => prev + 1);
+        updateTimeoutRef.current = null;
+      }, 50);
+    }
     
     // Cleanup
     return () => {
@@ -74,7 +68,7 @@ export const useSchemaProcessor = (
         updateTimeoutRef.current = null;
       }
     };
-  }, [schema, error, groupProperties, schemaKey]);
+  }, [schema, error, groupProperties, schemaString]);
 
   return {
     generatedElements,

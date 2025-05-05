@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNodesState, useEdgesState } from '@xyflow/react';
 import { useNodePositions } from './useNodePositions';
 import { useSchemaProcessor } from './useSchemaProcessor';
@@ -16,6 +16,9 @@ export const useDiagramNodes = (
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   
+  // Track whether we have applied the initial positions
+  const hasAppliedInitialPositions = useRef(false);
+  
   // Use smaller hooks for specific functionality
   const { nodePositionsRef, applyStoredPositions } = useNodePositions(nodes);
   const { generatedElements, schemaKey } = useSchemaProcessor(schema, error, groupProperties);
@@ -30,8 +33,16 @@ export const useDiagramNodes = (
       
       setNodes(positionedNodes);
       validateAndSetEdges(generatedElements.edges);
+      
+      // Mark that we've applied positions
+      hasAppliedInitialPositions.current = true;
+    } else if (nodes.length > 0 && generatedElements.nodes.length === 0) {
+      // Clear nodes and edges if schema was cleared or has error
+      console.log('Clearing diagram nodes and edges');
+      setNodes([]);
+      setEdges([]);
     }
-  }, [generatedElements, applyStoredPositions, validateAndSetEdges, setNodes]);
+  }, [generatedElements, applyStoredPositions, validateAndSetEdges, setNodes, nodes.length]);
 
   // Apply processed nodes and edges when elements change
   useEffect(() => {
@@ -44,6 +55,7 @@ export const useDiagramNodes = (
     onNodesChange,
     onEdgesChange,
     nodePositionsRef,
-    schemaKey
+    schemaKey,
+    hasAppliedInitialPositions: hasAppliedInitialPositions.current
   };
 };

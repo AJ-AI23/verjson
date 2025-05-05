@@ -27,6 +27,7 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = memo(({
 }) => {
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const viewportRef = useRef<{ x: number; y: number; zoom: number }>({ x: 0, y: 0, zoom: 1 });
+  const containerRef = useRef<HTMLDivElement>(null);
   
   // Store viewport when it changes - memoize the callback
   const onMove = useCallback(() => {
@@ -52,6 +53,13 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = memo(({
     }
   }, [shouldFitView]);
 
+  // Ensure container stays visible
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.style.visibility = 'visible';
+    }
+  }, [nodes, edges]);
+
   // Ensure ReactFlow instance is properly cleaned up on unmount
   useEffect(() => {
     return () => {
@@ -60,9 +68,8 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = memo(({
   }, []);
 
   return (
-    <div className="flex-1 diagram-container">
+    <div className="flex-1 diagram-container" ref={containerRef}>
       <ReactFlow
-        key={`flow-${schemaKey}`}
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
