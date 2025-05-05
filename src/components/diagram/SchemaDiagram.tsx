@@ -22,6 +22,9 @@ export const SchemaDiagram = ({ schema, error, groupProperties = false }: Schema
     schemaKey
   } = useDiagramNodes(schema, error, groupProperties);
 
+  // Check if there are any stored node positions
+  const hasStoredPositions = Object.keys(nodePositionsRef.current).length > 0;
+
   if (error) {
     return <DiagramEmpty error={true} />;
   }
@@ -39,7 +42,7 @@ export const SchemaDiagram = ({ schema, error, groupProperties = false }: Schema
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         schemaKey={schemaKey}
-        shouldFitView={nodes.length > 0 && !Object.keys(nodePositionsRef.current).length}
+        shouldFitView={nodes.length > 0 && !hasStoredPositions}
       />
     </div>
   );

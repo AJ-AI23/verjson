@@ -28,13 +28,14 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
   const viewportRef = useRef<{ x: number; y: number; zoom: number } | null>(null);
   const isInitialRender = useRef(true);
   const prevNodesLengthRef = useRef<number>(nodes.length);
+  const lastSchemaKeyRef = useRef<number>(schemaKey);
 
   // Store viewport when it changes
   const onMove = useCallback((event: any) => {
     if (reactFlowInstanceRef.current) {
       const { x, y, zoom } = reactFlowInstanceRef.current.getViewport();
       viewportRef.current = { x, y, zoom };
-      console.log('Stored viewport:', viewportRef.current);
+      console.log('Stored viewport on move:', viewportRef.current);
     }
   }, []);
 
@@ -42,7 +43,7 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
     if (reactFlowInstanceRef.current) {
       const { x, y, zoom } = reactFlowInstanceRef.current.getViewport();
       viewportRef.current = { x, y, zoom };
-      console.log('Move ended, viewport:', viewportRef.current);
+      console.log('Move ended, viewport stored:', viewportRef.current);
     }
   }, []);
 
@@ -60,7 +61,7 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
           reactFlowInstanceRef.current.setViewport(viewportRef.current);
           console.log('Viewport restored on init');
         }
-      }, 100);
+      }, 250); // Increased timeout to ensure rendering is complete
     }
     
     isInitialRender.current = false;
@@ -76,22 +77,26 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
     const currentNodesLength = nodes.length;
     const nodesLengthChanged = prevNodesLengthRef.current !== currentNodesLength;
     prevNodesLengthRef.current = currentNodesLength;
+    
+    // Store schema key to detect real schema changes
+    const schemaChanged = lastSchemaKeyRef.current !== schemaKey;
+    lastSchemaKeyRef.current = schemaKey;
 
-    // Only apply viewport restoration when:
+    // We should only restore viewport when:
     // 1. We have a stored viewport
     // 2. We're not fitting the view
-    // 3. We're not in initial render
-    // 4. We have the ReactFlow instance
+    // 3. We have the ReactFlow instance
+    // 4. There's been some change (nodes, edges, or schema)
     if (
       reactFlowInstanceRef.current && 
       viewportRef.current && 
-      !shouldFitView && 
-      !isInitialRender.current
+      !shouldFitView
     ) {
-      console.log('Nodes or edges changed, restoring viewport:', viewportRef.current);
+      console.log('Change detected, preparing to restore viewport:', 
+        { nodesLengthChanged, schemaChanged, viewport: viewportRef.current });
       
-      // Different timeout approach for node count changes vs just edge/position changes
-      const timeoutDelay = nodesLengthChanged ? 150 : 50;
+      // Use a longer timeout for schema changes, shorter for other updates
+      const timeoutDelay = schemaChanged ? 300 : (nodesLengthChanged ? 200 : 100);
       
       // Use a short timeout to ensure the diagram has been updated before setting viewport
       const timeoutId = setTimeout(() => {
@@ -103,18 +108,33 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
       
       return () => clearTimeout(timeoutId);
     }
-  }, [nodes, edges, shouldFitView]);
+  }, [nodes, edges, schemaKey, shouldFitView]);
 
-  // Additional effect to update viewport reference if shouldFitView changes to false
+  // Effect to capture viewport before fit view changes
   useEffect(() => {
-    // If we're no longer fitting the view and we have a ReactFlow instance
-    if (!shouldFitView && reactFlowInstanceRef.current) {
-      // Update our viewport reference with the current viewport
+    // Capture viewport before shouldFitView changes to true
+    if (shouldFitView === false && reactFlowInstanceRef.current) {
       const { x, y, zoom } = reactFlowInstanceRef.current.getViewport();
       viewportRef.current = { x, y, zoom };
-      console.log('Updated viewport reference after fitView change:', viewportRef.current);
+      console.log('Stored viewport before fit view change:', viewportRef.current);
     }
   }, [shouldFitView]);
+
+  // Special effect to handle post-schema-change viewport restoration
+  useEffect(() => {
+    // Only run this effect when schema key changes and we're not in initial render
+    if (!isInitialRender.current && schemaKey > 0 && viewportRef.current && !shouldFitView) {
+      console.log('Schema changed, preparing viewport restoration');
+      const timeoutId = setTimeout(() => {
+        if (reactFlowInstanceRef.current && viewportRef.current) {
+          console.log('Restoring viewport after schema change:', viewportRef.current);
+          reactFlowInstanceRef.current.setViewport(viewportRef.current);
+        }
+      }, 350); // Longer timeout for schema changes
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [schemaKey, shouldFitView]);
 
   return (
     <div className="flex-1 diagram-container">

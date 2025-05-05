@@ -17,6 +17,7 @@ export const useDiagramNodes = (
   
   // Track schema changes to avoid unnecessary regeneration
   const schemaStringRef = useRef<string>('');
+  const lastGenerationTimeRef = useRef<number>(0);
 
   // Generate a new schema key when schema really changes
   useEffect(() => {
@@ -26,8 +27,11 @@ export const useDiagramNodes = (
       
       // Only update schema key if schema actually changed or error/group settings changed
       if (schemaString !== schemaStringRef.current || prevGroupSetting !== groupProperties) {
+        console.log('Schema or groupProperties changed, updating schema key');
         schemaStringRef.current = schemaString;
-        setSchemaKey(prev => prev + 1);
+        // Add current timestamp to ensure uniqueness even with same content
+        setSchemaKey(Date.now());
+        lastGenerationTimeRef.current = Date.now();
       }
     }
   }, [schema, error, groupProperties, prevGroupSetting]);
@@ -58,10 +62,24 @@ export const useDiagramNodes = (
   // Effect for schema or error changes
   useEffect(() => {
     if (schema && !error) {
+      // Check if enough time has passed since the last generation
+      const now = Date.now();
+      const timeSinceLastGeneration = now - lastGenerationTimeRef.current;
+      console.log(`Time since last generation: ${timeSinceLastGeneration}ms`);
+      
+      // Use small debounce to prevent too frequent regeneration
+      if (timeSinceLastGeneration < 100) {
+        console.log('Skipping node generation due to debounce');
+        return;
+      }
+      
+      console.log('Generating nodes and edges');
       const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties);
+      lastGenerationTimeRef.current = now;
       
       // Apply saved positions to new nodes where possible
       const positionedNodes = applyStoredPositions(newNodes);
+      console.log(`Generated ${positionedNodes.length} nodes and ${newEdges.length} edges`);
       
       // Set nodes first
       setNodes(positionedNodes);
@@ -69,20 +87,24 @@ export const useDiagramNodes = (
       // Then add edges after a small delay
       const timeoutId = setTimeout(() => {
         validateAndSetEdges(newEdges);
-      }, 100);
+      }, 150);
       
       return () => clearTimeout(timeoutId);
     } else {
       // Clear both nodes and edges when there's an error or no schema
-      setNodes([]);
-      setEdges([]);
+      if (nodes.length > 0 || edges.length > 0) {
+        console.log('Clearing nodes and edges due to error or no schema');
+        setNodes([]);
+        setEdges([]);
+      }
     }
-  }, [schema, error, groupProperties, setNodes, setEdges, schemaKey, applyStoredPositions, validateAndSetEdges]);
+  }, [schema, error, groupProperties, setNodes, setEdges, schemaKey, applyStoredPositions, validateAndSetEdges, nodes.length, edges.length]);
 
   // Effect specifically for groupProperties toggle changes
   useEffect(() => {
     if (prevGroupSetting !== groupProperties) {
       // Force a complete reset of edges when toggling the grouping mode
+      console.log('Group properties setting changed');
       setPrevGroupSetting(groupProperties);
       
       if (schema && !error) {
@@ -90,6 +112,7 @@ export const useDiagramNodes = (
         
         // When changing group mode, try to maintain positions where possible
         const positionedNodes = applyStoredPositions(newNodes);
+        console.log(`Generated ${positionedNodes.length} nodes with new group setting`);
         
         // Set nodes
         setNodes(positionedNodes);
@@ -97,7 +120,7 @@ export const useDiagramNodes = (
         // Add edges after a delay
         const timeoutId = setTimeout(() => {
           validateAndSetEdges(newEdges);
-        }, 100);
+        }, 150);
         
         return () => clearTimeout(timeoutId);
       }
