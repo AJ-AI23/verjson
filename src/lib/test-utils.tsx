@@ -11,6 +11,20 @@ const customRender = (
 export * from '@testing-library/react';
 export { customRender as render };
 
+// Mock Jest functionality for tests
+if (typeof jest !== 'undefined') {
+  // Mock functions
+  (global as any).jest = {
+    fn: () => ({
+      mockImplementation: (fn: Function) => fn
+    }),
+    mock: (path: string) => ({
+      __esModule: true
+    }),
+    clearAllMocks: () => {}
+  };
+}
+
 // Mock ReactFlow to avoid errors in tests
 jest.mock('@xyflow/react', () => ({
   __esModule: true,
@@ -28,14 +42,14 @@ jest.mock('@xyflow/react', () => ({
   },
   useNodesState: () => {
     const nodes: any[] = [];
-    const setNodes = jest.fn();
-    const onNodesChange = jest.fn();
+    const setNodes = () => {};
+    const onNodesChange = () => {};
     return [nodes, setNodes, onNodesChange];
   },
   useEdgesState: () => {
     const edges: any[] = [];
-    const setEdges = jest.fn();
-    const onEdgesChange = jest.fn();
+    const setEdges = () => {};
+    const onEdgesChange = () => {};
     return [edges, setEdges, onEdgesChange];
   },
 }));

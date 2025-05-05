@@ -3,26 +3,26 @@ import { renderHook, act } from '@testing-library/react';
 import { useDiagramNodes } from '../useDiagramNodes';
 
 // Mock dependencies
-jest.mock('@xyflow/react', () => ({
+(jest as any).mock('@xyflow/react', () => ({
   useNodesState: () => {
     const nodes: any[] = [];
-    const setNodes = jest.fn();
-    const onNodesChange = jest.fn();
+    const setNodes = (jest as any).fn();
+    const onNodesChange = (jest as any).fn();
     return [nodes, setNodes, onNodesChange];
   },
   useEdgesState: () => {
     const edges: any[] = [];
-    const setEdges = jest.fn();
-    const onEdgesChange = jest.fn();
+    const setEdges = (jest as any).fn();
+    const onEdgesChange = (jest as any).fn();
     return [edges, setEdges, onEdgesChange];
   },
 }));
 
-jest.mock('@/lib/diagram', () => ({
-  generateNodesAndEdges: jest.fn(() => ({ nodes: [], edges: [] }))
+(jest as any).mock('@/lib/diagram', () => ({
+  generateNodesAndEdges: (jest as any).fn(() => ({ nodes: [], edges: [] }))
 }));
 
-jest.mock('../useNodePositions', () => ({
+(jest as any).mock('../useNodePositions', () => ({
   useNodePositions: () => ({
     nodePositionsRef: { current: {} },
     applyStoredPositions: (nodes: any) => nodes
@@ -31,7 +31,7 @@ jest.mock('../useNodePositions', () => ({
 
 describe('useDiagramNodes', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    (jest as any).clearAllMocks();
   });
 
   it('should initialize with empty nodes and edges when schema is null', () => {
@@ -39,13 +39,13 @@ describe('useDiagramNodes', () => {
       useDiagramNodes(null, false, false)
     );
     
-    expect(result.current.nodes).toEqual([]);
-    expect(result.current.edges).toEqual([]);
+    (expect as any)(result.current.nodes).toEqual([]);
+    (expect as any)(result.current.edges).toEqual([]);
   });
   
   it('should increment schemaKey when schema changes', () => {
     const { result, rerender } = renderHook(
-      (props) => useDiagramNodes(props.schema, props.error, props.groupProperties),
+      (props: any) => useDiagramNodes(props.schema, props.error, props.groupProperties),
       { initialProps: { schema: null, error: false, groupProperties: false } }
     );
     
@@ -55,7 +55,7 @@ describe('useDiagramNodes', () => {
     rerender({ schema: { type: 'object' }, error: false, groupProperties: false });
     
     // Check that schemaKey incremented
-    expect(result.current.schemaKey).toBe(initialSchemaKey + 1);
+    (expect as any)(result.current.schemaKey).toBe(initialSchemaKey + 1);
   });
   
   // More tests would be added here for validateAndSetEdges and other functionality

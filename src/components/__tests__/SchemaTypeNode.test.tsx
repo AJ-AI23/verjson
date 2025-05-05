@@ -16,15 +16,15 @@ describe('SchemaTypeNode', () => {
     render(<SchemaTypeNode {...defaultProps} />);
     
     const labelElement = screen.getByText('Test Node');
-    expect(labelElement).toBeInTheDocument();
+    (expect as any)(labelElement).toBeInTheDocument();
   });
   
   it('renders the type badge', () => {
     render(<SchemaTypeNode {...defaultProps} />);
     
     const typeBadge = screen.getByText('string');
-    expect(typeBadge).toBeInTheDocument();
-    expect(typeBadge).toHaveClass('bg-blue-100');
+    (expect as any)(typeBadge).toBeInTheDocument();
+    (expect as any)(typeBadge).toHaveClass('bg-blue-100');
   });
   
   it('renders description when provided', () => {
@@ -39,7 +39,7 @@ describe('SchemaTypeNode', () => {
     render(<SchemaTypeNode {...propsWithDescription} />);
     
     const descriptionElement = screen.getByText('Test description');
-    expect(descriptionElement).toBeInTheDocument();
+    (expect as any)(descriptionElement).toBeInTheDocument();
   });
   
   it('renders format when provided', () => {
@@ -54,8 +54,8 @@ describe('SchemaTypeNode', () => {
     render(<SchemaTypeNode {...propsWithFormat} />);
     
     const formatElement = screen.getByText('format:');
-    expect(formatElement).toBeInTheDocument();
-    expect(screen.getByText('email')).toBeInTheDocument();
+    (expect as any)(formatElement).toBeInTheDocument();
+    (expect as any)(screen.getByText('email')).toBeInTheDocument();
   });
   
   it('renders properties count when provided', () => {
@@ -70,8 +70,8 @@ describe('SchemaTypeNode', () => {
     render(<SchemaTypeNode {...propsWithProperties} />);
     
     const propertiesElement = screen.getByText('properties:');
-    expect(propertiesElement).toBeInTheDocument();
-    expect(screen.getByText('5')).toBeInTheDocument();
+    (expect as any)(propertiesElement).toBeInTheDocument();
+    (expect as any)(screen.getByText('5')).toBeInTheDocument();
   });
   
   it('renders required indicator when required is true', () => {
@@ -86,7 +86,7 @@ describe('SchemaTypeNode', () => {
     render(<SchemaTypeNode {...propsWithRequired} />);
     
     const requiredElement = screen.getByText('Required');
-    expect(requiredElement).toBeInTheDocument();
+    (expect as any)(requiredElement).toBeInTheDocument();
   });
   
   it('renders handles for object type', () => {
@@ -102,10 +102,10 @@ describe('SchemaTypeNode', () => {
     
     // Target handle should always be rendered for non-root nodes
     const targetHandle = screen.getByTestId('mock-handle-target-top');
-    expect(targetHandle).toBeInTheDocument();
+    (expect as any)(targetHandle).toBeInTheDocument();
     
     // Source handle should be rendered for object type
     const sourceHandle = screen.getByTestId('mock-handle-source-bottom');
-    expect(sourceHandle).toBeInTheDocument();
+    (expect as any)(sourceHandle).toBeInTheDocument();
   });
 });
