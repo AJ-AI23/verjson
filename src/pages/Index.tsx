@@ -1,12 +1,26 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React from 'react';
+import { Editor } from '@/components/Editor';
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-slate-100 flex flex-col">
+      <header className="bg-white border-b py-3 px-6 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-blue-600">JSON Schema Visual Blueprint</h1>
+          <div className="text-sm text-slate-500">
+            Edit and visualize JSON schemas in real-time
+          </div>
+        </div>
+      </header>
+      
+      <main className="flex-1 p-4">
+        <Editor />
+      </main>
+      
+      <footer className="py-2 px-6 border-t text-center text-xs text-slate-500">
+        JSON Schema Editor - Built with React, XY Flow, and Monaco Editor
+      </footer>
     </div>
   );
 };
