@@ -38,6 +38,7 @@ export const generateGroupedLayout = (schema: any): DiagramElements => {
     const objRequired = objSchema.required || [];
 
     // Create a group node for all properties of this object
+    // (This will now serve as both the object entity and properties container)
     const groupNode = createGroupNode(parentId, objProperties, objRequired, yPosition);
     result.nodes.push(groupNode);
     
@@ -45,39 +46,20 @@ export const generateGroupedLayout = (schema: any): DiagramElements => {
     const edge = createEdge(parentId, groupNode.id);
     result.edges.push(edge);
     
-    // Process nested objects
+    // Process nested objects and arrays
     Object.entries(objProperties).forEach(([propName, propSchema]: [string, any], index) => {
       // Calculate horizontal offset for multiple objects at same level
       const xOffset = (index % 2 === 0) ? -200 : 200;
       
       if (propSchema && propSchema.type === 'object' && propSchema.properties) {
-        // Create a dedicated node for this object property
-        const objectNodeId = `${groupNode.id}-${propName}-object`;
-        const objectNode = {
-          id: objectNodeId,
-          type: 'schemaType',
-          position: { x: xOffset, y: yPosition + 150 },
-          data: {
-            label: `${propName} (Object)`,
-            type: 'object',
-            description: propSchema.description,
-            properties: Object.keys(propSchema.properties).length
-          }
-        };
-        result.nodes.push(objectNode);
-        
-        // Edge from group to object
-        const objEdge = createEdge(groupNode.id, objectNodeId);
-        result.edges.push(objEdge);
-        
-        // Queue this object for processing
+        // Push this object directly for processing
         objectsToProcess.push({
-          parentId: objectNodeId,
+          parentId: groupNode.id,
           schema: {
             properties: propSchema.properties,
             required: propSchema.required || []
           },
-          yPosition: yPosition + 300
+          yPosition: yPosition + 150
         });
       }
       
