@@ -56,11 +56,18 @@ export const useDiagramNodes = (
       nodeIds.has(edge.source) && nodeIds.has(edge.target)
     );
     
-    // If we filtered out any edges, update the edges state
-    if (validEdges.length !== currentEdges.length) {
-      console.log(`Removed ${currentEdges.length - validEdges.length} orphaned edges`);
+    // Log information about the edges for debugging
+    console.log(`Setting ${validEdges.length} valid edges out of ${currentEdges.length} total edges`);
+    if (validEdges.length === 0 && currentEdges.length > 0) {
+      console.log("Warning: All edges were filtered out!");
+      
+      // Debug what node IDs are available vs what the edges are trying to connect
+      const sourceTargetPairs = currentEdges.map(edge => ({ source: edge.source, target: edge.target }));
+      console.log("Available node IDs:", Array.from(nodeIds));
+      console.log("Edge connections:", sourceTargetPairs);
     }
     
+    // Set the validated edges
     setEdges(validEdges);
   }, [nodes, setEdges]);
 
@@ -70,23 +77,20 @@ export const useDiagramNodes = (
       console.log('Generating nodes and edges');
       const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties);
       
-      // Apply saved positions to new nodes where possible
-      const positionedNodes = applyStoredPositions(newNodes);
-      console.log(`Generated ${positionedNodes.length} nodes and ${newEdges.length} edges`);
+      console.log(`Generated ${newNodes.length} nodes and ${newEdges.length} edges`);
       
-      // Batch the updates to minimize re-renders
-      updateTimeoutRef.current = window.setTimeout(() => {
-        setNodes(positionedNodes);
+      // First set the nodes to ensure they're available for edge validation
+      const positionedNodes = applyStoredPositions(newNodes);
+      setNodes(positionedNodes);
+      
+      // Then set the edges with a small delay to ensure nodes are processed
+      setTimeout(() => {
         validateAndSetEdges(newEdges);
-        updateTimeoutRef.current = null;
-      }, 10);
+      }, 50);
     } else {
       // Clear both nodes and edges when there's an error or no schema
-      if (nodes.length > 0 || edges.length > 0) {
-        console.log('Clearing nodes and edges due to error or no schema');
-        setNodes([]);
-        setEdges([]);
-      }
+      setNodes([]);
+      setEdges([]);
     }
     
     // Cleanup
@@ -95,7 +99,7 @@ export const useDiagramNodes = (
         clearTimeout(updateTimeoutRef.current);
       }
     };
-  }, [schema, error, groupProperties, setNodes, setEdges, schemaKey, applyStoredPositions, validateAndSetEdges, nodes.length, edges.length]);
+  }, [schema, error, groupProperties, setNodes, setEdges, schemaKey, applyStoredPositions, validateAndSetEdges]);
 
   // Effect specifically for groupProperties toggle changes
   useEffect(() => {

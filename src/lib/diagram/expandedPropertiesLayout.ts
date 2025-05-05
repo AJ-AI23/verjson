@@ -1,6 +1,7 @@
 import { Node, Edge } from '@xyflow/react';
 import { DiagramElements } from './types';
-import { createPropertyNode, createEdge } from './nodeGenerator';
+import { createPropertyNode } from './nodeGenerator';
+import { createEdge } from './edgeGenerator';
 
 const BASE_X_OFFSET = 200;
 const BASE_Y_OFFSET = 150;

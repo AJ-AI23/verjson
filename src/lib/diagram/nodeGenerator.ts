@@ -1,7 +1,7 @@
 
-import { Node, Edge } from '@xyflow/react';
+import { Node } from '@xyflow/react';
 import { v4 as uuidv4 } from 'uuid';
-import { DiagramElements, PropertyDetails } from './types';
+import { PropertyDetails } from './types';
 
 // Constants for layout
 const BASE_X_OFFSET = 200;
@@ -20,17 +20,6 @@ const determineType = (schema: any): string => {
   if (schema.properties) return 'object';
   if (schema.items) return 'array';
   return 'unknown';
-};
-
-// Helper function to create an edge
-export const createEdge = (source: string, target: string): Edge => {
-  return {
-    id: `edge-${source}-${target}`,
-    source: source,
-    target: target,
-    type: 'smoothstep',
-    animated: true,
-  };
 };
 
 // Add the jsonPath to the node data

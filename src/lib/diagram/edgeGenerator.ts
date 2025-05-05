@@ -2,18 +2,19 @@
 import { Edge } from '@xyflow/react';
 
 export const createEdge = (
-  sourceId: string,
-  targetId: string,
+  source: string, 
+  target: string, 
   label?: string,
-  animated = false,
-  style?: Record<string, any>
+  animated: boolean = false,
+  style: any = { stroke: '#64748b' }
 ): Edge => {
   return {
-    id: `edge-${sourceId}-${targetId}`,
-    source: sourceId,
-    target: targetId,
+    id: `edge-${source}-${target}`,
+    source,
+    target,
+    type: 'smoothstep',
     animated,
     label,
-    style: style || { stroke: '#64748b' }
+    style
   };
 };
