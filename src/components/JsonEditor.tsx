@@ -37,158 +37,75 @@ export const JsonEditor = ({ value, onChange, error, highlightPath }: JsonEditor
 
     try {
       const model = editorRef.current.getModel();
-      const fullText = model.getValue();
-      
-      // Try to parse the JSON
-      const schemaObj = JSON.parse(fullText);
+      const schemaObj = JSON.parse(model.getValue());
       
       // Find the location of the target path in the text
       const pathSegments = highlightPath.split('.');
       
-      // Start with the root schema object
-      let currentObj = schemaObj;
-      let currentPath = '';
-      let targetText = '';
-      
-      // Navigate through the path segments to find the target object
-      for (let i = 0; i < pathSegments.length; i++) {
-        const segment = pathSegments[i];
-        
-        // Special case for 'root'
-        if (segment === 'root' && i === 0) {
-          continue;
-        }
-        
-        // Handle properties segment specially
-        if (segment === 'properties') {
-          if (currentObj.properties) {
-            currentObj = currentObj.properties;
-            currentPath = currentPath ? `${currentPath}.properties` : 'properties';
-          } else {
-            console.log(`Properties not found at path ${currentPath}`);
-            return;
-          }
-        } 
-        // Handle items segment specially
-        else if (segment === 'items') {
-          if (currentObj.items) {
-            currentObj = currentObj.items;
-            currentPath = currentPath ? `${currentPath}.items` : 'items';
-          } else {
-            console.log(`Items not found at path ${currentPath}`);
-            return;
-          }
-        }
-        // Handle normal property access
-        else if (currentObj[segment] !== undefined) {
-          currentObj = currentObj[segment];
-          currentPath = currentPath ? `${currentPath}.${segment}` : segment;
-        } 
-        // Handle property object within properties
-        else if (currentObj && Object.keys(currentObj).includes(segment)) {
-          targetText = JSON.stringify(currentObj[segment], null, 2);
-          // Find the property in the text
-          const propertyPattern = new RegExp(`"${segment}"\\s*:\\s*\\{`);
-          const match = fullText.match(propertyPattern);
-          
-          if (match) {
-            const startPos = match.index;
-            if (startPos !== undefined && startPos >= 0) {
-              // Count lines to get to this position
-              const textBeforeMatch = fullText.substring(0, startPos);
-              const lineNumber = (textBeforeMatch.match(/\n/g) || []).length + 1;
-              
-              // Apply decoration to the whole property
-              const newDecorations = [{
-                range: {
-                  startLineNumber: lineNumber,
-                  startColumn: 1,
-                  endLineNumber: lineNumber + (targetText.match(/\n/g) || []).length + 2,
-                  endColumn: 1
-                },
-                options: {
-                  isWholeLine: true,
-                  className: 'highlighted-line',
-                  inlineClassName: 'highlighted-text',
-                  linesDecorationsClassName: 'highlighted-gutter'
-                }
-              }];
-              
-              // Update decorations
-              decorationsRef.current = editorRef.current.deltaDecorations(
-                decorationsRef.current,
-                newDecorations
-              );
-              
-              // Break out of the loop since we found and highlighted the target
-              break;
-            }
-          }
-        }
-        else {
-          console.log(`Path segment '${segment}' not found in schema`);
+      let targetObj: any = schemaObj;
+      for (const segment of pathSegments) {
+        if (segment === 'properties' && targetObj.properties) {
+          targetObj = targetObj.properties;
+        } else if (segment === 'items' && targetObj.items) {
+          targetObj = targetObj.items;
+        } else if (targetObj[segment] !== undefined) {
+          targetObj = targetObj[segment];
+        } else {
+          // Path segment not found
+          console.warn(`Path segment '${segment}' not found in schema`);
           return;
         }
       }
       
-      // If we've navigated to the final object, highlight it
-      if (!targetText) {
-        targetText = JSON.stringify(currentObj, null, 2);
-        const escapedPath = currentPath.replace(/\./g, '\\.');
-        let pattern;
+      // Convert the target object to text to find its position
+      const targetText = JSON.stringify(targetObj, null, 2);
+      
+      // Find this snippet in the full text
+      const fullText = model.getValue();
+      const targetPosition = fullText.indexOf(targetText);
+      
+      if (targetPosition !== -1) {
+        // Calculate start and end lines/columns for the highlighted section
+        const beforeText = fullText.substring(0, targetPosition);
+        const startLineNumber = (beforeText.match(/\n/g) || []).length + 1;
         
-        // Different pattern depending on whether it's a root or nested object
-        if (currentPath === '' || currentPath === 'root') {
-          // For root object, highlight the entire content
-          pattern = /^\{/;
-        } else if (currentPath.endsWith('properties')) {
-          pattern = /"properties"\s*:\s*\{/;
-        } else {
-          // For nested objects, look for the property pattern
-          const lastSegment = currentPath.split('.').pop();
-          pattern = new RegExp(`"${lastSegment}"\\s*:\\s*\\{`);
-        }
+        const endText = beforeText + targetText;
+        const endLineNumber = (endText.match(/\n/g) || []).length + 1;
         
-        const match = fullText.match(pattern);
-        if (match && match.index !== undefined) {
-          const startPos = match.index;
-          
-          // Count lines to get to this position
-          const textBeforeMatch = fullText.substring(0, startPos);
-          const startLineNumber = (textBeforeMatch.match(/\n/g) || []).length + 1;
-          
-          // Find how many lines the target object spans
-          const endLineNumber = startLineNumber + (targetText.match(/\n/g) || []).length + 2;
-          
-          // Apply decoration
-          const newDecorations = [{
-            range: {
-              startLineNumber,
-              startColumn: 1,
-              endLineNumber,
-              endColumn: 1
-            },
-            options: {
-              isWholeLine: true,
-              className: 'highlighted-line',
-              inlineClassName: 'highlighted-text',
-              linesDecorationsClassName: 'highlighted-gutter'
-            }
-          }];
-          
-          // Update decorations
-          decorationsRef.current = editorRef.current.deltaDecorations(
-            decorationsRef.current,
-            newDecorations
-          );
-        }
+        // Apply decoration
+        const newDecorations = [{
+          range: {
+            startLineNumber,
+            startColumn: 1,
+            endLineNumber,
+            endColumn: 1
+          },
+          options: {
+            isWholeLine: true,
+            className: 'highlighted-line',
+            inlineClassName: 'highlighted-text',
+            linesDecorationsClassName: 'highlighted-gutter'
+          }
+        }];
+        
+        // Update decorations
+        decorationsRef.current = editorRef.current.deltaDecorations(
+          decorationsRef.current,
+          newDecorations
+        );
+      } else {
+        // Clear decorations if target text not found
+        decorationsRef.current = editorRef.current.deltaDecorations(
+          decorationsRef.current, 
+          []
+        );
       }
     } catch (err) {
       console.error('Error highlighting path in editor:', err);
       // Clear decorations on error
       if (editorRef.current) {
         decorationsRef.current = editorRef.current.deltaDecorations(
-          decorationsRef.current,
+          decorationsRef.current, 
           []
         );
       }

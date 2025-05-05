@@ -31,16 +31,12 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const viewportRef = useRef<{ x: number; y: number; zoom: number }>({ x: 0, y: 0, zoom: 1 });
   
-  // For debugging
-  useEffect(() => {
-    console.log(`DiagramFlow rendering with ${nodes.length} nodes and ${edges.length} edges`);
-  }, [nodes, edges]);
-  
   // Store viewport when it changes
   const onMove = useCallback(() => {
     if (reactFlowInstanceRef.current) {
       const currentViewport = reactFlowInstanceRef.current.getViewport();
       viewportRef.current = currentViewport;
+      console.log('Stored viewport:', currentViewport);
     }
   }, []);
 
@@ -54,6 +50,7 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
       setTimeout(() => {
         if (instance) {
           instance.setViewport(viewportRef.current);
+          console.log('Applied initial viewport:', viewportRef.current);
         }
       }, 50);
     }
@@ -79,7 +76,6 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
         defaultViewport={viewportRef.current} // Use stored viewport as default
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
-        proOptions={{ hideAttribution: true }}
       >
         <Controls />
         <Background gap={16} size={1} color="#e5e7eb" />
