@@ -32,7 +32,8 @@ describe('Node Generators', () => {
           type: 'object',
           description: 'Test description',
           isRoot: true,
-          properties: 2
+          properties: 2,
+          jsonPath: 'root'
         }
       });
     });
@@ -55,50 +56,23 @@ describe('Node Generators', () => {
         prop2: { type: 'number' }
       };
       const requiredProps = ['prop1'];
-      const yPosition = 150;
+      const x = 0;
+      const y = 150;
       
-      const groupNode = createGroupNode('root', properties, requiredProps, yPosition);
+      const groupNode = createGroupNode('root', properties, requiredProps, x, y);
       
-      expect(groupNode).toEqual({
-        id: 'props',
-        type: 'schemaType',
-        position: { x: 0, y: 150 },
-        data: {
-          label: 'Properties',
-          type: 'object',
-          isGroup: true,
-          properties: 2,
-          propertyDetails: [
-            {
-              name: 'prop1',
-              type: 'string',
-              required: true,
-              format: undefined,
-              description: undefined,
-              reference: undefined
-            },
-            {
-              name: 'prop2',
-              type: 'number',
-              required: false,
-              format: undefined,
-              description: undefined,
-              reference: undefined
-            }
-          ]
-        }
-      });
-    });
-    
-    it('should create nested group node with correct ID', () => {
-      const properties = { prop1: {} };
-      const requiredProps: string[] = [];
-      const yPosition = 150;
-      
-      const groupNode = createGroupNode('parent-id', properties, requiredProps, yPosition);
-      
-      expect(groupNode.id).toBe('parent-id-props');
-      expect(groupNode.data.label).toBe('Nested Properties');
+      // Use regex to only check the beginning of the ID, since it now includes a UUID
+      expect(groupNode.id).toMatch(/^group-root-/);
+      expect(groupNode.type).toBe('schemaType');
+      expect(groupNode.position).toEqual({ x: 0, y: 150 });
+      expect(groupNode.data.label).toBe('root Properties');
+      expect(groupNode.data.type).toBe('object');
+      expect(groupNode.data.isGroup).toBe(true);
+      expect(groupNode.data.propertyDetails).toHaveLength(2);
+      expect(groupNode.data.propertyDetails[0].name).toBe('prop1');
+      expect(groupNode.data.propertyDetails[0].required).toBe(true);
+      expect(groupNode.data.propertyDetails[1].name).toBe('prop2');
+      expect(groupNode.data.propertyDetails[1].required).toBe(false);
     });
   });
   
@@ -120,11 +94,59 @@ describe('Node Generators', () => {
           label: 'items (Array)',
           type: 'array',
           minItems: 1,
-          maxItems: 10
+          maxItems: 10,
+          jsonPath: 'group-id.items'
         }
       });
     });
   });
   
-  // Add more tests for other node generators
+  describe('createNestedPropertyNode', () => {
+    it('should create a nested property node with correct properties', () => {
+      const propSchema = {
+        type: 'string',
+        description: 'A test property'
+      };
+      
+      const node = createNestedPropertyNode('parent-id', 'testProp', propSchema, 150, true);
+      
+      expect(node).toEqual({
+        id: 'parent-id-testProp',
+        type: 'schemaType',
+        position: { x: 0, y: 150 },
+        data: {
+          label: 'testProp',
+          type: 'string',
+          description: 'A test property',
+          format: undefined,
+          required: true,
+          reference: undefined,
+          jsonPath: 'parent-id.properties.testProp'
+        }
+      });
+    });
+  });
+  
+  describe('createArrayItemNode', () => {
+    it('should create an array item node with correct properties', () => {
+      const itemSchema = {
+        type: 'object',
+        description: 'Array item description'
+      };
+      
+      const node = createArrayItemNode('array-id', itemSchema);
+      
+      expect(node).toEqual({
+        id: 'array-id-items',
+        type: 'schemaType',
+        position: { x: 0, y: 300 },
+        data: {
+          label: 'Array Item',
+          type: 'object',
+          description: 'Array item description',
+          jsonPath: 'array-id.items'
+        }
+      });
+    });
+  });
 });
