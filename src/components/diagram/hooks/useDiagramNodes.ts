@@ -15,9 +15,8 @@ export const useDiagramNodes = (
   const [schemaKey, setSchemaKey] = useState(0);
   const { nodePositionsRef, applyStoredPositions } = useNodePositions(nodes);
   
-  // Track schema changes to avoid unnecessary regeneration
+  // Track schema changes
   const schemaStringRef = useRef<string>('');
-  const lastGenerationTimeRef = useRef<number>(0);
 
   // Generate a new schema key when schema really changes
   useEffect(() => {
@@ -25,13 +24,12 @@ export const useDiagramNodes = (
       // Convert schema to string for comparison
       const schemaString = JSON.stringify(schema);
       
-      // Only update schema key if schema actually changed or error/group settings changed
+      // Only update schema key if schema or grouping changed
       if (schemaString !== schemaStringRef.current || prevGroupSetting !== groupProperties) {
         console.log('Schema or groupProperties changed, updating schema key');
         schemaStringRef.current = schemaString;
-        // Add current timestamp to ensure uniqueness even with same content
-        setSchemaKey(Date.now());
-        lastGenerationTimeRef.current = Date.now();
+        // Use simple counter for schema key instead of timestamp
+        setSchemaKey(prev => prev + 1);
       }
     }
   }, [schema, error, groupProperties, prevGroupSetting]);
@@ -59,23 +57,11 @@ export const useDiagramNodes = (
     setEdges(validEdges);
   }, [nodes, setEdges]);
 
-  // Effect for schema or error changes
+  // Effect for schema or error changes - simplified approach
   useEffect(() => {
     if (schema && !error) {
-      // Check if enough time has passed since the last generation
-      const now = Date.now();
-      const timeSinceLastGeneration = now - lastGenerationTimeRef.current;
-      console.log(`Time since last generation: ${timeSinceLastGeneration}ms`);
-      
-      // Use small debounce to prevent too frequent regeneration
-      if (timeSinceLastGeneration < 100) {
-        console.log('Skipping node generation due to debounce');
-        return;
-      }
-      
       console.log('Generating nodes and edges');
       const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties);
-      lastGenerationTimeRef.current = now;
       
       // Apply saved positions to new nodes where possible
       const positionedNodes = applyStoredPositions(newNodes);
@@ -85,11 +71,9 @@ export const useDiagramNodes = (
       setNodes(positionedNodes);
       
       // Then add edges after a small delay
-      const timeoutId = setTimeout(() => {
+      setTimeout(() => {
         validateAndSetEdges(newEdges);
-      }, 150);
-      
-      return () => clearTimeout(timeoutId);
+      }, 50);
     } else {
       // Clear both nodes and edges when there's an error or no schema
       if (nodes.length > 0 || edges.length > 0) {
@@ -103,47 +87,16 @@ export const useDiagramNodes = (
   // Effect specifically for groupProperties toggle changes
   useEffect(() => {
     if (prevGroupSetting !== groupProperties) {
-      // Force a complete reset of edges when toggling the grouping mode
       console.log('Group properties setting changed');
       setPrevGroupSetting(groupProperties);
-      
-      if (schema && !error) {
-        const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties);
-        
-        // When changing group mode, try to maintain positions where possible
-        const positionedNodes = applyStoredPositions(newNodes);
-        console.log(`Generated ${positionedNodes.length} nodes with new group setting`);
-        
-        // Set nodes
-        setNodes(positionedNodes);
-        
-        // Add edges after a delay
-        const timeoutId = setTimeout(() => {
-          validateAndSetEdges(newEdges);
-        }, 150);
-        
-        return () => clearTimeout(timeoutId);
-      }
     }
-  }, [groupProperties, prevGroupSetting, schema, error, setNodes, setEdges, applyStoredPositions, validateAndSetEdges]);
-
-  // Validate edges against nodes
-  useEffect(() => {
-    if (nodes.length > 0 && edges.length > 0) {
-      validateAndSetEdges(edges);
-    } else if (nodes.length === 0 && edges.length > 0) {
-      // If there are no nodes but there are edges, clear the edges
-      setEdges([]);
-    }
-  }, [nodes.length, edges.length, validateAndSetEdges, setEdges, edges]);
+  }, [groupProperties, prevGroupSetting]);
 
   return {
     nodes,
     edges,
     onNodesChange,
     onEdgesChange,
-    setNodes,
-    setEdges,
     nodePositionsRef,
     schemaKey
   };
