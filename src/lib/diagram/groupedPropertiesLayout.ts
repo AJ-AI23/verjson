@@ -4,39 +4,6 @@ import { DiagramElements } from './types';
 import { createGroupNode, createArrayNode } from './nodeGenerator';
 import { createEdge } from './edgeGenerator';
 
-/**
- * Automatically calculates a grid-based layout for nodes at the same level
- * to prevent overlapping
- */
-const calculateGridPositions = (
-  objects: Array<{ id: string; size?: number }>,
-  baseYPosition: number,
-  levelWidth = 1000
-): Record<string, { x: number; y: number }> => {
-  const positions: Record<string, { x: number; y: number }> = {};
-  
-  // Calculate how many items we can fit per row
-  const itemsPerRow = Math.min(4, objects.length); // Max 4 items per row
-  const horizontalSpacing = levelWidth / itemsPerRow;
-  
-  objects.forEach((object, index) => {
-    // Calculate row and column position
-    const row = Math.floor(index / itemsPerRow);
-    const col = index % itemsPerRow;
-    
-    // Calculate x position: centered around 0 with appropriate spacing
-    const xBase = -levelWidth / 2 + horizontalSpacing / 2;
-    const xPosition = xBase + col * horizontalSpacing;
-    
-    // Calculate y position with 200px vertical spacing between rows
-    const yPosition = baseYPosition + row * 200;
-    
-    positions[object.id] = { x: xPosition, y: yPosition };
-  });
-  
-  return positions;
-};
-
 export const generateGroupedLayout = (schema: any): DiagramElements => {
   const result: DiagramElements = {
     nodes: [],
@@ -78,67 +45,49 @@ export const generateGroupedLayout = (schema: any): DiagramElements => {
     const edge = createEdge(parentId, groupNode.id);
     result.edges.push(edge);
     
-    // Collect all nested objects and arrays at this level
-    const nestedSchemas = [];
-    
     // Process nested objects
-    Object.entries(objProperties).forEach(([propName, propSchema]: [string, any]) => {
+    Object.entries(objProperties).forEach(([propName, propSchema]: [string, any], index) => {
+      // Calculate horizontal offset for multiple objects at same level
+      const xOffset = (index % 2 === 0) ? -200 : 200;
+      
       if (propSchema && propSchema.type === 'object' && propSchema.properties) {
-        // Add to nestedSchemas for layout calculation
-        nestedSchemas.push({
-          id: `${groupNode.id}-${propName}`,
-          name: propName,
-          schema: propSchema,
-          type: 'object',
-          size: Object.keys(propSchema.properties).length
+        // Create a dedicated node for this object property
+        const objectNodeId = `${groupNode.id}-${propName}-object`;
+        const objectNode = {
+          id: objectNodeId,
+          type: 'schemaType',
+          position: { x: xOffset, y: yPosition + 150 },
+          data: {
+            label: `${propName} (Object)`,
+            type: 'object',
+            description: propSchema.description,
+            properties: Object.keys(propSchema.properties).length
+          }
+        };
+        result.nodes.push(objectNode);
+        
+        // Edge from group to object
+        const objEdge = createEdge(groupNode.id, objectNodeId);
+        result.edges.push(objEdge);
+        
+        // Queue this object for processing
+        objectsToProcess.push({
+          parentId: objectNodeId,
+          schema: {
+            properties: propSchema.properties,
+            required: propSchema.required || []
+          },
+          yPosition: yPosition + 300
         });
       }
+      
       // Process arrays with object items
       else if (propSchema && propSchema.type === 'array' && propSchema.items && 
           propSchema.items.type === 'object' && propSchema.items.properties) {
         
-        // Add to nestedSchemas for layout calculation
-        nestedSchemas.push({
-          id: `${groupNode.id}-${propName}`,
-          name: propName,
-          schema: propSchema,
-          type: 'array',
-          size: Object.keys(propSchema.items.properties).length
-        });
-      }
-    });
-    
-    // Calculate grid positions for all nested items at this level
-    const positions = calculateGridPositions(
-      nestedSchemas, 
-      yPosition + 150,
-      Math.max(600, nestedSchemas.length * 200) // Dynamic level width based on number of items
-    );
-    
-    // Now create nodes using the calculated positions
-    nestedSchemas.forEach(item => {
-      const position = positions[item.id];
-      
-      if (item.type === 'object') {
-        // Queue this object for processing with its calculated position
-        objectsToProcess.push({
-          parentId: groupNode.id,
-          schema: {
-            properties: item.schema.properties,
-            required: item.schema.required || []
-          },
-          yPosition: position.y + 150
-        });
-        
-        // Create edge from group to next level group
-        const objEdge = createEdge(groupNode.id, `${groupNode.id}-props`);
-        result.edges.push(objEdge);
-      } 
-      else if (item.type === 'array') {
-        // Create array node with calculated position
-        const arrayNode = createArrayNode(groupNode.id, item.name, item.schema, position.y);
-        // Apply calculated X position
-        arrayNode.position.x = position.x;
+        const arrayNode = createArrayNode(groupNode.id, propName, propSchema, yPosition + 150);
+        // Adjust position based on index to avoid overlapping
+        arrayNode.position.x = xOffset;
         result.nodes.push(arrayNode);
         
         // Edge from group to array
@@ -149,10 +98,10 @@ export const generateGroupedLayout = (schema: any): DiagramElements => {
         objectsToProcess.push({
           parentId: arrayNode.id,
           schema: {
-            properties: item.schema.items.properties,
-            required: item.schema.items.required || []
+            properties: propSchema.items.properties,
+            required: propSchema.items.required || []
           },
-          yPosition: position.y + 150
+          yPosition: yPosition + 300
         });
       }
     });
