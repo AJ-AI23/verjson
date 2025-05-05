@@ -46,17 +46,24 @@ describe('DiagramFlow', () => {
   });
 
   it('preserves viewport when shouldFitView is false', () => {
-    // Use a mocked timer to test the timeout behavior
-    jest.useFakeTimers();
+    // Instead of calling Jest timer functions directly, wrap in a conditional
+    // to avoid TypeScript errors
+    if (typeof jest.useFakeTimers === 'function') {
+      jest.useFakeTimers();
+    }
     
     // Render with shouldFitView=false to test viewport preservation
     render(<DiagramFlow {...mockProps} shouldFitView={false} />);
     
-    // Fast-forward timers to trigger any setTimeout calls
-    jest.runAllTimers();
+    // Fast-forward timers if the function exists
+    if (typeof jest.runAllTimers === 'function') {
+      jest.runAllTimers();
+    }
     
-    // Reset timers
-    jest.useRealTimers();
+    // Reset timers if the function exists
+    if (typeof jest.useRealTimers === 'function') {
+      jest.useRealTimers();
+    }
   });
   
   it('updates viewport reference when shouldFitView changes', () => {
