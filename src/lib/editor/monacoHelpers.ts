@@ -169,10 +169,11 @@ export function analyzeFoldedRegions(editor: ExtendedEditor): FoldedRegionsAnaly
     tabSize: model.getOptions().tabSize
   };
   
-  // Get editor folding options
+  // Get editor folding options - using proper enum types
   const editorOptions = editor.getOptions();
-  const foldingEnabled = editorOptions.get('folding');
-  const showFoldingControls = editorOptions.get('showFoldingControls');
+  // Use typed options instead of string literals
+  const foldingEnabled = editorOptions.get(monacoEditor.EditorOption.folding);
+  const showFoldingControls = editorOptions.get(monacoEditor.EditorOption.showFoldingControls);
   
   return {
     foldedRanges,
