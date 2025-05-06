@@ -124,14 +124,30 @@ export function getFoldedRegionDetails(
  * @returns Object with info about folded ranges and model structure
  */
 export function analyzeFoldedRegions(editor: any): { 
-  foldedRanges: Array<{start: number, end: number, content: string, path: string | null}>,
-  modelStructure: any
+  foldedRanges: Array<{
+    start: number;
+    end: number; 
+    content: string; 
+    path: string | null;
+    foldedContent: string[];
+  }>;
+  modelStructure: any;
+  decorations: {
+    count: number;
+    foldedCount: number;
+    foldingDetails: any[];
+  };
 } {
   const model = editor.getModel();
   if (!model) {
     return {
       foldedRanges: [],
-      modelStructure: null
+      modelStructure: null,
+      decorations: {
+        count: 0,
+        foldedCount: 0,
+        foldingDetails: []
+      }
     };
   }
   
@@ -141,27 +157,66 @@ export function analyzeFoldedRegions(editor: any): {
     d => d.options.isWholeLine && d.options.inlineClassName === 'folded'
   );
   
-  console.log("Folded decorations:", foldedDecorations);
-  
   // Extract fold ranges and their paths
-  const foldedRanges = foldedDecorations.map(d => ({
-    start: d.range.startLineNumber,
-    end: d.range.endLineNumber,
-    content: model.getLineContent(d.range.startLineNumber),
-    path: extractJsonPathFromLine(model, d.range.startLineNumber)
-  }));
+  const foldedRanges = foldedDecorations.map(d => {
+    const startLine = d.range.startLineNumber;
+    const endLine = d.range.endLineNumber;
+    
+    // Get a preview of the folded content (up to 10 lines)
+    const foldedContentPreview: string[] = [];
+    for (let i = startLine; i <= Math.min(endLine, startLine + 10); i++) {
+      foldedContentPreview.push(model.getLineContent(i));
+    }
+    if (endLine > startLine + 10) {
+      foldedContentPreview.push(`... and ${endLine - startLine - 10} more lines`);
+    }
+    
+    return {
+      start: startLine,
+      end: endLine,
+      content: model.getLineContent(startLine),
+      path: extractJsonPathFromLine(model, startLine),
+      foldedContent: foldedContentPreview
+    };
+  });
   
-  console.log("Folded ranges:", foldedRanges);
+  // Collect decoration details for deeper inspection
+  const decorationDetails = foldedDecorations.map(d => ({
+    id: d.id,
+    range: `${d.range.startLineNumber}:${d.range.startColumn} - ${d.range.endLineNumber}:${d.range.endColumn}`,
+    options: {
+      ...d.options,
+      // Ensure we don't include any circular references
+      hoverMessage: d.options.hoverMessage ? 'present' : 'none',
+      glyphMarginHoverMessage: d.options.glyphMarginHoverMessage ? 'present' : 'none'
+    }
+  }));
   
   // Get basic model structure information
   const modelStructure = {
     lineCount: model.getLineCount(),
     valueLength: model.getValueLength(),
-    modelId: model.id
+    modelId: model.id,
+    language: model.getLanguageId(),
+    tabSize: model.getOptions().tabSize
   };
+  
+  // Get editor folding options
+  const editorOptions = editor.getOptions();
+  const foldingEnabled = editorOptions.get('folding');
+  const showFoldingControls = editorOptions.get('showFoldingControls');
   
   return {
     foldedRanges,
-    modelStructure
+    modelStructure,
+    decorations: {
+      count: decorations.length,
+      foldedCount: foldedDecorations.length,
+      foldingDetails: {
+        enabled: foldingEnabled,
+        showControls: showFoldingControls,
+        decorationDetails
+      }
+    }
   };
 }

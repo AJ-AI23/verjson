@@ -29,21 +29,58 @@ export const useMonacoEditor = ({ onToggleCollapse, collapsedPaths = {} }: UseMo
     const model = editor.getModel();
     if (!model) return;
     
-    console.log("Inspect folded regions - Model ranges:", model.getOptions());
+    console.log("===== FOLDING DEBUG INFORMATION =====");
+    console.log("Model info:", { 
+      lineCount: model.getLineCount(),
+      uri: model.uri.toString(),
+      languageId: model.getLanguageId()
+    });
     
-    const decorations = model.getAllDecorations();
-    console.log("All decorations:", decorations);
+    // Get all decorations and filter for folded regions
+    const allDecorations = model.getAllDecorations();
+    console.log(`All decorations count: ${allDecorations.length}`);
     
-    const foldedDecorations = decorations.filter(
+    const foldedDecorations = allDecorations.filter(
       d => d.options.isWholeLine && d.options.inlineClassName === 'folded'
     );
     
-    console.log("Folded decorations:", foldedDecorations);
-    console.log("Folded ranges:", foldedDecorations.map(d => ({
-      startLine: d.range.startLineNumber,
-      endLine: d.range.endLineNumber,
-      content: model.getLineContent(d.range.startLineNumber)
-    })));
+    console.log(`Folded decorations count: ${foldedDecorations.length}`);
+    
+    // Log detailed information about each folded region
+    if (foldedDecorations.length > 0) {
+      console.log("FOLDED REGIONS DETAILS:");
+      foldedDecorations.forEach((decoration, index) => {
+        const startLine = decoration.range.startLineNumber;
+        const endLine = decoration.range.endLineNumber;
+        const content = model.getLineContent(startLine);
+        const path = extractJsonPathFromLine(model, startLine);
+        
+        console.log(`[${index + 1}] Line range: ${startLine}-${endLine} | Content: "${content.trim()}" | Path: ${path || 'unknown'}`);
+        
+        // Show a few lines of the folded content
+        console.log("  Folded content preview:");
+        for (let i = startLine; i <= Math.min(startLine + 2, endLine); i++) {
+          console.log(`  Line ${i}: ${model.getLineContent(i).trim()}`);
+        }
+        if (endLine > startLine + 2) {
+          console.log(`  ... and ${endLine - startLine - 2} more lines`);
+        }
+      });
+    } else {
+      console.log("No folded regions found");
+    }
+    
+    // Get hidden range information
+    const hiddenRanges = editor.getHiddenAreas ? editor.getHiddenAreas() : [];
+    console.log("Hidden ranges:", hiddenRanges);
+    
+    // Get current foldingModel if available
+    if (editor._privateApiMethod && editor._privateApiMethod.foldingController) {
+      const foldingController = editor._privateApiMethod.foldingController;
+      console.log("Folding controller:", foldingController);
+    }
+    
+    console.log("===== END FOLDING DEBUG INFO =====");
   }, []);
   
   const configureJsonLanguage = useCallback((monaco: Monaco) => {
@@ -79,7 +116,8 @@ export const useMonacoEditor = ({ onToggleCollapse, collapsedPaths = {} }: UseMo
     if (onToggleCollapse) {
       // Listen for hidden areas changes (folding/unfolding)
       const hiddenAreasDisposable = editor.onDidChangeHiddenAreas(() => {
-        console.log('Hidden areas changed - folding/unfolding detected');
+        console.log('===== FOLD/UNFOLD EVENT DETECTED =====');
+        console.log('Event timestamp:', new Date().toISOString());
         
         const model = editor.getModel();
         if (!model) return;
@@ -94,28 +132,47 @@ export const useMonacoEditor = ({ onToggleCollapse, collapsedPaths = {} }: UseMo
         
         console.log(`Found ${decorations.length} folded regions in editor`);
         
-        // Process each folded region
-        decorations.forEach(decoration => {
-          // Get the line number of each folded region
-          const lineNumber = decoration.range.startLineNumber;
-          const lineContent = model.getLineContent(lineNumber);
-          const path = extractJsonPathFromLine(model, lineNumber);
-          
-          console.log(`Checking folded region at line ${lineNumber}: "${lineContent.trim()}" => path: ${path}`);
-          
-          if (path) {
-            console.log(`Area folded at line ${lineNumber}, path: ${path}`);
-            newCollapsedPaths[path] = true;
-          }
-        });
+        // Log each folded region in detail
+        if (decorations.length > 0) {
+          console.log("EXACT LINES THAT ARE FOLDED:");
+          decorations.forEach((decoration, index) => {
+            // Get the line number of each folded region
+            const lineNumber = decoration.range.startLineNumber;
+            const endLineNumber = decoration.range.endLineNumber;
+            const lineContent = model.getLineContent(lineNumber);
+            const path = extractJsonPathFromLine(model, lineNumber);
+            
+            console.log(`[${index + 1}] Lines ${lineNumber}-${endLineNumber}: "${lineContent.trim()}" => JSON path: ${path || 'unknown'}`);
+            
+            if (path) {
+              console.log(`Area folded at line ${lineNumber}, path: ${path}`);
+              newCollapsedPaths[path] = true;
+            }
+          });
+        } else {
+          console.log("No folded regions detected");
+        }
         
         // Log the full set of collapsed paths for debugging
-        console.log('Current collapsed paths:', prevCollapsedPathsRef.current);
-        console.log('New collapsed paths:', newCollapsedPaths);
+        console.log('COLLAPSED STATE COMPARISON:');
+        console.log('Previous collapsed paths:', Object.keys(prevCollapsedPathsRef.current));
+        console.log('New collapsed paths:', Object.keys(newCollapsedPaths));
+        
+        // Detect what was added vs removed
+        const added = Object.keys(newCollapsedPaths).filter(
+          path => !prevCollapsedPathsRef.current[path]
+        );
+        const removed = Object.keys(prevCollapsedPathsRef.current).filter(
+          path => !newCollapsedPaths[path]
+        );
+        
+        console.log('Newly collapsed paths:', added);
+        console.log('Newly expanded paths:', removed);
         
         // Analyze the folded regions in detail
         const analysis = analyzeFoldedRegions(editor);
-        console.log('Folded regions analysis:', analysis);
+        console.log('DECORATION AND RANGE DETAILS:');
+        console.log(analysis);
         
         // Compare with current collapsed paths to detect changes
         Object.keys(prevCollapsedPathsRef.current).forEach(path => {
@@ -136,6 +193,7 @@ export const useMonacoEditor = ({ onToggleCollapse, collapsedPaths = {} }: UseMo
         
         // Update reference to current collapsed paths
         prevCollapsedPathsRef.current = { ...newCollapsedPaths };
+        console.log('===== END FOLD/UNFOLD EVENT =====');
       });
       
       // Setup keyboard command listeners for fold/unfold actions
@@ -153,9 +211,11 @@ export const useMonacoEditor = ({ onToggleCollapse, collapsedPaths = {} }: UseMo
       
       // Add global function for manual inspection
       window.inspectMonacoEditor = () => {
+        console.log("=== MANUAL EDITOR INSPECTION ===");
         console.log("Editor reference:", editor);
         console.log("Monaco reference:", monaco);
         inspectFoldedRegions(editor);
+        console.log("=== END MANUAL INSPECTION ===");
       };
       
       // Return a cleanup function to dispose of the event listeners

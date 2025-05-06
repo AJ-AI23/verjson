@@ -25,9 +25,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         <button 
           onClick={onInspectEditor}
           className="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded transition-colors flex items-center gap-1"
-          title="Inspect Monaco Editor"
+          title="Inspect Monaco Editor Folding State"
         >
-          <span>Inspect Editor</span>
+          <span>Debug Folding</span>
         </button>
       </div>
     </div>
