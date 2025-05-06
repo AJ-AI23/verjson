@@ -135,7 +135,11 @@ export function analyzeFoldedRegions(editor: any): {
   decorations: {
     count: number;
     foldedCount: number;
-    foldingDetails: any[];
+    foldingDetails: {
+      enabled: boolean;
+      showControls: string;
+      decorationDetails: any[];
+    };
   };
 } {
   const model = editor.getModel();
@@ -146,7 +150,11 @@ export function analyzeFoldedRegions(editor: any): {
       decorations: {
         count: 0,
         foldedCount: 0,
-        foldingDetails: []
+        foldingDetails: {
+          enabled: false,
+          showControls: 'none',
+          decorationDetails: []
+        }
       }
     };
   }
