@@ -37,6 +37,7 @@ export const Editor = () => {
   const [error, setError] = useState<string | null>(null);
   const [schemaType, setSchemaType] = useState<SchemaType>('json-schema');
   const [groupProperties, setGroupProperties] = useState(false);
+  // Keep only one instance of collapsedPaths state
   const [collapsedPaths, setCollapsedPaths] = useState<CollapsedState>({});
   const [maxDepth] = useState(3); // Default max depth for initial rendering
   
@@ -55,9 +56,6 @@ export const Editor = () => {
     setSavedSchema,
     setSchema
   });
-
-  // Collapse state tracking
-  const [collapsedPaths, setCollapsedPaths] = useState<CollapsedState>({});
   
   // Function to handle toggling collapsed state of a path
   const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
