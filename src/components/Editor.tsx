@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { SplitPane } from '@/components/SplitPane';
 import { JsonEditor } from '@/components/JsonEditor';
-import { SchemaDiagram } from '@/components/SchemaDiagram';
+import { SchemaDiagram } from '@/components/diagram/SchemaDiagram';
 import { toast } from 'sonner';
 import { defaultSchema } from '@/lib/defaultSchema';
 import { defaultOasSchema } from '@/lib/defaultOasSchema';
@@ -182,7 +181,6 @@ export const Editor = () => {
             value={schema} 
             onChange={handleEditorChange} 
             error={error}
-            onToggleCollapse={handleToggleCollapse}
             collapsedPaths={collapsedPaths}
           />
           <VersionControls 
