@@ -83,11 +83,14 @@ export const useJsonEditor = ({
       
       // Notify that we've created the editor
       if (onToggleCollapse) {
+        // Check if root already has a state
+        const rootPreviousState = collapsedPaths['root'];
+        
         // Set initial state of root as collapsed
         console.log('Collapse event:', { 
           path: 'root', 
           collapsed: true, 
-          previousState: undefined
+          previousState: rootPreviousState
         });
         onToggleCollapse('root', true);
       }

@@ -21,11 +21,14 @@ export const useJsonEditorEvents = ({
           // Format path properly - empty path array means root node
           const pathStr = node.path.length > 0 ? 'root.' + node.path.join('.') : 'root';
           
+          // Get the previous state before we update it
+          const previousState = collapsedPaths[pathStr];
+          
           // Log in a cleaner format
           console.log('Collapse event:', { 
             path: pathStr, 
             collapsed: false, 
-            previousState: collapsedPaths[pathStr]
+            previousState: previousState
           });
           
           setFoldingDebug({
@@ -43,11 +46,14 @@ export const useJsonEditorEvents = ({
           // Format path properly - empty path array means root node
           const pathStr = node.path.length > 0 ? 'root.' + node.path.join('.') : 'root';
           
+          // Get the previous state before we update it
+          const previousState = collapsedPaths[pathStr];
+          
           // Log in a cleaner format
           console.log('Collapse event:', { 
             path: pathStr, 
             collapsed: true,
-            previousState: collapsedPaths[pathStr]
+            previousState: previousState
           });
           
           setFoldingDebug({
