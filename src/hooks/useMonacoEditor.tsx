@@ -1,3 +1,4 @@
+
 import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { Monaco, OnMount } from '@monaco-editor/react';
 import { toast } from 'sonner';
@@ -75,9 +76,41 @@ export const useMonacoEditor = ({ onToggleCollapse, collapsedPaths = {} }: UseMo
 
     // Add specific listeners for fold/unfold events
     if (onToggleCollapse) {
-      // Listen for decoration changes (which include folding/unfolding)
+      // Create a timer to regularly check for hidden area changes
+      // This is more reliable than waiting for decoration changes
+      let lastHiddenAreasHash = '';
+      
+      const checkForFoldingChanges = () => {
+        try {
+          const hiddenAreas = editor.getHiddenAreas();
+          // Create a simple hash of the hidden areas to detect changes
+          const hiddenAreasHash = hiddenAreas.map(area => 
+            `${area.startLineNumber}-${area.endLineNumber}`
+          ).join('|');
+          
+          // If hash changed, process the folding changes
+          if (hiddenAreasHash !== lastHiddenAreasHash) {
+            if (isDebugMode) {
+              console.log('Hidden areas changed:', hiddenAreas);
+              console.log('Previous hash:', lastHiddenAreasHash);
+              console.log('Current hash:', hiddenAreasHash);
+            }
+            
+            processFoldingChanges(editor, pathMapRef, isDebugMode);
+            lastHiddenAreasHash = hiddenAreasHash;
+          }
+        } catch (error) {
+          console.error('Error checking for folding changes:', error);
+        }
+      };
+      
+      // Check for changes every 500ms
+      const foldingCheckInterval = setInterval(checkForFoldingChanges, 500);
+      
+      // Listen for decoration changes as a backup approach
       const decorationsDisposable = editor.onDidChangeModelDecorations(() => {
-        processFoldingChanges(editor, pathMapRef, isDebugMode);
+        // Immediate check when decorations change
+        setTimeout(() => checkForFoldingChanges(), 10);
       });
       
       // Listen for content changes to update path map
@@ -96,7 +129,7 @@ export const useMonacoEditor = ({ onToggleCollapse, collapsedPaths = {} }: UseMo
           if (potentialFoldingChange) {
             console.log('Potential folding-related content change detected');
             // This could trigger a check of the folding state
-            setTimeout(() => processFoldingChanges(editor, pathMapRef, isDebugMode), 100);
+            setTimeout(() => checkForFoldingChanges(), 100);
           }
         }
         
@@ -110,29 +143,10 @@ export const useMonacoEditor = ({ onToggleCollapse, collapsedPaths = {} }: UseMo
           
           // After path map is refreshed, check if the folding state needs updating
           if (onToggleCollapse) {
-            processFoldingChanges(editor, pathMapRef, isDebugMode);
+            checkForFoldingChanges();
           }
         }, 1000); // Regenerate path map 1 second after typing stops
       });
-      
-      // Try to add direct folding event listener, but it's not in the public API, so we catch errors
-      try {
-        // Since we can't use onDidChangeFoldingState directly (not in public API),
-        // we'll monitor for key editor events that might indicate folding changes
-        
-        // Remember to dispose this listener when unmounting
-        return () => {
-          decorationsDisposable.dispose();
-          contentChangeDisposable.dispose();
-          // @ts-ignore - Cleanup global function
-          window.inspectMonacoEditor = undefined;
-          if (window.pathMapUpdateTimeout) {
-            clearTimeout(window.pathMapUpdateTimeout);
-          }
-        };
-      } catch (error) {
-        console.log("Could not attach to folding state events directly:", error);
-      }
       
       // Setup keyboard commands for fold/unfold
       setupFoldingCommands(editor, monaco, inspectFoldedRegions, pathMapRef);
@@ -144,6 +158,7 @@ export const useMonacoEditor = ({ onToggleCollapse, collapsedPaths = {} }: UseMo
         console.log("Monaco reference:", monaco);
         const result = inspectFoldedRegions(editor, pathMapRef);
         console.log("Path map:", result.pathMap);
+        console.log("Hidden areas:", editor.getHiddenAreas());
         console.log("=== END MANUAL INSPECTION ===");
         return result;
       };
@@ -160,6 +175,7 @@ export const useMonacoEditor = ({ onToggleCollapse, collapsedPaths = {} }: UseMo
       
       // Return a cleanup function to dispose of the event listeners
       return () => {
+        clearInterval(foldingCheckInterval);
         decorationsDisposable.dispose();
         contentChangeDisposable.dispose();
         // @ts-ignore - Cleanup global function
@@ -193,7 +209,7 @@ export const useMonacoEditor = ({ onToggleCollapse, collapsedPaths = {} }: UseMo
         onClick={() => {
           const result = forceFoldingRefresh();
           toast.info("Folding inspection completed", {
-            description: `Found ${result?.foldingRanges?.length || 0} folding ranges and ${Object.keys(result?.pathMap || {}).length} path mappings`
+            description: `Found ${result?.foldedRanges?.length || 0} folding ranges and ${Object.keys(result?.pathMap || {}).length} path mappings`
           });
         }}
       />

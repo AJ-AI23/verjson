@@ -11,7 +11,6 @@ export function getCurrentFoldingRanges(editor: any): FoldingRangeWithState[] {
   if (!editor || !editor.getModel()) return [];
   
   // Try to access folding regions through Monaco's API
-  // This is somewhat Monaco-implementation specific
   try {
     // First method: try to access folding controller directly
     if (editor._privateApiMethod?.foldingController) {
@@ -44,7 +43,8 @@ export function getCurrentFoldingRanges(editor: any): FoldingRangeWithState[] {
       }
     }
     
-    // Second method: try to get from hidden areas
+    // Second method: try to get from hidden areas - this is the most reliable
+    // Since this is based on what's actually displayed rather than internal state
     const hiddenRanges = editor.getHiddenAreas ? editor.getHiddenAreas() : [];
     if (hiddenRanges.length > 0) {
       return hiddenRanges.map(range => ({
@@ -106,14 +106,14 @@ export function analyzeFoldedRegions(editor: any): FoldedRegionsAnalysis {
     d => d.options.isWholeLine && d.options.inlineClassName === 'folded'
   );
   
+  // Get hidden areas directly - this is what's actually visually folded
+  // This approach is more reliable as it's based on what's displayed
+  const hiddenAreas = editor.getHiddenAreas ? editor.getHiddenAreas() : [];
+  
   // Extract fold ranges and their paths
-  const foldedRanges = foldedDecorations.map(d => {
-    const startLine = d.range.startLineNumber;
-    const endLine = d.range.endLineNumber;
-    const range = {
-      startLineNumber: startLine,
-      endLineNumber: endLine
-    };
+  const foldedRanges = hiddenAreas.map(range => {
+    const startLine = range.startLineNumber;
+    const endLine = range.endLineNumber;
     
     // Get a preview of the folded content (up to 10 lines)
     const foldedContentPreview: string[] = [];
@@ -137,6 +137,7 @@ export function analyzeFoldedRegions(editor: any): FoldedRegionsAnalysis {
   const currentFoldingRanges = getCurrentFoldingRanges(editor);
   
   console.log('Current folding ranges:', currentFoldingRanges);
+  console.log('Hidden areas (actual folded content):', hiddenAreas);
   console.log('Path map:', pathMap);
   console.log('Folded ranges with paths:', foldedRanges);
   

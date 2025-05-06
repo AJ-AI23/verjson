@@ -53,6 +53,37 @@ export function processFoldingChange(
 }
 
 /**
+ * Get all current hidden ranges from the editor
+ * This helps us identify what's currently folded
+ */
+function getHiddenRanges(editor: any): { startLineNumber: number, endLineNumber: number }[] {
+  if (!editor) return [];
+  
+  try {
+    // Try to get hidden areas directly from the editor instance
+    if (editor.getHiddenAreas && typeof editor.getHiddenAreas === 'function') {
+      return editor.getHiddenAreas();
+    }
+    
+    // Alternative approach: Check folding model regions that are collapsed
+    const foldingController = editor._privateApiMethod?.foldingController;
+    if (foldingController?._foldingModel?.regions) {
+      return foldingController._foldingModel.regions
+        .filter((region: any) => region.isCollapsed)
+        .map((region: any) => ({
+          startLineNumber: region.startLineNumber,
+          endLineNumber: region.endLineNumber
+        }));
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('Error getting hidden ranges:', error);
+    return [];
+  }
+}
+
+/**
  * Compare two sets of folding ranges to detect changes
  */
 export function detectFoldingChanges(
@@ -66,11 +97,18 @@ export function detectFoldingChanges(
   const model = editor.getModel();
   if (!model) return;
   
-  // Filter to just the ranges that represent collapsed sections
+  // Use the hidden ranges approach instead of relying on the decoration changes
+  const hiddenRanges = getHiddenRanges(editor);
+  
+  if (isDebugMode) {
+    console.log('Current hidden ranges:', hiddenRanges);
+  }
+  
+  // Filter to just the ranges that represent collapsed sections from previous state
   const prevCollapsedRanges = previousRanges;
-  const currCollapsedRanges = currentRanges
-    .filter(r => r.isCollapsed)
-    .map(({ startLineNumber, endLineNumber }) => ({ startLineNumber, endLineNumber }));
+  
+  // Current collapsed ranges are the hidden ones we've fetched directly
+  const currCollapsedRanges = hiddenRanges;
   
   // Ensure we have the latest path map
   if (Object.keys(pathMapRef.current).length === 0) {

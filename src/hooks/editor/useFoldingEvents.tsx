@@ -23,10 +23,16 @@ export const useFoldingEvents = (onToggleCollapse?: (path: string, isCollapsed: 
       const model = editor.getModel();
       if (!model) return;
       
-      // Get current folding ranges
-      const currentFoldingRanges = getCurrentFoldingRanges(editor);
+      // Get current folding ranges directly from hidden areas
+      // This is more reliable than the decoration-based approach
+      const hiddenRanges = editor.getHiddenAreas ? editor.getHiddenAreas() : [];
+      const currentFoldingRanges = hiddenRanges.map(range => ({
+        startLineNumber: range.startLineNumber,
+        endLineNumber: range.endLineNumber,
+        isCollapsed: true // If it's in hidden areas, it's collapsed
+      }));
       
-      // Only continue if we have both current and previous ranges
+      // Only continue if we have valid ranges to process
       if (currentFoldingRanges.length === 0 && previousFoldingRangesRef.current.length === 0) {
         return;
       }
@@ -35,7 +41,8 @@ export const useFoldingEvents = (onToggleCollapse?: (path: string, isCollapsed: 
         console.log('===== FOLD/UNFOLD EVENT DETECTED =====');
         console.log('Event timestamp:', new Date().toISOString());
         console.log('Previous folding ranges count:', previousFoldingRangesRef.current.length);
-        console.log('Current folding ranges count:', currentFoldingRanges.length);
+        console.log('Current hidden ranges count:', currentFoldingRanges.length);
+        console.log('Hidden ranges:', hiddenRanges);
       }
       
       // Detect and process folding changes
@@ -49,12 +56,10 @@ export const useFoldingEvents = (onToggleCollapse?: (path: string, isCollapsed: 
       );
       
       // Update reference to current ranges for next comparison
-      previousFoldingRangesRef.current = currentFoldingRanges
-        .filter(r => r.isCollapsed)
-        .map(({ startLineNumber, endLineNumber }) => ({ 
-          startLineNumber, 
-          endLineNumber 
-        }));
+      previousFoldingRangesRef.current = hiddenRanges.map(({ startLineNumber, endLineNumber }) => ({ 
+        startLineNumber, 
+        endLineNumber 
+      }));
       
       if (isDebugMode) {
         console.log('===== END FOLD/UNFOLD EVENT =====');
