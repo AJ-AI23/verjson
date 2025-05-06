@@ -17,26 +17,28 @@ export const useJsonEditorEvents = ({
       onExpand: function(node: any) {
         if (onToggleCollapse && node.path) {
           console.log('Expanded path via onExpand:', node.path);
-          const path = 'root.' + node.path.join('.');
+          // Format path properly - empty path array means root node
+          const pathStr = node.path.length > 0 ? 'root.' + node.path.join('.') : 'root';
           setFoldingDebug({
             lastOperation: 'expand',
-            path,
+            path: pathStr,
             timestamp: Date.now()
           });
-          onToggleCollapse(path, false);
+          onToggleCollapse(pathStr, false);
         }
       },
       
       onCollapse: function(node: any) {
         if (onToggleCollapse && node.path) {
           console.log('Collapsed path via onCollapse:', node.path);
-          const path = 'root.' + node.path.join('.');
+          // Format path properly - empty path array means root node
+          const pathStr = node.path.length > 0 ? 'root.' + node.path.join('.') : 'root';
           setFoldingDebug({
             lastOperation: 'collapse',
-            path,
+            path: pathStr,
             timestamp: Date.now()
           });
-          onToggleCollapse(path, true);
+          onToggleCollapse(pathStr, true);
         }
       },
       

@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+
+import { useRef, useState, useEffect } from 'react';
 import JSONEditor from 'jsoneditor';
 import { toast } from 'sonner';
 import { UseJsonEditorProps, FoldingDebugInfo, JsonEditorResult } from './types';
@@ -74,24 +75,12 @@ export const useJsonEditor = ({
       // Store the editor instance in the ref
       editorRef.current = editor;
       
-      // Set up initial folding state after a small delay
-      setTimeout(() => {
-        if (editorRef.current && !initialSetupDone.current) {
-          // First, collapse all nodes
-          collapseAll();
-          
-          // Then, expand only the first level (root node)
-          setTimeout(() => {
-            expandFirstLevel();
-            
-            // Mark initial setup as done
-            initialSetupDone.current = true;
-            
-            console.log('Initial folding state setup completed');
-          }, 100);
-        }
-      }, 100);
-
+      // Notify that we've created the editor
+      if (onToggleCollapse) {
+        // Set initial state of root as collapsed
+        onToggleCollapse('root', true);
+      }
+      
       return editor;
     } catch (err) {
       console.error('Error initializing JSONEditor:', err);
@@ -101,6 +90,29 @@ export const useJsonEditor = ({
       return null;
     }
   };
+
+  // Effect to handle initial folding state after initialization
+  useEffect(() => {
+    if (editorRef.current && !initialSetupDone.current) {
+      // Wait a moment for the editor to fully initialize
+      const timer = setTimeout(() => {
+        // First, collapse all nodes
+        collapseAll();
+        
+        // Then, expand only the first level (root node)
+        setTimeout(() => {
+          expandFirstLevel();
+          
+          // Mark initial setup as done
+          initialSetupDone.current = true;
+          
+          console.log('Initial folding state setup completed');
+        }, 100);
+      }, 200);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [collapseAll, expandFirstLevel]);
 
   // Sync editor with props
   syncEditorWithProps();
