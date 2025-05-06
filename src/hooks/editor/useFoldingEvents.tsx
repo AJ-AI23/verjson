@@ -5,6 +5,12 @@ import { toast } from 'sonner';
 import { getCurrentFoldingRanges } from '@/lib/editor';
 import { setupFoldingCommands } from './foldingUtils/setupFoldingCommands';
 import { detectFoldingChanges } from './foldingUtils/detectFoldingChanges';
+import { editor as monacoEditor } from 'monaco-editor';
+
+// Define a type for the editor that includes our custom methods
+interface ExtendedEditor extends monacoEditor.IStandaloneCodeEditor {
+  getHiddenAreas?: () => { startLineNumber: number; endLineNumber: number }[];
+}
 
 /**
  * Hook for handling folding events in Monaco editor
@@ -15,7 +21,7 @@ export const useFoldingEvents = (onToggleCollapse?: (path: string, isCollapsed: 
   
   // Process folding changes
   const processFoldingChanges = useCallback((
-    editor: any, 
+    editor: ExtendedEditor, 
     pathMapRef: React.MutableRefObject<{[lineNumber: number]: string}>,
     isDebugMode: boolean
   ) => {
@@ -74,9 +80,9 @@ export const useFoldingEvents = (onToggleCollapse?: (path: string, isCollapsed: 
 
   // Configure keyboard commands for fold/unfold actions
   const setupFoldingCommandsCallback = useCallback((
-    editor: any, 
+    editor: ExtendedEditor, 
     monaco: Monaco,
-    inspectFoldedRegions: (editor: any, pathMapRef: any) => any,
+    inspectFoldedRegions: (editor: ExtendedEditor, pathMapRef: any) => any,
     pathMapRef: React.MutableRefObject<{[lineNumber: number]: string}>
   ) => {
     setupFoldingCommands(editor, monaco, inspectFoldedRegions, pathMapRef, processFoldingChanges);

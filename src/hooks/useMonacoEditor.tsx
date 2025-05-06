@@ -9,6 +9,13 @@ import { useFoldingDebug } from './editor/useFoldingDebug';
 import { useFoldingEvents } from './editor/useFoldingEvents';
 import { useCollapsedPaths } from './editor/useCollapsedPaths';
 import { generateLineToPathMap } from '@/lib/editor';
+import { editor as monacoEditor } from 'monaco-editor';
+
+// Define a type for the editor that includes our custom methods
+interface ExtendedEditor extends monacoEditor.IStandaloneCodeEditor {
+  // Add getHiddenAreas as an optional method to handle Monaco editor's internal APIs
+  getHiddenAreas?: () => { startLineNumber: number; endLineNumber: number }[];
+}
 
 interface UseMonacoEditorProps {
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
@@ -17,7 +24,7 @@ interface UseMonacoEditorProps {
 
 export const useMonacoEditor = ({ onToggleCollapse, collapsedPaths = {} }: UseMonacoEditorProps) => {
   // References for editor and monaco instance
-  const editorRef = useRef<any>(null);
+  const editorRef = useRef<ExtendedEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
   
   // Reference for storing collapsed paths
@@ -49,7 +56,8 @@ export const useMonacoEditor = ({ onToggleCollapse, collapsedPaths = {} }: UseMo
   
   // Mount the editor and configure it
   const handleEditorDidMount: OnMount = useCallback((editor, monaco) => {
-    editorRef.current = editor;
+    // Cast editor to our extended type for TypeScript compatibility
+    editorRef.current = editor as ExtendedEditor;
     monacoRef.current = monaco;
     
     // Configure JSON language features
@@ -82,7 +90,9 @@ export const useMonacoEditor = ({ onToggleCollapse, collapsedPaths = {} }: UseMo
       
       const checkForFoldingChanges = () => {
         try {
-          const hiddenAreas = editor.getHiddenAreas();
+          // Safely access getHiddenAreas if it exists
+          const hiddenAreas = (editorRef.current?.getHiddenAreas?.() || []);
+          
           // Create a simple hash of the hidden areas to detect changes
           const hiddenAreasHash = hiddenAreas.map(area => 
             `${area.startLineNumber}-${area.endLineNumber}`
@@ -158,7 +168,7 @@ export const useMonacoEditor = ({ onToggleCollapse, collapsedPaths = {} }: UseMo
         console.log("Monaco reference:", monaco);
         const result = inspectFoldedRegions(editor, pathMapRef);
         console.log("Path map:", result.pathMap);
-        console.log("Hidden areas:", editor.getHiddenAreas());
+        console.log("Hidden areas:", editorRef.current?.getHiddenAreas?.() || []);
         console.log("=== END MANUAL INSPECTION ===");
         return result;
       };
@@ -208,8 +218,12 @@ export const useMonacoEditor = ({ onToggleCollapse, collapsedPaths = {} }: UseMo
       <DebugFoldingButton 
         onClick={() => {
           const result = forceFoldingRefresh();
+          // Fix the property access by properly typing the result
+          const foldedRangesCount = result?.foldingRanges?.length || 0;
+          const pathMapSize = Object.keys(result?.pathMap || {}).length;
+          
           toast.info("Folding inspection completed", {
-            description: `Found ${result?.foldedRanges?.length || 0} folding ranges and ${Object.keys(result?.pathMap || {}).length} path mappings`
+            description: `Found ${foldedRangesCount} folding ranges and ${pathMapSize} path mappings`
           });
         }}
       />

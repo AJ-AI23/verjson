@@ -3,6 +3,11 @@ import { LineToPathMap } from '@/lib/editor/types';
 import { findPathForFoldingRange, generateLineToPathMap } from '@/lib/editor';
 import { editor } from 'monaco-editor';
 
+// Extended editor interface
+interface ExtendedEditor extends editor.IStandaloneCodeEditor {
+  getHiddenAreas?: () => { startLineNumber: number; endLineNumber: number }[];
+}
+
 /**
  * Resolves a path for a folding range, using multiple fallback methods if needed
  */
@@ -56,7 +61,7 @@ export function processFoldingChange(
  * Get all current hidden ranges from the editor
  * This helps us identify what's currently folded
  */
-function getHiddenRanges(editor: any): { startLineNumber: number, endLineNumber: number }[] {
+function getHiddenRanges(editor: ExtendedEditor): { startLineNumber: number, endLineNumber: number }[] {
   if (!editor) return [];
   
   try {
@@ -66,7 +71,7 @@ function getHiddenRanges(editor: any): { startLineNumber: number, endLineNumber:
     }
     
     // Alternative approach: Check folding model regions that are collapsed
-    const foldingController = editor._privateApiMethod?.foldingController;
+    const foldingController = (editor as any)._privateApiMethod?.foldingController;
     if (foldingController?._foldingModel?.regions) {
       return foldingController._foldingModel.regions
         .filter((region: any) => region.isCollapsed)
@@ -87,7 +92,7 @@ function getHiddenRanges(editor: any): { startLineNumber: number, endLineNumber:
  * Compare two sets of folding ranges to detect changes
  */
 export function detectFoldingChanges(
-  editor: any,
+  editor: ExtendedEditor,
   previousRanges: Array<{startLineNumber: number, endLineNumber: number}>,
   currentRanges: Array<{startLineNumber: number, endLineNumber: number, isCollapsed: boolean}>,
   pathMapRef: React.MutableRefObject<{[lineNumber: number]: string}>,

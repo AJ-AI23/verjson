@@ -1,23 +1,30 @@
 
 import { FoldingRangeWithState, FoldedRegionsAnalysis } from './types';
 import { generateLineToPathMap, findPathForFoldingRange } from './pathMapping';
+import { editor as monacoEditor } from 'monaco-editor';
+
+// Define a type for the editor that includes our custom methods
+interface ExtendedEditor extends monacoEditor.IStandaloneCodeEditor {
+  // Add getHiddenAreas as an optional method to handle Monaco editor's internal APIs
+  getHiddenAreas?: () => { startLineNumber: number; endLineNumber: number }[];
+}
 
 /**
  * Get current folding ranges from the editor
  * @param editor Monaco editor instance
  * @returns Array of folding ranges
  */
-export function getCurrentFoldingRanges(editor: any): FoldingRangeWithState[] {
+export function getCurrentFoldingRanges(editor: ExtendedEditor): FoldingRangeWithState[] {
   if (!editor || !editor.getModel()) return [];
   
   // Try to access folding regions through Monaco's API
   try {
     // First method: try to access folding controller directly
-    if (editor._privateApiMethod?.foldingController) {
-      const foldingController = editor._privateApiMethod.foldingController;
+    if ((editor as any)._privateApiMethod?.foldingController) {
+      const foldingController = (editor as any)._privateApiMethod.foldingController;
       if (foldingController._foldingModel) {
         // Get regions from folding model
-        return foldingController._foldingModel.regions.map(region => ({
+        return foldingController._foldingModel.regions.map((region: any) => ({
           startLineNumber: region.startLineNumber,
           endLineNumber: region.endLineNumber,
           isCollapsed: region.isCollapsed
@@ -26,16 +33,16 @@ export function getCurrentFoldingRanges(editor: any): FoldingRangeWithState[] {
     }
     
     // Try alternative method to access folding controller
-    if (editor._actions?.["editor.foldAll"]?.run) {
+    if ((editor as any)._actions?.["editor.foldAll"]?.run) {
       // If we can access the fold action, we might be able to access the internal state
       const foldingControllerInternal = 
         // @ts-ignore - Accessing private Monaco API
-        editor._codeEditorService?._getEditorClone?.(editor)?.foldingController ||
+        (editor as any)._codeEditorService?._getEditorClone?.(editor)?.foldingController ||
         // @ts-ignore - Alternative path
-        editor.getFoldingController?.();
+        (editor as any).getFoldingController?.();
       
       if (foldingControllerInternal?._foldingModel?.regions) {
-        return foldingControllerInternal._foldingModel.regions.map(region => ({
+        return foldingControllerInternal._foldingModel.regions.map((region: any) => ({
           startLineNumber: region.startLineNumber,
           endLineNumber: region.endLineNumber,
           isCollapsed: region.isCollapsed
@@ -79,7 +86,7 @@ export function getCurrentFoldingRanges(editor: any): FoldingRangeWithState[] {
  * @param editor The Monaco editor instance
  * @returns Object with info about folded ranges and model structure
  */
-export function analyzeFoldedRegions(editor: any): FoldedRegionsAnalysis {
+export function analyzeFoldedRegions(editor: ExtendedEditor): FoldedRegionsAnalysis {
   const model = editor.getModel();
   if (!model) {
     return {
