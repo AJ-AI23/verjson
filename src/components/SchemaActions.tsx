@@ -1,8 +1,7 @@
-
 import React, { useRef } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { ImportIcon, ExportIcon, FileJson } from 'lucide-react';
+import { ImportIcon, FileJson, Download } from 'lucide-react';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -145,7 +144,7 @@ export const SchemaActions: React.FC<SchemaActionsProps> = ({
         onClick={handleExport}
         className="flex items-center gap-1"
       >
-        <ExportIcon className="h-4 w-4" />
+        <Download className="h-4 w-4" />
         <span>Export</span>
       </Button>
     </div>
