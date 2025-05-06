@@ -1,5 +1,5 @@
 
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, memo } from 'react';
 import { ReactFlow, Background, Controls, Node, Edge, ReactFlowInstance, useReactFlow } from '@xyflow/react';
 import { SchemaTypeNode } from '@/components/SchemaTypeNode';
 
@@ -16,7 +16,7 @@ const nodeTypes = {
   schemaType: SchemaTypeNode,
 };
 
-export const DiagramFlow: React.FC<DiagramFlowProps> = ({
+export const DiagramFlow: React.FC<DiagramFlowProps> = memo(({
   nodes,
   edges,
   onNodesChange,
@@ -26,6 +26,7 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
 }) => {
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const viewportRef = useRef<{ x: number; y: number; zoom: number }>({ x: 0, y: 0, zoom: 1 });
+  const didFitViewRef = useRef<boolean>(false);
   
   // Store viewport when it changes
   const onMove = useCallback(() => {
@@ -43,10 +44,12 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
     // If we have a stored viewport and shouldn't fit view, set it immediately
     if (!shouldFitView && viewportRef.current) {
       setTimeout(() => {
-        if (instance) {
+        if (instance && !didFitViewRef.current) {
           instance.setViewport(viewportRef.current);
         }
       }, 50);
+    } else if (shouldFitView) {
+      didFitViewRef.current = true;
     }
   }, [shouldFitView]);
 
@@ -74,4 +77,6 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
       </ReactFlow>
     </div>
   );
-};
+});
+
+DiagramFlow.displayName = 'DiagramFlow';

@@ -22,9 +22,13 @@ export const useDiagramNodes = (
   const schemaStringRef = useRef<string>('');
   const collapsedPathsRef = useRef<CollapsedState>(collapsedPaths);
   const updateTimeoutRef = useRef<number | null>(null);
+  const processingUpdateRef = useRef<boolean>(false);
 
   // Generate a new schema key when schema, grouping, maxDepth, or collapsedPaths changes
   useEffect(() => {
+    // Skip if we're already processing an update
+    if (processingUpdateRef.current) return;
+
     if (schema) {
       // Convert schema to string for comparison
       const schemaString = JSON.stringify(schema);
@@ -74,7 +78,11 @@ export const useDiagramNodes = (
 
   // Effect for schema or error changes - simplified approach
   useEffect(() => {
+    // Skip update if schema key hasn't changed
     if (schema && !error) {
+      // Mark that we're processing an update
+      processingUpdateRef.current = true;
+      
       console.log(`Generating nodes and edges with maxDepth: ${maxDepth}`);
       const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties, maxDepth, collapsedPaths);
       
@@ -87,6 +95,7 @@ export const useDiagramNodes = (
         setNodes(positionedNodes);
         validateAndSetEdges(newEdges);
         updateTimeoutRef.current = null;
+        processingUpdateRef.current = false;
       }, 10);
     } else {
       // Clear both nodes and edges when there's an error or no schema
@@ -101,6 +110,7 @@ export const useDiagramNodes = (
     return () => {
       if (updateTimeoutRef.current !== null) {
         clearTimeout(updateTimeoutRef.current);
+        processingUpdateRef.current = false;
       }
     };
   }, [schema, error, groupProperties, maxDepth, collapsedPaths, setNodes, setEdges, schemaKey, applyStoredPositions, validateAndSetEdges, nodes.length, edges.length]);
