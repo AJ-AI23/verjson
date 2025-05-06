@@ -1,8 +1,10 @@
 
-export const monacoEditorOptions = {
+import { editor } from 'monaco-editor';
+
+export const monacoEditorOptions: editor.IStandaloneEditorConstructionOptions = {
   minimap: { enabled: false },
   fontSize: 13,
-  lineNumbers: 'on',
+  lineNumbers: 'on' as const,
   scrollBeyondLastLine: false,
   wordWrap: 'on',
   wrappingIndent: 'same',
