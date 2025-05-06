@@ -1,6 +1,6 @@
 
-import React, { useCallback, useEffect, useRef, memo } from 'react';
-import { ReactFlow, Background, Controls, Node, Edge, ReactFlowInstance, useReactFlow } from '@xyflow/react';
+import React, { useCallback, useEffect, useRef, memo, useMemo } from 'react';
+import { ReactFlow, Background, Controls, Node, Edge, ReactFlowInstance } from '@xyflow/react';
 import { SchemaTypeNode } from '@/components/SchemaTypeNode';
 
 interface DiagramFlowProps {
@@ -27,6 +27,10 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = memo(({
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const viewportRef = useRef<{ x: number; y: number; zoom: number }>({ x: 0, y: 0, zoom: 1 });
   const didFitViewRef = useRef<boolean>(false);
+  
+  // Memoize the nodes and edges to prevent unnecessary re-renders
+  const memoizedNodes = useMemo(() => nodes, [nodes]);
+  const memoizedEdges = useMemo(() => edges, [edges]);
   
   // Store viewport when it changes
   const onMove = useCallback(() => {
@@ -57,8 +61,8 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = memo(({
     <div className="flex-1 diagram-container">
       <ReactFlow
         key={`flow-${schemaKey}`}
-        nodes={nodes}
-        edges={edges}
+        nodes={memoizedNodes}
+        edges={memoizedEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}

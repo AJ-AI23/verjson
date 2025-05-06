@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { DiagramEmpty } from './DiagramEmpty';
 import { DiagramHeader } from './DiagramHeader';
 import { DiagramFlow } from './DiagramFlow';
@@ -24,6 +24,10 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
 }) => {
   const [localMaxDepth, setLocalMaxDepth] = React.useState(maxDepth);
 
+  // Memoize the schema and collapsedPaths to prevent unnecessary re-renders
+  const memoizedSchema = useMemo(() => schema, [JSON.stringify(schema)]);
+  const memoizedCollapsedPaths = useMemo(() => collapsedPaths, [JSON.stringify(collapsedPaths)]);
+
   const {
     nodes,
     edges,
@@ -31,7 +35,13 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     onEdgesChange,
     nodePositionsRef,
     schemaKey
-  } = useDiagramNodes(schema, error, groupProperties, localMaxDepth, collapsedPaths);
+  } = useDiagramNodes(
+    memoizedSchema, 
+    error, 
+    groupProperties, 
+    localMaxDepth, 
+    memoizedCollapsedPaths
+  );
 
   // Check if there are any stored node positions
   const hasStoredPositions = Object.keys(nodePositionsRef.current).length > 0;
