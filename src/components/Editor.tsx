@@ -65,8 +65,16 @@ export const Editor = () => {
       [path]: isCollapsed
     }));
     
-    // Show a toast notification for debugging purposes
-    toast.info(`${isCollapsed ? 'Collapsed' : 'Expanded'}: ${path}`);
+    // Show a toast notification when something is collapsed or expanded
+    if (isCollapsed) {
+      toast.info(`Collapsed: ${path}`, {
+        description: "Section folded in the editor"
+      });
+    } else {
+      toast.info(`Expanded: ${path}`, {
+        description: "Section unfolded in the editor"
+      });
+    }
   }, []);
 
   // Debounced schema validation to avoid excessive processing
