@@ -5,11 +5,13 @@ import { toast } from 'sonner';
 interface EditorToolbarProps {
   onFormatCode: () => void;
   onInspectEditor: () => void;
+  extraButtons?: React.ReactNode;
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onFormatCode,
-  onInspectEditor
+  onInspectEditor,
+  extraButtons
 }) => {
   return (
     <div className="p-2 border-b bg-slate-50 flex justify-between items-center">
@@ -29,6 +31,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         >
           <span>Debug Folding</span>
         </button>
+        {extraButtons}
       </div>
     </div>
   );

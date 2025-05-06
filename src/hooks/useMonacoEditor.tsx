@@ -1,5 +1,4 @@
-
-import { useRef, useCallback, useState, useEffect } from 'react';
+import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { Monaco, OnMount } from '@monaco-editor/react';
 import { toast } from 'sonner';
 import { CollapsedState } from '@/lib/diagram/types';
