@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { SplitPane } from '@/components/SplitPane';
 import { JsonEditor } from '@/components/JsonEditor';
 import { SchemaDiagram } from '@/components/SchemaDiagram';
@@ -19,16 +19,51 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileJson, FileCode, BoxSelect, Rows3 } from 'lucide-react';
+import { VersionControls } from '@/components/VersionControls';
+import { VersionHistory } from '@/components/VersionHistory';
+import { FileJson, FileCode, BoxSelect, Rows3, Save } from 'lucide-react';
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { 
+  Version, 
+  VersionTier, 
+  SchemaPatch, 
+  generatePatch, 
+  loadPatches, 
+  savePatches, 
+  calculateLatestVersion 
+} from '@/lib/versionUtils';
 
 export const Editor = () => {
   const [schema, setSchema] = useState(defaultSchema);
+  const [savedSchema, setSavedSchema] = useState(defaultSchema);
   const [parsedSchema, setParsedSchema] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [schemaType, setSchemaType] = useState<SchemaType>('json-schema');
   const [groupProperties, setGroupProperties] = useState(false);
+  const [patches, setPatches] = useState<SchemaPatch[]>([]);
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
+  
+  // Calculate if the schema has been modified since last save
+  const isModified = useMemo(() => {
+    return schema !== savedSchema;
+  }, [schema, savedSchema]);
+  
+  // Get the current version based on patches
+  const currentVersion = useMemo(() => {
+    return calculateLatestVersion(patches);
+  }, [patches]);
+
+  // Load patches from localStorage on component mount
+  useEffect(() => {
+    const storedPatches = loadPatches();
+    if (storedPatches.length > 0) {
+      setPatches(storedPatches);
+      toast.info(`Loaded ${storedPatches.length} version entries`);
+    }
+  }, []);
 
   // Debounced schema validation to avoid excessive processing
   const validateSchema = useCallback((schemaText: string, type: SchemaType) => {
@@ -60,8 +95,10 @@ export const Editor = () => {
     // Update the schema content with the default for the selected type
     if (value === 'json-schema') {
       setSchema(defaultSchema);
+      setSavedSchema(defaultSchema);
     } else if (value === 'oas-3.1') {
       setSchema(defaultOasSchema);
+      setSavedSchema(defaultOasSchema);
     }
     toast.success(`Switched to ${value === 'json-schema' ? 'JSON Schema' : 'OpenAPI 3.1'} mode`);
   };
@@ -69,6 +106,38 @@ export const Editor = () => {
   const handleGroupPropertiesChange = (checked: boolean) => {
     setGroupProperties(checked);
     toast.success(`${checked ? 'Grouped' : 'Expanded'} properties view`);
+  };
+  
+  const handleVersionBump = (newVersion: Version, tier: VersionTier, description: string) => {
+    try {
+      // Ensure the current schema is valid
+      const parsedCurrentSchema = JSON.parse(schema);
+      const parsedPreviousSchema = JSON.parse(savedSchema);
+      
+      // Generate patch
+      const patch = generatePatch(
+        parsedPreviousSchema, 
+        parsedCurrentSchema, 
+        newVersion, 
+        tier, 
+        description
+      );
+      
+      // Update patches
+      const updatedPatches = [...patches, patch];
+      setPatches(updatedPatches);
+      
+      // Save patches to localStorage
+      savePatches(updatedPatches);
+      
+      // Update saved schema
+      setSavedSchema(schema);
+      
+    } catch (err) {
+      toast.error('Failed to create version', {
+        description: (err as Error).message,
+      });
+    }
   };
 
   return (
@@ -97,6 +166,16 @@ export const Editor = () => {
         </span>
         
         <div className="flex items-center space-x-2 ml-auto">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setIsVersionHistoryOpen(true)}
+            className="gap-1"
+          >
+            <Save className="h-4 w-4" />
+            <span>History</span>
+          </Button>
+          
           <Switch 
             id="group-properties" 
             checked={groupProperties}
@@ -109,17 +188,34 @@ export const Editor = () => {
         </div>
       </div>
       <SplitPane>
-        <JsonEditor 
-          value={schema} 
-          onChange={handleEditorChange} 
-          error={error}
-        />
+        <div className="flex flex-col h-full">
+          <JsonEditor 
+            value={schema} 
+            onChange={handleEditorChange} 
+            error={error}
+          />
+          <VersionControls 
+            version={currentVersion} 
+            onVersionBump={handleVersionBump}
+            isModified={isModified}
+          />
+        </div>
         <SchemaDiagram 
           schema={parsedSchema}
           error={error !== null}
           groupProperties={groupProperties}
         />
       </SplitPane>
+      
+      {/* Version History Dialog */}
+      <Dialog open={isVersionHistoryOpen} onOpenChange={setIsVersionHistoryOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Version History</DialogTitle>
+          </DialogHeader>
+          <VersionHistory patches={patches} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

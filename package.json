@@ -49,6 +49,7 @@
     "cmdk": "^1.0.0",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.3.0",
+    "fast-json-patch": "^3.1.1",
     "input-otp": "^1.2.4",
     "jest": "^29.7.0",
     "lucide-react": "^0.462.0",
