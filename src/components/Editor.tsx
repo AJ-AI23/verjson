@@ -1,7 +1,5 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
-import { SplitPane } from '@/components/SplitPane';
-import { JsonEditor } from '@/components/JsonEditor';
-import { SchemaDiagram } from '@/components/diagram/SchemaDiagram';
 import { toast } from 'sonner';
 import { defaultSchema } from '@/lib/defaultSchema';
 import { defaultOasSchema } from '@/lib/defaultOasSchema';
@@ -11,22 +9,10 @@ import {
   extractSchemaComponents, 
   SchemaType 
 } from '@/lib/schemaUtils';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { VersionControls } from '@/components/VersionControls';
-import { VersionHistory } from '@/components/VersionHistory';
-import { SchemaActions } from '@/components/SchemaActions';
-import { FileJson, FileCode, BoxSelect, Rows3, Save } from 'lucide-react';
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { formatVersion } from '@/lib/versionUtils';
+import { EditorToolbar } from './schema/EditorToolbar';
+import { EditorContent } from './schema/EditorContent';
+import { VersionHistory } from '@/components/VersionHistory';
 import { useVersioning } from '@/hooks/useVersioning';
 import { CollapsedState } from '@/lib/diagram/types';
 
@@ -37,7 +23,6 @@ export const Editor = () => {
   const [error, setError] = useState<string | null>(null);
   const [schemaType, setSchemaType] = useState<SchemaType>('json-schema');
   const [groupProperties, setGroupProperties] = useState(false);
-  // Keep only one instance of collapsedPaths state
   const [collapsedPaths, setCollapsedPaths] = useState<CollapsedState>({});
   const [maxDepth] = useState(3); // Default max depth for initial rendering
   
@@ -106,22 +91,8 @@ export const Editor = () => {
 
   const handleSchemaTypeChange = (value: SchemaType) => {
     setSchemaType(value);
-    // Update the schema content with the default for the selected type
-    if (value === 'json-schema') {
-      setSchema(defaultSchema);
-      setSavedSchema(defaultSchema);
-    } else if (value === 'oas-3.1') {
-      setSchema(defaultOasSchema);
-      setSavedSchema(defaultOasSchema);
-    }
     // Reset collapsed paths when changing schema type
     setCollapsedPaths({});
-    toast.success(`Switched to ${value === 'json-schema' ? 'JSON Schema' : 'OpenAPI 3.1'} mode`);
-  };
-
-  const handleGroupPropertiesChange = (checked: boolean) => {
-    setGroupProperties(checked);
-    toast.success(`${checked ? 'Grouped' : 'Expanded'} properties view`);
   };
 
   const handleImportSchema = (importedSchema: string, detectedType?: SchemaType) => {
@@ -138,81 +109,31 @@ export const Editor = () => {
   
   return (
     <div className="json-schema-editor">
-      <div className="mb-4 flex flex-wrap items-center gap-4">
-        <Select value={schemaType} onValueChange={(value) => handleSchemaTypeChange(value as SchemaType)}>
-          <SelectTrigger className="w-[200px]">
-            <div className="flex items-center gap-2">
-              {schemaType === 'json-schema' ? (
-                <FileJson className="h-4 w-4" />
-              ) : (
-                <FileCode className="h-4 w-4" />
-              )}
-              <SelectValue placeholder="Select schema type" />
-            </div>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="json-schema">JSON Schema</SelectItem>
-            <SelectItem value="oas-3.1">OpenAPI 3.1</SelectItem>
-          </SelectContent>
-        </Select>
-        <span className="text-sm text-slate-500">
-          {schemaType === 'json-schema' 
-            ? 'Standard JSON Schema format'
-            : 'OpenAPI 3.1 specification format with JSON Schema components'}
-        </span>
-        
-        {/* Add Import/Export actions */}
-        <SchemaActions 
-          currentSchema={schema} 
-          schemaType={schemaType}
-          onImport={handleImportSchema}
-        />
-        
-        <div className="flex items-center space-x-2 ml-auto">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => toggleVersionHistory(true)}
-            className="gap-1"
-          >
-            <Save className="h-4 w-4" />
-            <span>History</span>
-          </Button>
-          
-          <Switch 
-            id="group-properties" 
-            checked={groupProperties}
-            onCheckedChange={handleGroupPropertiesChange}
-          />
-          <Label htmlFor="group-properties" className="flex items-center gap-2 cursor-pointer">
-            {groupProperties ? <BoxSelect className="h-4 w-4" /> : <Rows3 className="h-4 w-4" />}
-            <span>Group Properties</span>
-          </Label>
-        </div>
-      </div>
-      <SplitPane>
-        <div className="flex flex-col h-full">
-          <JsonEditor 
-            value={schema} 
-            onChange={handleEditorChange} 
-            error={error}
-            collapsedPaths={collapsedPaths}
-            onToggleCollapse={handleToggleCollapse}
-          />
-          <VersionControls 
-            version={currentVersion} 
-            onVersionBump={handleVersionBump}
-            isModified={isModified}
-          />
-        </div>
-        <SchemaDiagram 
-          schema={parsedSchema}
-          error={error !== null}
-          groupProperties={groupProperties}
-          collapsedPaths={collapsedPaths}
-          maxDepth={maxDepth}
-        />
-      </SplitPane>
+      <EditorToolbar 
+        schema={schema}
+        schemaType={schemaType}
+        groupProperties={groupProperties}
+        onSchemaTypeChange={handleSchemaTypeChange}
+        onGroupPropertiesChange={setGroupProperties}
+        onImport={handleImportSchema}
+        toggleVersionHistory={toggleVersionHistory}
+        setSchema={setSchema}
+        setSavedSchema={setSavedSchema}
+      />
+      
+      <EditorContent 
+        schema={schema}
+        parsedSchema={parsedSchema}
+        error={error}
+        isModified={isModified}
+        currentVersion={currentVersion}
+        collapsedPaths={collapsedPaths}
+        groupProperties={groupProperties}
+        maxDepth={maxDepth}
+        onEditorChange={handleEditorChange}
+        onVersionBump={handleVersionBump}
+        onToggleCollapse={handleToggleCollapse}
+      />
       
       {/* Version History Dialog */}
       <Dialog open={isVersionHistoryOpen} onOpenChange={toggleVersionHistory}>
