@@ -1,4 +1,3 @@
-
 import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { Monaco, OnMount } from '@monaco-editor/react';
 import { toast } from 'sonner';
@@ -116,27 +115,21 @@ export const useMonacoEditor = ({ onToggleCollapse, collapsedPaths = {} }: UseMo
         }, 1000); // Regenerate path map 1 second after typing stops
       });
       
-      // Also listen specifically for folding events through the editor API
+      // Try to add direct folding event listener, but it's not in the public API, so we catch errors
       try {
-        // This is a Monaco-specific API that might not be public, hence the try-catch
-        if (editor.onDidChangeFoldingState) {
-          const foldingStateDisposable = editor.onDidChangeFoldingState(() => {
-            console.log("Direct folding state change detected");
-            processFoldingChanges(editor, pathMapRef, true); // Force debug mode on for these events
-          });
-          
-          // Remember to dispose this listener when unmounting
-          return () => {
-            decorationsDisposable.dispose();
-            contentChangeDisposable.dispose();
-            foldingStateDisposable.dispose();
-            // @ts-ignore - Cleanup global function
-            window.inspectMonacoEditor = undefined;
-            if (window.pathMapUpdateTimeout) {
-              clearTimeout(window.pathMapUpdateTimeout);
-            }
-          };
-        }
+        // Since we can't use onDidChangeFoldingState directly (not in public API),
+        // we'll monitor for key editor events that might indicate folding changes
+        
+        // Remember to dispose this listener when unmounting
+        return () => {
+          decorationsDisposable.dispose();
+          contentChangeDisposable.dispose();
+          // @ts-ignore - Cleanup global function
+          window.inspectMonacoEditor = undefined;
+          if (window.pathMapUpdateTimeout) {
+            clearTimeout(window.pathMapUpdateTimeout);
+          }
+        };
       } catch (error) {
         console.log("Could not attach to folding state events directly:", error);
       }
