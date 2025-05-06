@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import Editor, { Monaco, OnMount } from '@monaco-editor/react';
@@ -38,37 +39,36 @@ export const JsonEditor = ({
       bracketPairColorization: { enabled: true },
     });
 
-    // Listen for folding events
-    const disposable = editor.onDidChangeFoldingState(() => {
-      if (!onToggleCollapse) return;
-      
-      const model = editor.getModel();
-      if (!model) return;
-      
-      // Get all decorations including folded regions
-      const decorations = model.getAllDecorations();
-      
-      // Update collapsed state based on editor foldings
-      const newCollapsedState = updateCollapsedState(model, decorations, collapsedPaths);
-      
-      // Find differences and notify parent
-      Object.entries(newCollapsedState).forEach(([path, isCollapsed]) => {
-        // Only trigger callback if state changed
-        if (collapsedPaths[path] !== isCollapsed) {
-          console.log(`Editor ${isCollapsed ? 'folded' : 'expanded'}: ${path}`);
-          if (onToggleCollapse) {
+    // Listen for folding changes by monitoring content changes and editor model decorations
+    const model = editor.getModel();
+    if (model && onToggleCollapse) {
+      // Set up listener for content changes that might affect folding
+      const disposable = editor.onDidChangeModelContent(() => {
+        if (!model) return;
+        
+        // Get all decorations including folded regions
+        const decorations = model.getAllDecorations();
+        
+        // Update collapsed state based on editor foldings
+        const newCollapsedState = updateCollapsedState(model, decorations, collapsedPaths);
+        
+        // Find differences and notify parent
+        Object.entries(newCollapsedState).forEach(([path, isCollapsed]) => {
+          // Only trigger callback if state changed
+          if (collapsedPaths[path] !== isCollapsed) {
+            console.log(`Editor ${isCollapsed ? 'folded' : 'expanded'}: ${path}`);
             onToggleCollapse(path, isCollapsed);
           }
-        }
+        });
       });
-    });
-
-    // Cleanup function
-    return () => {
-      if (disposable) {
-        disposable.dispose();
-      }
-    };
+      
+      // Clean up the listener when component unmounts
+      return () => {
+        if (disposable) {
+          disposable.dispose();
+        }
+      };
+    }
   };
 
   // Configure advanced JSON language features
