@@ -23,4 +23,5 @@ export interface JsonEditorResult {
   collapseAll: () => void;
   expandFirstLevel: () => void;
   foldingDebug: FoldingDebugInfo | null;
+  collapsedPaths?: CollapsedState;  // Added this line to include collapsedPaths in the return type
 }
