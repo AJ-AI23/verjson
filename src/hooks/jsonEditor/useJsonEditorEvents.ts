@@ -24,11 +24,15 @@ export const useJsonEditorEvents = ({
           // Get the previous state before we update it
           const previousState = collapsedPaths[pathStr];
           
+          console.log('Current collapsed state before update:', collapsedPaths);
+          console.log('Expanded path via onExpand:', node.path);
+          console.log('Path string:', pathStr);
+          
           // Log in a cleaner format
           console.log('Collapse event:', { 
             path: pathStr, 
             collapsed: false, 
-            previousState: previousState
+            previousState 
           });
           
           setFoldingDebug({
@@ -37,6 +41,9 @@ export const useJsonEditorEvents = ({
             timestamp: Date.now()
           });
           
+          console.log('New collapsed state will be:', {...collapsedPaths, [pathStr]: false});
+          
+          // Call the callback to update the state
           onToggleCollapse(pathStr, false);
         }
       },
@@ -49,11 +56,15 @@ export const useJsonEditorEvents = ({
           // Get the previous state before we update it
           const previousState = collapsedPaths[pathStr];
           
+          console.log('Current collapsed state before update:', collapsedPaths);
+          console.log('Collapsed path via onCollapse:', node.path);
+          console.log('Path string:', pathStr);
+          
           // Log in a cleaner format
           console.log('Collapse event:', { 
             path: pathStr, 
             collapsed: true,
-            previousState: previousState
+            previousState
           });
           
           setFoldingDebug({
@@ -62,6 +73,9 @@ export const useJsonEditorEvents = ({
             timestamp: Date.now()
           });
           
+          console.log('New collapsed state will be:', {...collapsedPaths, [pathStr]: true});
+          
+          // Call the callback to update the state
           onToggleCollapse(pathStr, true);
         }
       },

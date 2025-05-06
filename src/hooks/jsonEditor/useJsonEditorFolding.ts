@@ -20,29 +20,32 @@ export const useJsonEditorFolding = ({
       
       // Update collapsed state in parent component
       if (onToggleCollapse) {
-        // Get previous state for root
-        const rootPreviousState = collapsedPaths['root'];
+        // Track state changes for each known path
+        Object.keys(collapsedPaths).forEach(path => {
+          // Get previous state
+          const previousState = collapsedPaths[path];
+          
+          if (previousState === true) {
+            // Only log and update paths that were previously collapsed
+            console.log('Collapse event:', { 
+              path, 
+              collapsed: false, 
+              previousState
+            });
+            
+            // Mark path as expanded
+            onToggleCollapse(path, false);
+          }
+        });
         
-        // Log in a cleaner format
+        // Always ensure root is expanded
+        const rootPreviousState = collapsedPaths['root'];
         console.log('Collapse event:', { 
           path: 'root', 
           collapsed: false, 
           previousState: rootPreviousState
         });
-        
-        // Mark root as expanded
         onToggleCollapse('root', false);
-        
-        // Get previous state for properties
-        const propertiesPreviousState = collapsedPaths['root.properties'];
-        
-        // Mark properties as expanded
-        console.log('Collapse event:', { 
-          path: 'root.properties', 
-          collapsed: false, 
-          previousState: propertiesPreviousState
-        });
-        onToggleCollapse('root.properties', false);
       }
       
       toast.success('All nodes expanded');
@@ -58,10 +61,9 @@ export const useJsonEditorFolding = ({
       
       // Update collapsed state in parent component
       if (onToggleCollapse) {
-        // Get previous state for root
+        // First handle the root node
         const rootPreviousState = collapsedPaths['root'];
         
-        // Log in a cleaner format
         console.log('Collapse event:', { 
           path: 'root', 
           collapsed: true, 
@@ -70,6 +72,25 @@ export const useJsonEditorFolding = ({
         
         // Mark root as collapsed
         onToggleCollapse('root', true);
+        
+        // Now handle any other known paths
+        Object.keys(collapsedPaths).forEach(path => {
+          if (path !== 'root') {
+            const previousState = collapsedPaths[path];
+            
+            if (previousState === false) {
+              // Only log and update paths that were previously expanded
+              console.log('Collapse event:', { 
+                path, 
+                collapsed: true, 
+                previousState
+              });
+              
+              // Mark path as collapsed
+              onToggleCollapse(path, true);
+            }
+          }
+        });
       }
       
       toast.success('All nodes collapsed');
