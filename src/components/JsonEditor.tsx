@@ -1,16 +1,17 @@
-
 import React, { useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import Editor, { Monaco, OnMount } from '@monaco-editor/react';
 import { parseJsonSchema } from '@/lib/schemaUtils';
+import { CollapsedState } from '@/lib/diagram/types';
 
 interface JsonEditorProps {
   value: string;
   onChange: (value: string) => void;
   error: string | null;
+  collapsedPaths?: CollapsedState;
 }
 
-export const JsonEditor = ({ value, onChange, error }: JsonEditorProps) => {
+export const JsonEditor = ({ value, onChange, error, collapsedPaths = {} }: JsonEditorProps) => {
   const editorRef = useRef<any>(null);
 
   const handleEditorDidMount: OnMount = (editor, monaco) => {
