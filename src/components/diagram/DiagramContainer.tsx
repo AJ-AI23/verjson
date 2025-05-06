@@ -74,7 +74,7 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     console.log('Schema exists:', !!schema);
     console.log('Nodes exist:', !!nodes);
     console.log('Nodes length:', nodes?.length || 0);
-    return <DiagramEmpty noSchema={true} />;
+    return <DiagramEmpty noSchema={!schema} />;
   }
 
   return (

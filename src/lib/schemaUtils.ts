@@ -80,6 +80,11 @@ export const formatJsonSchema = (schema: any): string => {
 export const extractSchemaComponents = (schema: any, schemaType: SchemaType = 'json-schema'): any => {
   console.log('Extracting schema components for type:', schemaType);
   
+  if (!schema) {
+    console.error('Schema is null or undefined in extractSchemaComponents');
+    return null;
+  }
+  
   if (schemaType === 'json-schema') {
     // For JSON Schema, return the schema directly
     console.log('Returning JSON schema directly');

@@ -24,31 +24,56 @@ export const generateNodesAndEdges = (
     return result;
   }
 
-  // Start with the root node
-  const rootNode = createRootNode(schema);
-  result.nodes.push(rootNode);
+  try {
+    // Start with the root node
+    const rootNode = createRootNode(schema);
+    result.nodes.push(rootNode);
+    console.log('Root node created:', rootNode);
 
-  // Process properties if this is an object
-  if (schema.type === 'object' && schema.properties) {
-    console.log(`Schema has ${Object.keys(schema.properties).length} properties`);
-    
-    if (groupProperties) {
-      // Group properties mode - create one node per object
-      const groupedLayout = generateGroupedLayout(schema, maxDepth, collapsedPaths);
-      result.nodes.push(...groupedLayout.nodes);
-      result.edges.push(...groupedLayout.edges);
+    // Process properties if this is an object
+    if (schema.type === 'object' && schema.properties) {
+      console.log(`Schema has ${Object.keys(schema.properties).length} properties`);
+      
+      if (groupProperties) {
+        // Group properties mode - create one node per object
+        console.log('Using grouped layout mode');
+        const groupedLayout = generateGroupedLayout(schema, maxDepth, collapsedPaths);
+        result.nodes.push(...groupedLayout.nodes);
+        result.edges.push(...groupedLayout.edges);
+      } else {
+        // Expanded properties mode (original behavior)
+        console.log('Using expanded layout mode');
+        const expandedLayout = generateExpandedLayout(schema, maxDepth, collapsedPaths);
+        result.nodes.push(...expandedLayout.nodes);
+        result.edges.push(...expandedLayout.edges);
+      }
     } else {
-      // Expanded properties mode (original behavior)
-      const expandedLayout = generateExpandedLayout(schema, maxDepth, collapsedPaths);
-      result.nodes.push(...expandedLayout.nodes);
-      result.edges.push(...expandedLayout.edges);
+      console.log(`Schema type is ${schema.type}, not generating property nodes`);
     }
-  } else {
-    console.log(`Schema type is ${schema.type}, not generating property nodes`);
+    
+    console.log(`Generated ${result.nodes.length} nodes and ${result.edges.length} edges`);
+    return result;
+  } catch (error) {
+    console.error('Error generating nodes and edges:', error);
+    // Return at least the root node if possible
+    if (result.nodes.length > 0) {
+      return result;
+    }
+    
+    // Create a fallback node to show something
+    const fallbackNode: Node = {
+      id: 'error-node',
+      type: 'schemaType',
+      position: { x: 0, y: 0 },
+      data: {
+        label: schema?.title || 'Schema Error',
+        type: schema?.type || 'unknown',
+        description: 'Error processing schema'
+      }
+    };
+    
+    return { nodes: [fallbackNode], edges: [] };
   }
-  
-  console.log(`Generated ${result.nodes.length} nodes and ${result.edges.length} edges`);
-  return result;
 };
 
 // Re-export types for usage elsewhere

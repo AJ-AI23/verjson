@@ -50,8 +50,8 @@ export const useDiagramNodes = (
   // Throttle updates to prevent excessive rendering
   const throttleUpdates = useCallback(() => {
     const now = Date.now();
-    // Only process updates if more than 500ms has passed since last update
-    return (now - lastUpdateTimeRef.current) < 500;
+    // Only process updates if more than 300ms has passed since last update
+    return (now - lastUpdateTimeRef.current) < 300;
   }, []);
 
   // Generate nodes and edges when dependencies change
@@ -68,9 +68,18 @@ export const useDiagramNodes = (
     }
     
     // Skip if there's an error or no schema
-    if (error || !schema) {
+    if (error) {
+      console.log('Skipping diagram generation due to error');
       if (nodes.length > 0 || edges.length > 0) {
-        console.log('Clearing nodes and edges due to error or no schema');
+        setNodes([]);
+        setEdges([]);
+      }
+      return;
+    }
+    
+    if (!schema) {
+      console.log('Skipping diagram generation due to no schema');
+      if (nodes.length > 0 || edges.length > 0) {
         setNodes([]);
         setEdges([]);
       }
@@ -108,28 +117,26 @@ export const useDiagramNodes = (
       // Use simple counter for schema key
       setSchemaKey(prev => prev + 1);
       
-      // Process the update after a short delay
-      updateTimeoutRef.current = window.setTimeout(() => {
-        console.log(`Generating nodes and edges with maxDepth: ${maxDepth}`);
-        const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(
-          schema, 
-          groupProperties, 
-          maxDepth, 
-          collapsedPaths
-        );
-        
-        // Apply saved positions to new nodes where possible
-        const positionedNodes = applyStoredPositions(newNodes);
-        console.log(`Generated ${positionedNodes.length} nodes and ${newEdges.length} edges`);
-        
-        // Set the new nodes and edges
-        setNodes(positionedNodes);
-        setEdges(newEdges);
-        
-        // Reset the processing flag
-        updateTimeoutRef.current = null;
-        processingUpdateRef.current = false;
-      }, 200);
+      // Process the update immediately instead of with a delay
+      console.log(`Generating nodes and edges with maxDepth: ${maxDepth}`);
+      const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(
+        schema, 
+        groupProperties, 
+        maxDepth, 
+        collapsedPaths
+      );
+      
+      // Apply saved positions to new nodes where possible
+      const positionedNodes = applyStoredPositions(newNodes);
+      console.log(`Generated ${positionedNodes.length} nodes and ${newEdges.length} edges`);
+      
+      // Set the new nodes and edges
+      setNodes(positionedNodes);
+      setEdges(newEdges);
+      
+      // Reset the processing flag
+      updateTimeoutRef.current = null;
+      processingUpdateRef.current = false;
     }
 
     // Update group properties setting when it changes
@@ -138,13 +145,6 @@ export const useDiagramNodes = (
       setPrevGroupSetting(groupProperties);
     }
     
-    // Cleanup function
-    return () => {
-      if (updateTimeoutRef.current !== null) {
-        clearTimeout(updateTimeoutRef.current);
-        processingUpdateRef.current = false;
-      }
-    };
   }, [
     schema, 
     schemaString, 

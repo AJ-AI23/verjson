@@ -46,22 +46,28 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
     maxDepth={maxDepth}
   />;
 }, (prevProps, nextProps) => {
-  // Custom comparison function for memoization
-  const schemaEqual = JSON.stringify(prevProps.schema) === JSON.stringify(nextProps.schema);
-  const collapsedEqual = JSON.stringify(prevProps.collapsedPaths) === JSON.stringify(nextProps.collapsedPaths);
-  const result = (
-    schemaEqual &&
-    prevProps.error === nextProps.error &&
-    prevProps.groupProperties === nextProps.groupProperties &&
-    collapsedEqual &&
-    prevProps.maxDepth === nextProps.maxDepth
-  );
-  
-  if (!result) {
-    console.log('SchemaDiagram props changed, will re-render');
+  try {
+    // Custom comparison function for memoization
+    const schemaEqual = JSON.stringify(prevProps.schema) === JSON.stringify(nextProps.schema);
+    const collapsedEqual = JSON.stringify(prevProps.collapsedPaths) === JSON.stringify(nextProps.collapsedPaths);
+    const result = (
+      schemaEqual &&
+      prevProps.error === nextProps.error &&
+      prevProps.groupProperties === nextProps.groupProperties &&
+      collapsedEqual &&
+      prevProps.maxDepth === nextProps.maxDepth
+    );
+    
+    if (!result) {
+      console.log('SchemaDiagram props changed, will re-render');
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Error in SchemaDiagram memo comparison:', error);
+    // If there's an error in comparison, force a re-render to be safe
+    return false;
   }
-  
-  return result;
 });
 
 SchemaDiagram.displayName = 'SchemaDiagram';

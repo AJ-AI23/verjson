@@ -1,13 +1,13 @@
 
 import React, { useCallback, useEffect, useRef, memo } from 'react';
-import { ReactFlow, Background, Controls, Node, Edge, ReactFlowInstance } from '@xyflow/react';
+import { ReactFlow, Background, Controls, Node, Edge, ReactFlowInstance, OnNodesChange, OnEdgesChange } from '@xyflow/react';
 import { SchemaTypeNode } from '@/components/SchemaTypeNode';
 
 interface DiagramFlowProps {
   nodes: Node[];
   edges: Edge[];
-  onNodesChange: (changes: any) => void;
-  onEdgesChange: (changes: any) => void;
+  onNodesChange: OnNodesChange;
+  onEdgesChange: OnEdgesChange;
   schemaKey: number;
   shouldFitView: boolean;
 }
@@ -56,9 +56,10 @@ export const DiagramFlow = memo(({
   useEffect(() => {
     console.log(`DiagramFlow rendering with ${nodes.length} nodes and ${edges.length} edges`);
     
-    if (reactFlowInstanceRef.current && shouldFitView) {
+    if (reactFlowInstanceRef.current && shouldFitView && nodes.length > 0) {
       const timeout = setTimeout(() => {
         if (reactFlowInstanceRef.current) {
+          console.log('Fitting view to diagram content');
           reactFlowInstanceRef.current.fitView({ 
             padding: 0.2,
             includeHiddenNodes: false
@@ -79,7 +80,7 @@ export const DiagramFlow = memo(({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
-        fitView={shouldFitView}
+        fitView={shouldFitView && nodes.length > 0}
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.5}
         maxZoom={2}
