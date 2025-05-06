@@ -109,57 +109,26 @@ export const useJsonEditorFolding = ({
     if (!editorRef.current) return;
     
     try {
-      // First get the root node paths
-      const rootNode = editorRef.current.get();
+      // First collapse all
+      collapseAll();
       
-      // Check if it's an object
-      if (rootNode && typeof rootNode === 'object') {
-        // Expand the root node to show first level properties
-        editorRef.current.expand([]);
+      // Then expand only the root node
+      if (onToggleCollapse) {
+        // Get previous state for root
+        const rootPreviousState = getPathState('root');
         
-        // For each top-level property, ensure it's collapsed
-        if (onToggleCollapse) {
-          // Get previous state for root
-          const rootPreviousState = getPathState('root');
-          
-          // Log in a cleaner format
-          console.log('Collapse event:', { 
-            path: 'root', 
-            collapsed: false, 
-            previousState: rootPreviousState
-          });
-          
-          // Mark root as expanded
-          onToggleCollapse('root', false);
-          
-          // But mark properties as collapsed if they are complex objects
-          if (rootNode.properties && typeof rootNode.properties === 'object') {
-            // Get previous state for properties
-            const propertiesPreviousState = getPathState('root.properties');
-            
-            console.log('Collapse event:', { 
-              path: 'root.properties', 
-              collapsed: true, 
-              previousState: propertiesPreviousState
-            });
-            onToggleCollapse('root.properties', true);
-          }
-          
-          if (rootNode.required && Array.isArray(rootNode.required)) {
-            // Get previous state for required
-            const requiredPreviousState = getPathState('root.required');
-            
-            console.log('Collapse event:', { 
-              path: 'root.required', 
-              collapsed: true, 
-              previousState: requiredPreviousState
-            });
-            onToggleCollapse('root.required', true);
-          }
-        }
+        // Log in a cleaner format
+        console.log('Collapse event:', { 
+          path: 'root', 
+          collapsed: false, 
+          previousState: rootPreviousState
+        });
         
-        console.log('Expanded first level nodes');
+        // Mark root as expanded
+        onToggleCollapse('root', false);
       }
+      
+      console.log('Expanded first level nodes');
     } catch (e) {
       console.error('Error expanding first level:', e);
     }
