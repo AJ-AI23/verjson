@@ -1,4 +1,3 @@
-
 import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { Monaco, OnMount } from '@monaco-editor/react';
 import { toast } from 'sonner';
@@ -8,6 +7,7 @@ import { usePathMapping } from './editor/usePathMapping';
 import { useFoldingDebug } from './editor/useFoldingDebug';
 import { useFoldingEvents } from './editor/useFoldingEvents';
 import { useCollapsedPaths } from './editor/useCollapsedPaths';
+import { generateLineToPathMap } from '@/lib/editor';
 
 interface UseMonacoEditorProps {
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
