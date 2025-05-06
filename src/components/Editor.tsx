@@ -65,14 +65,16 @@ export const Editor = () => {
       [path]: isCollapsed
     }));
     
-    // Show a toast notification when something is collapsed or expanded
+    // Show a short-lived toast notification when something is collapsed or expanded
     if (isCollapsed) {
       toast.info(`Collapsed: ${path}`, {
-        description: "Section folded in the editor"
+        description: "Section folded",
+        duration: 1500 // 1.5 seconds
       });
     } else {
       toast.info(`Expanded: ${path}`, {
-        description: "Section unfolded in the editor"
+        description: "Section unfolded",
+        duration: 1500 // 1.5 seconds
       });
     }
   }, []);
