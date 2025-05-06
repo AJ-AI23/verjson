@@ -38,7 +38,19 @@ export const validateJsonSchema = (jsonString: string, schemaType: SchemaType = 
     return parsedSchema;
   } catch (e) {
     if (e instanceof SyntaxError) {
-      throw new Error(`Invalid JSON: ${e.message}`);
+      // Provide more user-friendly JSON syntax error message
+      const lineMatch = e.message.match(/at position (\d+)/);
+      if (lineMatch && lineMatch[1]) {
+        const position = parseInt(lineMatch[1], 10);
+        // Calculate approximate line and column
+        const upToError = jsonString.substring(0, position);
+        const lines = upToError.split('\n');
+        const line = lines.length;
+        const column = lines[lines.length - 1].length + 1;
+        throw new Error(`JSON Syntax Error at line ${line}, column ${column}: ${e.message}`);
+      } else {
+        throw new Error(`Invalid JSON: ${e.message}`);
+      }
     }
     throw e;
   }
@@ -60,7 +72,6 @@ export const formatJsonSchema = (schema: any): string => {
   }
 };
 
-// Extract schema components from OAS schema for diagram visualization
 export const extractSchemaComponents = (schema: any, schemaType: SchemaType = 'json-schema'): any => {
   if (schemaType === 'json-schema') {
     return schema;

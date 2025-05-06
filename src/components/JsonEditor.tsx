@@ -1,7 +1,8 @@
 
 import React, { useRef, useEffect } from 'react';
 import { toast } from 'sonner';
-import Editor from '@monaco-editor/react';
+import Editor, { Monaco, OnMount } from '@monaco-editor/react';
+import { parseJsonSchema } from '@/lib/schemaUtils';
 
 interface JsonEditorProps {
   value: string;
@@ -12,8 +13,35 @@ interface JsonEditorProps {
 export const JsonEditor = ({ value, onChange, error }: JsonEditorProps) => {
   const editorRef = useRef<any>(null);
 
-  const handleEditorDidMount = (editor: any) => {
+  const handleEditorDidMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
+    
+    // Configure JSON language features
+    configureJsonLanguage(monaco);
+    
+    // Add command to format JSON
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF, () => {
+      handleFormatCode();
+    });
+    
+    // Turn on bracket pair colorization
+    editor.updateOptions({
+      bracketPairColorization: { enabled: true },
+    });
+  };
+
+  // Configure advanced JSON language features
+  const configureJsonLanguage = (monaco: Monaco) => {
+    // Set JSON validation options
+    monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
+      validate: true,
+      allowComments: false,
+      schemas: [],
+      enableSchemaRequest: false,
+      schemaValidation: 'error',
+      schemaRequest: 'warning',
+      trailingCommas: 'error',
+    });
   };
 
   const handleFormatCode = () => {
@@ -23,23 +51,39 @@ export const JsonEditor = ({ value, onChange, error }: JsonEditorProps) => {
     }
   };
 
+  const validateOnChange = (value: string | undefined) => {
+    const newValue = value || '';
+    onChange(newValue);
+    
+    // Quick validation feedback without blocking
+    try {
+      parseJsonSchema(newValue);
+    } catch (err) {
+      // Don't show toast for every keystroke - this is just for the editor's internal state
+      // The proper validation is handled by the parent component
+    }
+  };
+
   return (
     <div className="h-full flex flex-col">
       <div className="p-2 border-b bg-slate-50 flex justify-between items-center">
         <h2 className="font-semibold text-slate-700">JSON Schema Editor</h2>
-        <button 
-          onClick={handleFormatCode}
-          className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
-        >
-          Format
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={handleFormatCode}
+            className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors flex items-center gap-1"
+            title="Format JSON (Ctrl+F)"
+          >
+            <span>Format</span>
+          </button>
+        </div>
       </div>
       <div className="flex-1 editor-container">
         <Editor
           height="100%"
           defaultLanguage="json"
           value={value}
-          onChange={(value) => onChange(value || '')}
+          onChange={validateOnChange}
           onMount={handleEditorDidMount}
           options={{
             minimap: { enabled: false },
@@ -54,6 +98,17 @@ export const JsonEditor = ({ value, onChange, error }: JsonEditorProps) => {
               vertical: 'visible',
               horizontal: 'visible',
             },
+            formatOnPaste: true,
+            formatOnType: true,
+            rulers: [],
+            bracketPairColorization: {
+              enabled: true,
+            },
+            guides: {
+              bracketPairs: true,
+            },
+            folding: true,
+            showFoldingControls: 'always',
           }}
         />
       </div>
