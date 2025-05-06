@@ -131,7 +131,8 @@ const reverseOperation = (op: Operation): Operation => {
       return { 
         ...op, 
         op: 'add',
-        value: op.value  // Make sure value is included
+        // Type assertion to handle TypeScript error with value property
+        value: (op as any).value  
       } as Operation;
     case 'replace':
       // For replace, we need the original value which would be in the value property

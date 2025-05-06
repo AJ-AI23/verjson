@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { formatVersion, Version, VersionTier, bumpVersion } from '@/lib/versionUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowUp, ArrowDown } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface VersionControlsProps {
@@ -41,22 +40,6 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
     setDescription('');
     toast.success(`Version bumped to ${formatVersion(editableVersion)}`);
   };
-  
-  const incrementVersionPart = (part: keyof Version) => {
-    setEditableVersion(prev => ({
-      ...prev,
-      [part]: prev[part] + 1
-    }));
-    setSelectedTier(part);
-  };
-
-  const decrementVersionPart = (part: keyof Version) => {
-    setEditableVersion(prev => ({
-      ...prev,
-      [part]: Math.max(0, prev[part] - 1) // Ensure we don't go below 0
-    }));
-    setSelectedTier(part);
-  };
 
   const handleVersionChange = (part: keyof Version, value: string) => {
     const numValue = parseInt(value, 10);
@@ -82,77 +65,35 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
           <div className="flex gap-2">
             {/* Major Version */}
             <div className="flex items-center">
-              <div className="flex flex-col">
-                <button 
-                  onClick={() => incrementVersionPart('major')}
-                  className="p-1 text-xs bg-slate-100 hover:bg-slate-200 rounded-t border border-b-0 border-slate-300"
-                >
-                  <ArrowUp size={12} />
-                </button>
-                <button 
-                  onClick={() => decrementVersionPart('major')}
-                  className="p-1 text-xs bg-slate-100 hover:bg-slate-200 rounded-b border border-slate-300"
-                >
-                  <ArrowDown size={12} />
-                </button>
-              </div>
               <Input
                 type="number"
                 value={editableVersion.major}
                 onChange={(e) => handleVersionChange('major', e.target.value)}
-                className={`w-12 h-8 text-center text-xs mx-1 ${selectedTier === 'major' ? 'border-blue-400 ring-1 ring-blue-400' : ''}`}
+                className={`w-16 h-8 text-center text-xs ${selectedTier === 'major' ? 'border-blue-400 ring-1 ring-blue-400' : ''}`}
                 min="0"
               />
-              <span className="text-xs font-bold">.</span>
+              <span className="text-xs font-bold mx-1">.</span>
             </div>
             
             {/* Minor Version */}
             <div className="flex items-center">
-              <div className="flex flex-col">
-                <button 
-                  onClick={() => incrementVersionPart('minor')}
-                  className="p-1 text-xs bg-slate-100 hover:bg-slate-200 rounded-t border border-b-0 border-slate-300"
-                >
-                  <ArrowUp size={12} />
-                </button>
-                <button 
-                  onClick={() => decrementVersionPart('minor')}
-                  className="p-1 text-xs bg-slate-100 hover:bg-slate-200 rounded-b border border-slate-300"
-                >
-                  <ArrowDown size={12} />
-                </button>
-              </div>
               <Input
                 type="number"
                 value={editableVersion.minor}
                 onChange={(e) => handleVersionChange('minor', e.target.value)}
-                className={`w-12 h-8 text-center text-xs mx-1 ${selectedTier === 'minor' ? 'border-blue-400 ring-1 ring-blue-400' : ''}`}
+                className={`w-16 h-8 text-center text-xs ${selectedTier === 'minor' ? 'border-blue-400 ring-1 ring-blue-400' : ''}`}
                 min="0"
               />
-              <span className="text-xs font-bold">.</span>
+              <span className="text-xs font-bold mx-1">.</span>
             </div>
             
             {/* Patch Version */}
             <div className="flex items-center">
-              <div className="flex flex-col">
-                <button 
-                  onClick={() => incrementVersionPart('patch')}
-                  className="p-1 text-xs bg-slate-100 hover:bg-slate-200 rounded-t border border-b-0 border-slate-300"
-                >
-                  <ArrowUp size={12} />
-                </button>
-                <button 
-                  onClick={() => decrementVersionPart('patch')}
-                  className="p-1 text-xs bg-slate-100 hover:bg-slate-200 rounded-b border border-slate-300"
-                >
-                  <ArrowDown size={12} />
-                </button>
-              </div>
               <Input
                 type="number"
                 value={editableVersion.patch}
                 onChange={(e) => handleVersionChange('patch', e.target.value)}
-                className={`w-12 h-8 text-center text-xs mx-1 ${selectedTier === 'patch' ? 'border-blue-400 ring-1 ring-blue-400' : ''}`}
+                className={`w-16 h-8 text-center text-xs ${selectedTier === 'patch' ? 'border-blue-400 ring-1 ring-blue-400' : ''}`}
                 min="0"
               />
             </div>
