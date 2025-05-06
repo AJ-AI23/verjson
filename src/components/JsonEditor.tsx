@@ -27,7 +27,9 @@ export const JsonEditor = ({
     editorRef,
     handleEditorDidMount,
     handleFormatCode,
-    updateCollapsedPathsRef
+    updateCollapsedPathsRef,
+    forceFoldingRefresh,
+    DebugFoldingButton
   } = useMonacoEditor({ 
     onToggleCollapse, 
     collapsedPaths 
@@ -57,11 +59,18 @@ export const JsonEditor = ({
     }
   };
 
+  // Additional toolbar action to refresh folding analysis
+  const handleRefreshFolding = () => {
+    const result = forceFoldingRefresh();
+    console.log('Folding refresh result:', result);
+  };
+
   return (
     <div className="h-full flex flex-col">
       <EditorToolbar 
         onFormatCode={handleFormatCode}
         onInspectEditor={handleInspectEditor}
+        extraButtons={<DebugFoldingButton />}
       />
       <div className="flex-1 editor-container">
         <Editor
