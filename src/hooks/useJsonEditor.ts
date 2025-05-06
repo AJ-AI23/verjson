@@ -46,6 +46,34 @@ export const useJsonEditor = ({
         mainMenuBar: false,
         navigationBar: true,
         statusBar: true,
+        
+        // Add direct collapse/expand event handlers in the options
+        onExpand: function(node: any) {
+          if (onToggleCollapse && node.path) {
+            console.log('Expanded path via onExpand:', node.path);
+            const path = 'root.' + node.path.join('.');
+            setFoldingDebug({
+              lastOperation: 'expand',
+              path,
+              timestamp: Date.now()
+            });
+            onToggleCollapse(path, false);
+          }
+        },
+        
+        onCollapse: function(node: any) {
+          if (onToggleCollapse && node.path) {
+            console.log('Collapsed path via onCollapse:', node.path);
+            const path = 'root.' + node.path.join('.');
+            setFoldingDebug({
+              lastOperation: 'collapse',
+              path,
+              timestamp: Date.now()
+            });
+            onToggleCollapse(path, true);
+          }
+        },
+        
         onChange: function () {
           if (isInternalChange.current) return;
           
@@ -73,37 +101,6 @@ export const useJsonEditor = ({
         // If parsing fails, just show the raw text
         editor.setText(value);
         console.error('Failed to parse initial JSON:', e);
-      }
-
-      // Register event listeners for expand and collapse events
-      if (typeof editor.on === 'function') {
-        editor.on('expand', function (event) {
-          console.log('Expanded path:', event.path);
-          if (onToggleCollapse) {
-            const path = 'root.' + event.path.join('.');
-            setFoldingDebug({
-              lastOperation: 'expand',
-              path,
-              timestamp: Date.now()
-            });
-            onToggleCollapse(path, false);
-          }
-        });
-        
-        editor.on('collapse', function (event) {
-          console.log('Collapsed path:', event.path);
-          if (onToggleCollapse) {
-            const path = 'root.' + event.path.join('.');
-            setFoldingDebug({
-              lastOperation: 'collapse',
-              path,
-              timestamp: Date.now()
-            });
-            onToggleCollapse(path, true);
-          }
-        });
-      } else {
-        console.warn('JSONEditor instance does not support event listeners via .on()');
       }
 
       // Store the editor instance in the ref
