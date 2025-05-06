@@ -1,6 +1,6 @@
 
 import { Node, Edge } from '@xyflow/react';
-import { DiagramElements, DiagramOptions } from './types';
+import { DiagramElements } from './types';
 import { createGroupNode, createArrayNode } from './nodeGenerator';
 import { createEdge } from './edgeGenerator';
 
@@ -60,7 +60,7 @@ const calculateGridPosition = (
   return { x, y };
 };
 
-export const generateGroupedLayout = (schema: any, options: DiagramOptions = { maxDepth: 3, expandedNodes: [] }): DiagramElements => {
+export const generateGroupedLayout = (schema: any): DiagramElements => {
   const result: DiagramElements = {
     nodes: [],
     edges: []
@@ -97,8 +97,7 @@ export const generateGroupedLayout = (schema: any, options: DiagramOptions = { m
       parentId: 'root', 
       schema: { properties, required: requiredProps },
       level: 0,
-      index: 0,
-      depth: 1 // Start at depth 1 since root is depth 0
+      index: 0
     }
   ];
   
@@ -107,13 +106,7 @@ export const generateGroupedLayout = (schema: any, options: DiagramOptions = { m
     const current = objectsToProcess.shift();
     if (!current) continue;
     
-    const { parentId, schema: objSchema, level, index, depth } = current;
-    
-    // Skip if we've exceeded max depth and this node is not explicitly expanded
-    if (depth > options.maxDepth && !options.expandedNodes.includes(parentId)) {
-      continue;
-    }
-    
+    const { parentId, schema: objSchema, level, index } = current;
     const objProperties = objSchema.properties;
     const objRequired = objSchema.required || [];
 
@@ -148,9 +141,7 @@ export const generateGroupedLayout = (schema: any, options: DiagramOptions = { m
             label: `${propName} (Object)`,
             type: 'object',
             description: propSchema.description,
-            properties: Object.keys(propSchema.properties).length,
-            // Add indicator if this node has children that would exceed depth
-            hasMoreChildren: depth + 1 >= options.maxDepth
+            properties: Object.keys(propSchema.properties).length
           }
         };
         result.nodes.push(objectNode);
@@ -159,7 +150,7 @@ export const generateGroupedLayout = (schema: any, options: DiagramOptions = { m
         const objEdge = createEdge(groupNode.id, objectNodeId);
         result.edges.push(objEdge);
         
-        // Queue this object for processing at the next depth
+        // Queue this object for processing
         objectsToProcess.push({
           parentId: objectNodeId,
           schema: {
@@ -167,8 +158,7 @@ export const generateGroupedLayout = (schema: any, options: DiagramOptions = { m
             required: propSchema.required || []
           },
           level: level + 2,
-          index: propIndex,
-          depth: depth + 1
+          index: propIndex
         });
       }
       
@@ -182,16 +172,13 @@ export const generateGroupedLayout = (schema: any, options: DiagramOptions = { m
         const arrayNode = createArrayNode(groupNode.id, propName, propSchema, arrayPosition.y);
         // Apply calculated x position
         arrayNode.position.x = arrayPosition.x;
-        // Add indicator if this node has children that would exceed depth
-        arrayNode.data.hasMoreChildren = depth + 1 >= options.maxDepth;
-        
         result.nodes.push(arrayNode);
         
         // Edge from group to array
         const arrayEdge = createEdge(groupNode.id, arrayNode.id);
         result.edges.push(arrayEdge);
         
-        // Add the array's item object to process at the next depth
+        // Add the array's item object to process
         objectsToProcess.push({
           parentId: arrayNode.id,
           schema: {
@@ -199,8 +186,7 @@ export const generateGroupedLayout = (schema: any, options: DiagramOptions = { m
             required: propSchema.items.required || []
           },
           level: level + 2,
-          index: propIndex,
-          depth: depth + 1
+          index: propIndex
         });
       }
     });

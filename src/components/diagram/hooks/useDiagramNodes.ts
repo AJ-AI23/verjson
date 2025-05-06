@@ -1,21 +1,18 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Node, Edge, useNodesState, useEdgesState } from '@xyflow/react';
 import { generateNodesAndEdges } from '@/lib/diagram';
 import { useNodePositions } from './useNodePositions';
-import { DiagramOptions } from '@/lib/diagram/types';
 
 export const useDiagramNodes = (
   schema: any, 
   error: boolean, 
-  groupProperties: boolean,
-  initialMaxDepth: number = 3  // Default max depth
+  groupProperties: boolean
 ) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [prevGroupSetting, setPrevGroupSetting] = useState(groupProperties);
   const [schemaKey, setSchemaKey] = useState(0);
-  const [maxDepth, setMaxDepth] = useState(initialMaxDepth);
-  const [expandedNodes, setExpandedNodes] = useState<string[]>([]);
   const { nodePositionsRef, applyStoredPositions } = useNodePositions(nodes);
   
   // Track schema changes
@@ -67,68 +64,19 @@ export const useDiagramNodes = (
     setEdges(validEdges);
   }, [nodes, setEdges]);
 
-  // Toggle node expansion
-  const toggleNodeExpansion = useCallback((nodeId: string) => {
-    setExpandedNodes(prev => {
-      // If already expanded, remove it
-      if (prev.includes(nodeId)) {
-        return prev.filter(id => id !== nodeId);
-      }
-      // Otherwise, add it
-      return [...prev, nodeId];
-    });
-  }, []);
-
-  // Update max depth
-  const updateMaxDepth = useCallback((newDepth: number) => {
-    setMaxDepth(newDepth);
-  }, []);
-
   // Effect for schema or error changes - simplified approach
   useEffect(() => {
     if (schema && !error) {
       console.log('Generating nodes and edges');
-      const options: DiagramOptions = {
-        maxDepth,
-        expandedNodes
-      };
-      
-      const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges({
-        schema,
-        options,
-        groupProperties
-      });
+      const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties);
       
       // Apply saved positions to new nodes where possible
       const positionedNodes = applyStoredPositions(newNodes);
       console.log(`Generated ${positionedNodes.length} nodes and ${newEdges.length} edges`);
       
-      // Add expansion controls to nodes that can be expanded
-      const nodesWithControls = positionedNodes.map(node => {
-        // Check if this node has children that might be hidden due to depth
-        const hasHiddenChildren = newEdges.some(edge => 
-          edge.source === node.id && 
-          !positionedNodes.some(n => n.id === edge.target)
-        );
-        
-        if (hasHiddenChildren) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              expandable: true,
-              expanded: expandedNodes.includes(node.id),
-              onExpand: () => toggleNodeExpansion(node.id)
-            }
-          };
-        }
-        
-        return node;
-      });
-      
       // Batch the updates to minimize re-renders
       updateTimeoutRef.current = window.setTimeout(() => {
-        setNodes(nodesWithControls);
+        setNodes(positionedNodes);
         validateAndSetEdges(newEdges);
         updateTimeoutRef.current = null;
       }, 10);
@@ -147,21 +95,7 @@ export const useDiagramNodes = (
         clearTimeout(updateTimeoutRef.current);
       }
     };
-  }, [
-    schema, 
-    error, 
-    groupProperties, 
-    maxDepth, 
-    expandedNodes, 
-    setNodes, 
-    setEdges, 
-    schemaKey, 
-    applyStoredPositions, 
-    validateAndSetEdges, 
-    nodes.length, 
-    edges.length,
-    toggleNodeExpansion
-  ]);
+  }, [schema, error, groupProperties, setNodes, setEdges, schemaKey, applyStoredPositions, validateAndSetEdges, nodes.length, edges.length]);
 
   // Effect specifically for groupProperties toggle changes
   useEffect(() => {
@@ -177,10 +111,6 @@ export const useDiagramNodes = (
     onNodesChange,
     onEdgesChange,
     nodePositionsRef,
-    schemaKey,
-    maxDepth,
-    updateMaxDepth,
-    toggleNodeExpansion,
-    expandedNodes
+    schemaKey
   };
 };

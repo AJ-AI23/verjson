@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { SplitPane } from '@/components/SplitPane';
 import { JsonEditor } from '@/components/JsonEditor';
-import { SchemaDiagram } from '@/components/diagram/SchemaDiagram';
+import { SchemaDiagram } from '@/components/SchemaDiagram';
 import { toast } from 'sonner';
 import { defaultSchema } from '@/lib/defaultSchema';
 import { defaultOasSchema } from '@/lib/defaultOasSchema';
