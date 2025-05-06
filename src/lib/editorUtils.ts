@@ -117,3 +117,51 @@ export function getFoldedRegionDetails(
     };
   });
 }
+
+/**
+ * Analyze the editor's model to find all folded regions
+ * @param editor The Monaco editor instance
+ * @returns Object with info about folded ranges and model structure
+ */
+export function analyzeFoldedRegions(editor: any): { 
+  foldedRanges: Array<{start: number, end: number, content: string, path: string | null}>,
+  modelStructure: any
+} {
+  const model = editor.getModel();
+  if (!model) {
+    return {
+      foldedRanges: [],
+      modelStructure: null
+    };
+  }
+  
+  // Get all decorations and filter for folded regions
+  const decorations = model.getAllDecorations();
+  const foldedDecorations = decorations.filter(
+    d => d.options.isWholeLine && d.options.inlineClassName === 'folded'
+  );
+  
+  console.log("Folded decorations:", foldedDecorations);
+  
+  // Extract fold ranges and their paths
+  const foldedRanges = foldedDecorations.map(d => ({
+    start: d.range.startLineNumber,
+    end: d.range.endLineNumber,
+    content: model.getLineContent(d.range.startLineNumber),
+    path: extractJsonPathFromLine(model, d.range.startLineNumber)
+  }));
+  
+  console.log("Folded ranges:", foldedRanges);
+  
+  // Get basic model structure information
+  const modelStructure = {
+    lineCount: model.getLineCount(),
+    valueLength: model.getValueLength(),
+    modelId: model.id
+  };
+  
+  return {
+    foldedRanges,
+    modelStructure
+  };
+}

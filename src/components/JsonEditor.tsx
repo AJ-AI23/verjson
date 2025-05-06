@@ -4,7 +4,10 @@ import { toast } from 'sonner';
 import Editor, { Monaco, OnMount } from '@monaco-editor/react';
 import { parseJsonSchema } from '@/lib/schemaUtils';
 import { CollapsedState } from '@/lib/diagram/types';
-import { extractJsonPathFromLine, updateCollapsedState } from '@/lib/editorUtils';
+import { 
+  extractJsonPathFromLine, 
+  analyzeFoldedRegions 
+} from '@/lib/editorUtils';
 
 interface JsonEditorProps {
   value: string;
@@ -23,6 +26,7 @@ export const JsonEditor = ({
 }: JsonEditorProps) => {
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<Monaco | null>(null);
+  const prevCollapsedPathsRef = useRef<CollapsedState>(collapsedPaths);
 
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
@@ -35,27 +39,6 @@ export const JsonEditor = ({
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF, () => {
       handleFormatCode();
     });
-    
-    // Print out available editor properties for debugging
-    console.log("Monaco editor instance available methods:", 
-      Object.getOwnPropertyNames(Object.getPrototypeOf(editor))
-        .filter(prop => typeof editor[prop as keyof typeof editor] === 'function')
-    );
-    
-    console.log("Monaco editor instance available properties:", 
-      Object.getOwnPropertyNames(editor)
-        .filter(prop => typeof editor[prop as keyof typeof editor] !== 'function')
-    );
-    
-    // Log folding controller if available
-    const foldingController = editor.getContribution('editor.contrib.folding');
-    if (foldingController) {
-      console.log("Folding controller:", foldingController);
-      console.log("Folding controller methods:", 
-        Object.getOwnPropertyNames(Object.getPrototypeOf(foldingController))
-          .filter(prop => typeof foldingController[prop as keyof typeof foldingController] === 'function')
-      );
-    }
     
     // Turn on bracket pair colorization
     editor.updateOptions({
@@ -70,6 +53,9 @@ export const JsonEditor = ({
         
         const model = editor.getModel();
         if (!model) return;
+        
+        // Create a temporary map to track collapsed state changes
+        const newCollapsedPaths: CollapsedState = {};
         
         // Use getAllDecorations to find folded regions
         const decorations = model.getAllDecorations().filter(
@@ -97,27 +83,13 @@ export const JsonEditor = ({
         console.log('Current collapsed paths:', collapsedPaths);
         console.log('New collapsed paths:', newCollapsedPaths);
         
-        // Get raw folding ranges for deeper inspection
-        const foldingController = editor.getContribution('editor.contrib.folding');
-        if (foldingController) {
-          // Check if we can get regions from the controller
-          if (typeof foldingController.getRegion === 'function') {
-            // Log first 10 lines to see if they have folding regions
-            for (let i = 1; i <= 10; i++) {
-              const region = foldingController.getRegion(i);
-              if (region) {
-                console.log(`Line ${i} has folding region:`, region);
-              }
-            }
-          }
-        }
-        
-        // Create a temporary map to track collapsed state changes
-        const newCollapsedPaths: CollapsedState = {};
+        // Analyze the folded regions in detail
+        const analysis = analyzeFoldedRegions(editor);
+        console.log('Folded regions analysis:', analysis);
         
         // Compare with current collapsed paths to detect changes
-        Object.keys(collapsedPaths).forEach(path => {
-          if (collapsedPaths[path] && !newCollapsedPaths[path]) {
+        Object.keys(prevCollapsedPathsRef.current).forEach(path => {
+          if (prevCollapsedPathsRef.current[path] && !newCollapsedPaths[path]) {
             // This path was collapsed but is no longer collapsed
             console.log(`Detected unfolding of path: ${path}`);
             onToggleCollapse(path, false);
@@ -125,12 +97,15 @@ export const JsonEditor = ({
         });
         
         Object.keys(newCollapsedPaths).forEach(path => {
-          if (!collapsedPaths[path]) {
+          if (!prevCollapsedPathsRef.current[path]) {
             // This path is newly collapsed
             console.log(`Detected folding of path: ${path}`);
             onToggleCollapse(path, true);
           }
         });
+        
+        // Update reference to current collapsed paths
+        prevCollapsedPathsRef.current = { ...newCollapsedPaths };
       });
       
       // Setup keyboard command listeners for fold/unfold actions
@@ -161,6 +136,11 @@ export const JsonEditor = ({
       };
     }
   };
+  
+  // Update reference when collapsedPaths prop changes
+  useEffect(() => {
+    prevCollapsedPathsRef.current = { ...collapsedPaths };
+  }, [collapsedPaths]);
   
   // Helper function to inspect folded regions
   const inspectFoldedRegions = (editor: any) => {
@@ -287,3 +267,9 @@ export const JsonEditor = ({
   );
 };
 
+// Add inspectMonacoEditor to window type
+declare global {
+  interface Window {
+    inspectMonacoEditor?: () => void;
+  }
+}
