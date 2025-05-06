@@ -19,3 +19,7 @@ export interface DiagramSettings {
   maxDepth: number;
   groupProperties: boolean;
 }
+
+export interface CollapsedState {
+  [path: string]: boolean;
+}

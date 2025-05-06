@@ -3,7 +3,7 @@ import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
 interface PropertyDetail {
   name: string;
@@ -29,6 +29,7 @@ interface SchemaTypeNodeProps {
     reference?: string;
     propertyDetails?: PropertyDetail[];
     hasMoreLevels?: boolean;
+    isCollapsed?: boolean;
   };
   id: string;
   isConnectable: boolean;
@@ -49,6 +50,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
     reference,
     propertyDetails,
     hasMoreLevels,
+    isCollapsed,
   } = data;
 
   const getTypeBadgeClasses = (type: string) => {
@@ -73,7 +75,8 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
         required && 'node-required',
         isRoot && 'border-2 border-blue-500 bg-blue-50',
         isGroup && 'border-2 border-slate-300 bg-slate-50',
-        hasMoreLevels && 'border-dashed'
+        isCollapsed && 'border-dashed bg-slate-50',
+        hasMoreLevels && !isCollapsed && 'border-dashed'
       )}
     >
       {!isRoot && (
@@ -163,10 +166,17 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
           </div>
         )}
 
-        {hasMoreLevels && (
+        {hasMoreLevels && !isCollapsed && (
           <div className="mt-1 text-xs text-slate-500 flex items-center gap-1">
             <ChevronDown size={12} />
             <span>More levels not shown</span>
+          </div>
+        )}
+
+        {isCollapsed && (
+          <div className="mt-1 text-xs text-slate-500 flex items-center gap-1">
+            <ChevronRight size={12} />
+            <span>Collapsed in editor</span>
           </div>
         )}
       </div>

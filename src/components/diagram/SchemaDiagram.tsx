@@ -6,15 +6,24 @@ import { DiagramHeader } from './DiagramHeader';
 import { DiagramFlow } from './DiagramFlow';
 import { useDiagramNodes } from './hooks/useDiagramNodes';
 import { toast } from 'sonner';
+import { CollapsedState } from '@/lib/diagram/types';
 
 interface SchemaDiagramProps {
   schema: any;
   error: boolean;
   groupProperties?: boolean;
+  collapsedPaths?: CollapsedState;
+  maxDepth?: number;
 }
 
-export const SchemaDiagram: React.FC<SchemaDiagramProps> = ({ schema, error, groupProperties = false }) => {
-  const [maxDepth, setMaxDepth] = useState(3);
+export const SchemaDiagram: React.FC<SchemaDiagramProps> = ({ 
+  schema, 
+  error, 
+  groupProperties = false,
+  collapsedPaths = {},
+  maxDepth = 3
+}) => {
+  const [localMaxDepth, setLocalMaxDepth] = useState(maxDepth);
 
   const {
     nodes,
@@ -23,13 +32,13 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = ({ schema, error, gro
     onEdgesChange,
     nodePositionsRef,
     schemaKey
-  } = useDiagramNodes(schema, error, groupProperties, maxDepth);
+  } = useDiagramNodes(schema, error, groupProperties, localMaxDepth, collapsedPaths);
 
   // Check if there are any stored node positions
   const hasStoredPositions = Object.keys(nodePositionsRef.current).length > 0;
 
   const handleMaxDepthChange = (newDepth: number) => {
-    setMaxDepth(newDepth);
+    setLocalMaxDepth(newDepth);
     toast.success(`Diagram depth set to ${newDepth} levels`);
   };
 
@@ -43,7 +52,7 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = ({ schema, error, gro
 
   return (
     <div className="h-full flex flex-col">
-      <DiagramHeader maxDepth={maxDepth} onMaxDepthChange={handleMaxDepthChange} />
+      <DiagramHeader maxDepth={localMaxDepth} onMaxDepthChange={handleMaxDepthChange} />
       <DiagramFlow
         nodes={nodes}
         edges={edges}

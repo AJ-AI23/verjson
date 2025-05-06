@@ -3,12 +3,14 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Node, Edge, useNodesState, useEdgesState } from '@xyflow/react';
 import { generateNodesAndEdges } from '@/lib/diagram';
 import { useNodePositions } from './useNodePositions';
+import { CollapsedState } from '@/lib/diagram/types';
 
 export const useDiagramNodes = (
   schema: any, 
   error: boolean, 
   groupProperties: boolean,
-  maxDepth: number = 3
+  maxDepth: number = 3,
+  collapsedPaths: CollapsedState = {}
 ) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -18,19 +20,23 @@ export const useDiagramNodes = (
   
   // Track schema changes
   const schemaStringRef = useRef<string>('');
+  const collapsedPathsRef = useRef<CollapsedState>(collapsedPaths);
   const updateTimeoutRef = useRef<number | null>(null);
 
-  // Generate a new schema key when schema, grouping or maxDepth changes
+  // Generate a new schema key when schema, grouping, maxDepth, or collapsedPaths changes
   useEffect(() => {
     if (schema) {
       // Convert schema to string for comparison
       const schemaString = JSON.stringify(schema);
+      const collapsedPathsString = JSON.stringify(collapsedPaths);
       
-      // Only update schema key if schema, grouping or maxDepth changed
+      // Only update schema key if schema, grouping, maxDepth, or collapsedPaths changed
       if (schemaString !== schemaStringRef.current || 
-          prevGroupSetting !== groupProperties) {
-        console.log('Schema, groupProperties or maxDepth changed');
+          prevGroupSetting !== groupProperties || 
+          JSON.stringify(collapsedPathsRef.current) !== collapsedPathsString) {
+        console.log('Schema, groupProperties, maxDepth or collapsedPaths changed');
         schemaStringRef.current = schemaString;
+        collapsedPathsRef.current = {...collapsedPaths};
         
         // Clear any pending updates
         if (updateTimeoutRef.current !== null) {
@@ -41,7 +47,7 @@ export const useDiagramNodes = (
         setSchemaKey(prev => prev + 1);
       }
     }
-  }, [schema, error, groupProperties, prevGroupSetting, maxDepth]);
+  }, [schema, error, groupProperties, prevGroupSetting, maxDepth, collapsedPaths]);
 
   // Validate edges against nodes to ensure no orphaned edges
   const validateAndSetEdges = useCallback((currentEdges: Edge[]) => {
@@ -70,7 +76,7 @@ export const useDiagramNodes = (
   useEffect(() => {
     if (schema && !error) {
       console.log(`Generating nodes and edges with maxDepth: ${maxDepth}`);
-      const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties, maxDepth);
+      const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties, maxDepth, collapsedPaths);
       
       // Apply saved positions to new nodes where possible
       const positionedNodes = applyStoredPositions(newNodes);
@@ -97,7 +103,7 @@ export const useDiagramNodes = (
         clearTimeout(updateTimeoutRef.current);
       }
     };
-  }, [schema, error, groupProperties, maxDepth, setNodes, setEdges, schemaKey, applyStoredPositions, validateAndSetEdges, nodes.length, edges.length]);
+  }, [schema, error, groupProperties, maxDepth, collapsedPaths, setNodes, setEdges, schemaKey, applyStoredPositions, validateAndSetEdges, nodes.length, edges.length]);
 
   // Effect specifically for groupProperties toggle changes
   useEffect(() => {

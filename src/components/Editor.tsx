@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatVersion } from '@/lib/versionUtils';
 import { useVersioning } from '@/hooks/useVersioning';
+import { CollapsedState } from '@/lib/diagram/types';
 
 export const Editor = () => {
   const [schema, setSchema] = useState(defaultSchema);
@@ -37,6 +38,8 @@ export const Editor = () => {
   const [error, setError] = useState<string | null>(null);
   const [schemaType, setSchemaType] = useState<SchemaType>('json-schema');
   const [groupProperties, setGroupProperties] = useState(false);
+  const [collapsedPaths, setCollapsedPaths] = useState<CollapsedState>({});
+  const [maxDepth] = useState(3); // Default max depth for initial rendering
   
   // Use our custom versioning hook
   const {
@@ -89,6 +92,8 @@ export const Editor = () => {
       setSchema(defaultOasSchema);
       setSavedSchema(defaultOasSchema);
     }
+    // Reset collapsed paths when changing schema type
+    setCollapsedPaths({});
     toast.success(`Switched to ${value === 'json-schema' ? 'JSON Schema' : 'OpenAPI 3.1'} mode`);
   };
 
@@ -105,6 +110,16 @@ export const Editor = () => {
     
     setSchema(importedSchema);
     setSavedSchema(importedSchema);
+    // Reset collapsed paths when importing a new schema
+    setCollapsedPaths({});
+  };
+  
+  // Function to handle toggling collapsed state of a path
+  const handleToggleCollapse = (path: string) => {
+    setCollapsedPaths(prev => ({
+      ...prev,
+      [path]: !prev[path]
+    }));
   };
 
   return (
@@ -167,6 +182,8 @@ export const Editor = () => {
             value={schema} 
             onChange={handleEditorChange} 
             error={error}
+            onToggleCollapse={handleToggleCollapse}
+            collapsedPaths={collapsedPaths}
           />
           <VersionControls 
             version={currentVersion} 
@@ -178,6 +195,8 @@ export const Editor = () => {
           schema={parsedSchema}
           error={error !== null}
           groupProperties={groupProperties}
+          collapsedPaths={collapsedPaths}
+          maxDepth={maxDepth}
         />
       </SplitPane>
       

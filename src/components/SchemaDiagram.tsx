@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { 
   ReactFlow,
@@ -11,18 +12,27 @@ import {
 import '@xyflow/react/dist/style.css';
 import { SchemaTypeNode } from '@/components/SchemaTypeNode';
 import { generateNodesAndEdges } from '@/lib/diagram';
+import { CollapsedState } from '@/lib/diagram/types';
 
 interface SchemaDiagramProps {
   schema: any;
   error: boolean;
   groupProperties?: boolean;
+  collapsedPaths?: CollapsedState;
+  maxDepth?: number;
 }
 
 const nodeTypes = {
   schemaType: SchemaTypeNode,
 };
 
-export const SchemaDiagram = ({ schema, error, groupProperties = false }: SchemaDiagramProps) => {
+export const SchemaDiagram = ({ 
+  schema, 
+  error, 
+  groupProperties = false, 
+  collapsedPaths = {},
+  maxDepth = 3
+}: SchemaDiagramProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [prevGroupSetting, setPrevGroupSetting] = useState(groupProperties);
@@ -45,12 +55,12 @@ export const SchemaDiagram = ({ schema, error, groupProperties = false }: Schema
     if (schema) {
       setSchemaKey(prev => prev + 1);
     }
-  }, [schema, error, groupProperties]);
+  }, [schema, error, groupProperties, collapsedPaths, maxDepth]);
 
   // Effect for schema or error changes
   useEffect(() => {
     if (schema && !error) {
-      const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties);
+      const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties, maxDepth, collapsedPaths);
       
       // Apply saved positions to new nodes where possible
       const positionedNodes = newNodes.map(node => {
@@ -76,7 +86,7 @@ export const SchemaDiagram = ({ schema, error, groupProperties = false }: Schema
       setNodes([]);
       setEdges([]);
     }
-  }, [schema, error, groupProperties, setNodes, setEdges, schemaKey]);
+  }, [schema, error, groupProperties, setNodes, setEdges, schemaKey, collapsedPaths, maxDepth]);
 
   // Effect specifically for groupProperties toggle changes
   useEffect(() => {
@@ -85,7 +95,7 @@ export const SchemaDiagram = ({ schema, error, groupProperties = false }: Schema
       setPrevGroupSetting(groupProperties);
       
       if (schema && !error) {
-        const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties);
+        const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties, maxDepth, collapsedPaths);
         
         // When changing group mode, try to maintain positions where possible
         const positionedNodes = newNodes.map(node => {
@@ -108,7 +118,7 @@ export const SchemaDiagram = ({ schema, error, groupProperties = false }: Schema
         }, 50);
       }
     }
-  }, [groupProperties, prevGroupSetting, schema, error, setNodes, setEdges]);
+  }, [groupProperties, prevGroupSetting, schema, error, setNodes, setEdges, collapsedPaths, maxDepth]);
 
   // Validate edges against nodes to ensure no orphaned edges
   useEffect(() => {
@@ -174,8 +184,11 @@ export const SchemaDiagram = ({ schema, error, groupProperties = false }: Schema
 
   return (
     <div className="h-full flex flex-col">
-      <div className="p-2 border-b bg-slate-50">
+      <div className="p-2 border-b bg-slate-50 flex justify-between">
         <h2 className="font-semibold text-slate-700">Schema Diagram</h2>
+        <div className="text-sm text-slate-500">
+          Hierarchy Depth: {maxDepth}
+        </div>
       </div>
       <div className="flex-1 diagram-container">
         <ReactFlow

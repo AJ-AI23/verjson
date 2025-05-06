@@ -1,11 +1,16 @@
 
 import { Node, Edge } from '@xyflow/react';
-import { DiagramElements } from './types';
+import { DiagramElements, CollapsedState } from './types';
 import { createRootNode } from './nodeGenerator';
 import { generateGroupedLayout } from './groupedPropertiesLayout';
 import { generateExpandedLayout } from './expandedPropertiesLayout';
 
-export const generateNodesAndEdges = (schema: any, groupProperties: boolean = false, maxDepth: number = 3): DiagramElements => {
+export const generateNodesAndEdges = (
+  schema: any, 
+  groupProperties: boolean = false, 
+  maxDepth: number = 3,
+  collapsedPaths: CollapsedState = {}
+): DiagramElements => {
   const result: DiagramElements = {
     nodes: [],
     edges: []
@@ -23,12 +28,12 @@ export const generateNodesAndEdges = (schema: any, groupProperties: boolean = fa
   if (schema.type === 'object' && schema.properties) {
     if (groupProperties) {
       // Group properties mode - create one node per object
-      const groupedLayout = generateGroupedLayout(schema, maxDepth);
+      const groupedLayout = generateGroupedLayout(schema, maxDepth, collapsedPaths);
       result.nodes.push(...groupedLayout.nodes);
       result.edges.push(...groupedLayout.edges);
     } else {
       // Expanded properties mode (original behavior)
-      const expandedLayout = generateExpandedLayout(schema, maxDepth);
+      const expandedLayout = generateExpandedLayout(schema, maxDepth, collapsedPaths);
       result.nodes.push(...expandedLayout.nodes);
       result.edges.push(...expandedLayout.edges);
     }

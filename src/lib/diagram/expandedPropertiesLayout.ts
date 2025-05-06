@@ -1,6 +1,6 @@
 
 import { Node, Edge } from '@xyflow/react';
-import { DiagramElements } from './types';
+import { DiagramElements, CollapsedState } from './types';
 import { 
   createPropertyNode, 
   createNestedPropertyNode, 
@@ -8,7 +8,11 @@ import {
 } from './nodeGenerator';
 import { createEdge } from './edgeGenerator';
 
-export const generateExpandedLayout = (schema: any, maxDepth: number = 3): DiagramElements => {
+export const generateExpandedLayout = (
+  schema: any, 
+  maxDepth: number = 3,
+  collapsedPaths: CollapsedState = {}
+): DiagramElements => {
   const result: DiagramElements = {
     nodes: [],
     edges: []
@@ -31,7 +35,19 @@ export const generateExpandedLayout = (schema: any, maxDepth: number = 3): Diagr
   xOffset = -totalWidth / 2 + xSpacing / 2;
   
   // Process the first level of properties (depth 1)
-  processProperties(properties, requiredProps, xOffset, yOffset, xSpacing, result, 'root', 1, maxDepth);
+  processProperties(
+    properties, 
+    requiredProps, 
+    xOffset, 
+    yOffset, 
+    xSpacing, 
+    result, 
+    'root', 
+    1, 
+    maxDepth, 
+    collapsedPaths, 
+    'root'
+  );
   
   return result;
 };
@@ -46,7 +62,9 @@ function processProperties(
   result: DiagramElements,
   parentId: string,
   currentDepth: number,
-  maxDepth: number
+  maxDepth: number,
+  collapsedPaths: CollapsedState = {},
+  currentPath: string = ''
 ) {
   // Calculate starting x position to center the nodes
   const totalWidth = Object.keys(properties).length * xSpacing;
@@ -57,6 +75,7 @@ function processProperties(
     if (!propSchema) return;
     
     const xPos = startXOffset + index * xSpacing;
+    const propPath = currentPath ? `${currentPath}.${propName}` : propName;
     
     // Create node for property
     const propNode = createPropertyNode(propName, propSchema, requiredProps, xPos, yOffset);
@@ -67,8 +86,11 @@ function processProperties(
     result.nodes.push(propNode);
     result.edges.push(edge);
     
-    // Only process nested properties if we haven't reached max depth
-    if (currentDepth < maxDepth) {
+    // Check if the path is collapsed
+    const isCollapsed = collapsedPaths[propPath] === true;
+    
+    // Only process nested properties if we haven't reached max depth and not collapsed
+    if (currentDepth < maxDepth && !isCollapsed) {
       // If the property is an object with nested properties
       if (propSchema.type === 'object' && propSchema.properties) {
         const nestedProps = propSchema.properties;
@@ -88,7 +110,9 @@ function processProperties(
           result, 
           propNode.id, 
           currentDepth + 1, 
-          maxDepth
+          maxDepth,
+          collapsedPaths,
+          propPath
         );
       }
       
@@ -113,26 +137,32 @@ function processProperties(
         if (itemSchema.type === 'object' && itemSchema.properties && currentDepth + 1 < maxDepth) {
           const itemProps = itemSchema.properties;
           const itemRequired = itemSchema.required || [];
+          const itemPath = `${propPath}.items`;
           
-          processProperties(
-            itemProps,
-            itemRequired,
-            xPos,
-            yOffset + 300,
-            xSpacing * 0.8,
-            result,
-            itemNode.id,
-            currentDepth + 2,
-            maxDepth
-          );
+          if (!collapsedPaths[itemPath]) {
+            processProperties(
+              itemProps,
+              itemRequired,
+              xPos,
+              yOffset + 300,
+              xSpacing * 0.8,
+              result,
+              itemNode.id,
+              currentDepth + 2,
+              maxDepth,
+              collapsedPaths,
+              itemPath
+            );
+          }
         }
       }
     } else {
-      // At max depth, add indicator that there are more levels
+      // At max depth or collapsed, add indicator that there are more levels
       if ((propSchema.type === 'object' && propSchema.properties) || 
           (propSchema.type === 'array' && propSchema.items && 
            propSchema.items.type === 'object' && propSchema.items.properties)) {
         propNode.data.hasMoreLevels = true;
+        propNode.data.isCollapsed = isCollapsed;
       }
     }
   });

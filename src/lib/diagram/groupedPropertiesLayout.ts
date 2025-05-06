@@ -1,6 +1,6 @@
 
 import { Node, Edge } from '@xyflow/react';
-import { DiagramElements } from './types';
+import { DiagramElements, CollapsedState } from './types';
 import { createGroupNode, createArrayNode } from './nodeGenerator';
 import { createEdge } from './edgeGenerator';
 
@@ -60,7 +60,11 @@ const calculateGridPosition = (
   return { x, y };
 };
 
-export const generateGroupedLayout = (schema: any, maxDepth: number = 3): DiagramElements => {
+export const generateGroupedLayout = (
+  schema: any, 
+  maxDepth: number = 3,
+  collapsedPaths: CollapsedState = {}
+): DiagramElements => {
   const result: DiagramElements = {
     nodes: [],
     edges: []
@@ -98,7 +102,8 @@ export const generateGroupedLayout = (schema: any, maxDepth: number = 3): Diagra
       schema: { properties, required: requiredProps },
       level: 0,
       index: 0,
-      depth: 1
+      depth: 1,
+      path: 'root'
     }
   ];
   
@@ -107,12 +112,15 @@ export const generateGroupedLayout = (schema: any, maxDepth: number = 3): Diagra
     const current = objectsToProcess.shift();
     if (!current) continue;
     
-    const { parentId, schema: objSchema, level, index, depth } = current;
+    const { parentId, schema: objSchema, level, index, depth, path } = current;
     const objProperties = objSchema.properties;
     const objRequired = objSchema.required || [];
 
-    // Stop processing if we've reached max depth
-    if (depth > maxDepth) {
+    // Check if this path is collapsed
+    const isCollapsed = collapsedPaths[path] === true;
+
+    // Stop processing if we've reached max depth or the path is collapsed
+    if (depth > maxDepth || isCollapsed) {
       continue;
     }
 
@@ -123,6 +131,12 @@ export const generateGroupedLayout = (schema: any, maxDepth: number = 3): Diagra
     const groupNode = createGroupNode(parentId, objProperties, objRequired, position.y);
     // Apply calculated x position
     groupNode.position.x = position.x;
+    
+    // Add collapsed state to node data
+    if (isCollapsed) {
+      groupNode.data.isCollapsed = true;
+    }
+    
     result.nodes.push(groupNode);
     
     // Create edge from parent to group
@@ -134,6 +148,9 @@ export const generateGroupedLayout = (schema: any, maxDepth: number = 3): Diagra
     
     // Process nested objects
     Object.entries(objProperties).forEach(([propName, propSchema]: [string, any], propIndex) => {
+      const propPath = path ? `${path}.${propName}` : propName;
+      const isPropCollapsed = collapsedPaths[propPath] === true;
+      
       // Process nested objects
       if (propSchema && propSchema.type === 'object' && propSchema.properties) {
         // Create a dedicated node for this object property
@@ -151,7 +168,8 @@ export const generateGroupedLayout = (schema: any, maxDepth: number = 3): Diagra
             type: 'object',
             description: propSchema.description,
             properties: Object.keys(propSchema.properties).length,
-            hasMoreLevels: !canProcessFurther && Object.keys(propSchema.properties).length > 0
+            hasMoreLevels: !canProcessFurther && Object.keys(propSchema.properties).length > 0,
+            isCollapsed: isPropCollapsed
           }
         };
         result.nodes.push(objectNode);
@@ -160,8 +178,8 @@ export const generateGroupedLayout = (schema: any, maxDepth: number = 3): Diagra
         const objEdge = createEdge(groupNode.id, objectNodeId);
         result.edges.push(objEdge);
         
-        // Queue this object for processing if we can process further
-        if (canProcessFurther) {
+        // Queue this object for processing if we can process further and it's not collapsed
+        if (canProcessFurther && !isPropCollapsed) {
           objectsToProcess.push({
             parentId: objectNodeId,
             schema: {
@@ -170,7 +188,8 @@ export const generateGroupedLayout = (schema: any, maxDepth: number = 3): Diagra
             },
             level: level + 2,
             index: propIndex,
-            depth: depth + 1
+            depth: depth + 1,
+            path: propPath
           });
         }
       }
@@ -186,9 +205,13 @@ export const generateGroupedLayout = (schema: any, maxDepth: number = 3): Diagra
         // Apply calculated x position
         arrayNode.position.x = arrayPosition.x;
         
+        const itemPath = `${propPath}.items`;
+        const isItemCollapsed = collapsedPaths[itemPath] === true;
+        
         // Add indication if there are more levels that aren't shown
-        if (!canProcessFurther && Object.keys(propSchema.items.properties).length > 0) {
+        if ((!canProcessFurther || isItemCollapsed) && Object.keys(propSchema.items.properties).length > 0) {
           arrayNode.data.hasMoreLevels = true;
+          arrayNode.data.isCollapsed = isItemCollapsed;
         }
         
         result.nodes.push(arrayNode);
@@ -197,8 +220,8 @@ export const generateGroupedLayout = (schema: any, maxDepth: number = 3): Diagra
         const arrayEdge = createEdge(groupNode.id, arrayNode.id);
         result.edges.push(arrayEdge);
         
-        // Add the array's item object to process if we can process further
-        if (canProcessFurther) {
+        // Add the array's item object to process if we can process further and it's not collapsed
+        if (canProcessFurther && !isItemCollapsed) {
           objectsToProcess.push({
             parentId: arrayNode.id,
             schema: {
@@ -207,7 +230,8 @@ export const generateGroupedLayout = (schema: any, maxDepth: number = 3): Diagra
             },
             level: level + 2,
             index: propIndex,
-            depth: depth + 1
+            depth: depth + 1,
+            path: itemPath
           });
         }
       }
