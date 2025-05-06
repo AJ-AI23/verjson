@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { VersionControls } from '@/components/VersionControls';
 import { VersionHistory } from '@/components/VersionHistory';
+import { SchemaActions } from '@/components/SchemaActions';
 import { FileJson, FileCode, BoxSelect, Rows3, Save } from 'lucide-react';
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -96,6 +97,16 @@ export const Editor = () => {
     toast.success(`${checked ? 'Grouped' : 'Expanded'} properties view`);
   };
 
+  const handleImportSchema = (importedSchema: string, detectedType?: SchemaType) => {
+    if (detectedType && detectedType !== schemaType) {
+      // Update schema type if detected
+      setSchemaType(detectedType);
+    }
+    
+    setSchema(importedSchema);
+    setSavedSchema(importedSchema);
+  };
+
   return (
     <div className="json-schema-editor">
       <div className="mb-4 flex flex-wrap items-center gap-4">
@@ -120,6 +131,13 @@ export const Editor = () => {
             ? 'Standard JSON Schema format'
             : 'OpenAPI 3.1 specification format with JSON Schema components'}
         </span>
+        
+        {/* Add Import/Export actions */}
+        <SchemaActions 
+          currentSchema={schema} 
+          schemaType={schemaType}
+          onImport={handleImportSchema}
+        />
         
         <div className="flex items-center space-x-2 ml-auto">
           <Button 
