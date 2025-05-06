@@ -1,8 +1,9 @@
+
 import React, { useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { parseJsonSchema } from '@/lib/schemaUtils';
 import { CollapsedState } from '@/lib/diagram/types';
-import { useMonacoEditor } from '@/hooks/useMonacoEditor'; // This import will now correctly reference the .tsx file
+import { useMonacoEditor } from '@/hooks/useMonacoEditor';
 import { EditorToolbar } from './editor/EditorToolbar';
 import { EditorError } from './editor/EditorError';
 import { monacoEditorOptions } from '@/lib/editorConfig';
@@ -87,9 +88,9 @@ export const JsonEditor = ({
   );
 };
 
-// Add inspectMonacoEditor to window type
+// Add inspectMonacoEditor to window type with consistent return type
 declare global {
   interface Window {
-    inspectMonacoEditor?: () => void;
+    inspectMonacoEditor?: () => any;
   }
 }

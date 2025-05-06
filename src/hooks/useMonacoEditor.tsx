@@ -9,7 +9,7 @@ import {
   getCurrentFoldingRanges,
   detectFoldingChanges,
   findPathForFoldingRange
-} from '@/lib/editorUtils';
+} from '@/lib/editor';
 
 interface UseMonacoEditorProps {
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
