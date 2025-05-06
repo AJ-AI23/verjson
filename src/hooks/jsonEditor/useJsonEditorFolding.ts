@@ -5,11 +5,13 @@ import { toast } from 'sonner';
 interface UseJsonEditorFoldingProps {
   editorRef: React.MutableRefObject<JSONEditor | null>;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
+  collapsedPaths?: Record<string, boolean>;
 }
 
 export const useJsonEditorFolding = ({
   editorRef,
-  onToggleCollapse
+  onToggleCollapse,
+  collapsedPaths = {}
 }: UseJsonEditorFoldingProps) => {
   // Expand all nodes
   const expandAll = () => {
@@ -18,9 +20,22 @@ export const useJsonEditorFolding = ({
       
       // Update collapsed state in parent component
       if (onToggleCollapse) {
+        // Log in a cleaner format
+        console.log('Collapse event:', { 
+          path: 'root', 
+          collapsed: false, 
+          previousState: collapsedPaths['root']
+        });
+        
         // Mark root as expanded
         onToggleCollapse('root', false);
+        
         // Mark properties as expanded
+        console.log('Collapse event:', { 
+          path: 'root.properties', 
+          collapsed: false, 
+          previousState: collapsedPaths['root.properties']
+        });
         onToggleCollapse('root.properties', false);
       }
       
@@ -37,6 +52,13 @@ export const useJsonEditorFolding = ({
       
       // Update collapsed state in parent component
       if (onToggleCollapse) {
+        // Log in a cleaner format
+        console.log('Collapse event:', { 
+          path: 'root', 
+          collapsed: true, 
+          previousState: collapsedPaths['root']
+        });
+        
         // Mark root as collapsed
         onToggleCollapse('root', true);
       }
@@ -62,15 +84,32 @@ export const useJsonEditorFolding = ({
         
         // For each top-level property, ensure it's collapsed
         if (onToggleCollapse) {
+          // Log in a cleaner format
+          console.log('Collapse event:', { 
+            path: 'root', 
+            collapsed: false, 
+            previousState: collapsedPaths['root']
+          });
+          
           // Mark root as expanded
           onToggleCollapse('root', false);
           
           // But mark properties as collapsed if they are complex objects
           if (rootNode.properties && typeof rootNode.properties === 'object') {
+            console.log('Collapse event:', { 
+              path: 'root.properties', 
+              collapsed: true, 
+              previousState: collapsedPaths['root.properties']
+            });
             onToggleCollapse('root.properties', true);
           }
           
           if (rootNode.required && Array.isArray(rootNode.required)) {
+            console.log('Collapse event:', { 
+              path: 'root.required', 
+              collapsed: true, 
+              previousState: collapsedPaths['root.required']
+            });
             onToggleCollapse('root.required', true);
           }
         }

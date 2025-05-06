@@ -21,9 +21,12 @@ export const useJsonEditorEvents = ({
           // Format path properly - empty path array means root node
           const pathStr = node.path.length > 0 ? 'root.' + node.path.join('.') : 'root';
           
-          console.log('Expanded path via onExpand:', node.path);
-          console.log('Path string:', pathStr);
-          console.log('Current collapsed state before update:', collapsedPaths);
+          // Log in a cleaner format
+          console.log('Collapse event:', { 
+            path: pathStr, 
+            collapsed: false, 
+            previousState: collapsedPaths[pathStr]
+          });
           
           setFoldingDebug({
             lastOperation: 'expand',
@@ -32,12 +35,6 @@ export const useJsonEditorEvents = ({
           });
           
           onToggleCollapse(pathStr, false);
-          
-          // Log the state after the callback (though this won't reflect the actual state update yet)
-          console.log('New collapsed state will be:', {
-            ...collapsedPaths,
-            [pathStr]: false
-          });
         }
       },
       
@@ -46,9 +43,12 @@ export const useJsonEditorEvents = ({
           // Format path properly - empty path array means root node
           const pathStr = node.path.length > 0 ? 'root.' + node.path.join('.') : 'root';
           
-          console.log('Collapsed path via onCollapse:', node.path);
-          console.log('Path string:', pathStr);
-          console.log('Current collapsed state before update:', collapsedPaths);
+          // Log in a cleaner format
+          console.log('Collapse event:', { 
+            path: pathStr, 
+            collapsed: true,
+            previousState: collapsedPaths[pathStr]
+          });
           
           setFoldingDebug({
             lastOperation: 'collapse',
@@ -57,12 +57,6 @@ export const useJsonEditorEvents = ({
           });
           
           onToggleCollapse(pathStr, true);
-          
-          // Log the state after the callback (though this won't reflect the actual state update yet)
-          console.log('New collapsed state will be:', {
-            ...collapsedPaths,
-            [pathStr]: true
-          });
         }
       },
       
