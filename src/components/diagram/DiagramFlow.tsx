@@ -23,7 +23,7 @@ export const DiagramFlow = memo(({
   onEdgesChange,
   schemaKey,
   shouldFitView
-}) => {
+}: DiagramFlowProps) => {
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const viewportRef = useRef<{ x: number; y: number; zoom: number }>({ x: 0, y: 0, zoom: 1 });
   const didFitViewRef = useRef<boolean>(false);
