@@ -1,12 +1,15 @@
 
 import React from 'react';
 import { SchemaPatch, formatVersion } from '@/lib/versionUtils';
+import { Button } from '@/components/ui/button';
+import { Undo } from 'lucide-react';
 
 interface VersionHistoryProps {
   patches: SchemaPatch[];
+  onRevert?: (toVersion: SchemaPatch) => void;
 }
 
-export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches }) => {
+export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onRevert }) => {
   if (patches.length === 0) {
     return (
       <div className="text-sm text-slate-500 p-4 text-center">
@@ -27,6 +30,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches }) => {
             <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Changes</th>
             <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
             <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Type</th>
+            {onRevert && <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>}
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-slate-200">
@@ -52,6 +56,20 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches }) => {
                   {patch.tier}
                 </span>
               </td>
+              {onRevert && (
+                <td className="px-4 py-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs gap-1"
+                    onClick={() => onRevert(patch)}
+                    title={`Revert to version ${formatVersion(patch.version)}`}
+                  >
+                    <Undo size={12} />
+                    Revert
+                  </Button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

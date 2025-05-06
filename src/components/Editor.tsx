@@ -33,7 +33,8 @@ import {
   generatePatch, 
   loadPatches, 
   savePatches, 
-  calculateLatestVersion 
+  calculateLatestVersion,
+  revertToVersion
 } from '@/lib/versionUtils';
 
 export const Editor = () => {
@@ -140,6 +141,26 @@ export const Editor = () => {
     }
   };
 
+  const handleRevertToVersion = (targetPatch: SchemaPatch) => {
+    try {
+      // Parse the current schema
+      const parsedCurrentSchema = JSON.parse(schema);
+      
+      // Apply the reverse patches to get back to the target version
+      const revertedSchema = revertToVersion(parsedCurrentSchema, patches, targetPatch);
+      
+      // Update the schema with the reverted one
+      setSchema(JSON.stringify(revertedSchema, null, 2));
+      setSavedSchema(JSON.stringify(revertedSchema, null, 2));
+      
+      toast.success(`Reverted to version ${formatVersion(targetPatch.version)}`);
+    } catch (err) {
+      toast.error('Failed to revert version', {
+        description: (err as Error).message,
+      });
+    }
+  };
+
   return (
     <div className="json-schema-editor">
       <div className="mb-4 flex flex-wrap items-center gap-4">
@@ -213,7 +234,10 @@ export const Editor = () => {
           <DialogHeader>
             <DialogTitle>Version History</DialogTitle>
           </DialogHeader>
-          <VersionHistory patches={patches} />
+          <VersionHistory 
+            patches={patches} 
+            onRevert={handleRevertToVersion} 
+          />
         </DialogContent>
       </Dialog>
     </div>
