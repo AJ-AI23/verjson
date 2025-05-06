@@ -50,25 +50,6 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
         mainMenuBar: false,
         navigationBar: true,
         statusBar: true,
-        onEvent: (node: any, event: any) => {
-          // This callback is triggered for various tree events
-          if (event.type === 'expand' || event.type === 'collapse') {
-            if (onToggleCollapse && node.path) {
-              const path = 'root.' + node.path.join('.');
-              const isCollapsed = event.type === 'collapse';
-              
-              // Debug info
-              setFoldingDebug({
-                lastOperation: event.type,
-                path,
-                timestamp: Date.now()
-              });
-              
-              // Notify parent component about fold/unfold
-              onToggleCollapse(path, isCollapsed);
-            }
-          }
-        },
         onChange: function () {
           if (isInternalChange.current) return;
           
@@ -97,6 +78,33 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
         editor.setText(value);
         console.error('Failed to parse initial JSON:', e);
       }
+
+      // Register event listeners for expand and collapse events
+      editor.on('expand', function (event) {
+        console.log('Expanded path:', event.path);
+        if (onToggleCollapse) {
+          const path = 'root.' + event.path.join('.');
+          setFoldingDebug({
+            lastOperation: 'expand',
+            path,
+            timestamp: Date.now()
+          });
+          onToggleCollapse(path, false);
+        }
+      });
+      
+      editor.on('collapse', function (event) {
+        console.log('Collapsed path:', event.path);
+        if (onToggleCollapse) {
+          const path = 'root.' + event.path.join('.');
+          setFoldingDebug({
+            lastOperation: 'collapse',
+            path,
+            timestamp: Date.now()
+          });
+          onToggleCollapse(path, true);
+        }
+      });
 
       // Store the editor instance in the ref
       editorRef.current = editor;
