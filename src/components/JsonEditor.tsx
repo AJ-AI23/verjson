@@ -50,16 +50,22 @@ export const JsonEditor = ({
         const model = editor.getModel();
         if (!model) return;
         
-        // Get all hidden ranges
-        const hiddenRanges = editor.getHiddenAreas();
+        // Get all folding ranges instead of hidden areas directly
+        const foldingController = editor.getContribution('editor.contrib.folding');
+        if (!foldingController) return;
         
         // Create a temporary map to track collapsed state changes
         const newCollapsedPaths: CollapsedState = {};
         
-        // Process each hidden range to identify collapsed sections
-        hiddenRanges.forEach(range => {
-          // Get the start line number of each hidden range
-          const lineNumber = range.startLineNumber - 1; // The line before the hidden range is the one with the fold
+        // Use getAllDecorations to find folded regions
+        const decorations = model.getAllDecorations().filter(
+          d => d.options.isWholeLine && d.options.inlineClassName === 'folded'
+        );
+        
+        // Process each folded region
+        decorations.forEach(decoration => {
+          // Get the line number of each folded region
+          const lineNumber = decoration.range.startLineNumber;
           const path = extractJsonPathFromLine(model, lineNumber);
           
           if (path) {
