@@ -62,17 +62,26 @@ export const JsonEditor = ({
           d => d.options.isWholeLine && d.options.inlineClassName === 'folded'
         );
         
+        console.log(`Found ${decorations.length} folded regions in editor`);
+        
         // Process each folded region
         decorations.forEach(decoration => {
           // Get the line number of each folded region
           const lineNumber = decoration.range.startLineNumber;
+          const lineContent = model.getLineContent(lineNumber);
           const path = extractJsonPathFromLine(model, lineNumber);
+          
+          console.log(`Checking folded region at line ${lineNumber}: "${lineContent.trim()}" => path: ${path}`);
           
           if (path) {
             console.log(`Area folded at line ${lineNumber}, path: ${path}`);
             newCollapsedPaths[path] = true;
           }
         });
+        
+        // Log the full set of collapsed paths for debugging
+        console.log('Current collapsed paths:', collapsedPaths);
+        console.log('New collapsed paths:', newCollapsedPaths);
         
         // Compare with current collapsed paths to detect changes
         Object.keys(collapsedPaths).forEach(path => {

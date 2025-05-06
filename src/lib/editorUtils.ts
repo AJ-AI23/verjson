@@ -29,23 +29,31 @@ export function extractJsonPathFromLine(model: editor.ITextModel, lineNumber: nu
   let currentLevel = level;
   let currentLine = lineNumber;
   
+  console.log(`Building path for "${propertyName}" at line ${lineNumber}, indent level: ${level}`);
+  
   // Traverse up the document to build the full path
   while (currentLevel > 0 && currentLine > 1) {
     currentLine--;
     const prevLineContent = model.getLineContent(currentLine).trim();
     const prevIndent = model.getLineContent(currentLine).indexOf('"');
     
+    console.log(`Checking line ${currentLine}: "${prevLineContent}" (indent: ${prevIndent})`);
+    
     // If we found a parent property (with less indentation)
     if (prevIndent >= 0 && prevIndent < indentation) {
       const parentMatches = prevLineContent.match(/"([^"]+)"\s*:/);
       if (parentMatches && parentMatches[1]) {
-        path = `${parentMatches[1]}.${path}`;
+        const parentProp = parentMatches[1];
+        console.log(`Found parent property: "${parentProp}"`);
+        path = `${parentProp}.${path}`;
         currentLevel--;
       }
     }
   }
   
-  return `root.${path}`;
+  const fullPath = `root.${path}`;
+  console.log(`Final path for line ${lineNumber}: ${fullPath}`);
+  return fullPath;
 }
 
 /**
