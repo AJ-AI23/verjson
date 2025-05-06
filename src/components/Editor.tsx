@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { SplitPane } from '@/components/SplitPane';
 import { JsonEditor } from '@/components/JsonEditor';
 import { SchemaDiagram } from '@/components/SchemaDiagram';
@@ -26,16 +26,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { 
-  Version, 
-  VersionTier, 
-  SchemaPatch, 
-  generatePatch, 
-  loadPatches, 
-  savePatches, 
-  calculateLatestVersion,
-  revertToVersion
-} from '@/lib/versionUtils';
+import { formatVersion } from '@/lib/versionUtils';
+import { useVersioning } from '@/hooks/useVersioning';
 
 export const Editor = () => {
   const [schema, setSchema] = useState(defaultSchema);
@@ -44,27 +36,22 @@ export const Editor = () => {
   const [error, setError] = useState<string | null>(null);
   const [schemaType, setSchemaType] = useState<SchemaType>('json-schema');
   const [groupProperties, setGroupProperties] = useState(false);
-  const [patches, setPatches] = useState<SchemaPatch[]>([]);
-  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   
-  // Calculate if the schema has been modified since last save
-  const isModified = useMemo(() => {
-    return schema !== savedSchema;
-  }, [schema, savedSchema]);
-  
-  // Get the current version based on patches
-  const currentVersion = useMemo(() => {
-    return calculateLatestVersion(patches);
-  }, [patches]);
-
-  // Load patches from localStorage on component mount
-  useEffect(() => {
-    const storedPatches = loadPatches();
-    if (storedPatches.length > 0) {
-      setPatches(storedPatches);
-      toast.info(`Loaded ${storedPatches.length} version entries`);
-    }
-  }, []);
+  // Use our custom versioning hook
+  const {
+    patches,
+    isVersionHistoryOpen,
+    isModified,
+    currentVersion,
+    handleVersionBump,
+    handleRevertToVersion,
+    toggleVersionHistory
+  } = useVersioning({
+    schema,
+    savedSchema,
+    setSavedSchema,
+    setSchema
+  });
 
   // Debounced schema validation to avoid excessive processing
   const validateSchema = useCallback((schemaText: string, type: SchemaType) => {
@@ -108,58 +95,6 @@ export const Editor = () => {
     setGroupProperties(checked);
     toast.success(`${checked ? 'Grouped' : 'Expanded'} properties view`);
   };
-  
-  const handleVersionBump = (newVersion: Version, tier: VersionTier, description: string) => {
-    try {
-      // Ensure the current schema is valid
-      const parsedCurrentSchema = JSON.parse(schema);
-      const parsedPreviousSchema = JSON.parse(savedSchema);
-      
-      // Generate patch
-      const patch = generatePatch(
-        parsedPreviousSchema, 
-        parsedCurrentSchema, 
-        newVersion, 
-        tier, 
-        description
-      );
-      
-      // Update patches
-      const updatedPatches = [...patches, patch];
-      setPatches(updatedPatches);
-      
-      // Save patches to localStorage
-      savePatches(updatedPatches);
-      
-      // Update saved schema
-      setSavedSchema(schema);
-      
-    } catch (err) {
-      toast.error('Failed to create version', {
-        description: (err as Error).message,
-      });
-    }
-  };
-
-  const handleRevertToVersion = (targetPatch: SchemaPatch) => {
-    try {
-      // Parse the current schema
-      const parsedCurrentSchema = JSON.parse(schema);
-      
-      // Apply the reverse patches to get back to the target version
-      const revertedSchema = revertToVersion(parsedCurrentSchema, patches, targetPatch);
-      
-      // Update the schema with the reverted one
-      setSchema(JSON.stringify(revertedSchema, null, 2));
-      setSavedSchema(JSON.stringify(revertedSchema, null, 2));
-      
-      toast.success(`Reverted to version ${formatVersion(targetPatch.version)}`);
-    } catch (err) {
-      toast.error('Failed to revert version', {
-        description: (err as Error).message,
-      });
-    }
-  };
 
   return (
     <div className="json-schema-editor">
@@ -190,7 +125,7 @@ export const Editor = () => {
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={() => setIsVersionHistoryOpen(true)}
+            onClick={() => toggleVersionHistory(true)}
             className="gap-1"
           >
             <Save className="h-4 w-4" />
@@ -229,7 +164,7 @@ export const Editor = () => {
       </SplitPane>
       
       {/* Version History Dialog */}
-      <Dialog open={isVersionHistoryOpen} onOpenChange={setIsVersionHistoryOpen}>
+      <Dialog open={isVersionHistoryOpen} onOpenChange={toggleVersionHistory}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Version History</DialogTitle>

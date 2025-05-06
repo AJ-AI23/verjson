@@ -1,4 +1,3 @@
-
 import { compare, applyPatch, Operation } from 'fast-json-patch';
 import { toast } from 'sonner';
 
@@ -124,13 +123,23 @@ export const calculateLatestVersion = (patches: SchemaPatch[]): Version => {
 const reverseOperation = (op: Operation): Operation => {
   switch (op.op) {
     case 'add':
-      return { ...op, op: 'remove' };
+      return { 
+        ...op, 
+        op: 'remove' 
+      } as Operation;
     case 'remove':
-      return { ...op, op: 'add' };
+      return { 
+        ...op, 
+        op: 'add',
+        value: op.value  // Make sure value is included
+      } as Operation;
     case 'replace':
       // For replace, we need the original value which would be in the value property
       // The actual reversal happens at application time since we need both values
-      return { ...op, op: 'replace' };
+      return { 
+        ...op, 
+        op: 'replace'
+      } as Operation;
     default:
       return op; // Copy, move, and test operations remain the same
   }
