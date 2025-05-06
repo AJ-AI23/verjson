@@ -29,7 +29,7 @@ export function extractJsonPathFromLine(model: editor.ITextModel, lineNumber: nu
   let currentLevel = level;
   let currentLine = lineNumber;
   
-  console.log(`Building path for "${propertyName}" at line ${lineNumber}, indent level: ${level}`);
+  console.log(`Building path for "${propertyName}" at line ${lineNumber}, indent level: ${level}, indentation: ${indentation}`);
   
   // Traverse up the document to build the full path
   while (currentLevel > 0 && currentLine > 1) {
@@ -44,7 +44,7 @@ export function extractJsonPathFromLine(model: editor.ITextModel, lineNumber: nu
       const parentMatches = prevLineContent.match(/"([^"]+)"\s*:/);
       if (parentMatches && parentMatches[1]) {
         const parentProp = parentMatches[1];
-        console.log(`Found parent property: "${parentProp}"`);
+        console.log(`Found parent property: "${parentProp}" at indent ${prevIndent} vs current indent ${indentation}`);
         path = `${parentProp}.${path}`;
         currentLevel--;
       }
@@ -81,4 +81,39 @@ export function updateCollapsedState(
   });
   
   return newCollapsedPaths;
+}
+
+/**
+ * Gets a detailed structure of the folded regions in the editor
+ * @param model The editor model
+ * @param decorations The editor decorations
+ * @returns An array of folded region details
+ */
+export function getFoldedRegionDetails(
+  model: editor.ITextModel,
+  decorations: editor.IModelDecoration[]
+): Array<{
+  lineNumber: number;
+  content: string;
+  path: string | null;
+  range: { startLine: number; endLine: number };
+}> {
+  if (!model) return [];
+  
+  const foldedRegions = decorations.filter(
+    d => d.options.isWholeLine && d.options.inlineClassName === 'folded'
+  );
+  
+  return foldedRegions.map(decoration => {
+    const lineNumber = decoration.range.startLineNumber;
+    return {
+      lineNumber,
+      content: model.getLineContent(lineNumber),
+      path: extractJsonPathFromLine(model, lineNumber),
+      range: {
+        startLine: decoration.range.startLineNumber,
+        endLine: decoration.range.endLineNumber
+      }
+    };
+  });
 }

@@ -36,6 +36,27 @@ export const JsonEditor = ({
       handleFormatCode();
     });
     
+    // Print out available editor properties for debugging
+    console.log("Monaco editor instance available methods:", 
+      Object.getOwnPropertyNames(Object.getPrototypeOf(editor))
+        .filter(prop => typeof editor[prop as keyof typeof editor] === 'function')
+    );
+    
+    console.log("Monaco editor instance available properties:", 
+      Object.getOwnPropertyNames(editor)
+        .filter(prop => typeof editor[prop as keyof typeof editor] !== 'function')
+    );
+    
+    // Log folding controller if available
+    const foldingController = editor.getContribution('editor.contrib.folding');
+    if (foldingController) {
+      console.log("Folding controller:", foldingController);
+      console.log("Folding controller methods:", 
+        Object.getOwnPropertyNames(Object.getPrototypeOf(foldingController))
+          .filter(prop => typeof foldingController[prop as keyof typeof foldingController] === 'function')
+      );
+    }
+    
     // Turn on bracket pair colorization
     editor.updateOptions({
       bracketPairColorization: { enabled: true },
@@ -49,13 +70,6 @@ export const JsonEditor = ({
         
         const model = editor.getModel();
         if (!model) return;
-        
-        // Get all folding ranges instead of hidden areas directly
-        const foldingController = editor.getContribution('editor.contrib.folding');
-        if (!foldingController) return;
-        
-        // Create a temporary map to track collapsed state changes
-        const newCollapsedPaths: CollapsedState = {};
         
         // Use getAllDecorations to find folded regions
         const decorations = model.getAllDecorations().filter(
@@ -83,6 +97,24 @@ export const JsonEditor = ({
         console.log('Current collapsed paths:', collapsedPaths);
         console.log('New collapsed paths:', newCollapsedPaths);
         
+        // Get raw folding ranges for deeper inspection
+        const foldingController = editor.getContribution('editor.contrib.folding');
+        if (foldingController) {
+          // Check if we can get regions from the controller
+          if (typeof foldingController.getRegion === 'function') {
+            // Log first 10 lines to see if they have folding regions
+            for (let i = 1; i <= 10; i++) {
+              const region = foldingController.getRegion(i);
+              if (region) {
+                console.log(`Line ${i} has folding region:`, region);
+              }
+            }
+          }
+        }
+        
+        // Create a temporary map to track collapsed state changes
+        const newCollapsedPaths: CollapsedState = {};
+        
         // Compare with current collapsed paths to detect changes
         Object.keys(collapsedPaths).forEach(path => {
           if (collapsedPaths[path] && !newCollapsedPaths[path]) {
@@ -104,17 +136,52 @@ export const JsonEditor = ({
       // Setup keyboard command listeners for fold/unfold actions
       editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.BracketLeft, () => {
         console.log("Fold command triggered via keyboard");
+        // Log current folded state after a delay to allow folding to complete
+        setTimeout(() => inspectFoldedRegions(editor), 100);
       });
       
       editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.BracketRight, () => {
         console.log("Unfold command triggered via keyboard");
+        // Log current folded state after a delay to allow unfolding to complete
+        setTimeout(() => inspectFoldedRegions(editor), 100);
       });
+      
+      // Add global function for manual inspection
+      window.inspectMonacoEditor = () => {
+        console.log("Editor reference:", editor);
+        console.log("Monaco reference:", monaco);
+        inspectFoldedRegions(editor);
+      };
       
       // Return a cleanup function to dispose of the event listeners
       return () => {
         hiddenAreasDisposable.dispose();
+        // @ts-ignore - Cleanup global function
+        window.inspectMonacoEditor = undefined;
       };
     }
+  };
+  
+  // Helper function to inspect folded regions
+  const inspectFoldedRegions = (editor: any) => {
+    const model = editor.getModel();
+    if (!model) return;
+    
+    console.log("Inspect folded regions - Model ranges:", model.getOptions());
+    
+    const decorations = model.getAllDecorations();
+    console.log("All decorations:", decorations);
+    
+    const foldedDecorations = decorations.filter(
+      d => d.options.isWholeLine && d.options.inlineClassName === 'folded'
+    );
+    
+    console.log("Folded decorations:", foldedDecorations);
+    console.log("Folded ranges:", foldedDecorations.map(d => ({
+      startLine: d.range.startLineNumber,
+      endLine: d.range.endLineNumber,
+      content: model.getLineContent(d.range.startLineNumber)
+    })));
   };
 
   // Configure advanced JSON language features
@@ -163,6 +230,17 @@ export const JsonEditor = ({
           >
             <span>Format</span>
           </button>
+          <button 
+            onClick={() => {
+              if (window.inspectMonacoEditor) {
+                (window as any).inspectMonacoEditor();
+              }
+            }}
+            className="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded transition-colors flex items-center gap-1"
+            title="Inspect Monaco Editor"
+          >
+            <span>Inspect Editor</span>
+          </button>
         </div>
       </div>
       <div className="flex-1 editor-container">
@@ -208,3 +286,4 @@ export const JsonEditor = ({
     </div>
   );
 };
+
