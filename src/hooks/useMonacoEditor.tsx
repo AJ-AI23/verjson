@@ -1,3 +1,4 @@
+
 import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { Monaco, OnMount } from '@monaco-editor/react';
 import { toast } from 'sonner';
@@ -81,7 +82,25 @@ export const useMonacoEditor = ({ onToggleCollapse, collapsedPaths = {} }: UseMo
       });
       
       // Listen for content changes to update path map
-      const contentChangeDisposable = editor.onDidChangeModelContent(() => {
+      const contentChangeDisposable = editor.onDidChangeModelContent((e) => {
+        // Log the change event details if in debug mode
+        if (isDebugMode) {
+          console.log('Content change detected:', e);
+          console.log('Changes count:', e.changes.length);
+          
+          // Check if any of the changes might be related to folding
+          const potentialFoldingChange = e.changes.some(change => 
+            change.text.includes('{') || 
+            change.text.includes('}') ||
+            change.rangeLength > 10); // Arbitrary threshold for large changes
+          
+          if (potentialFoldingChange) {
+            console.log('Potential folding-related content change detected');
+            // This could trigger a check of the folding state
+            setTimeout(() => processFoldingChanges(editor, pathMapRef, isDebugMode), 100);
+          }
+        }
+        
         // Don't regenerate on every keystroke - use a debounce approach
         if (window.pathMapUpdateTimeout) {
           clearTimeout(window.pathMapUpdateTimeout);
@@ -89,8 +108,38 @@ export const useMonacoEditor = ({ onToggleCollapse, collapsedPaths = {} }: UseMo
         
         window.pathMapUpdateTimeout = setTimeout(() => {
           refreshPathMap(editorRef);
+          
+          // After path map is refreshed, check if the folding state needs updating
+          if (onToggleCollapse) {
+            processFoldingChanges(editor, pathMapRef, isDebugMode);
+          }
         }, 1000); // Regenerate path map 1 second after typing stops
       });
+      
+      // Also listen specifically for folding events through the editor API
+      try {
+        // This is a Monaco-specific API that might not be public, hence the try-catch
+        if (editor.onDidChangeFoldingState) {
+          const foldingStateDisposable = editor.onDidChangeFoldingState(() => {
+            console.log("Direct folding state change detected");
+            processFoldingChanges(editor, pathMapRef, true); // Force debug mode on for these events
+          });
+          
+          // Remember to dispose this listener when unmounting
+          return () => {
+            decorationsDisposable.dispose();
+            contentChangeDisposable.dispose();
+            foldingStateDisposable.dispose();
+            // @ts-ignore - Cleanup global function
+            window.inspectMonacoEditor = undefined;
+            if (window.pathMapUpdateTimeout) {
+              clearTimeout(window.pathMapUpdateTimeout);
+            }
+          };
+        }
+      } catch (error) {
+        console.log("Could not attach to folding state events directly:", error);
+      }
       
       // Setup keyboard commands for fold/unfold
       setupFoldingCommands(editor, monaco, inspectFoldedRegions, pathMapRef);

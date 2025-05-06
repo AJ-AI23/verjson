@@ -26,6 +26,24 @@ export function getCurrentFoldingRanges(editor: any): FoldingRangeWithState[] {
       }
     }
     
+    // Try alternative method to access folding controller
+    if (editor._actions?.["editor.foldAll"]?.run) {
+      // If we can access the fold action, we might be able to access the internal state
+      const foldingControllerInternal = 
+        // @ts-ignore - Accessing private Monaco API
+        editor._codeEditorService?._getEditorClone?.(editor)?.foldingController ||
+        // @ts-ignore - Alternative path
+        editor.getFoldingController?.();
+      
+      if (foldingControllerInternal?._foldingModel?.regions) {
+        return foldingControllerInternal._foldingModel.regions.map(region => ({
+          startLineNumber: region.startLineNumber,
+          endLineNumber: region.endLineNumber,
+          isCollapsed: region.isCollapsed
+        }));
+      }
+    }
+    
     // Second method: try to get from hidden areas
     const hiddenRanges = editor.getHiddenAreas ? editor.getHiddenAreas() : [];
     if (hiddenRanges.length > 0) {
