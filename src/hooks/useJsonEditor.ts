@@ -1,3 +1,4 @@
+
 import { useRef, useEffect, useState } from 'react';
 import JSONEditor from 'jsoneditor';
 import { CollapsedState } from '@/lib/diagram/types';
@@ -31,6 +32,9 @@ export const useJsonEditor = ({
   
   // Previous value for comparison
   const previousValueRef = useRef<string>(value);
+  
+  // Initial setup done flag
+  const initialSetupDone = useRef<boolean>(false);
 
   // Debug state to track folding operations
   const [foldingDebug, setFoldingDebug] = useState<FoldingDebugInfo | null>(null);
@@ -116,6 +120,55 @@ export const useJsonEditor = ({
     }
   };
 
+  // Initialize the folding state after the editor is created
+  const initializeFoldingState = () => {
+    if (!editorRef.current || initialSetupDone.current) return;
+    
+    try {
+      console.log('Initializing folding state...');
+      
+      // First, collapse all nodes
+      collapseAll();
+      
+      // Then, expand only the first level (root node)
+      setTimeout(() => {
+        expandFirstLevel();
+        
+        // Mark initial setup as done
+        initialSetupDone.current = true;
+        
+        console.log('Initial folding state setup completed');
+      }, 100);
+    } catch (err) {
+      console.error('Error initializing folding state:', err);
+    }
+  };
+
+  // Expand only the first level nodes
+  const expandFirstLevel = () => {
+    if (!editorRef.current) return;
+    
+    try {
+      // First get the root node paths
+      const rootNode = editorRef.current.get();
+      
+      // Check if it's an object
+      if (rootNode && typeof rootNode === 'object') {
+        // Expand the root node
+        editorRef.current.expand(['']);
+        
+        // For each top-level property, expand it
+        if (onToggleCollapse) {
+          onToggleCollapse('root.', false);
+        }
+        
+        console.log('Expanded first level nodes');
+      }
+    } catch (e) {
+      console.error('Error expanding first level:', e);
+    }
+  };
+
   // Update editor content when the value prop changes
   useEffect(() => {
     if (!editorRef.current || value === previousValueRef.current) return;
@@ -143,6 +196,13 @@ export const useJsonEditor = ({
       }, 0);
     }
   }, [value]);
+
+  // Set up initial folding state after editor is initialized
+  useEffect(() => {
+    if (editorRef.current && !initialSetupDone.current) {
+      initializeFoldingState();
+    }
+  }, [editorRef.current]);
 
   // Apply folding based on collapsedPaths prop
   useEffect(() => {
@@ -206,6 +266,7 @@ export const useJsonEditor = ({
     destroyEditor,
     expandAll,
     collapseAll,
+    expandFirstLevel,
     foldingDebug
   };
 };
