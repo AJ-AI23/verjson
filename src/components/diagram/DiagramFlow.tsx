@@ -1,5 +1,5 @@
 
-import React, { useCallback, useEffect, useRef, memo, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, memo } from 'react';
 import { ReactFlow, Background, Controls, Node, Edge, ReactFlowInstance } from '@xyflow/react';
 import { SchemaTypeNode } from '@/components/SchemaTypeNode';
 
@@ -16,7 +16,7 @@ const nodeTypes = {
   schemaType: SchemaTypeNode,
 };
 
-export const DiagramFlow: React.FC<DiagramFlowProps> = memo(({
+export const DiagramFlow = memo(({
   nodes,
   edges,
   onNodesChange,
@@ -27,10 +27,6 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = memo(({
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const viewportRef = useRef<{ x: number; y: number; zoom: number }>({ x: 0, y: 0, zoom: 1 });
   const didFitViewRef = useRef<boolean>(false);
-  
-  // Memoize the nodes and edges to prevent unnecessary re-renders
-  const memoizedNodes = useMemo(() => nodes, [JSON.stringify(nodes)]);
-  const memoizedEdges = useMemo(() => edges, [JSON.stringify(edges)]);
   
   // Store viewport when it changes
   const onMove = useCallback((event: any, viewport: any) => {
@@ -56,12 +52,11 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = memo(({
     }
   }, [shouldFitView]);
 
-  // Force re-render when key changes
+  // Force fit view when needed
   useEffect(() => {
-    console.log(`Diagram rendering with ${memoizedNodes.length} nodes and ${memoizedEdges.length} edges`);
+    console.log(`Diagram rendering with ${nodes.length} nodes and ${edges.length} edges`);
     
-    // This ensures ReactFlow initializes properly
-    if (reactFlowInstanceRef.current) {
+    if (reactFlowInstanceRef.current && shouldFitView) {
       const timeout = setTimeout(() => {
         if (reactFlowInstanceRef.current) {
           reactFlowInstanceRef.current.fitView({ 
@@ -73,14 +68,14 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = memo(({
       
       return () => clearTimeout(timeout);
     }
-  }, [schemaKey, memoizedNodes.length, memoizedEdges.length]);
+  }, [schemaKey, shouldFitView, nodes.length, edges.length]);
 
   return (
-    <div className="flex-1 diagram-container">
+    <div className="flex-1 diagram-container" data-testid="diagram-flow">
       <ReactFlow
         key={`flow-${schemaKey}`}
-        nodes={memoizedNodes}
-        edges={memoizedEdges}
+        nodes={nodes}
+        edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}

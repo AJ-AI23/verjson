@@ -55,7 +55,7 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     return <DiagramEmpty error={true} />;
   }
 
-  if (!schema || (Array.isArray(nodes) && nodes.length === 0)) {
+  if (!schema || !nodes || nodes.length === 0) {
     return <DiagramEmpty noSchema={true} />;
   }
 
