@@ -1,17 +1,26 @@
+
 import React, { useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import Editor, { Monaco, OnMount } from '@monaco-editor/react';
 import { parseJsonSchema } from '@/lib/schemaUtils';
 import { CollapsedState } from '@/lib/diagram/types';
+import { extractJsonPathFromLine, updateCollapsedState } from '@/lib/editorUtils';
 
 interface JsonEditorProps {
   value: string;
   onChange: (value: string) => void;
   error: string | null;
   collapsedPaths?: CollapsedState;
+  onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const JsonEditor = ({ value, onChange, error, collapsedPaths = {} }: JsonEditorProps) => {
+export const JsonEditor = ({ 
+  value, 
+  onChange, 
+  error, 
+  collapsedPaths = {},
+  onToggleCollapse 
+}: JsonEditorProps) => {
   const editorRef = useRef<any>(null);
 
   const handleEditorDidMount: OnMount = (editor, monaco) => {
@@ -28,6 +37,63 @@ export const JsonEditor = ({ value, onChange, error, collapsedPaths = {} }: Json
     // Turn on bracket pair colorization
     editor.updateOptions({
       bracketPairColorization: { enabled: true },
+    });
+
+    // Listen for folding events
+    editor.onDidChangeFoldingState(() => {
+      if (!onToggleCollapse) return;
+      
+      const model = editor.getModel();
+      if (!model) return;
+      
+      // Get all decorations including folded regions
+      const decorations = model.getAllDecorations();
+      
+      // For each folded region, get its path and notify parent
+      decorations.forEach(decoration => {
+        if (decoration.options.isWholeLine && decoration.options.inlineClassName === 'folded') {
+          const startLineNumber = decoration.range.startLineNumber;
+          const path = extractJsonPathFromLine(model, startLineNumber);
+          
+          if (path) {
+            // Check if this is a new collapsed state before triggering
+            if (!collapsedPaths[path]) {
+              console.log(`Editor folded: ${path}`);
+              onToggleCollapse(path, true);
+            }
+          }
+        }
+      });
+      
+      // Check for expanded regions that were previously collapsed
+      Object.keys(collapsedPaths).forEach(path => {
+        if (collapsedPaths[path]) {
+          // Try to find which line this path corresponds to
+          // This is a simplified approach - in a real implementation, you'd need
+          // a more robust way to map paths back to line numbers
+          const lines = model.getLinesContent();
+          let found = false;
+          
+          for (let i = 0; i < lines.length; i++) {
+            const lineContent = lines[i];
+            if (lineContent.includes(path.split('.').pop() || '')) {
+              // Check if this line is still folded
+              const isFolded = decorations.some(d => 
+                d.options.isWholeLine && 
+                d.options.inlineClassName === 'folded' &&
+                d.range.startLineNumber === i + 1
+              );
+              
+              if (!isFolded) {
+                console.log(`Editor expanded: ${path}`);
+                onToggleCollapse(path, false);
+                found = true;
+                break;
+              }
+            }
+          }
+        }
+      });
     });
   };
 

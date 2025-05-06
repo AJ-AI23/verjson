@@ -56,6 +56,21 @@ export const Editor = () => {
     setSchema
   });
 
+  // Collapse state tracking
+  const [collapsedPaths, setCollapsedPaths] = useState<CollapsedState>({});
+  
+  // Function to handle toggling collapsed state of a path
+  const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
+    console.log(`Toggle collapse: ${path}, isCollapsed: ${isCollapsed}`);
+    setCollapsedPaths(prev => ({
+      ...prev,
+      [path]: isCollapsed
+    }));
+    
+    // Show a toast notification for debugging purposes
+    toast.info(`${isCollapsed ? 'Collapsed' : 'Expanded'}: ${path}`);
+  }, []);
+
   // Debounced schema validation to avoid excessive processing
   const validateSchema = useCallback((schemaText: string, type: SchemaType) => {
     try {
@@ -113,14 +128,6 @@ export const Editor = () => {
     setCollapsedPaths({});
   };
   
-  // Function to handle toggling collapsed state of a path
-  const handleToggleCollapse = (path: string) => {
-    setCollapsedPaths(prev => ({
-      ...prev,
-      [path]: !prev[path]
-    }));
-  };
-
   return (
     <div className="json-schema-editor">
       <div className="mb-4 flex flex-wrap items-center gap-4">
@@ -182,6 +189,7 @@ export const Editor = () => {
             onChange={handleEditorChange} 
             error={error}
             collapsedPaths={collapsedPaths}
+            onToggleCollapse={handleToggleCollapse}
           />
           <VersionControls 
             version={currentVersion} 
