@@ -25,6 +25,27 @@ export const useDiagramNodes = (
   const processingUpdateRef = useRef<boolean>(false);
   const previousMaxDepthRef = useRef<number>(maxDepth);
   const lastUpdateTimeRef = useRef<number>(Date.now());
+  const initialRenderRef = useRef<boolean>(true);
+
+  // Memoize the schema JSON string for comparison
+  const schemaString = useMemo(() => {
+    try {
+      return schema ? JSON.stringify(schema) : '';
+    } catch (e) {
+      console.error('Failed to stringify schema:', e);
+      return '';
+    }
+  }, [schema]);
+
+  // Memoize the collapsedPaths JSON string for comparison
+  const collapsedPathsString = useMemo(() => {
+    try {
+      return JSON.stringify(collapsedPaths);
+    } catch (e) {
+      console.error('Failed to stringify collapsedPaths:', e);
+      return '';
+    }
+  }, [collapsedPaths]);
 
   // Throttle updates to prevent excessive rendering
   const throttleUpdates = useCallback(() => {
@@ -33,20 +54,18 @@ export const useDiagramNodes = (
     return (now - lastUpdateTimeRef.current) < 500;
   }, []);
 
-  // Memoize the schema JSON string for comparison
-  const schemaString = useMemo(() => {
-    return schema ? JSON.stringify(schema) : '';
-  }, [schema]);
-
-  // Memoize the collapsedPaths JSON string for comparison
-  const collapsedPathsString = useMemo(() => {
-    return JSON.stringify(collapsedPaths);
-  }, [collapsedPaths]);
-
   // Generate nodes and edges when dependencies change
   useEffect(() => {
+    // For the first render or if there's an error, log but continue
+    if (initialRenderRef.current) {
+      console.log('Initial useDiagramNodes render');
+      initialRenderRef.current = false;
+    }
+
     // Skip if we're already processing an update or throttling
-    if (processingUpdateRef.current || throttleUpdates()) return;
+    if (processingUpdateRef.current || (!initialRenderRef.current && throttleUpdates())) {
+      return;
+    }
     
     // Skip if there's an error or no schema
     if (error || !schema) {
@@ -65,7 +84,12 @@ export const useDiagramNodes = (
     const collapsedPathsChanged = collapsedPathsString !== JSON.stringify(collapsedPathsRef.current);
     
     if (schemaChanged || groupSettingChanged || maxDepthChanged || collapsedPathsChanged) {
-      console.log('Schema or settings changed, generating new diagram');
+      console.log('Schema or settings changed, generating new diagram', {
+        schemaChanged,
+        groupSettingChanged,
+        maxDepthChanged,
+        collapsedPathsChanged
+      });
       
       // Update refs with current values
       schemaStringRef.current = schemaString;

@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { DiagramEmpty } from './DiagramEmpty';
 import { DiagramHeader } from './DiagramHeader';
 import { DiagramFlow } from './DiagramFlow';
@@ -28,6 +28,13 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   const memoizedSchema = useMemo(() => schema, [JSON.stringify(schema)]);
   const memoizedCollapsedPaths = useMemo(() => collapsedPaths, [JSON.stringify(collapsedPaths)]);
 
+  // Debug logs
+  useEffect(() => {
+    console.log('DiagramContainer received schema:', schema);
+    console.log('Schema is null or undefined:', schema === null || schema === undefined);
+    console.log('Error state:', error);
+  }, [schema, error]);
+
   const {
     nodes,
     edges,
@@ -43,6 +50,12 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     memoizedCollapsedPaths
   );
 
+  // Debug logs for nodes and edges
+  useEffect(() => {
+    console.log(`DiagramContainer has ${nodes?.length || 0} nodes and ${edges?.length || 0} edges`);
+    console.log('First few nodes:', nodes?.slice(0, 2));
+  }, [nodes, edges]);
+
   // Check if there are any stored node positions
   const hasStoredPositions = Object.keys(nodePositionsRef.current).length > 0;
 
@@ -52,10 +65,15 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   };
 
   if (error) {
+    console.log('DiagramContainer: Rendering DiagramEmpty due to error');
     return <DiagramEmpty error={true} />;
   }
 
   if (!schema || !nodes || nodes.length === 0) {
+    console.log('DiagramContainer: Rendering DiagramEmpty due to no schema or no nodes');
+    console.log('Schema exists:', !!schema);
+    console.log('Nodes exist:', !!nodes);
+    console.log('Nodes length:', nodes?.length || 0);
     return <DiagramEmpty noSchema={true} />;
   }
 

@@ -54,7 +54,7 @@ export const DiagramFlow = memo(({
 
   // Force fit view when needed
   useEffect(() => {
-    console.log(`Diagram rendering with ${nodes.length} nodes and ${edges.length} edges`);
+    console.log(`DiagramFlow rendering with ${nodes.length} nodes and ${edges.length} edges`);
     
     if (reactFlowInstanceRef.current && shouldFitView) {
       const timeout = setTimeout(() => {

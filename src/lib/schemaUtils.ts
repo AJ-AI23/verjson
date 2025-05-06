@@ -22,15 +22,18 @@ export const validateJsonSchema = (jsonString: string, schemaType: SchemaType = 
     if (schemaType === 'json-schema') {
       // Check if it has the basic structure of a JSON Schema
       if (!parsedSchema.type) {
+        console.warn('Schema is missing "type" property');
         throw new Error('Schema is missing "type" property');
       }
     } else if (schemaType === 'oas-3.1') {
       // Check if it has the basic structure of an OAS 3.1 document
       if (!parsedSchema.openapi) {
+        console.warn('Schema is missing "openapi" property');
         throw new Error('Schema is missing "openapi" property');
       }
       
       if (!parsedSchema.components?.schemas) {
+        console.warn('Schema is missing "components.schemas" section');
         throw new Error('Schema is missing "components.schemas" section');
       }
     }
@@ -60,6 +63,7 @@ export const parseJsonSchema = (jsonString: string): any => {
   try {
     return JSON.parse(jsonString);
   } catch (e) {
+    console.error('Failed to parse JSON schema:', e);
     return null;
   }
 };
@@ -68,22 +72,33 @@ export const formatJsonSchema = (schema: any): string => {
   try {
     return JSON.stringify(schema, null, 2);
   } catch (e) {
+    console.error('Failed to format JSON schema:', e);
     return '';
   }
 };
 
 export const extractSchemaComponents = (schema: any, schemaType: SchemaType = 'json-schema'): any => {
+  console.log('Extracting schema components for type:', schemaType);
+  
   if (schemaType === 'json-schema') {
+    // For JSON Schema, return the schema directly
+    console.log('Returning JSON schema directly');
     return schema;
   } else if (schemaType === 'oas-3.1' && schema?.components?.schemas) {
     // For OAS, we'll visualize the schema components
     // Create a root object that points to all the schemas
-    return {
+    const result = {
       type: "object",
       title: "API Schemas",
       description: "Components from OpenAPI specification",
       properties: schema.components.schemas
     };
+    
+    console.log('Created root object from OAS components.schemas with properties:', 
+      Object.keys(schema.components.schemas).length);
+    return result;
   }
+  
+  console.log('Schema did not match expected format, returning original');
   return schema;
 };
