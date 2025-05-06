@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import Editor, { Monaco, OnMount } from '@monaco-editor/react';
@@ -38,37 +39,70 @@ export const JsonEditor = ({
       bracketPairColorization: { enabled: true },
     });
 
-    // Add specific listener for fold/unfold events
+    // Add specific listeners for fold/unfold events
     if (onToggleCollapse) {
-      // Listen for fold actions
-      editor.onDidFoldRange((e) => {
+      // Use the built-in content change events to detect folding changes
+      const disposable = editor.onDidChangeModelContent(() => {
         const model = editor.getModel();
         if (!model) return;
         
-        // Get the folded line
-        const lineNumber = e.startLineNumber;
-        const path = extractJsonPathFromLine(model, lineNumber);
+        // Get the current folding regions
+        const foldingController = editor.getContribution('editor.contrib.folding') as any;
+        if (!foldingController) return;
         
-        if (path) {
-          console.log(`Folded: ${path}`);
-          onToggleCollapse(path, true);
-        }
+        // Check the folding regions and compare with previous state
+        const decorations = model.getAllDecorations().filter(
+          d => d.options.isWholeLine && (
+            d.options.className?.includes('folded') || 
+            d.options.inlineClassName?.includes('folded')
+          )
+        );
+        
+        // Process each folded or unfolded region
+        decorations.forEach(decoration => {
+          const lineNumber = decoration.range.startLineNumber;
+          const path = extractJsonPathFromLine(model, lineNumber);
+          
+          if (path) {
+            const isCurrentlyFolded = decoration.options.className?.includes('folded') || 
+                                     decoration.options.inlineClassName?.includes('folded');
+            
+            // Only notify if the state is different from what we had before
+            if (collapsedPaths[path] !== isCurrentlyFolded) {
+              console.log(`${isCurrentlyFolded ? 'Folded' : 'Unfolded'}: ${path}`);
+              onToggleCollapse(path, isCurrentlyFolded);
+            }
+          }
+        });
+        
+        // Also check for regions that were previously folded but are now unfolded
+        Object.keys(collapsedPaths).forEach(path => {
+          if (collapsedPaths[path] && !decorations.some(d => {
+            const lineNumber = d.range.startLineNumber;
+            const currentPath = extractJsonPathFromLine(model, lineNumber);
+            return currentPath === path;
+          })) {
+            console.log(`Unfolded (detected by absence): ${path}`);
+            onToggleCollapse(path, false);
+          }
+        });
       });
       
-      // Listen for unfold actions
-      editor.onDidUnfoldRange((e) => {
-        const model = editor.getModel();
-        if (!model) return;
-        
-        // Get the unfolded line
-        const lineNumber = e.startLineNumber;
-        const path = extractJsonPathFromLine(model, lineNumber);
-        
-        if (path) {
-          console.log(`Unfolded: ${path}`);
-          onToggleCollapse(path, false);
-        }
+      // Setup keyboard command listeners for fold/unfold actions
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.BracketLeft, () => {
+        // This is typically the fold command
+        console.log("Fold command triggered via keyboard");
       });
+      
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.BracketRight, () => {
+        // This is typically the unfold command
+        console.log("Unfold command triggered via keyboard");
+      });
+      
+      // Return a cleanup function to dispose of the event listeners
+      return () => {
+        disposable.dispose();
+      };
     }
   };
 
