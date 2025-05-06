@@ -14,3 +14,8 @@ export interface PropertyDetails {
   description?: string;
   reference?: string;
 }
+
+export interface DiagramSettings {
+  maxDepth: number;
+  groupProperties: boolean;
+}

@@ -8,7 +8,7 @@ import {
 } from './nodeGenerator';
 import { createEdge } from './edgeGenerator';
 
-export const generateExpandedLayout = (schema: any): DiagramElements => {
+export const generateExpandedLayout = (schema: any, maxDepth: number = 3): DiagramElements => {
   const result: DiagramElements = {
     nodes: [],
     edges: []
@@ -30,76 +30,110 @@ export const generateExpandedLayout = (schema: any): DiagramElements => {
   const totalWidth = Object.keys(properties).length * xSpacing;
   xOffset = -totalWidth / 2 + xSpacing / 2;
   
+  // Process the first level of properties (depth 1)
+  processProperties(properties, requiredProps, xOffset, yOffset, xSpacing, result, 'root', 1, maxDepth);
+  
+  return result;
+};
+
+// Helper function to process properties recursively with depth control
+function processProperties(
+  properties: Record<string, any>,
+  requiredProps: string[],
+  xOffset: number,
+  yOffset: number,
+  xSpacing: number,
+  result: DiagramElements,
+  parentId: string,
+  currentDepth: number,
+  maxDepth: number
+) {
+  // Calculate starting x position to center the nodes
+  const totalWidth = Object.keys(properties).length * xSpacing;
+  const startXOffset = xOffset - totalWidth / 2 + xSpacing / 2;
+  
   Object.entries(properties).forEach(([propName, propSchema]: [string, any], index) => {
     // Skip if propSchema is null or undefined
     if (!propSchema) return;
     
-    const xPos = xOffset + index * xSpacing;
+    const xPos = startXOffset + index * xSpacing;
     
     // Create node for property
     const propNode = createPropertyNode(propName, propSchema, requiredProps, xPos, yOffset);
     
-    // Add edge from root to property
-    const edge = createEdge('root', propNode.id);
+    // Add edge from parent to property
+    const edge = createEdge(parentId, propNode.id);
     
     result.nodes.push(propNode);
     result.edges.push(edge);
     
-    // If the property is an object with nested properties
-    if (propSchema.type === 'object' && propSchema.properties) {
-      const nestedProps = propSchema.properties;
-      const nestedRequired = propSchema.required || [];
-      const nestedYOffset = yOffset + 150;
-      
-      // Update the parent node data with property count
-      propNode.data.properties = Object.keys(nestedProps).length;
-      
-      // Calculate nested properties positioning
-      const totalNestedWidth = Object.keys(nestedProps).length * (xSpacing * 0.8);
-      let nestedXOffset = xPos - totalNestedWidth / 2 + (xSpacing * 0.8) / 2;
-      
-      Object.entries(nestedProps).forEach(([nestedName, nestedSchema]: [string, any], nestedIndex) => {
-        // Skip if nestedSchema is null or undefined
-        if (!nestedSchema) return;
+    // Only process nested properties if we haven't reached max depth
+    if (currentDepth < maxDepth) {
+      // If the property is an object with nested properties
+      if (propSchema.type === 'object' && propSchema.properties) {
+        const nestedProps = propSchema.properties;
+        const nestedRequired = propSchema.required || [];
+        const nestedYOffset = yOffset + 150;
         
-        const nestedXPos = nestedXOffset + nestedIndex * (xSpacing * 0.8);
+        // Update the parent node data with property count
+        propNode.data.properties = Object.keys(nestedProps).length;
         
-        // Create node for nested property
-        const nestedNode = createNestedPropertyNode(
-          propNode.id, 
-          nestedName, 
-          nestedSchema, 
+        // Process nested properties (depth + 1)
+        processProperties(
+          nestedProps, 
           nestedRequired, 
-          nestedXPos, 
-          nestedYOffset
+          xPos, 
+          nestedYOffset, 
+          xSpacing * 0.8, 
+          result, 
+          propNode.id, 
+          currentDepth + 1, 
+          maxDepth
         );
+      }
+      
+      // If the property is an array, add its items
+      if (propSchema.type === 'array' && propSchema.items) {
+        const itemSchema = propSchema.items;
         
-        // Add edge from parent property to nested property
-        const nestedEdge = createEdge(propNode.id, nestedNode.id);
+        // Update the parent node with minItems/maxItems if defined
+        propNode.data.minItems = propSchema.minItems;
+        propNode.data.maxItems = propSchema.maxItems;
         
-        result.nodes.push(nestedNode);
-        result.edges.push(nestedEdge);
-      });
-    }
-    
-    // If the property is an array, add its items
-    if (propSchema.type === 'array' && propSchema.items) {
-      const itemSchema = propSchema.items;
-      
-      // Update the parent node with minItems/maxItems if defined
-      propNode.data.minItems = propSchema.minItems;
-      propNode.data.maxItems = propSchema.maxItems;
-      
-      // Create node for array items
-      const itemNode = createArrayItemNode(propNode.id, itemSchema, xPos, yOffset);
-      
-      // Add edge from array to items
-      const itemsEdge = createEdge(propNode.id, itemNode.id, 'items');
-      
-      result.nodes.push(itemNode);
-      result.edges.push(itemsEdge);
+        // Create node for array items
+        const itemNode = createArrayItemNode(propNode.id, itemSchema, xPos, yOffset);
+        
+        // Add edge from array to items
+        const itemsEdge = createEdge(propNode.id, itemNode.id, 'items');
+        
+        result.nodes.push(itemNode);
+        result.edges.push(itemsEdge);
+        
+        // If array items are objects with properties, process them too (depth + 2)
+        if (itemSchema.type === 'object' && itemSchema.properties && currentDepth + 1 < maxDepth) {
+          const itemProps = itemSchema.properties;
+          const itemRequired = itemSchema.required || [];
+          
+          processProperties(
+            itemProps,
+            itemRequired,
+            xPos,
+            yOffset + 300,
+            xSpacing * 0.8,
+            result,
+            itemNode.id,
+            currentDepth + 2,
+            maxDepth
+          );
+        }
+      }
+    } else {
+      // At max depth, add indicator that there are more levels
+      if ((propSchema.type === 'object' && propSchema.properties) || 
+          (propSchema.type === 'array' && propSchema.items && 
+           propSchema.items.type === 'object' && propSchema.items.properties)) {
+        propNode.data.hasMoreLevels = true;
+      }
     }
   });
-  
-  return result;
-};
+}

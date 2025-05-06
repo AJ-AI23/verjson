@@ -3,6 +3,7 @@ import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { ChevronDown } from 'lucide-react';
 
 interface PropertyDetail {
   name: string;
@@ -27,6 +28,7 @@ interface SchemaTypeNodeProps {
     isGroup?: boolean;
     reference?: string;
     propertyDetails?: PropertyDetail[];
+    hasMoreLevels?: boolean;
   };
   id: string;
   isConnectable: boolean;
@@ -46,6 +48,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
     isGroup,
     reference,
     propertyDetails,
+    hasMoreLevels,
   } = data;
 
   const getTypeBadgeClasses = (type: string) => {
@@ -69,7 +72,8 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
         `node-${type}`,
         required && 'node-required',
         isRoot && 'border-2 border-blue-500 bg-blue-50',
-        isGroup && 'border-2 border-slate-300 bg-slate-50'
+        isGroup && 'border-2 border-slate-300 bg-slate-50',
+        hasMoreLevels && 'border-dashed'
       )}
     >
       {!isRoot && (
@@ -156,6 +160,13 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {hasMoreLevels && (
+          <div className="mt-1 text-xs text-slate-500 flex items-center gap-1">
+            <ChevronDown size={12} />
+            <span>More levels not shown</span>
           </div>
         )}
       </div>

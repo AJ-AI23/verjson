@@ -73,4 +73,24 @@ describe('generateNodesAndEdges', () => {
     expect(result.nodes.length).toBe(2); // Root node + prop node
     expect(result.edges.length).toBe(1); // Prop edge
   });
+  
+  it('should pass maxDepth parameter to layout generators', () => {
+    const { generateExpandedLayout } = require('../expandedPropertiesLayout');
+    const { generateGroupedLayout } = require('../groupedPropertiesLayout');
+    
+    const schema = {
+      type: 'object',
+      properties: {}
+    };
+    
+    // Test with expanded layout
+    generateNodesAndEdges(schema, false, 5);
+    expect(generateExpandedLayout).toHaveBeenCalledWith(schema, 5);
+    
+    jest.clearAllMocks();
+    
+    // Test with grouped layout
+    generateNodesAndEdges(schema, true, 4);
+    expect(generateGroupedLayout).toHaveBeenCalledWith(schema, 4);
+  });
 });

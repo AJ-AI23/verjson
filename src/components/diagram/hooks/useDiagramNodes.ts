@@ -7,7 +7,8 @@ import { useNodePositions } from './useNodePositions';
 export const useDiagramNodes = (
   schema: any, 
   error: boolean, 
-  groupProperties: boolean
+  groupProperties: boolean,
+  maxDepth: number = 3
 ) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -19,15 +20,16 @@ export const useDiagramNodes = (
   const schemaStringRef = useRef<string>('');
   const updateTimeoutRef = useRef<number | null>(null);
 
-  // Generate a new schema key when schema really changes
+  // Generate a new schema key when schema, grouping or maxDepth changes
   useEffect(() => {
     if (schema) {
       // Convert schema to string for comparison
       const schemaString = JSON.stringify(schema);
       
-      // Only update schema key if schema or grouping changed
-      if (schemaString !== schemaStringRef.current || prevGroupSetting !== groupProperties) {
-        console.log('Schema or groupProperties changed');
+      // Only update schema key if schema, grouping or maxDepth changed
+      if (schemaString !== schemaStringRef.current || 
+          prevGroupSetting !== groupProperties) {
+        console.log('Schema, groupProperties or maxDepth changed');
         schemaStringRef.current = schemaString;
         
         // Clear any pending updates
@@ -39,7 +41,7 @@ export const useDiagramNodes = (
         setSchemaKey(prev => prev + 1);
       }
     }
-  }, [schema, error, groupProperties, prevGroupSetting]);
+  }, [schema, error, groupProperties, prevGroupSetting, maxDepth]);
 
   // Validate edges against nodes to ensure no orphaned edges
   const validateAndSetEdges = useCallback((currentEdges: Edge[]) => {
@@ -67,8 +69,8 @@ export const useDiagramNodes = (
   // Effect for schema or error changes - simplified approach
   useEffect(() => {
     if (schema && !error) {
-      console.log('Generating nodes and edges');
-      const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties);
+      console.log(`Generating nodes and edges with maxDepth: ${maxDepth}`);
+      const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(schema, groupProperties, maxDepth);
       
       // Apply saved positions to new nodes where possible
       const positionedNodes = applyStoredPositions(newNodes);
@@ -95,7 +97,7 @@ export const useDiagramNodes = (
         clearTimeout(updateTimeoutRef.current);
       }
     };
-  }, [schema, error, groupProperties, setNodes, setEdges, schemaKey, applyStoredPositions, validateAndSetEdges, nodes.length, edges.length]);
+  }, [schema, error, groupProperties, maxDepth, setNodes, setEdges, schemaKey, applyStoredPositions, validateAndSetEdges, nodes.length, edges.length]);
 
   // Effect specifically for groupProperties toggle changes
   useEffect(() => {

@@ -5,7 +5,7 @@ import { createRootNode } from './nodeGenerator';
 import { generateGroupedLayout } from './groupedPropertiesLayout';
 import { generateExpandedLayout } from './expandedPropertiesLayout';
 
-export const generateNodesAndEdges = (schema: any, groupProperties: boolean = false): DiagramElements => {
+export const generateNodesAndEdges = (schema: any, groupProperties: boolean = false, maxDepth: number = 3): DiagramElements => {
   const result: DiagramElements = {
     nodes: [],
     edges: []
@@ -23,12 +23,12 @@ export const generateNodesAndEdges = (schema: any, groupProperties: boolean = fa
   if (schema.type === 'object' && schema.properties) {
     if (groupProperties) {
       // Group properties mode - create one node per object
-      const groupedLayout = generateGroupedLayout(schema);
+      const groupedLayout = generateGroupedLayout(schema, maxDepth);
       result.nodes.push(...groupedLayout.nodes);
       result.edges.push(...groupedLayout.edges);
     } else {
       // Expanded properties mode (original behavior)
-      const expandedLayout = generateExpandedLayout(schema);
+      const expandedLayout = generateExpandedLayout(schema, maxDepth);
       result.nodes.push(...expandedLayout.nodes);
       result.edges.push(...expandedLayout.edges);
     }

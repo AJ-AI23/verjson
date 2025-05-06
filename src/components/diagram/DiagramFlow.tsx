@@ -32,7 +32,6 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
     if (reactFlowInstanceRef.current) {
       const currentViewport = reactFlowInstanceRef.current.getViewport();
       viewportRef.current = currentViewport;
-      console.log('Stored viewport:', currentViewport);
     }
   }, []);
 
@@ -46,7 +45,6 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = ({
       setTimeout(() => {
         if (instance) {
           instance.setViewport(viewportRef.current);
-          console.log('Applied initial viewport:', viewportRef.current);
         }
       }, 50);
     }

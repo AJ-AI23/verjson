@@ -60,7 +60,7 @@ const calculateGridPosition = (
   return { x, y };
 };
 
-export const generateGroupedLayout = (schema: any): DiagramElements => {
+export const generateGroupedLayout = (schema: any, maxDepth: number = 3): DiagramElements => {
   const result: DiagramElements = {
     nodes: [],
     edges: []
@@ -97,7 +97,8 @@ export const generateGroupedLayout = (schema: any): DiagramElements => {
       parentId: 'root', 
       schema: { properties, required: requiredProps },
       level: 0,
-      index: 0
+      index: 0,
+      depth: 1
     }
   ];
   
@@ -106,9 +107,14 @@ export const generateGroupedLayout = (schema: any): DiagramElements => {
     const current = objectsToProcess.shift();
     if (!current) continue;
     
-    const { parentId, schema: objSchema, level, index } = current;
+    const { parentId, schema: objSchema, level, index, depth } = current;
     const objProperties = objSchema.properties;
     const objRequired = objSchema.required || [];
+
+    // Stop processing if we've reached max depth
+    if (depth > maxDepth) {
+      continue;
+    }
 
     // Calculate grid position for this group node
     const position = calculateGridPosition(level, index, gridState, gridConfig);
@@ -122,6 +128,9 @@ export const generateGroupedLayout = (schema: any): DiagramElements => {
     // Create edge from parent to group
     const edge = createEdge(parentId, groupNode.id);
     result.edges.push(edge);
+    
+    // Check if we still have depth available
+    const canProcessFurther = depth < maxDepth;
     
     // Process nested objects
     Object.entries(objProperties).forEach(([propName, propSchema]: [string, any], propIndex) => {
@@ -141,7 +150,8 @@ export const generateGroupedLayout = (schema: any): DiagramElements => {
             label: `${propName} (Object)`,
             type: 'object',
             description: propSchema.description,
-            properties: Object.keys(propSchema.properties).length
+            properties: Object.keys(propSchema.properties).length,
+            hasMoreLevels: !canProcessFurther && Object.keys(propSchema.properties).length > 0
           }
         };
         result.nodes.push(objectNode);
@@ -150,16 +160,19 @@ export const generateGroupedLayout = (schema: any): DiagramElements => {
         const objEdge = createEdge(groupNode.id, objectNodeId);
         result.edges.push(objEdge);
         
-        // Queue this object for processing
-        objectsToProcess.push({
-          parentId: objectNodeId,
-          schema: {
-            properties: propSchema.properties,
-            required: propSchema.required || []
-          },
-          level: level + 2,
-          index: propIndex
-        });
+        // Queue this object for processing if we can process further
+        if (canProcessFurther) {
+          objectsToProcess.push({
+            parentId: objectNodeId,
+            schema: {
+              properties: propSchema.properties,
+              required: propSchema.required || []
+            },
+            level: level + 2,
+            index: propIndex,
+            depth: depth + 1
+          });
+        }
       }
       
       // Process arrays with object items
@@ -172,22 +185,31 @@ export const generateGroupedLayout = (schema: any): DiagramElements => {
         const arrayNode = createArrayNode(groupNode.id, propName, propSchema, arrayPosition.y);
         // Apply calculated x position
         arrayNode.position.x = arrayPosition.x;
+        
+        // Add indication if there are more levels that aren't shown
+        if (!canProcessFurther && Object.keys(propSchema.items.properties).length > 0) {
+          arrayNode.data.hasMoreLevels = true;
+        }
+        
         result.nodes.push(arrayNode);
         
         // Edge from group to array
         const arrayEdge = createEdge(groupNode.id, arrayNode.id);
         result.edges.push(arrayEdge);
         
-        // Add the array's item object to process
-        objectsToProcess.push({
-          parentId: arrayNode.id,
-          schema: {
-            properties: propSchema.items.properties,
-            required: propSchema.items.required || []
-          },
-          level: level + 2,
-          index: propIndex
-        });
+        // Add the array's item object to process if we can process further
+        if (canProcessFurther) {
+          objectsToProcess.push({
+            parentId: arrayNode.id,
+            schema: {
+              properties: propSchema.items.properties,
+              required: propSchema.items.required || []
+            },
+            level: level + 2,
+            index: propIndex,
+            depth: depth + 1
+          });
+        }
       }
     });
   }
