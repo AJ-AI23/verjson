@@ -29,14 +29,13 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = memo(({
   const didFitViewRef = useRef<boolean>(false);
   
   // Memoize the nodes and edges to prevent unnecessary re-renders
-  const memoizedNodes = useMemo(() => nodes, [nodes]);
-  const memoizedEdges = useMemo(() => edges, [edges]);
+  const memoizedNodes = useMemo(() => nodes, [JSON.stringify(nodes)]);
+  const memoizedEdges = useMemo(() => edges, [JSON.stringify(edges)]);
   
   // Store viewport when it changes
-  const onMove = useCallback(() => {
-    if (reactFlowInstanceRef.current) {
-      const currentViewport = reactFlowInstanceRef.current.getViewport();
-      viewportRef.current = currentViewport;
+  const onMove = useCallback((event: any, viewport: any) => {
+    if (viewport) {
+      viewportRef.current = viewport;
     }
   }, []);
 
@@ -56,6 +55,25 @@ export const DiagramFlow: React.FC<DiagramFlowProps> = memo(({
       didFitViewRef.current = true;
     }
   }, [shouldFitView]);
+
+  // Force re-render when key changes
+  useEffect(() => {
+    console.log(`Diagram rendering with ${memoizedNodes.length} nodes and ${memoizedEdges.length} edges`);
+    
+    // This ensures ReactFlow initializes properly
+    if (reactFlowInstanceRef.current) {
+      const timeout = setTimeout(() => {
+        if (reactFlowInstanceRef.current) {
+          reactFlowInstanceRef.current.fitView({ 
+            padding: 0.2,
+            includeHiddenNodes: false
+          });
+        }
+      }, 100);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [schemaKey, memoizedNodes.length, memoizedEdges.length]);
 
   return (
     <div className="flex-1 diagram-container">

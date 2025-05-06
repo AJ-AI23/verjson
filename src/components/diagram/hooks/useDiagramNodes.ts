@@ -24,6 +24,14 @@ export const useDiagramNodes = (
   const updateTimeoutRef = useRef<number | null>(null);
   const processingUpdateRef = useRef<boolean>(false);
   const previousMaxDepthRef = useRef<number>(maxDepth);
+  const lastUpdateTimeRef = useRef<number>(Date.now());
+
+  // Prevent multiple updates within a short time period
+  const throttleUpdates = useCallback(() => {
+    const now = Date.now();
+    // Only process updates if more than 500ms has passed since last update
+    return (now - lastUpdateTimeRef.current) < 500;
+  }, []);
 
   // Memoize the schema JSON string for comparison
   const schemaString = useMemo(() => {
@@ -37,8 +45,8 @@ export const useDiagramNodes = (
 
   // Generate a new schema key when schema, grouping, maxDepth, or collapsedPaths changes
   useEffect(() => {
-    // Skip if we're already processing an update
-    if (processingUpdateRef.current) return;
+    // Skip if we're already processing an update or throttling
+    if (processingUpdateRef.current || throttleUpdates()) return;
 
     // Only update if something important has changed
     const maxDepthChanged = previousMaxDepthRef.current !== maxDepth;
@@ -53,6 +61,7 @@ export const useDiagramNodes = (
       schemaStringRef.current = schemaString;
       collapsedPathsRef.current = {...collapsedPaths};
       previousMaxDepthRef.current = maxDepth;
+      lastUpdateTimeRef.current = Date.now();
       
       // Clear any pending updates
       if (updateTimeoutRef.current !== null) {
@@ -62,7 +71,7 @@ export const useDiagramNodes = (
       // Use simple counter for schema key
       setSchemaKey(prev => prev + 1);
     }
-  }, [schema, schemaString, groupProperties, prevGroupSetting, maxDepth, collapsedPaths, collapsedPathsString]);
+  }, [schema, schemaString, groupProperties, prevGroupSetting, maxDepth, collapsedPaths, collapsedPathsString, throttleUpdates]);
 
   // Validate edges against nodes to ensure no orphaned edges
   const validateAndSetEdges = useCallback((currentEdges: Edge[]) => {
@@ -89,8 +98,8 @@ export const useDiagramNodes = (
 
   // Effect for schema or error changes - optimized
   useEffect(() => {
-    // Skip if nothing has changed
-    if (processingUpdateRef.current || 
+    // Skip if nothing has changed or we're throttling
+    if (processingUpdateRef.current || throttleUpdates() ||
         !schema || 
         error || 
         (schemaStringRef.current === schemaString && 
@@ -116,7 +125,8 @@ export const useDiagramNodes = (
       validateAndSetEdges(newEdges);
       updateTimeoutRef.current = null;
       processingUpdateRef.current = false;
-    }, 50);
+      lastUpdateTimeRef.current = Date.now();
+    }, 150); // Increased timeout to reduce frequency
     
     return () => {
       if (updateTimeoutRef.current !== null) {
@@ -125,7 +135,7 @@ export const useDiagramNodes = (
       }
     };
   }, [schema, schemaString, error, groupProperties, maxDepth, collapsedPaths, collapsedPathsString, 
-      setNodes, setEdges, applyStoredPositions, validateAndSetEdges, prevGroupSetting]);
+      setNodes, setEdges, applyStoredPositions, validateAndSetEdges, prevGroupSetting, throttleUpdates]);
 
   // Clean up when there's an error or no schema
   useEffect(() => {

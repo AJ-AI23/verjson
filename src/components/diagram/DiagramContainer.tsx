@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { DiagramEmpty } from './DiagramEmpty';
 import { DiagramHeader } from './DiagramHeader';
 import { DiagramFlow } from './DiagramFlow';
@@ -22,9 +22,9 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   collapsedPaths = {},
   maxDepth = 3
 }) => {
-  const [localMaxDepth, setLocalMaxDepth] = React.useState(maxDepth);
+  const [localMaxDepth, setLocalMaxDepth] = useState(maxDepth);
 
-  // Memoize the schema and collapsedPaths to prevent unnecessary re-renders
+  // Deep memoize the schema and collapsedPaths to prevent unnecessary re-renders
   const memoizedSchema = useMemo(() => schema, [JSON.stringify(schema)]);
   const memoizedCollapsedPaths = useMemo(() => collapsedPaths, [JSON.stringify(collapsedPaths)]);
 
