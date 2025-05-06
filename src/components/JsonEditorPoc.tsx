@@ -87,7 +87,16 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
       {/* Debug info - can be removed in production */}
       {foldingDebug && (
         <div className="p-1 bg-blue-50 border-t border-blue-200 text-blue-700 text-xs">
-          Last {foldingDebug.lastOperation}: {foldingDebug.path} at {new Date(foldingDebug.timestamp).toLocaleTimeString()}
+          <div>Last {foldingDebug.lastOperation}: {foldingDebug.path} at {new Date(foldingDebug.timestamp).toLocaleTimeString()}</div>
+          <div className="mt-1 text-xs">
+            <span>Collapsed paths: </span>
+            {Object.keys(collapsedPaths).length > 0 ? 
+              Object.entries(collapsedPaths)
+                .filter(([_, isCollapsed]) => isCollapsed)
+                .map(([path]) => path)
+                .join(', ') 
+              : 'None'}
+          </div>
         </div>
       )}
     </div>

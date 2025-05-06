@@ -40,7 +40,8 @@ export const useJsonEditor = ({
   
   const { createEditorEventHandlers } = useJsonEditorEvents({
     onToggleCollapse,
-    setFoldingDebug
+    setFoldingDebug,
+    collapsedPaths // Pass the collapsedPaths to the events hook
   });
 
   // Initialize the editor
@@ -75,10 +76,14 @@ export const useJsonEditor = ({
       // Store the editor instance in the ref
       editorRef.current = editor;
       
+      // Log the initial state of collapsedPaths
+      console.log('Initial collapsedPaths state:', collapsedPaths);
+      
       // Notify that we've created the editor
       if (onToggleCollapse) {
         // Set initial state of root as collapsed
         onToggleCollapse('root', true);
+        console.log('Set initial root collapsed state:', { root: true });
       }
       
       return editor;
@@ -98,6 +103,7 @@ export const useJsonEditor = ({
       const timer = setTimeout(() => {
         // First, collapse all nodes
         collapseAll();
+        console.log('Initial collapse all completed, state:', collapsedPaths);
         
         // Then, expand only the first level (root node)
         setTimeout(() => {
@@ -106,7 +112,7 @@ export const useJsonEditor = ({
           // Mark initial setup as done
           initialSetupDone.current = true;
           
-          console.log('Initial folding state setup completed');
+          console.log('Initial folding state setup completed, updated state:', collapsedPaths);
         }, 100);
       }, 200);
       
@@ -132,6 +138,7 @@ export const useJsonEditor = ({
     expandAll,
     collapseAll,
     expandFirstLevel,
-    foldingDebug
+    foldingDebug,
+    collapsedPaths // Return the collapsedPaths for debugging
   };
 };
