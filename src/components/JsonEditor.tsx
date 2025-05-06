@@ -22,9 +22,11 @@ export const JsonEditor = ({
   onToggleCollapse 
 }: JsonEditorProps) => {
   const editorRef = useRef<any>(null);
+  const monacoRef = useRef<Monaco | null>(null);
 
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
+    monacoRef.current = monaco;
     
     // Configure JSON language features
     configureJsonLanguage(monaco);
@@ -41,67 +43,61 @@ export const JsonEditor = ({
 
     // Add specific listeners for fold/unfold events
     if (onToggleCollapse) {
-      // Use the built-in content change events to detect folding changes
-      const disposable = editor.onDidChangeModelContent(() => {
+      // Listen for hidden areas changes (folding/unfolding)
+      const hiddenAreasDisposable = editor.onDidChangeHiddenAreas(() => {
+        console.log('Hidden areas changed - folding/unfolding detected');
+        
         const model = editor.getModel();
         if (!model) return;
         
-        // Get the current folding regions
-        const foldingController = editor.getContribution('editor.contrib.folding') as any;
-        if (!foldingController) return;
+        // Get all hidden ranges
+        const hiddenRanges = editor.getHiddenAreas();
         
-        // Check the folding regions and compare with previous state
-        const decorations = model.getAllDecorations().filter(
-          d => d.options.isWholeLine && (
-            d.options.className?.includes('folded') || 
-            d.options.inlineClassName?.includes('folded')
-          )
-        );
+        // Create a temporary map to track collapsed state changes
+        const newCollapsedPaths: CollapsedState = {};
         
-        // Process each folded or unfolded region
-        decorations.forEach(decoration => {
-          const lineNumber = decoration.range.startLineNumber;
+        // Process each hidden range to identify collapsed sections
+        hiddenRanges.forEach(range => {
+          // Get the start line number of each hidden range
+          const lineNumber = range.startLineNumber - 1; // The line before the hidden range is the one with the fold
           const path = extractJsonPathFromLine(model, lineNumber);
           
           if (path) {
-            const isCurrentlyFolded = decoration.options.className?.includes('folded') || 
-                                     decoration.options.inlineClassName?.includes('folded');
-            
-            // Only notify if the state is different from what we had before
-            if (collapsedPaths[path] !== isCurrentlyFolded) {
-              console.log(`${isCurrentlyFolded ? 'Folded' : 'Unfolded'}: ${path}`);
-              onToggleCollapse(path, isCurrentlyFolded);
-            }
+            console.log(`Area folded at line ${lineNumber}, path: ${path}`);
+            newCollapsedPaths[path] = true;
           }
         });
         
-        // Also check for regions that were previously folded but are now unfolded
+        // Compare with current collapsed paths to detect changes
         Object.keys(collapsedPaths).forEach(path => {
-          if (collapsedPaths[path] && !decorations.some(d => {
-            const lineNumber = d.range.startLineNumber;
-            const currentPath = extractJsonPathFromLine(model, lineNumber);
-            return currentPath === path;
-          })) {
-            console.log(`Unfolded (detected by absence): ${path}`);
+          if (collapsedPaths[path] && !newCollapsedPaths[path]) {
+            // This path was collapsed but is no longer collapsed
+            console.log(`Detected unfolding of path: ${path}`);
             onToggleCollapse(path, false);
+          }
+        });
+        
+        Object.keys(newCollapsedPaths).forEach(path => {
+          if (!collapsedPaths[path]) {
+            // This path is newly collapsed
+            console.log(`Detected folding of path: ${path}`);
+            onToggleCollapse(path, true);
           }
         });
       });
       
       // Setup keyboard command listeners for fold/unfold actions
       editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.BracketLeft, () => {
-        // This is typically the fold command
         console.log("Fold command triggered via keyboard");
       });
       
       editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.BracketRight, () => {
-        // This is typically the unfold command
         console.log("Unfold command triggered via keyboard");
       });
       
       // Return a cleanup function to dispose of the event listeners
       return () => {
-        disposable.dispose();
+        hiddenAreasDisposable.dispose();
       };
     }
   };
