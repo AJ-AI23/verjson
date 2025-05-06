@@ -15,7 +15,7 @@ export const useJsonEditorEvents = ({
   // Create event handlers for the editor
   const createEditorEventHandlers = () => {
     return {
-      // Add direct collapse/expand event handlers in the options
+      // Add direct expand event handler in the options
       onExpand: function(node: any) {
         if (onToggleCollapse && node.path) {
           // Format path properly - empty path array means root node
@@ -48,37 +48,7 @@ export const useJsonEditorEvents = ({
         }
       },
       
-      onCollapse: function(node: any) {
-        if (onToggleCollapse && node.path) {
-          // Format path properly - empty path array means root node
-          const pathStr = node.path.length > 0 ? 'root.' + node.path.join('.') : 'root';
-          
-          // Get the previous state before we update it
-          const previousState = collapsedPaths[pathStr];
-          
-          console.log('Current collapsed state before update:', collapsedPaths);
-          console.log('Collapsed path via onCollapse:', node.path);
-          console.log('Path string:', pathStr);
-          
-          // Log in a cleaner format
-          console.log('Collapse event:', { 
-            path: pathStr, 
-            collapsed: true,
-            previousState
-          });
-          
-          setFoldingDebug({
-            lastOperation: 'collapse',
-            path: pathStr,
-            timestamp: Date.now()
-          });
-          
-          console.log('New collapsed state will be:', {...collapsedPaths, [pathStr]: true});
-          
-          // Call the callback to update the state
-          onToggleCollapse(pathStr, true);
-        }
-      },
+      // We'll handle folding through the tree click events instead of onCollapse
       
       onChange: function (this: any) {
         // Get the editor instance from context

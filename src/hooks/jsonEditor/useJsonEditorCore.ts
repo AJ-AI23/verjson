@@ -1,3 +1,4 @@
+
 import { useRef, useState, useEffect } from 'react';
 import JSONEditor from 'jsoneditor';
 import { toast } from 'sonner';
@@ -77,14 +78,18 @@ export const useJsonEditor = ({
       // Store the editor instance in the ref
       editorRef.current = editor;
       
-      // Log the initial state of collapsedPaths
-      console.log('Initial collapsed state:', collapsedPaths);
-      
       // Initialize collapsed paths if needed
-      if (onToggleCollapse && Object.keys(collapsedPaths).length === 0) {
-        // If no collapsed paths are set, initialize root as collapsed by default
+      if (onToggleCollapse) {
+        // Always initialize root as collapsed by default
         console.log('Initializing root as collapsed');
-        onToggleCollapse('root', true);
+        // If the root path isn't already set, set it to collapsed (true)
+        if (collapsedPaths['root'] === undefined) {
+          onToggleCollapse('root', true);
+        }
+        
+        // Log the state after initialization
+        console.log('Initial collapsed state after initialization:', 
+          {...collapsedPaths, 'root': collapsedPaths['root'] !== undefined ? collapsedPaths['root'] : true});
       }
       
       return editor;

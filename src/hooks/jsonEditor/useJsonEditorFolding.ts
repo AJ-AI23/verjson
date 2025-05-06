@@ -13,6 +13,11 @@ export const useJsonEditorFolding = ({
   onToggleCollapse,
   collapsedPaths = {}
 }: UseJsonEditorFoldingProps) => {
+  // Helper to get the current state of a path (defaults to true if not set)
+  const getPathState = (path: string): boolean => {
+    return collapsedPaths[path] !== undefined ? collapsedPaths[path] : true;
+  };
+
   // Expand all nodes
   const expandAll = () => {
     try {
@@ -23,7 +28,7 @@ export const useJsonEditorFolding = ({
         // Track state changes for each known path
         Object.keys(collapsedPaths).forEach(path => {
           // Get previous state
-          const previousState = collapsedPaths[path];
+          const previousState = getPathState(path);
           
           if (previousState === true) {
             // Only log and update paths that were previously collapsed
@@ -39,7 +44,7 @@ export const useJsonEditorFolding = ({
         });
         
         // Always ensure root is expanded
-        const rootPreviousState = collapsedPaths['root'];
+        const rootPreviousState = getPathState('root');
         console.log('Collapse event:', { 
           path: 'root', 
           collapsed: false, 
@@ -62,7 +67,7 @@ export const useJsonEditorFolding = ({
       // Update collapsed state in parent component
       if (onToggleCollapse) {
         // First handle the root node
-        const rootPreviousState = collapsedPaths['root'];
+        const rootPreviousState = getPathState('root');
         
         console.log('Collapse event:', { 
           path: 'root', 
@@ -76,7 +81,7 @@ export const useJsonEditorFolding = ({
         // Now handle any other known paths
         Object.keys(collapsedPaths).forEach(path => {
           if (path !== 'root') {
-            const previousState = collapsedPaths[path];
+            const previousState = getPathState(path);
             
             if (previousState === false) {
               // Only log and update paths that were previously expanded
@@ -115,7 +120,7 @@ export const useJsonEditorFolding = ({
         // For each top-level property, ensure it's collapsed
         if (onToggleCollapse) {
           // Get previous state for root
-          const rootPreviousState = collapsedPaths['root'];
+          const rootPreviousState = getPathState('root');
           
           // Log in a cleaner format
           console.log('Collapse event:', { 
@@ -130,7 +135,7 @@ export const useJsonEditorFolding = ({
           // But mark properties as collapsed if they are complex objects
           if (rootNode.properties && typeof rootNode.properties === 'object') {
             // Get previous state for properties
-            const propertiesPreviousState = collapsedPaths['root.properties'];
+            const propertiesPreviousState = getPathState('root.properties');
             
             console.log('Collapse event:', { 
               path: 'root.properties', 
@@ -142,7 +147,7 @@ export const useJsonEditorFolding = ({
           
           if (rootNode.required && Array.isArray(rootNode.required)) {
             // Get previous state for required
-            const requiredPreviousState = collapsedPaths['root.required'];
+            const requiredPreviousState = getPathState('root.required');
             
             console.log('Collapse event:', { 
               path: 'root.required', 
