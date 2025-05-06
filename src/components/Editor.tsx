@@ -44,7 +44,7 @@ export const Editor = () => {
   
   // Function to handle toggling collapsed state of a path
   const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
-    console.log(`Toggle collapse: ${path}, isCollapsed: ${isCollapsed}`);
+    console.log(`Toggle collapse event received: ${path}, isCollapsed: ${isCollapsed}`);
     setCollapsedPaths(prev => ({
       ...prev,
       [path]: isCollapsed

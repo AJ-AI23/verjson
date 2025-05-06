@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import Editor, { Monaco, OnMount } from '@monaco-editor/react';
@@ -39,35 +38,37 @@ export const JsonEditor = ({
       bracketPairColorization: { enabled: true },
     });
 
-    // Listen for folding changes by monitoring content changes and editor model decorations
-    const model = editor.getModel();
-    if (model && onToggleCollapse) {
-      // Set up listener for content changes that might affect folding
-      const disposable = editor.onDidChangeModelContent(() => {
+    // Add specific listener for fold/unfold events
+    if (onToggleCollapse) {
+      // Listen for fold actions
+      editor.onDidFoldRange((e) => {
+        const model = editor.getModel();
         if (!model) return;
         
-        // Get all decorations including folded regions
-        const decorations = model.getAllDecorations();
+        // Get the folded line
+        const lineNumber = e.startLineNumber;
+        const path = extractJsonPathFromLine(model, lineNumber);
         
-        // Update collapsed state based on editor foldings
-        const newCollapsedState = updateCollapsedState(model, decorations, collapsedPaths);
-        
-        // Find differences and notify parent
-        Object.entries(newCollapsedState).forEach(([path, isCollapsed]) => {
-          // Only trigger callback if state changed
-          if (collapsedPaths[path] !== isCollapsed) {
-            console.log(`Editor ${isCollapsed ? 'folded' : 'expanded'}: ${path}`);
-            onToggleCollapse(path, isCollapsed);
-          }
-        });
+        if (path) {
+          console.log(`Folded: ${path}`);
+          onToggleCollapse(path, true);
+        }
       });
       
-      // Clean up the listener when component unmounts
-      return () => {
-        if (disposable) {
-          disposable.dispose();
+      // Listen for unfold actions
+      editor.onDidUnfoldRange((e) => {
+        const model = editor.getModel();
+        if (!model) return;
+        
+        // Get the unfolded line
+        const lineNumber = e.startLineNumber;
+        const path = extractJsonPathFromLine(model, lineNumber);
+        
+        if (path) {
+          console.log(`Unfolded: ${path}`);
+          onToggleCollapse(path, false);
         }
-      };
+      });
     }
   };
 
