@@ -1,9 +1,8 @@
-
 import { Node, Edge } from '@xyflow/react';
 
 export interface DiagramElements {
-  nodes: Node[];
-  edges: Edge[];
+  nodes: any[];
+  edges: any[];
 }
 
 export interface PropertyDetails {
@@ -13,4 +12,15 @@ export interface PropertyDetails {
   format?: string;
   description?: string;
   reference?: string;
+}
+
+export interface DiagramOptions {
+  maxDepth: number;       // Maximum depth to render by default
+  expandedNodes: string[]; // IDs of nodes that should be expanded beyond max depth
+}
+
+export interface DiagramGeneratorParams {
+  schema: any;
+  options: DiagramOptions;
+  groupProperties: boolean;
 }

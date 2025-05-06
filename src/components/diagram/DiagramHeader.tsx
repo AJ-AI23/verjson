@@ -1,10 +1,15 @@
 
-import React from 'react';
+import React, { ReactNode } from 'react';
 
-export const DiagramHeader: React.FC = () => {
+interface DiagramHeaderProps {
+  children?: ReactNode;
+}
+
+export const DiagramHeader: React.FC<DiagramHeaderProps> = ({ children }) => {
   return (
-    <div className="p-2 border-b bg-slate-50">
+    <div className="p-2 border-b bg-slate-50 flex items-center">
       <h2 className="font-semibold text-slate-700">Schema Diagram</h2>
+      {children}
     </div>
   );
 };
