@@ -36,6 +36,7 @@ export const useJsonEditorEvents = ({
           console.log(`Toggle collapse for path: ${pathStr}`);
           console.log(`Current tracked state: ${currentState ? 'collapsed' : 'expanded'}`);
           console.log(`Setting new state to: ${newState ? 'collapsed' : 'expanded'}`);
+          console.log(`Current collapsedPaths object:`, collapsedPaths);
           
           // Log in a cleaner format
           console.log('Collapse event:', { 
