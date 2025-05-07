@@ -29,14 +29,13 @@ export const useJsonEditorEvents = ({
           // Get the current state from our tracked state
           const currentState = getPathState(pathStr);
           
-          // The expand event actually toggles - we need to invert the current state
-          // If it's currently collapsed (true), we expand it (false)
-          // If it's currently expanded (false), we collapse it (true)
+          // IMPORTANT: The expand event actually toggles - we need to invert the current state
+          // regardless of what the event says (it's unreliable)
           const newState = !currentState;
           
-          console.log('Toggle event for path:', pathStr);
-          console.log('Current state in collapsedPaths:', currentState);
-          console.log('New state will be:', newState);
+          console.log(`Toggle collapse for path: ${pathStr}`);
+          console.log(`Current tracked state: ${currentState ? 'collapsed' : 'expanded'}`);
+          console.log(`Setting new state to: ${newState ? 'collapsed' : 'expanded'}`);
           
           // Log in a cleaner format
           console.log('Collapse event:', { 

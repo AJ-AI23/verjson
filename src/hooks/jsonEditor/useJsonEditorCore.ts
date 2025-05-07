@@ -1,3 +1,4 @@
+
 import { useRef, useState, useEffect } from 'react';
 import JSONEditor from 'jsoneditor';
 import { toast } from 'sonner';
@@ -77,19 +78,7 @@ export const useJsonEditor = ({
       // Store the editor instance in the ref
       editorRef.current = editor;
       
-      // Initialize collapsed paths immediately
-      if (onToggleCollapse) {
-        // Force root to be collapsed initially if it's not already set
-        console.log('Initial collapsed state:', collapsedPaths);
-        
-        // Explicitly set the root to collapsed (true) if it's not already set
-        if (collapsedPaths['root'] === undefined) {
-          console.log('Initializing root as collapsed');
-          onToggleCollapse('root', true);
-        }
-        
-        console.log('Collapsed paths after initialization:', collapsedPaths);
-      }
+      console.log("Editor initialized with collapsedPaths:", collapsedPaths);
       
       return editor;
     } catch (err) {
@@ -104,20 +93,31 @@ export const useJsonEditor = ({
   // Effect to handle initial folding state after initialization
   useEffect(() => {
     if (editorRef.current && !initialSetupDone.current) {
+      console.log("Running initial folding setup...");
+      
+      // Make sure we have the root state set properly first
+      if (onToggleCollapse && collapsedPaths['root'] === undefined) {
+        console.log("Setting initial root state to collapsed");
+        onToggleCollapse('root', true);
+      }
+      
       // Wait a moment for the editor to fully initialize
       const timer = setTimeout(() => {
-        // First, collapse all nodes
-        collapseAll();
+        // First, perform expandFirstLevel which will:
+        // 1. Collapse all nodes
+        // 2. Then expand just the root node
+        console.log("Performing initial expand first level");
+        expandFirstLevel();
         
         // Mark initial setup as done
         initialSetupDone.current = true;
         
         console.log('Initial folding setup completed with state:', collapsedPaths);
-      }, 200);
+      }, 300);
       
       return () => clearTimeout(timer);
     }
-  }, [collapseAll, collapsedPaths]);
+  }, [editorRef.current, collapsedPaths, onToggleCollapse, expandFirstLevel]);
 
   // Sync editor with props
   syncEditorWithProps();

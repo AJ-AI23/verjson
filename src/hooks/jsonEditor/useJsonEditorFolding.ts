@@ -21,36 +21,24 @@ export const useJsonEditorFolding = ({
   // Expand all nodes
   const expandAll = () => {
     try {
-      editorRef.current?.expandAll();
+      if (!editorRef.current) return;
+      
+      // First, use JSONEditor's built-in expandAll
+      editorRef.current.expandAll();
       
       // Update collapsed state in parent component
       if (onToggleCollapse) {
-        // Track state changes for each known path
+        // First handle the root node
+        console.log('Expanding root node');
+        onToggleCollapse('root', false);
+        
+        // Then handle any other known paths that were previously collapsed
         Object.keys(collapsedPaths).forEach(path => {
-          // Get previous state
-          const previousState = getPathState(path);
-          
-          if (previousState === true) {
-            // Only log and update paths that were previously collapsed
-            console.log('Collapse event:', { 
-              path, 
-              collapsed: false, 
-              previousState
-            });
-            
-            // Mark path as expanded
+          if (path !== 'root' && collapsedPaths[path] === true) {
+            console.log(`Expanding path: ${path}`);
             onToggleCollapse(path, false);
           }
         });
-        
-        // Always ensure root is expanded
-        const rootPreviousState = getPathState('root');
-        console.log('Collapse event:', { 
-          path: 'root', 
-          collapsed: false, 
-          previousState: rootPreviousState
-        });
-        onToggleCollapse('root', false);
       }
       
       toast.success('All nodes expanded');
@@ -62,38 +50,22 @@ export const useJsonEditorFolding = ({
   // Collapse all nodes
   const collapseAll = () => {
     try {
-      editorRef.current?.collapseAll();
+      if (!editorRef.current) return;
+      
+      // First, use JSONEditor's built-in collapseAll
+      editorRef.current.collapseAll();
       
       // Update collapsed state in parent component
       if (onToggleCollapse) {
         // First handle the root node
-        const rootPreviousState = getPathState('root');
-        
-        console.log('Collapse event:', { 
-          path: 'root', 
-          collapsed: true, 
-          previousState: rootPreviousState
-        });
-        
-        // Mark root as collapsed
+        console.log('Collapsing root node');
         onToggleCollapse('root', true);
         
-        // Now handle any other known paths
+        // Then handle any other known paths that were previously expanded
         Object.keys(collapsedPaths).forEach(path => {
-          if (path !== 'root') {
-            const previousState = getPathState(path);
-            
-            if (previousState === false) {
-              // Only log and update paths that were previously expanded
-              console.log('Collapse event:', { 
-                path, 
-                collapsed: true, 
-                previousState
-              });
-              
-              // Mark path as collapsed
-              onToggleCollapse(path, true);
-            }
+          if (path !== 'root' && collapsedPaths[path] === false) {
+            console.log(`Collapsing path: ${path}`);
+            onToggleCollapse(path, true);
           }
         });
       }
@@ -109,22 +81,13 @@ export const useJsonEditorFolding = ({
     if (!editorRef.current) return;
     
     try {
-      // First collapse all
+      // First collapse everything
+      console.log('First collapsing everything');
       collapseAll();
       
       // Then expand only the root node
       if (onToggleCollapse) {
-        // Get previous state for root
-        const rootPreviousState = getPathState('root');
-        
-        // Log in a cleaner format
-        console.log('Collapse event:', { 
-          path: 'root', 
-          collapsed: false, 
-          previousState: rootPreviousState
-        });
-        
-        // Mark root as expanded
+        console.log('Then expanding just the root node');
         onToggleCollapse('root', false);
       }
       
