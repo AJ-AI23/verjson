@@ -1,4 +1,4 @@
-
+import { useRef } from 'react';
 import JSONEditor from 'jsoneditor';
 import { toast } from 'sonner';
 
@@ -13,9 +13,18 @@ export const useJsonEditorFolding = ({
   onToggleCollapse,
   collapsedPaths = {}
 }: UseJsonEditorFoldingProps) => {
+  // Keep a reference to the latest collapsedPaths
+  const collapsedPathsRef = useRef<Record<string, boolean>>(collapsedPaths);
+  
+  // Update ref when props change
+  if (collapsedPaths !== collapsedPathsRef.current) {
+    collapsedPathsRef.current = collapsedPaths;
+    console.log('Updated collapsedPathsRef in useJsonEditorFolding:', collapsedPathsRef.current);
+  }
+
   // Helper to get the current state of a path (defaults to true if not set)
   const getPathState = (path: string): boolean => {
-    return collapsedPaths[path] !== undefined ? collapsedPaths[path] : true;
+    return collapsedPathsRef.current[path] !== undefined ? collapsedPathsRef.current[path] : true;
   };
 
   // Expand all nodes
@@ -32,16 +41,23 @@ export const useJsonEditorFolding = ({
         console.log('Expanding root node');
         onToggleCollapse('root', false);
         
+        // Create a new local copy to track updates
+        const updatedCollapsedPaths = { ...collapsedPathsRef.current, root: false };
+        
         // Then handle any other known paths that were previously collapsed
-        Object.keys(collapsedPaths).forEach(path => {
-          if (collapsedPaths[path] === true) {
+        Object.keys(collapsedPathsRef.current).forEach(path => {
+          if (collapsedPathsRef.current[path] === true) {
             console.log(`Expanding path: ${path}`);
             onToggleCollapse(path, false);
+            updatedCollapsedPaths[path] = false;
           }
         });
+        
+        // Update our local reference
+        collapsedPathsRef.current = updatedCollapsedPaths;
       }
       
-      console.log('After expandAll, collapsedPaths object:', collapsedPaths);
+      console.log('After expandAll, collapsedPaths object:', collapsedPathsRef.current);
       toast.success('All nodes expanded');
     } catch (e) {
       console.error('Error expanding all:', e);
@@ -62,16 +78,23 @@ export const useJsonEditorFolding = ({
         console.log('Collapsing root node');
         onToggleCollapse('root', true);
         
+        // Create a new local copy to track updates
+        const updatedCollapsedPaths = { ...collapsedPathsRef.current, root: true };
+        
         // Then handle any other known paths that were previously expanded
-        Object.keys(collapsedPaths).forEach(path => {
-          if (collapsedPaths[path] === false) {
+        Object.keys(collapsedPathsRef.current).forEach(path => {
+          if (collapsedPathsRef.current[path] === false) {
             console.log(`Collapsing path: ${path}`);
             onToggleCollapse(path, true);
+            updatedCollapsedPaths[path] = true;
           }
         });
+        
+        // Update our local reference
+        collapsedPathsRef.current = updatedCollapsedPaths;
       }
       
-      console.log('After collapseAll, collapsedPaths object:', collapsedPaths);
+      console.log('After collapseAll, collapsedPaths object:', collapsedPathsRef.current);
       toast.success('All nodes collapsed');
     } catch (e) {
       console.error('Error collapsing all:', e);
@@ -91,22 +114,31 @@ export const useJsonEditorFolding = ({
       
       // Update all paths to collapsed in the state
       if (onToggleCollapse) {
+        // Create a new local copy to track updates
+        const updatedCollapsedPaths: Record<string, boolean> = {};
+        
         // Set root to collapsed first (will be expanded after)
         onToggleCollapse('root', true);
+        updatedCollapsedPaths['root'] = true;
         
         // Set all other paths to collapsed 
-        Object.keys(collapsedPaths).forEach(path => {
-          if (path !== 'root' && collapsedPaths[path] === false) {
+        Object.keys(collapsedPathsRef.current).forEach(path => {
+          if (path !== 'root' && collapsedPathsRef.current[path] === false) {
             console.log(`Setting ${path} to collapsed during expandFirstLevel`);
             onToggleCollapse(path, true);
+            updatedCollapsedPaths[path] = true;
+          } else {
+            updatedCollapsedPaths[path] = collapsedPathsRef.current[path];
           }
         });
-      }
-      
-      // Then expand only the root node
-      if (onToggleCollapse) {
+        
+        // Then expand only the root node
         console.log('Then expanding just the root node');
         onToggleCollapse('root', false);
+        updatedCollapsedPaths['root'] = false;
+        
+        // Update local reference
+        collapsedPathsRef.current = updatedCollapsedPaths;
         
         // Also ensure the editor UI reflects this
         if (editorRef.current) {
@@ -123,7 +155,7 @@ export const useJsonEditorFolding = ({
         }
       }
       
-      console.log('After expandFirstLevel, collapsedPaths object:', collapsedPaths);
+      console.log('After expandFirstLevel, collapsedPaths object:', collapsedPathsRef.current);
       console.log('Expanded first level nodes');
     } catch (e) {
       console.error('Error expanding first level:', e);
@@ -133,6 +165,7 @@ export const useJsonEditorFolding = ({
   return {
     expandAll,
     collapseAll,
-    expandFirstLevel
+    expandFirstLevel,
+    collapsedPathsRef
   };
 };

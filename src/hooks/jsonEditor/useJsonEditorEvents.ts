@@ -1,4 +1,5 @@
 
+import { useRef } from 'react';
 import { FoldingDebugInfo } from './types';
 
 interface UseJsonEditorEventsProps {
@@ -12,9 +13,18 @@ export const useJsonEditorEvents = ({
   setFoldingDebug,
   collapsedPaths = {}
 }: UseJsonEditorEventsProps) => {
+  // Store original collapsed paths for comparison
+  const collapsedPathsRef = useRef<Record<string, boolean>>(collapsedPaths);
+  
+  // Update ref when props change
+  if (collapsedPaths !== collapsedPathsRef.current) {
+    collapsedPathsRef.current = collapsedPaths;
+    console.log('Updated collapsedPathsRef in useJsonEditorEvents:', collapsedPathsRef.current);
+  }
+
   // Helper function to get current state with default to true (collapsed)
   const getPathState = (path: string): boolean => {
-    return collapsedPaths[path] !== undefined ? collapsedPaths[path] : true;
+    return collapsedPathsRef.current[path] !== undefined ? collapsedPathsRef.current[path] : true;
   };
 
   // Create event handlers for the editor
@@ -36,7 +46,7 @@ export const useJsonEditorEvents = ({
           console.log(`Toggle collapse for path: ${pathStr}`);
           console.log(`Current tracked state: ${currentState ? 'collapsed' : 'expanded'}`);
           console.log(`Setting new state to: ${newState ? 'collapsed' : 'expanded'}`);
-          console.log(`Current collapsedPaths object:`, collapsedPaths);
+          console.log(`Current collapsedPaths object:`, collapsedPathsRef.current);
           
           // Log in a cleaner format
           console.log('Collapse event:', { 
@@ -53,6 +63,12 @@ export const useJsonEditorEvents = ({
           
           // Call the callback to update the state with the new value
           onToggleCollapse(pathStr, newState);
+          
+          // Also update our local reference
+          collapsedPathsRef.current = {
+            ...collapsedPathsRef.current,
+            [pathStr]: newState
+          };
         }
       },
       
@@ -75,6 +91,7 @@ export const useJsonEditorEvents = ({
   };
 
   return {
-    createEditorEventHandlers
+    createEditorEventHandlers,
+    getPathState
   };
 };

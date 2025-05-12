@@ -1,5 +1,5 @@
 
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import JSONEditor from 'jsoneditor';
 import { toast } from 'sonner';
 import { UseJsonEditorProps, FoldingDebugInfo, JsonEditorResult } from './types';
@@ -34,8 +34,8 @@ export const useJsonEditor = ({
 
   // Update the ref when collapsedPaths changes
   useEffect(() => {
-    collapsedPathsRef.current = collapsedPaths;
-    console.log('collapsedPathsRef updated:', collapsedPathsRef.current);
+    collapsedPathsRef.current = { ...collapsedPaths };
+    console.log('collapsedPathsRef updated in useJsonEditorCore:', collapsedPathsRef.current);
   }, [collapsedPaths]);
 
   // Use our separate hook modules
@@ -43,20 +43,20 @@ export const useJsonEditor = ({
     editorRef, isInternalChange, previousValueRef, value, onChange 
   });
   
-  const { expandAll, collapseAll, expandFirstLevel } = useJsonEditorFolding({ 
+  const { expandAll, collapseAll, expandFirstLevel, collapsedPathsRef: foldingRef } = useJsonEditorFolding({ 
     editorRef, 
     onToggleCollapse,
-    collapsedPaths: collapsedPathsRef.current
+    collapsedPaths
   });
   
-  const { createEditorEventHandlers } = useJsonEditorEvents({
+  const { createEditorEventHandlers, getPathState } = useJsonEditorEvents({
     onToggleCollapse,
     setFoldingDebug,
-    collapsedPaths: collapsedPathsRef.current
+    collapsedPaths
   });
 
   // Initialize the editor
-  const initializeEditor = (container: HTMLDivElement) => {
+  const initializeEditor = useCallback((container: HTMLDivElement) => {
     if (!container) return null;
 
     try {
@@ -97,7 +97,7 @@ export const useJsonEditor = ({
       });
       return null;
     }
-  };
+  }, [value, createEditorEventHandlers]);
 
   // Effect to handle initial folding state after initialization
   useEffect(() => {
@@ -109,11 +109,13 @@ export const useJsonEditor = ({
       if (onToggleCollapse && collapsedPathsRef.current['root'] === undefined) {
         console.log("Setting initial root state to collapsed");
         onToggleCollapse('root', true);
+        // Update our local reference as well
+        collapsedPathsRef.current = { ...collapsedPathsRef.current, root: true };
       }
       
       // Wait a moment for the editor to fully initialize
       const timer = setTimeout(() => {
-        // First, perform expandFirstLevel which will:
+        // Perform expandFirstLevel which will:
         // 1. Collapse all nodes
         // 2. Then expand just the root node
         console.log("Performing initial expand first level");
@@ -138,25 +140,44 @@ export const useJsonEditor = ({
     console.log('collapsedPaths changed, applying to editor:', collapsedPaths);
     
     // Implementation depends on JSONEditor's API capabilities
-    // This is a simplified approach - may need adjustment based on actual API
     
     try {
       const editor = editorRef.current;
       
-      // We can't directly set fold state for specific paths
-      // But we can apply the current state
-      if (editor && Object.keys(collapsedPaths).length > 0) {
-        // First expand everything
-        editor.expandAll();
+      if (editor) {
+        // First, get a list of currently expanded nodes
+        const expandedNodes: string[] = [];
+        const collapsedNodes: string[] = [];
         
-        // Then collapse nodes that should be collapsed
+        // Categorize nodes based on our state
         Object.entries(collapsedPaths).forEach(([path, isCollapsed]) => {
           if (isCollapsed) {
-            console.log(`Should collapse ${path} but JSONEditor API doesn't support direct path folding`);
-            // Unfortunately, JSONEditor doesn't provide API to collapse specific paths
-            // This would require custom implementation using editor internals
+            collapsedNodes.push(path);
+          } else {
+            expandedNodes.push(path);
           }
         });
+        
+        console.log('Will apply the following state to editor:');
+        console.log('- Expanded nodes:', expandedNodes);
+        console.log('- Collapsed nodes:', collapsedNodes);
+        
+        // Try to navigate to and toggle nodes that are in the incorrect state
+        // Unfortunately, JSONEditor doesn't provide direct path folding
+        // This is just a partial implementation
+        
+        if (editor.node) {
+          // When root itself is toggled
+          if (collapsedPaths.root !== undefined) {
+            if (collapsedPaths.root === false && editor.node.collapsed) {
+              console.log('Expanding root node in editor');
+              editor.node.expand();
+            } else if (collapsedPaths.root === true && !editor.node.collapsed) {
+              console.log('Collapsing root node in editor');
+              editor.node.collapse();
+            }
+          }
+        }
       }
     } catch (e) {
       console.error('Error applying collapsed paths to editor:', e);
@@ -182,6 +203,6 @@ export const useJsonEditor = ({
     collapseAll,
     expandFirstLevel,
     foldingDebug,
-    collapsedPaths
+    collapsedPaths: collapsedPathsRef.current
   };
 };
