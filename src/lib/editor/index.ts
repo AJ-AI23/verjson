@@ -1,6 +1,5 @@
 
-// Re-export all editor utilities from a central location
-export * from './types';
-export * from './pathMapping';
-export * from './foldingUtils';
-export * from './monacoHelpers';
+// Export only JSON editor related utilities
+// This file is now simplified as we've removed Monaco editor
+
+export * from './jsonEditorUtils';

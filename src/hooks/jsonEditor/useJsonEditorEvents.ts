@@ -1,6 +1,7 @@
 
 import { useRef } from 'react';
 import { FoldingDebugInfo } from './types';
+import { toggleCollapsedState } from '@/lib/editor/jsonEditorUtils';
 
 interface UseJsonEditorEventsProps {
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
@@ -36,23 +37,20 @@ export const useJsonEditorEvents = ({
           // Format path properly - empty path array means root node
           const pathStr = node.path.length > 0 ? 'root.' + node.path.join('.') : 'root';
           
-          // Get the current state from our tracked state
-          const currentState = getPathState(pathStr);
-          
-          // IMPORTANT: The expand event actually toggles - we need to invert the current state
-          // regardless of what the event says (it's unreliable)
-          const newState = !currentState;
+          // Use the simplified toggle function
+          const toggleResult = toggleCollapsedState(pathStr, collapsedPathsRef.current);
+          const newState = toggleResult.newState;
           
           console.log(`Toggle collapse for path: ${pathStr}`);
-          console.log(`Current tracked state: ${currentState ? 'collapsed' : 'expanded'}`);
-          console.log(`Setting new state to: ${newState ? 'collapsed' : 'expanded'}`);
+          console.log(`Current tracked state: ${!toggleResult.newState ? 'collapsed' : 'expanded'}`);
+          console.log(`Setting new state to: ${toggleResult.newState ? 'collapsed' : 'expanded'}`);
           console.log(`Current collapsedPaths object:`, collapsedPathsRef.current);
           
           // Log in a cleaner format
           console.log('Collapse event:', { 
             path: pathStr, 
             collapsed: newState, 
-            previousState: currentState 
+            previousState: toggleResult.previousState 
           });
           
           setFoldingDebug({
