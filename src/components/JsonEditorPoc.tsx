@@ -51,7 +51,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   return (
     <div className="h-full flex flex-col">
       <div className="p-2 border-b bg-slate-50 flex justify-between items-center">
-        <h2 className="font-semibold text-slate-700">JSONEditor Proof of Concept</h2>
+        <h2 className="font-semibold text-slate-700">JSON Editor</h2>
         <div className="flex gap-2">
           <button
             onClick={expandAll}

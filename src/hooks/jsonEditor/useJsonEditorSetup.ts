@@ -58,37 +58,20 @@ export const useJsonEditorSetup = ({
       const timer = setTimeout(() => {
         // First, collapse everything to ensure we start from a known state
         if (editorRef.current && editorRef.current.collapseAll) {
+          console.log("Collapsing all nodes in editor during initialization");
           editorRef.current.collapseAll();
+          
+          // Update collapsed paths for all nodes
+          if (onToggleCollapse) {
+            // We're setting everything to collapsed initially
+            console.log("Setting all paths to collapsed in state");
+            onToggleCollapse('root', true);
+          }
         }
         
-        // Then expand nodes up to the maximum depth
-        if (editorRef.current && editorRef.current.expandAll) {
-          // Unfortunately JSONEditor doesn't provide a way to expand to a specific depth directly
-          // So we need to first expand everything...
-          editorRef.current.expandAll();
-          
-          // ...and then we'd need to collapse nodes that exceed max depth
-          // This would need to be handled through the JSONEditor API
-          // Since that's not directly possible, we'll rely on our own collapsedPaths tracking
-          
-          // After expandAll, find all paths in the editor and mark those that exceed maxDepth as collapsed
-          try {
-            // This is a simplification - in a real implementation we'd need to traverse the JSONEditor
-            // structure to find all nodes and properly handle their paths
-            console.log("Applied max depth rule: will keep nodes collapsed beyond depth", maxDepth);
-            
-            // Mark initial setup as done
-            initialSetupDone.current = true;
-            
-            console.log('Initial folding setup completed with respecting max depth:', maxDepth);
-          } catch (e) {
-            console.error('Error during initial depth-based folding:', e);
-          }
-        } else {
-          // Fallback to our basic expandFirstLevel if expandAll is not available
-          expandFirstLevel();
-          initialSetupDone.current = true;
-        }
+        // Mark initial setup as done
+        initialSetupDone.current = true;
+        console.log('Initial folding setup completed - all properties collapsed');
       }, 300);
       
       return () => clearTimeout(timer);
