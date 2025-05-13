@@ -21,13 +21,14 @@ export const useJsonEditorSync = ({
   const syncEditorWithProps = () => {
     useEffect(() => {
       if (!editorRef.current || value === previousValueRef.current) return;
+      console.log('Syncing editor with props value');
 
       try {
         // Set flag to prevent onChange from triggering
         isInternalChange.current = true;
         
-        // Update editor content with a small delay to prevent DOM manipulation issues
-        setTimeout(() => {
+        // Update editor content with a delay to prevent DOM manipulation issues
+        const timer = setTimeout(() => {
           if (!editorRef.current) return;
           
           try {
@@ -35,16 +36,24 @@ export const useJsonEditorSync = ({
             if (value && value.trim() !== '') {
               const parsedValue = JSON.parse(value);
               editorRef.current.set(parsedValue);
+              console.log('Editor content updated from props');
             } else {
               // Set empty object if value is empty
               editorRef.current.set({});
+              console.log('Set empty object in editor');
             }
           } catch (e) {
-            // If parsing fails, just show the raw text
-            if (editorRef.current && editorRef.current.setText) {
-              editorRef.current.setText(value || '{}');
-            }
             console.error('Error updating JSONEditor:', e);
+            // We don't attempt to set text since that's causing DOM errors
+            // Just set an empty object as fallback
+            try {
+              if (editorRef.current) {
+                editorRef.current.set({});
+                console.log('Set empty object as fallback after error');
+              }
+            } catch (fallbackErr) {
+              console.error('Even fallback failed:', fallbackErr);
+            }
           }
           
           // Update previous value
@@ -52,9 +61,11 @@ export const useJsonEditorSync = ({
           
           // Clear flag after updating
           isInternalChange.current = false;
-        }, 100); // Increased timeout to 100ms for more reliability
+        }, 150); // Increased timeout for more reliability
+        
+        return () => clearTimeout(timer);
       } catch (err) {
-        console.error('Error updating JSONEditor:', err);
+        console.error('Error in sync effect:', err);
         isInternalChange.current = false;
       }
     }, [value]);
@@ -75,6 +86,7 @@ export const useJsonEditorSync = ({
           if (jsonStr !== previousValueRef.current) {
             onChange(jsonStr);
             previousValueRef.current = jsonStr;
+            console.log('Updated value from editor change');
           }
         } catch (err) {
           console.error('Error getting JSON from editor:', err);
@@ -84,6 +96,7 @@ export const useJsonEditorSync = ({
       // Try to attach the onChange handler
       if (editorRef.current.options) {
         editorRef.current.options.onChange = handleChange;
+        console.log('Attached change handler to editor');
       }
       
       return () => {

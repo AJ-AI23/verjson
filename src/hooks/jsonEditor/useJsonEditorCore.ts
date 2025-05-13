@@ -1,3 +1,4 @@
+
 import { useState, useRef } from 'react';
 import { UseJsonEditorProps, FoldingDebugInfo, JsonEditorResult } from './types';
 import { useJsonEditorSync } from './useJsonEditorSync';
@@ -43,7 +44,7 @@ export const useJsonEditor = ({
     collapsedPaths
   });
 
-  // Use our setup hook
+  // Use our setup hook - only if editor is initialized
   const { initialSetupDone, collapsedPathsRef } = useJsonEditorSetup({
     editorRef,
     onToggleCollapse,
@@ -51,7 +52,7 @@ export const useJsonEditor = ({
     expandFirstLevel
   });
 
-  // Use our collapsedPaths update hook
+  // Use our collapsedPaths update hook - only if setup is done
   useJsonEditorCollapse({
     editorRef,
     initialSetupDone,

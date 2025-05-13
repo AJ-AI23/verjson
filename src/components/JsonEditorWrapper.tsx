@@ -36,12 +36,18 @@ export const JsonEditorWrapper = ({
     let timer: number;
     
     if (containerRef.current) {
+      // First ensure the container is empty
+      while (containerRef.current.firstChild) {
+        containerRef.current.removeChild(containerRef.current.firstChild);
+      }
+      
       // Longer delay to ensure DOM is fully ready
+      console.log('Setting up JSON editor with delay');
       timer = window.setTimeout(() => {
         if (containerRef.current) {
           initializeEditor(containerRef.current);
         }
-      }, 50); // Increased timeout for stability
+      }, 100); // Increased timeout for stability
     }
     
     // Clean up when component unmounts
@@ -49,7 +55,7 @@ export const JsonEditorWrapper = ({
       window.clearTimeout(timer);
       destroyEditor();
     };
-  }, [initializeEditor, destroyEditor]);
+  }, [initializeEditor, destroyEditor]); // Only re-run if these functions change
 
   return (
     <div className="w-full h-full flex flex-col relative">

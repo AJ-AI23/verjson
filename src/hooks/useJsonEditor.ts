@@ -3,5 +3,5 @@
 export * from './jsonEditor';
 
 // Here we'll fix any module resolution issues by re-exporting core functions
-import { useJsonEditor as coreUseJsonEditor } from './jsonEditor/useJsonEditorCore';
-export { coreUseJsonEditor as useJsonEditor };
+import { useJsonEditor } from './jsonEditor';
+export { useJsonEditor };

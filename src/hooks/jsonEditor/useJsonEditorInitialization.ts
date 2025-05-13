@@ -30,6 +30,11 @@ export const useJsonEditorInitialization = ({
         editorRef.current = null;
       }
       
+      // Clear the container first to avoid DOM conflicts
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
+      
       // Get event handlers from our events hook
       const eventHandlers = createEditorEventHandlers();
       
@@ -39,57 +44,57 @@ export const useJsonEditorInitialization = ({
         mainMenuBar: false,
         navigationBar: true,
         statusBar: true,
-        schema: null, // No schema validation by default
-        schemaRefs: null, // No schema references by default
         enableSort: false, // Disable sorting to avoid validation issues
         enableTransform: false, // Disable transform to avoid validation issues
         ...eventHandlers,
       };
 
-      // Create the editor
-      const editor = new JSONEditor(container, options);
-      
-      // Disable built-in validation features
-      if (editor.validate) {
-        // Override validate method if it exists to avoid undefined issues
-        editor.validate = () => [];
-      }
-      
-      // Store the editor instance in the ref
-      editorRef.current = editor;
-      
-      // Set initial content - Use a timeout to avoid DOM manipulation issues
+      // Create the editor with a timeout to ensure DOM is ready
       setTimeout(() => {
-        if (editorRef.current) {
-          try {
-            if (value && value.trim() !== '') {
-              const parsedValue = JSON.parse(value);
-              editorRef.current.set(parsedValue);
-            } else {
-              // Set empty object if no value provided
-              editorRef.current.set({});
-            }
-          } catch (e) {
-            // If parsing fails, just show the raw text
+        try {
+          // Create the editor
+          const editor = new JSONEditor(container, options);
+          
+          // Disable built-in validation features
+          if (editor.validate) {
+            editor.validate = () => [];
+          }
+          
+          // Store the editor instance in the ref
+          editorRef.current = editor;
+          
+          // Set initial content with a longer timeout
+          setTimeout(() => {
             if (editorRef.current) {
               try {
-                editorRef.current.setText(value || '{}');
-              } catch (textErr) {
-                console.error('Failed to set text content:', textErr);
-                // Last resort - try setting an empty object
-                try {
+                if (value && value.trim() !== '') {
+                  const parsedValue = JSON.parse(value);
+                  editorRef.current.set(parsedValue);
+                } else {
+                  // Set empty object if no value provided
                   editorRef.current.set({});
-                } catch (setErr) {
-                  console.error('All editor content setting methods failed:', setErr);
+                }
+                console.log('JSON Editor content set successfully');
+              } catch (e) {
+                console.error('Failed to parse initial JSON:', e);
+                // If parsing fails, try setting a simple empty object
+                if (editorRef.current) {
+                  try {
+                    editorRef.current.set({});
+                    console.log('Set empty object as fallback');
+                  } catch (setErr) {
+                    console.error('Failed to set fallback content:', setErr);
+                  }
                 }
               }
             }
-            console.error('Failed to parse initial JSON:', e);
-          }
+          }, 200); // Increased timeout for setting content
+        } catch (createErr) {
+          console.error('Error creating JSON editor instance:', createErr);
         }
-      }, 150); // Increased timeout for more stable initialization
+      }, 100); // Initial timeout for editor creation
       
-      return editor;
+      return null; // Return null initially, editor is set async
     } catch (err) {
       console.error('Error initializing JSONEditor:', err);
       toast.error('Failed to initialize JSON editor', {
