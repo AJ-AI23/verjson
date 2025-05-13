@@ -93,13 +93,26 @@ export const useJsonEditorEvents = ({
       // If we have access to the editor, apply the change directly to the specific node
       if (editorRef && editorRef.current) {
         try {
-          // Find the node in the editor by its path
-          // This is a simplified approach since direct node access might be limited in JSONEditor
-          console.log(`Attempting to synchronize JSONEditor node state for path: ${path}`);
+          // Use the expand method with the specific path
+          // When newCollapsedState is true, we want to collapse (isExpand = false)
+          // When newCollapsedState is false, we want to expand (isExpand = true)
+          console.log(`Synchronizing JSONEditor node state for path: ${normalizedPath}`);
+          console.log(`Setting node to ${newCollapsedState ? 'collapsed' : 'expanded'}`);
           
-          // For now, we defer to the JSONEditor's internal state management
-          // The editor UI will reflect the toggle when the user clicks
-          // but we don't force additional editor state changes here
+          // Convert the path back to an array for the expand method
+          const pathArray = Array.isArray(node.path) ? node.path : path.split('.');
+          
+          // Use the expand method with the correct parameters:
+          // - pathArray: The path to the node
+          // - !newCollapsedState: true for expand, false for collapse
+          // - false: Don't do this recursively
+          editorRef.current.expand({
+            path: pathArray,
+            isExpand: !newCollapsedState,
+            recursive: false
+          });
+          
+          console.log(`JSONEditor expand() called with isExpand=${!newCollapsedState}, recursive=false`);
         } catch (err) {
           console.error('Error synchronizing editor node state:', err);
         }
