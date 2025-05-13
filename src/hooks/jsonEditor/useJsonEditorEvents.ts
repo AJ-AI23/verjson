@@ -1,12 +1,11 @@
-
-import { useRef } from 'react';
+import { useRef, useCallback } from 'react';
+import { CollapsedState } from '@/lib/diagram/types';
 import { FoldingDebugInfo } from './types';
-import { toggleCollapsedState } from '@/lib/editor/jsonEditorUtils';
 
 interface UseJsonEditorEventsProps {
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
-  setFoldingDebug: React.Dispatch<React.SetStateAction<FoldingDebugInfo | null>>;
-  collapsedPaths?: Record<string, boolean>;
+  setFoldingDebug?: (info: FoldingDebugInfo | null) => void;
+  collapsedPaths: CollapsedState;
 }
 
 export const useJsonEditorEvents = ({
@@ -14,7 +13,7 @@ export const useJsonEditorEvents = ({
   setFoldingDebug,
   collapsedPaths = {}
 }: UseJsonEditorEventsProps) => {
-  // Store original collapsed paths for comparison
+  // Keep a reference to the latest collapsedPaths
   const collapsedPathsRef = useRef<Record<string, boolean>>(collapsedPaths);
   
   // Update ref when props change
@@ -22,80 +21,65 @@ export const useJsonEditorEvents = ({
     collapsedPathsRef.current = collapsedPaths;
     console.log('Updated collapsedPathsRef in useJsonEditorEvents:', collapsedPathsRef.current);
   }
+  
+  // Helper to normalize a path for diagram consumption
+  // Different parts of the app may use slightly different path formats
+  const normalizePath = useCallback((path: string): string => {
+    // Strip any array indices from the path for now
+    const normalizedPath = path.replace(/\[\d+\]/g, '');
+    console.log('Normalized path for diagram:', normalizedPath);
+    return normalizedPath;
+  }, []);
 
-  // Helper function to get current state with default to true (collapsed)
-  const getPathState = (path: string): boolean => {
-    return collapsedPathsRef.current[path] !== undefined ? collapsedPathsRef.current[path] : true;
-  };
+  // Helper to get the current state of a path (defaults to true if not set)
+  const getPathState = useCallback((path: string): boolean => {
+    const normalizedPath = normalizePath(path);
+    return collapsedPathsRef.current[normalizedPath] !== undefined ? 
+      collapsedPathsRef.current[normalizedPath] : 
+      true; // Default to collapsed if not specified
+  }, [normalizePath]);
 
-  // Create event handlers for the editor
-  const createEditorEventHandlers = () => {
-    return {
-      // Handle expand events - this is the ONLY event we should use
-      onExpand: function(node: any) {
-        if (onToggleCollapse && node.path) {
-          // Format path properly - empty path array means root node
-          const pathStr = node.path.length > 0 ? 'root.' + node.path.join('.') : 'root';
-          
-          // Use the simplified toggle function
-          const toggleResult = toggleCollapsedState(pathStr, collapsedPathsRef.current);
-          const newState = toggleResult.newState;
-          
-          console.log(`Toggle collapse for path: ${pathStr}`);
-          console.log(`Current tracked state: ${!toggleResult.newState ? 'collapsed' : 'expanded'}`);
-          console.log(`Setting new state to: ${toggleResult.newState ? 'collapsed' : 'expanded'}`);
-          console.log(`Current collapsedPaths object:`, collapsedPathsRef.current);
-          
-          // Debug expanded vs. properties paths
-          if (pathStr.includes('properties')) {
-            console.log('Path includes properties, showing full path details:', pathStr);
-          } else {
-            // Expand the path to include properties for diagram consistency
-            const propertiesPath = pathStr.replace(/\.([^.]+)$/, '.properties.$1');
-            console.log(`Normalized path for diagram: ${propertiesPath}`);
-          }
-          
-          // Log in a cleaner format
-          console.log('Collapse event:', { 
-            path: pathStr, 
-            collapsed: newState, 
-            previousState: toggleResult.previousState 
-          });
-          
-          setFoldingDebug({
-            lastOperation: newState ? 'collapse' : 'expand',
-            path: pathStr,
-            timestamp: Date.now()
-          });
-          
-          // Call the callback to update the state with the new value
-          onToggleCollapse(pathStr, newState);
-          
-          // Also update our local reference
-          collapsedPathsRef.current = {
-            ...collapsedPathsRef.current,
-            [pathStr]: newState
-          };
-        }
-      },
+  // Create event handlers for JSONEditor
+  const createEditorEventHandlers = useCallback(() => {
+    // Function to track folding changes
+    const onFoldChange = (path: string, isCollapsed: boolean) => {
+      // Keep path as is, don't normalize yet
+      console.log(`Toggle collapse for path: ${path}`);
+      const trackedState = getPathState(path);
+      console.log(`Current tracked state: ${trackedState ? 'collapsed' : 'expanded'}`);
+      console.log(`Setting new state to: ${isCollapsed ? 'collapsed' : 'expanded'}`);
       
-      // Handle content changes
-      onChange: function (this: any) {
-        // Get the editor instance from context
-        const editor = this;
-        
-        try {
-          // Get the current editor content
-          const json = editor.get();
-          // Convert to string
-          const jsonStr = JSON.stringify(json, null, 2);
-          // We don't need to trigger collapse events for general content changes
-        } catch (err) {
-          console.error('Error getting JSON from editor:', err);
-        }
+      const normalizedPath = normalizePath(path);
+      console.log(`Current collapsedPaths object:`, collapsedPathsRef.current);
+      
+      // Log fold change event
+      const foldEventInfo = {
+        path: normalizedPath,
+        collapsed: isCollapsed,
+        previousState: trackedState
+      };
+      console.log('Collapse event:', foldEventInfo);
+      
+      // If the state has changed, notify the parent component
+      if (onToggleCollapse && trackedState !== isCollapsed) {
+        onToggleCollapse(normalizedPath, isCollapsed);
+      }
+      
+      // Update debug state if needed
+      if (setFoldingDebug) {
+        setFoldingDebug({
+          timestamp: Date.now(),
+          path: normalizedPath,
+          isCollapsed,
+          previousState: trackedState
+        });
       }
     };
-  };
+    
+    return { 
+      onFoldChange
+    };
+  }, [getPathState, normalizePath, onToggleCollapse, setFoldingDebug]);
 
   return {
     createEditorEventHandlers,

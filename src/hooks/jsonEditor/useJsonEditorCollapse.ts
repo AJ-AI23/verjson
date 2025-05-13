@@ -22,8 +22,6 @@ export const useJsonEditorCollapse = ({
     // This effect monitors collapsedPaths changes and applies them to the editor
     console.log('collapsedPaths changed, applying to editor:', collapsedPaths);
     
-    // Implementation depends on JSONEditor's API capabilities
-    
     try {
       const editor = editorRef.current;
       
@@ -46,9 +44,6 @@ export const useJsonEditorCollapse = ({
         console.log('- Collapsed nodes:', collapsedNodes);
         
         // Try to navigate to and toggle nodes that are in the incorrect state
-        // Unfortunately, JSONEditor doesn't provide direct path folding
-        // This is just a partial implementation
-        
         if (editor.node) {
           // When root itself is toggled
           if (collapsedPaths.root !== undefined) {
