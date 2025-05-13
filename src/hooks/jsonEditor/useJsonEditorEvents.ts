@@ -1,3 +1,4 @@
+
 import { useRef, useCallback } from 'react';
 import { CollapsedState } from '@/lib/diagram/types';
 import { FoldingDebugInfo } from './types';
@@ -70,6 +71,7 @@ export const useJsonEditorEvents = ({
         setFoldingDebug({
           timestamp: Date.now(),
           path: normalizedPath,
+          lastOperation: isCollapsed ? 'collapse' : 'expand', // Add the lastOperation
           isCollapsed,
           previousState: trackedState
         });

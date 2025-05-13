@@ -14,6 +14,8 @@ export interface FoldingDebugInfo {
   lastOperation: string;
   path: string;
   timestamp: number;
+  isCollapsed?: boolean;  // Add this property
+  previousState?: boolean; // Add this property
 }
 
 export interface JsonEditorResult {
