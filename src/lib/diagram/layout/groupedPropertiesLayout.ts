@@ -49,14 +49,16 @@ export const generateGroupedLayout = (
       continue;
     }
     
-    // Create group node
+    // Create group node - Fix the argument count to match function signature
     const groupNode = createGroupNode(
       type, 
       props.length, 
       `${type} Properties`, 
-      pos.x, 
-      pos.y
+      pos.x 
     );
+    
+    // If needed, adjust y position after creation
+    groupNode.position.y = pos.y;
     
     // Create edge from root to group
     const groupEdge = createEdge('root', groupNode.id, 'has');
