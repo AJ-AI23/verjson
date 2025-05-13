@@ -42,23 +42,23 @@ export const generateGroupedLayout = (
     const pos = groupPositions[groupIdx++] || { x: 0, y: 200 * groupIdx };
     const groupPath = `root.${type}`;
     
-    // Skip if this group is collapsed (default to collapsed if not set)
-    const isExplicitlyExpanded = collapsedPaths[groupPath] === false;
-    if (!isExplicitlyExpanded) {
+    // Check if root.properties is explicitly expanded
+    const rootPropertiesExplicitlyExpanded = collapsedPaths['root.properties'] === false;
+    
+    // Skip if this group is collapsed and root.properties is not explicitly expanded
+    const isGroupCollapsed = collapsedPaths[groupPath] !== false;
+    if (isGroupCollapsed && !rootPropertiesExplicitlyExpanded) {
       console.log(`Skipping collapsed group: ${groupPath}`);
       continue;
     }
     
-    // Create group node - Fix the argument count to match function signature
+    // Create group node with the correct argument structure
     const groupNode = createGroupNode(
       type, 
       props.length, 
       `${type} Properties`, 
-      pos.x 
+      { x: pos.x, y: pos.y }
     );
-    
-    // If needed, adjust y position after creation
-    groupNode.position.y = pos.y;
     
     // Create edge from root to group
     const groupEdge = createEdge('root', groupNode.id, 'has');
@@ -67,18 +67,23 @@ export const generateGroupedLayout = (
     result.nodes.push(groupNode);
     result.edges.push(groupEdge);
     
-    // Process properties in this group up to max depth
-    processGroupProperties(
-      props, 
-      schema.properties, 
-      schema.required || [], 
-      groupNode, 
-      result, 
-      1, 
-      maxDepth,
-      collapsedPaths,
-      groupPath
-    );
+    // Check if this specific group is collapsed, to determine whether to process properties
+    const thisGroupExplicitlyCollapsed = collapsedPaths[groupPath] === true;
+    
+    // Process properties in this group if not collapsed or if root.properties is expanded
+    if (!thisGroupExplicitlyCollapsed || rootPropertiesExplicitlyExpanded) {
+      processGroupProperties(
+        props, 
+        schema.properties, 
+        schema.required || [], 
+        groupNode, 
+        result, 
+        1, 
+        maxDepth,
+        collapsedPaths,
+        groupPath
+      );
+    }
   }
   
   return result;
@@ -119,6 +124,9 @@ function processGroupProperties(
     return;
   }
   
+  // Check if parent path (root.properties) is explicitly expanded
+  const rootPropertiesExplicitlyExpanded = collapsedPaths['root.properties'] === false;
+  
   // Calculate positions for properties
   const count = properties.length;
   const spacing = 180;
@@ -131,15 +139,29 @@ function processGroupProperties(
     const x = startX + index * spacing;
     const propPath = `${currentPath}.${prop.name}`;
     
-    // Skip if this property is collapsed (default to collapsed if not explicitly set)
-    const isExplicitlyExpanded = collapsedPaths[propPath] === false;
-    if (!isExplicitlyExpanded) {
+    // Special handling for root.properties explicitly expanded
+    let isCollapsed = false;
+    if (rootPropertiesExplicitlyExpanded) {
+      // Render the node but respect its collapsed state for children
+      isCollapsed = false;
+    } else {
+      // Check if property should be collapsed (default to true if not explicitly false)
+      isCollapsed = collapsedPaths[propPath] !== false;
+    }
+    
+    // Skip if this property is collapsed and not under an explicitly expanded root.properties
+    if (isCollapsed && !rootPropertiesExplicitlyExpanded) {
       console.log(`Skipping collapsed property in group: ${propPath}`);
       return;
     }
     
     // Create property node based on type
     const propNode = createPropertyNode(prop, allProperties, required, x, y);
+    
+    // Mark as collapsed if explicitly set as collapsed
+    if (collapsedPaths[propPath] === true) {
+      propNode.data.isCollapsed = true;
+    }
     
     // Create edge from group to property
     const edge = createEdge(groupNode.id, propNode.id);
