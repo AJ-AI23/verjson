@@ -7,12 +7,14 @@ interface UseJsonEditorCollapseProps {
   editorRef: React.MutableRefObject<JSONEditor | null>;
   initialSetupDone: React.MutableRefObject<boolean>;
   collapsedPaths: CollapsedState;
+  masterCollapsedPathsRef?: React.MutableRefObject<Record<string, boolean>>;
 }
 
 export const useJsonEditorCollapse = ({
   editorRef,
   initialSetupDone,
-  collapsedPaths
+  collapsedPaths,
+  masterCollapsedPathsRef
 }: UseJsonEditorCollapseProps) => {
   // Effect to apply collapsedPaths changes to the editor
   useEffect(() => {
@@ -21,16 +23,17 @@ export const useJsonEditorCollapse = ({
     
     try {
       const editor = editorRef.current;
+      const pathsToUse = masterCollapsedPathsRef?.current || collapsedPaths;
       
       if (editor && editor.node) {
-        console.log('Applying collapsed paths to editor', collapsedPaths);
+        console.log('Applying collapsed paths to editor', pathsToUse);
         
         // Handle root node's collapsed state
-        if (collapsedPaths.root !== undefined) {
-          if (collapsedPaths.root === true && !editor.node.collapsed) {
+        if (pathsToUse.root !== undefined) {
+          if (pathsToUse.root === true && !editor.node.collapsed) {
             console.log('Collapsing root node based on collapsedPaths');
             editor.collapseAll();
-          } else if (collapsedPaths.root === false && editor.node.collapsed) {
+          } else if (pathsToUse.root === false && editor.node.collapsed) {
             console.log('Expanding root node based on collapsedPaths');
             editor.expandAll();
           }
@@ -43,5 +46,5 @@ export const useJsonEditorCollapse = ({
     } catch (e) {
       console.error('Error applying collapsed paths to editor:', e);
     }
-  }, [collapsedPaths, editorRef, initialSetupDone]);
+  }, [collapsedPaths, editorRef, initialSetupDone, masterCollapsedPathsRef]);
 };

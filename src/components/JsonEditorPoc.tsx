@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import 'jsoneditor/dist/jsoneditor.css';
 import { CollapsedState } from '@/lib/diagram/types';
 import { useJsonEditor } from '@/hooks/useJsonEditor';
@@ -28,21 +28,25 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   // Debug state for component props
   const [lastToggleEvent, setLastToggleEvent] = useState<{path: string, isCollapsed: boolean} | null>(null);
   
+  // Track if the component has been mounted
+  const isMountedRef = useRef<boolean>(false);
+  
   // Wrap onToggleCollapse to track the last event
-  const handleToggleCollapse = (path: string, isCollapsed: boolean) => {
+  const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
     console.log(`JsonEditorPoc: Toggle collapse for path=${path}, isCollapsed=${isCollapsed}`);
     setLastToggleEvent({path, isCollapsed});
     
-    if (onToggleCollapse) {
+    // Only call the callback after initial mount to prevent initial setup events
+    if (isMountedRef.current && onToggleCollapse) {
       onToggleCollapse(path, isCollapsed);
+      
+      // Show toast notification
+      toast({
+        title: isCollapsed ? "Collapsed" : "Expanded",
+        description: path
+      });
     }
-    
-    // Show toast notification
-    toast({
-      title: isCollapsed ? "Collapsed" : "Expanded",
-      description: path
-    });
-  };
+  }, [onToggleCollapse]);
   
   // Use the custom hook for editor functionality
   const {
@@ -68,8 +72,16 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     // Initialize the editor
     initializeEditor(containerRef.current);
     
+    // Mark as mounted after a small delay to let initial setup complete
+    setTimeout(() => {
+      isMountedRef.current = true;
+    }, 500);
+    
     // Cleanup on unmount
-    return destroyEditor;
+    return () => {
+      isMountedRef.current = false;
+      destroyEditor();
+    };
   }, []);
 
   return (

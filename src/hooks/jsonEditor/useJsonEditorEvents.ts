@@ -1,5 +1,5 @@
 
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import { CollapsedState } from '@/lib/diagram/types';
 import { FoldingDebugInfo } from './types';
 
@@ -18,10 +18,10 @@ export const useJsonEditorEvents = ({
   const collapsedPathsRef = useRef<Record<string, boolean>>(collapsedPaths);
   
   // Update ref when props change
-  if (collapsedPaths !== collapsedPathsRef.current) {
-    collapsedPathsRef.current = collapsedPaths;
+  useEffect(() => {
+    collapsedPathsRef.current = { ...collapsedPaths };
     console.log('Updated collapsedPathsRef in useJsonEditorEvents:', collapsedPathsRef.current);
-  }
+  }, [collapsedPaths]);
   
   // Helper to normalize a path for diagram consumption
   const normalizePath = useCallback((path: string | string[]): string => {
@@ -49,7 +49,7 @@ export const useJsonEditorEvents = ({
       false; // Default to expanded if not specified
     
     return currentState;
-  }, [normalizePath]);
+  }, [normalizePath, collapsedPathsRef]);
 
   // Create event handlers for JSONEditor
   const createEditorEventHandlers = useCallback(() => {
@@ -111,6 +111,7 @@ export const useJsonEditorEvents = ({
 
   return {
     createEditorEventHandlers,
-    getPathState
+    getPathState,
+    collapsedPathsRef
   };
 };

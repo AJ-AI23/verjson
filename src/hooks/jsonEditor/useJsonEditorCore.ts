@@ -25,13 +25,22 @@ export const useJsonEditor = ({
   // Debug state to track folding operations
   const [foldingDebug, setFoldingDebug] = useState<FoldingDebugInfo | null>(null);
 
+  // Create a master ref for the collapsed paths
+  const masterCollapsedPathsRef = useRef<Record<string, boolean>>(collapsedPaths);
+  
+  // Update master ref whenever collapsedPaths props changes
+  useEffect(() => {
+    masterCollapsedPathsRef.current = { ...collapsedPaths };
+    console.log('Master collapsedPathsRef updated in useJsonEditor:', masterCollapsedPathsRef.current);
+  }, [collapsedPaths]);
+
   console.log('useJsonEditor hook running with:');
   console.log('- collapsedPaths:', collapsedPaths);
   console.log('- maxDepth:', maxDepth);
   console.log('- onToggleCollapse handler present:', !!onToggleCollapse);
 
   // Use our event handlers hook
-  const { createEditorEventHandlers, getPathState } = useJsonEditorEvents({
+  const { createEditorEventHandlers, getPathState, collapsedPathsRef: eventsPathsRef } = useJsonEditorEvents({
     onToggleCollapse,
     setFoldingDebug,
     collapsedPaths
@@ -57,7 +66,7 @@ export const useJsonEditor = ({
   });
 
   // Use our setup hook
-  const { initialSetupDone, collapsedPathsRef, pathExceedsMaxDepth } = useJsonEditorSetup({
+  const { initialSetupDone, collapsedPathsRef: setupRef, pathExceedsMaxDepth } = useJsonEditorSetup({
     editorRef,
     onToggleCollapse,
     collapsedPaths,
@@ -69,7 +78,8 @@ export const useJsonEditor = ({
   useJsonEditorCollapse({
     editorRef,
     initialSetupDone,
-    collapsedPaths
+    collapsedPaths,
+    masterCollapsedPathsRef
   });
 
   // Use our sync hook
@@ -96,7 +106,7 @@ export const useJsonEditor = ({
     collapseAll,
     expandFirstLevel,
     foldingDebug,
-    collapsedPaths: collapsedPathsRef.current,
+    collapsedPaths: masterCollapsedPathsRef.current,
     pathExceedsMaxDepth
   };
 };

@@ -19,7 +19,8 @@ export const useJsonEditorFolding = ({
   
   // Update ref when props change
   useEffect(() => {
-    collapsedPathsRef.current = collapsedPaths;
+    collapsedPathsRef.current = { ...collapsedPaths };
+    console.log('Updated collapsedPathsRef in useJsonEditorFolding:', collapsedPathsRef.current);
   }, [collapsedPaths]);
 
   // Expand all nodes in the editor
