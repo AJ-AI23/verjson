@@ -8,12 +8,28 @@ export const useDiagramUpdateThrottling = () => {
   const updateTimeoutRef = useRef<number | null>(null);
   const processingUpdateRef = useRef<boolean>(false);
   const lastUpdateTimeRef = useRef<number>(Date.now());
+  const updateCountRef = useRef<number>(0);
   
-  // Throttle updates to prevent excessive rendering - more aggressive throttling
+  // Throttle updates to prevent excessive rendering - aggressive throttling to fix performance
   const throttleUpdates = useCallback(() => {
     const now = Date.now();
-    // Only process updates if more than 500ms has passed since last update
-    return (now - lastUpdateTimeRef.current) < 500;
+    updateCountRef.current++;
+    
+    // Only allow updates every 1000ms (1 second)
+    const shouldThrottle = (now - lastUpdateTimeRef.current) < 1000;
+    
+    // After 10 rapid updates, force an extra long throttle to break any potential loops
+    if (updateCountRef.current > 10 && (now - lastUpdateTimeRef.current) < 2000) {
+      console.log('Excessive updates detected, applying extended throttling');
+      return true;
+    }
+    
+    // Reset the counter periodically
+    if ((now - lastUpdateTimeRef.current) > 3000) {
+      updateCountRef.current = 0;
+    }
+    
+    return shouldThrottle;
   }, []);
   
   const startProcessingUpdate = useCallback(() => {

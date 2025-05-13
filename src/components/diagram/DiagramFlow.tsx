@@ -1,6 +1,6 @@
 
 import React, { useCallback, useEffect, useRef, memo, useMemo } from 'react';
-import { ReactFlow, Background, Controls, Node, Edge, ReactFlowInstance, OnNodesChange, OnEdgesChange } from '@xyflow/react';
+import { ReactFlow, Background, Controls, Node, Edge, ReactFlowInstance, OnNodesChange, OnEdgesChange, PanelPosition } from '@xyflow/react';
 import { SchemaTypeNode } from '@/components/SchemaTypeNode';
 
 interface DiagramFlowProps {
@@ -27,6 +27,7 @@ export const DiagramFlow = memo(({
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const viewportRef = useRef<{ x: number; y: number; zoom: number }>({ x: 0, y: 0, zoom: 1 });
   const didFitViewRef = useRef<boolean>(false);
+  const viewportUpdateTimeout = useRef<NodeJS.Timeout | null>(null);
   
   // Memoize nodes and edges to prevent unnecessary re-renders
   const memoizedNodes = useMemo(() => nodes, [nodes]);
@@ -41,8 +42,6 @@ export const DiagramFlow = memo(({
       }, 100); // Throttle viewport updates
     }
   }, []);
-
-  const viewportUpdateTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // Store reference to ReactFlow instance
   const onInit = useCallback((instance: ReactFlowInstance) => {
@@ -88,7 +87,7 @@ export const DiagramFlow = memo(({
     maxZoom: 2,
     deleteKeyCode: null, // Disable deletion with Delete key
     defaultViewport: viewportRef.current,
-    attributionPosition: 'bottom-right',
+    attributionPosition: 'bottom-right' as PanelPosition,
     snapToGrid: false, // Disable snap to grid for smoother panning
     elevateNodesOnSelect: false // Don't change z-index when selecting nodes
   }), [shouldFitView, nodes.length]);

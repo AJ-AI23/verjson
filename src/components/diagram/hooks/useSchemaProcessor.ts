@@ -18,10 +18,18 @@ export const useSchemaProcessor = () => {
   const collapsedPathsRef = useRef<CollapsedState>({});
   const previousMaxDepthRef = useRef<number>(3);
   const processingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastProcessTimeRef = useRef<number>(Date.now());
   
   // Memoize schema string for comparison with optimized stringification
   const getSchemaString = useCallback((schema: any) => {
     try {
+      // Skip if processing would be too frequent
+      const now = Date.now();
+      if (now - lastProcessTimeRef.current < 2000) {
+        // Return cached value if we processed recently
+        return schemaStringRef.current;
+      }
+      
       // Only stringify the essential parts of the schema
       if (!schema) return '';
       
@@ -55,6 +63,19 @@ export const useSchemaProcessor = () => {
     groupProperties: boolean,
     collapsedPaths: CollapsedState
   ) => {
+    // Skip frequent processing to prevent reload loops
+    const now = Date.now();
+    if (now - lastProcessTimeRef.current < 1000) {
+      return {
+        hasAnyChange: false,
+        schemaChanged: false,
+        maxDepthChanged: false,
+        collapsedPathsChanged: false,
+        schemaString: schemaStringRef.current,
+        collapsedPathsString: getCollapsedPathsString(collapsedPathsRef.current)
+      };
+    }
+    
     const schemaString = getSchemaString(schema);
     const collapsedPathsString = getCollapsedPathsString(collapsedPaths);
     
@@ -87,7 +108,15 @@ export const useSchemaProcessor = () => {
       clearTimeout(processingTimerRef.current);
     }
     
-    // Use a short debounce to batch multiple rapid changes
+    // Skip if we've processed very recently (prevent loop)
+    const now = Date.now();
+    if (now - lastProcessTimeRef.current < 1000) {
+      console.log('Skipping redundant diagram updates');
+      return;
+    }
+    lastProcessTimeRef.current = now;
+    
+    // Use a longer debounce to batch multiple rapid changes
     processingTimerRef.current = setTimeout(() => {
       console.log(`Generating nodes and edges with maxDepth: ${maxDepth}`);
       
@@ -112,7 +141,7 @@ export const useSchemaProcessor = () => {
       previousMaxDepthRef.current = maxDepth;
       
       processingTimerRef.current = null;
-    }, 50); // Short debounce for batching
+    }, 300); // Longer debounce for batching
   }, [getSchemaString]);
   
   return {
