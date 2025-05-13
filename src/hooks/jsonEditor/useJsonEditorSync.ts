@@ -26,31 +26,36 @@ export const useJsonEditorSync = ({
         // Set flag to prevent onChange from triggering
         isInternalChange.current = true;
         
-        // Update editor content
-        try {
-          // Check if value is valid JSON and non-empty
-          if (value && value.trim() !== '') {
-            const parsedValue = JSON.parse(value);
-            editorRef.current.set(parsedValue);
-          } else {
-            // Set empty object if value is empty
-            editorRef.current.set({});
+        // Update editor content with a small delay to prevent DOM manipulation issues
+        setTimeout(() => {
+          if (!editorRef.current) return;
+          
+          try {
+            // Check if value is valid JSON and non-empty
+            if (value && value.trim() !== '') {
+              const parsedValue = JSON.parse(value);
+              editorRef.current.set(parsedValue);
+            } else {
+              // Set empty object if value is empty
+              editorRef.current.set({});
+            }
+          } catch (e) {
+            // If parsing fails, just show the raw text
+            if (editorRef.current && editorRef.current.setText) {
+              editorRef.current.setText(value || '{}');
+            }
+            console.error('Error updating JSONEditor:', e);
           }
-        } catch (e) {
-          // If parsing fails, just show the raw text
-          editorRef.current.setText(value || '');
-          console.error('Error updating JSONEditor:', e);
-        }
-        
-        // Update previous value
-        previousValueRef.current = value;
+          
+          // Update previous value
+          previousValueRef.current = value;
+          
+          // Clear flag after updating
+          isInternalChange.current = false;
+        }, 50);
       } catch (err) {
         console.error('Error updating JSONEditor:', err);
-      } finally {
-        // Clear flag after a short delay
-        setTimeout(() => {
-          isInternalChange.current = false;
-        }, 0);
+        isInternalChange.current = false;
       }
     }, [value]);
 

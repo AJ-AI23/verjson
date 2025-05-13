@@ -45,23 +45,29 @@ export const useJsonEditorInitialization = ({
         editor.validate = () => [];
       }
       
-      // Set initial content
-      if (value && value.trim() !== '') {
-        try {
-          const parsedValue = JSON.parse(value);
-          editor.set(parsedValue);
-        } catch (e) {
-          // If parsing fails, just show the raw text
-          editor.setText(value);
-          console.error('Failed to parse initial JSON:', e);
-        }
-      } else {
-        // Set empty object if no value provided
-        editor.set({});
-      }
-
       // Store the editor instance in the ref
       editorRef.current = editor;
+      
+      // Set initial content - Use a timeout to avoid DOM manipulation issues
+      setTimeout(() => {
+        if (editorRef.current) {
+          try {
+            if (value && value.trim() !== '') {
+              const parsedValue = JSON.parse(value);
+              editorRef.current.set(parsedValue);
+            } else {
+              // Set empty object if no value provided
+              editorRef.current.set({});
+            }
+          } catch (e) {
+            // If parsing fails, just show the raw text
+            if (editorRef.current) {
+              editorRef.current.setText(value || '{}');
+            }
+            console.error('Failed to parse initial JSON:', e);
+          }
+        }
+      }, 100);
       
       return editor;
     } catch (err) {
@@ -74,12 +80,16 @@ export const useJsonEditorInitialization = ({
   }, [value, createEditorEventHandlers]);
 
   // Cleanup function
-  const destroyEditor = () => {
+  const destroyEditor = useCallback(() => {
     if (editorRef.current) {
-      editorRef.current.destroy();
+      try {
+        editorRef.current.destroy();
+      } catch (e) {
+        console.error('Error destroying editor:', e);
+      }
       editorRef.current = null;
     }
-  };
+  }, []);
 
   return {
     editorRef,

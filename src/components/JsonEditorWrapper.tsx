@@ -33,12 +33,20 @@ export const JsonEditorWrapper = ({
 
   // Initialize editor when component mounts
   useEffect(() => {
+    let timer: number;
+    
     if (containerRef.current) {
-      initializeEditor(containerRef.current);
+      // Small delay to ensure DOM is fully ready
+      timer = window.setTimeout(() => {
+        initializeEditor(containerRef.current!);
+      }, 10);
     }
     
     // Clean up when component unmounts
-    return destroyEditor;
+    return () => {
+      window.clearTimeout(timer);
+      destroyEditor();
+    };
   }, [initializeEditor, destroyEditor]);
 
   return (
