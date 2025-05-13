@@ -37,44 +37,45 @@ export const useJsonEditorEvents = ({
           // Format path properly - empty path array means root node
           const pathStr = node.path.length > 0 ? 'root.' + node.path.join('.') : 'root';
           
-          // Use the simplified toggle function
-          const toggleResult = toggleCollapsedState(pathStr, collapsedPathsRef.current);
-          const newState = toggleResult.newState;
+          // Check if the node is being expanded or collapsed in the editor
+          // In JSONEditor, onExpand gets triggered for both expand and collapse actions
+          // Node.expanded shows the NEW state after the user action
+          const isBeingExpanded = node.expanded;
+          
+          // The diagram should mirror the editor state exactly:
+          // - When a node is expanded in editor, it should be NOT collapsed in our state (false)
+          // - When a node is collapsed in editor, it should be collapsed in our state (true)
+          const newCollapsedState = !isBeingExpanded;
           
           console.log(`Toggle collapse for path: ${pathStr}`);
-          console.log(`Current tracked state: ${!toggleResult.newState ? 'collapsed' : 'expanded'}`);
-          console.log(`Setting new state to: ${toggleResult.newState ? 'collapsed' : 'expanded'}`);
-          console.log(`Current collapsedPaths object:`, collapsedPathsRef.current);
+          console.log(`Editor node is now: ${isBeingExpanded ? 'expanded' : 'collapsed'}`);
+          console.log(`Setting collapsed state to: ${newCollapsedState}`);
           
           // Debug expanded vs. properties paths
           if (pathStr.includes('properties')) {
             console.log('Path includes properties, showing full path details:', pathStr);
-          } else {
-            // Expand the path to include properties for diagram consistency
-            const propertiesPath = pathStr.replace(/\.([^.]+)$/, '.properties.$1');
-            console.log(`Normalized path for diagram: ${propertiesPath}`);
           }
           
           // Log in a cleaner format
           console.log('Collapse event:', { 
             path: pathStr, 
-            collapsed: newState, 
-            previousState: toggleResult.previousState 
+            collapsed: newCollapsedState, 
+            editorExpanded: isBeingExpanded 
           });
           
           setFoldingDebug({
-            lastOperation: newState ? 'collapse' : 'expand',
+            lastOperation: newCollapsedState ? 'collapse' : 'expand',
             path: pathStr,
             timestamp: Date.now()
           });
           
           // Call the callback to update the state with the new value
-          onToggleCollapse(pathStr, newState);
+          onToggleCollapse(pathStr, newCollapsedState);
           
           // Also update our local reference
           collapsedPathsRef.current = {
             ...collapsedPathsRef.current,
-            [pathStr]: newState
+            [pathStr]: newCollapsedState
           };
         }
       },
