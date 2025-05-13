@@ -8,7 +8,7 @@ interface UseJsonEditorSetupProps {
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
   collapsedPaths: CollapsedState;
   expandFirstLevel: () => void;
-  maxDepth?: number; // Add maxDepth parameter
+  maxDepth?: number;
 }
 
 export const useJsonEditorSetup = ({
@@ -38,54 +38,92 @@ export const useJsonEditorSetup = ({
     // If the segments are > maxDepth + 1, it exceeds the max depth
     return segments.length > maxDepth + 1;
   };
+  
+  // Helper function to traverse JSON and set initial collapsed states
+  const traverseAndSetCollapsedStates = (json: any, path: string = 'root', depth: number = 1) => {
+    if (!json || typeof json !== 'object' || !onToggleCollapse) return;
+    
+    // Skip if already processed
+    if (collapsedPathsRef.current[path] !== undefined) return;
+    
+    // Determine if this node should be collapsed based on depth
+    const shouldCollapse = depth > maxDepth;
+    
+    // Set collapsed state for this path
+    onToggleCollapse(path, shouldCollapse);
+    collapsedPathsRef.current[path] = shouldCollapse;
+    
+    if (Array.isArray(json)) {
+      // For arrays, process items if they are objects
+      if (json.length > 0 && typeof json[0] === 'object') {
+        traverseAndSetCollapsedStates(json[0], `${path}.items`, depth + 1);
+      }
+    } else {
+      // For objects, process each property
+      for (const key in json) {
+        if (typeof json[key] === 'object' && json[key] !== null) {
+          const newPath = `${path}.${key === 'properties' ? key : `properties.${key}`}`;
+          traverseAndSetCollapsedStates(json[key], newPath, depth + 1);
+        }
+      }
+    }
+  };
 
   // Effect to handle initial folding state after initialization
   useEffect(() => {
     if (editorRef.current && !initialSetupDone.current) {
-      console.log("Running initial folding setup...");
-      console.log("Initial collapsedPaths:", collapsedPathsRef.current);
-      console.log("Max depth:", maxDepth);
-      
-      // Make sure we have the root state set properly first
-      if (onToggleCollapse && collapsedPathsRef.current['root'] === undefined) {
-        console.log("Setting initial root state to collapsed");
-        onToggleCollapse('root', true);
-        // Update our local reference as well
-        collapsedPathsRef.current = { ...collapsedPathsRef.current, root: true };
-      }
+      console.log("Running initial folding setup with maxDepth:", maxDepth);
       
       // Wait a moment for the editor to fully initialize
       const timer = setTimeout(() => {
-        // First, collapse everything to ensure we start from a known state
-        if (editorRef.current && editorRef.current.collapseAll) {
-          editorRef.current.collapseAll();
-        }
-        
-        // Then expand nodes up to the maximum depth
-        if (editorRef.current && editorRef.current.expandAll) {
-          // Unfortunately JSONEditor doesn't provide a way to expand to a specific depth directly
-          // So we need to first expand everything...
-          editorRef.current.expandAll();
+        try {
+          if (!editorRef.current) return;
           
-          // ...and then we'd need to collapse nodes that exceed max depth
-          // This would need to be handled through the JSONEditor API
-          // Since that's not directly possible, we'll rely on our own collapsedPaths tracking
-          
-          // After expandAll, find all paths in the editor and mark those that exceed maxDepth as collapsed
-          try {
-            // This is a simplification - in a real implementation we'd need to traverse the JSONEditor
-            // structure to find all nodes and properly handle their paths
-            console.log("Applied max depth rule: will keep nodes collapsed beyond depth", maxDepth);
+          // First, collapse everything to ensure we start from a known state
+          if (editorRef.current.collapseAll) {
+            console.log("Initially collapsing all nodes");
+            editorRef.current.collapseAll();
             
-            // Mark initial setup as done
-            initialSetupDone.current = true;
-            
-            console.log('Initial folding setup completed with respecting max depth:', maxDepth);
-          } catch (e) {
-            console.error('Error during initial depth-based folding:', e);
+            // Set root as collapsed in our state tracking
+            if (onToggleCollapse) {
+              onToggleCollapse('root', true);
+              collapsedPathsRef.current['root'] = true;
+            }
           }
-        } else {
-          // Fallback to our basic expandFirstLevel if expandAll is not available
+          
+          // Get the editor content to traverse it
+          try {
+            const content = editorRef.current.get();
+            if (content && typeof content === 'object') {
+              console.log("Traversing JSON to set initial collapsed states");
+              
+              // Expand the root node first
+              if (onToggleCollapse) {
+                onToggleCollapse('root', false);
+                collapsedPathsRef.current['root'] = false;
+                
+                // Get the root node and expand it in the editor
+                const rootNode = editorRef.current.node;
+                if (rootNode && rootNode.expand) {
+                  rootNode.expand();
+                }
+              }
+              
+              // Now traverse the content and set collapsed states based on depth
+              traverseAndSetCollapsedStates(content);
+              
+              console.log("Initialized collapsed paths based on depth:", collapsedPathsRef.current);
+            }
+          } catch (e) {
+            console.error("Error getting editor content:", e);
+          }
+          
+          initialSetupDone.current = true;
+          console.log('Initial folding setup completed');
+        } catch (e) {
+          console.error('Error during initial folding setup:', e);
+          
+          // Fallback to basic first level expansion if something went wrong
           expandFirstLevel();
           initialSetupDone.current = true;
         }

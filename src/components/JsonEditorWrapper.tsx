@@ -9,6 +9,7 @@ interface JsonEditorWrapperProps {
   error: string | null;
   collapsedPaths?: CollapsedState;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
+  maxDepth?: number;
 }
 
 export const JsonEditorWrapper: React.FC<JsonEditorWrapperProps> = ({
@@ -16,7 +17,8 @@ export const JsonEditorWrapper: React.FC<JsonEditorWrapperProps> = ({
   onChange,
   error,
   collapsedPaths,
-  onToggleCollapse
+  onToggleCollapse,
+  maxDepth = 3
 }) => {
   return (
     <JsonEditorPoc
@@ -25,6 +27,7 @@ export const JsonEditorWrapper: React.FC<JsonEditorWrapperProps> = ({
       error={error}
       collapsedPaths={collapsedPaths}
       onToggleCollapse={onToggleCollapse}
+      maxDepth={maxDepth}
     />
   );
 };

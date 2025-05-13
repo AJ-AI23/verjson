@@ -31,68 +31,40 @@ export const useJsonEditorEvents = ({
   // Create event handlers for the editor
   const createEditorEventHandlers = () => {
     return {
-      // Handle expand events - this is the ONLY event we should use
+      // Handle expand/collapse events
       onExpand: function(node: any) {
         if (onToggleCollapse && node.path) {
           // Format path properly - empty path array means root node
           const pathStr = node.path.length > 0 ? 'root.' + node.path.join('.') : 'root';
           
-          // Use the simplified toggle function
-          const toggleResult = toggleCollapsedState(pathStr, collapsedPathsRef.current);
-          const newState = toggleResult.newState;
+          // Get current state from editor node
+          const isNodeCollapsed = node.collapsed || false;
           
-          console.log(`Toggle collapse for path: ${pathStr}`);
-          console.log(`Current tracked state: ${!toggleResult.newState ? 'collapsed' : 'expanded'}`);
-          console.log(`Setting new state to: ${toggleResult.newState ? 'collapsed' : 'expanded'}`);
-          console.log(`Current collapsedPaths object:`, collapsedPathsRef.current);
+          console.log(`Node event for path: ${pathStr}, node.collapsed=${isNodeCollapsed}`);
           
-          // Debug expanded vs. properties paths
-          if (pathStr.includes('properties')) {
-            console.log('Path includes properties, showing full path details:', pathStr);
-          } else {
-            // Expand the path to include properties for diagram consistency
-            const propertiesPath = pathStr.replace(/\.([^.]+)$/, '.properties.$1');
-            console.log(`Normalized path for diagram: ${propertiesPath}`);
-          }
-          
-          // Log in a cleaner format
-          console.log('Collapse event:', { 
-            path: pathStr, 
-            collapsed: newState, 
-            previousState: toggleResult.previousState 
-          });
+          // The event is triggered AFTER the node state changes in the editor
+          // So we need to pass the OPPOSITE of node.collapsed to our state
+          onToggleCollapse(pathStr, isNodeCollapsed);
           
           setFoldingDebug({
-            lastOperation: newState ? 'collapse' : 'expand',
+            lastOperation: isNodeCollapsed ? 'collapse' : 'expand',
             path: pathStr,
             timestamp: Date.now()
           });
           
-          // Call the callback to update the state with the new value
-          onToggleCollapse(pathStr, newState);
-          
-          // Also update our local reference
+          // Update our local reference
           collapsedPathsRef.current = {
             ...collapsedPathsRef.current,
-            [pathStr]: newState
+            [pathStr]: isNodeCollapsed
           };
+          
+          console.log('Updated collapsed state for path:', pathStr, 'isCollapsed:', isNodeCollapsed);
         }
       },
       
       // Handle content changes
       onChange: function (this: any) {
-        // Get the editor instance from context
-        const editor = this;
-        
-        try {
-          // Get the current editor content
-          const json = editor.get();
-          // Convert to string
-          const jsonStr = JSON.stringify(json, null, 2);
-          // We don't need to trigger collapse events for general content changes
-        } catch (err) {
-          console.error('Error getting JSON from editor:', err);
-        }
+        // We don't need to trigger collapse events for general content changes
       }
     };
   };

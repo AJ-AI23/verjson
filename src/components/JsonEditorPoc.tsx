@@ -10,6 +10,7 @@ interface JsonEditorPocProps {
   error: string | null;
   collapsedPaths?: CollapsedState;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
+  maxDepth?: number;
 }
 
 export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
@@ -17,7 +18,8 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   onChange,
   error,
   collapsedPaths = {},
-  onToggleCollapse
+  onToggleCollapse,
+  maxDepth = 3
 }) => {
   // Create a ref to the editor container DOM element
   const containerRef = useRef<HTMLDivElement>(null);
@@ -29,12 +31,14 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     expandAll,
     collapseAll,
     expandFirstLevel,
-    foldingDebug
+    foldingDebug,
+    pathExceedsMaxDepth
   } = useJsonEditor({
     value,
     onChange,
     collapsedPaths,
-    onToggleCollapse
+    onToggleCollapse,
+    maxDepth
   });
 
   // Initialize the editor once the component mounts
@@ -51,7 +55,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   return (
     <div className="h-full flex flex-col">
       <div className="p-2 border-b bg-slate-50 flex justify-between items-center">
-        <h2 className="font-semibold text-slate-700">JSONEditor Proof of Concept</h2>
+        <h2 className="font-semibold text-slate-700">JSON Editor</h2>
         <div className="flex gap-2">
           <button
             onClick={expandAll}
