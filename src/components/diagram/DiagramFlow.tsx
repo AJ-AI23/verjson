@@ -71,6 +71,23 @@ export const DiagramFlow = memo(({
     }
   }, [schemaKey, shouldFitView, nodes.length, edges.length]);
 
+  // Ensure root node is centered if it's the only node
+  useEffect(() => {
+    if (nodes.length === 1 && nodes[0].id === 'root' && reactFlowInstanceRef.current) {
+      console.log('Only root node present, ensuring it is centered');
+      const timeout = setTimeout(() => {
+        if (reactFlowInstanceRef.current) {
+          reactFlowInstanceRef.current.fitView({ 
+            padding: 0.4, // Larger padding for single node
+            includeHiddenNodes: true
+          });
+        }
+      }, 150);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [nodes]);
+
   return (
     <div className="flex-1 diagram-container" data-testid="diagram-flow">
       <ReactFlow

@@ -26,7 +26,8 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
       schemaType: schema?.type,
       error, 
       groupProperties, 
-      collapsedPathsCount: collapsedPaths ? Object.keys(collapsedPaths).length : 0 
+      collapsedPathsCount: collapsedPaths ? Object.keys(collapsedPaths).length : 0,
+      rootCollapsed: collapsedPaths?.root === true
     });
     
     if (schema) {
