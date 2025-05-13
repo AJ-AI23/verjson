@@ -46,12 +46,13 @@ export const generateGroupedLayout = (
     edges: []
   };
   
-  // Check if root is collapsed
+  // Check if root is collapsed or properties path is collapsed
   const rootCollapsed = collapsedPaths['root'] === true;
+  const propertiesPathCollapsed = collapsedPaths['root.properties'] === true;
   
-  // If root is collapsed, we should still render the root node but no children
-  if (rootCollapsed) {
-    console.log('Root is collapsed in grouped layout, skipping property nodes generation');
+  // If root is collapsed or properties path is collapsed, return empty result
+  if (rootCollapsed || propertiesPathCollapsed) {
+    console.log('Root or root.properties is collapsed in grouped layout, skipping property nodes generation');
     return result;
   }
   
@@ -98,12 +99,12 @@ const processObjectsQueue = (
 
     // Check if this path is collapsed
     const isPathCollapsed = context.collapsedPaths[path] === true;
-    const isPropertiesCollapsed = context.collapsedPaths[`${path}.properties`] === true;
-    const isCollapsed = isPathCollapsed || isPropertiesCollapsed;
-
-    // Skip processing if collapsed
-    if (isCollapsed) {
-      console.log(`Path ${path} is collapsed, skipping child nodes generation`);
+    const isPropertiesPath = `${path}.properties`;
+    const isPropertiesCollapsed = context.collapsedPaths[isPropertiesPath] === true;
+    
+    // Skip processing completely if collapsed
+    if (isPathCollapsed || isPropertiesCollapsed) {
+      console.log(`Path ${path} or ${isPropertiesPath} is collapsed, skipping node and child nodes generation`);
       continue;
     }
 
@@ -119,11 +120,6 @@ const processObjectsQueue = (
     const groupNode = createGroupNode(parentId, objProperties, objRequired, position.y);
     // Apply calculated x position
     groupNode.position.x = position.x;
-    
-    // Add collapsed state to node data
-    if (isCollapsed) {
-      groupNode.data.isCollapsed = true;
-    }
     
     context.nodes.push(groupNode);
     
@@ -148,6 +144,15 @@ const processObjectProperties = (
 ): void => {
   // Process each property
   Object.entries(objProperties).forEach(([propName, propSchema]: [string, any], propIndex) => {
+    // Build the property path for collapse checking
+    const propPath = `${current.path}.properties.${propName}`;
+    
+    // Skip this property if it's explicitly collapsed
+    if (context.collapsedPaths[propPath] === true) {
+      console.log(`Skipping collapsed property: ${propPath}`);
+      return;
+    }
+    
     // Process nested objects
     if (propSchema && propSchema.type === 'object' && propSchema.properties) {
       processObjectProperty(

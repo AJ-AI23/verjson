@@ -38,8 +38,11 @@ export const generateNodesAndEdges = (
     result.nodes.push(rootNode);
     console.log('Root node created:', rootNode);
 
-    // Important: Always process properties even when root is collapsed
-    // This ensures we can display the root node without needing to expand first
+    // Skip property generation if root is collapsed
+    if (collapsedPaths['root'] === true) {
+      console.log('Root is collapsed, skipping property generation');
+      return result;
+    }
     
     // Process properties if this is an object
     if (schema.type === 'object' && schema.properties) {

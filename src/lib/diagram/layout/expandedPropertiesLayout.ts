@@ -32,13 +32,13 @@ export const generateExpandedLayout = (
   const totalWidth = Object.keys(properties).length * xSpacing;
   xOffset = -totalWidth / 2 + xSpacing / 2;
   
-  // Check if root itself is collapsed
+  // Check if root path or properties path is collapsed
   const rootCollapsed = collapsedPaths['root'] === true;
+  const propertiesPathCollapsed = collapsedPaths['root.properties'] === true;
   
-  // If root is collapsed, only return the empty result with no child nodes
-  // The root node is already added by the main function
-  if (rootCollapsed) {
-    console.log('Root is collapsed in expandedPropertiesLayout, skipping property nodes generation');
+  // If root is collapsed or properties path is collapsed, only return the empty result
+  if (rootCollapsed || propertiesPathCollapsed) {
+    console.log('Root or root.properties is collapsed in expandedPropertiesLayout, skipping property nodes generation');
     return result;
   }
   
@@ -48,6 +48,13 @@ export const generateExpandedLayout = (
   
   Object.entries(properties).forEach(([propName, propSchema], index) => {
     const xPos = startXOffset + index * xSpacing;
+    const propPath = `root.properties.${propName}`;
+    
+    // Skip this property if it's explicitly collapsed
+    if (collapsedPaths[propPath] === true) {
+      console.log(`Skipping collapsed property: ${propPath}`);
+      return;
+    }
     
     processProperty(
       propName,
