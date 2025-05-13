@@ -28,6 +28,9 @@ export const useJsonEditor = ({
   // Create a master ref for the collapsed paths
   const masterCollapsedPathsRef = useRef<Record<string, boolean>>(collapsedPaths);
   
+  // Create a ref for the editor
+  const editorRef = useRef<any>(null);
+  
   // Update master ref whenever collapsedPaths props changes
   useEffect(() => {
     masterCollapsedPathsRef.current = { ...collapsedPaths };
@@ -43,13 +46,15 @@ export const useJsonEditor = ({
   const { createEditorEventHandlers, getPathState, collapsedPathsRef: eventsPathsRef } = useJsonEditorEvents({
     onToggleCollapse,
     setFoldingDebug,
-    collapsedPaths
+    collapsedPaths,
+    editorRef
   });
 
   // Use our initialization hook
-  const { editorRef, initializeEditor, destroyEditor } = useJsonEditorInitialization({
+  const { initializeEditor, destroyEditor } = useJsonEditorInitialization({
     value,
-    createEditorEventHandlers
+    createEditorEventHandlers,
+    editorRef
   });
 
   // Use our folding hook

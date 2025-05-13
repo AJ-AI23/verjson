@@ -1,3 +1,4 @@
+
 import { useRef, useCallback, useEffect } from 'react';
 import { CollapsedState } from '@/lib/diagram/types';
 import { FoldingDebugInfo } from './types';
@@ -6,12 +7,14 @@ interface UseJsonEditorEventsProps {
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
   setFoldingDebug?: (info: FoldingDebugInfo | null) => void;
   collapsedPaths: CollapsedState;
+  editorRef?: React.MutableRefObject<any>;
 }
 
 export const useJsonEditorEvents = ({
   onToggleCollapse,
   setFoldingDebug,
-  collapsedPaths = {}
+  collapsedPaths = {},
+  editorRef
 }: UseJsonEditorEventsProps) => {
   // Keep a reference to the latest collapsedPaths
   const collapsedPathsRef = useRef<Record<string, boolean>>(collapsedPaths);
@@ -86,12 +89,27 @@ export const useJsonEditorEvents = ({
           previousState: currentlyCollapsed
         });
       }
+      
+      // If we have access to the editor, apply the change directly to the specific node
+      if (editorRef && editorRef.current) {
+        try {
+          // Find the node in the editor by its path
+          // This is a simplified approach since direct node access might be limited in JSONEditor
+          console.log(`Attempting to synchronize JSONEditor node state for path: ${path}`);
+          
+          // For now, we defer to the JSONEditor's internal state management
+          // The editor UI will reflect the toggle when the user clicks
+          // but we don't force additional editor state changes here
+        } catch (err) {
+          console.error('Error synchronizing editor node state:', err);
+        }
+      }
     };
     
     return { 
       onExpand
     };
-  }, [getPathState, normalizePath, onToggleCollapse, setFoldingDebug]);
+  }, [getPathState, normalizePath, onToggleCollapse, setFoldingDebug, editorRef]);
 
   return {
     createEditorEventHandlers,

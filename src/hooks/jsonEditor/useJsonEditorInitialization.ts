@@ -1,19 +1,19 @@
 
-import { useRef, useCallback } from 'react';
+import { useCallback } from 'react';
 import JSONEditor from 'jsoneditor';
 import { toast } from '@/components/ui/use-toast';
 
 interface UseJsonEditorInitializationProps {
   value: string;
   createEditorEventHandlers: () => any;
+  editorRef: React.MutableRefObject<JSONEditor | null>;
 }
 
 export const useJsonEditorInitialization = ({
   value,
-  createEditorEventHandlers
+  createEditorEventHandlers,
+  editorRef
 }: UseJsonEditorInitializationProps) => {
-  // Create a ref to store the JSONEditor instance
-  const editorRef = useRef<JSONEditor | null>(null);
   
   // Initialize the editor
   const initializeEditor = useCallback((container: HTMLDivElement) => {
@@ -33,7 +33,7 @@ export const useJsonEditorInitialization = ({
         statusBar: true,
         onEditable: function() { return true; },
         onExpand: eventHandlers.onExpand
-        // Note: We don't use onCollapse anymore, as explained in useJsonEditorEvents.ts
+        // Note: We don't use onCollapse anymore, as we rely on toggling with onExpand
       };
 
       // Create the editor
@@ -62,7 +62,7 @@ export const useJsonEditorInitialization = ({
       });
       return null;
     }
-  }, [value, createEditorEventHandlers]);
+  }, [value, createEditorEventHandlers, editorRef]);
 
   // Cleanup function
   const destroyEditor = () => {
@@ -73,7 +73,6 @@ export const useJsonEditorInitialization = ({
   };
 
   return {
-    editorRef,
     initializeEditor,
     destroyEditor
   };
