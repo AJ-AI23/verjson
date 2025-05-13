@@ -34,7 +34,9 @@ export const generateNodesAndEdges = (
     const rootNode = createRootNode(schema);
     
     // Check if root is collapsed, if so, mark it on the node
-    if (collapsedPaths['root'] === true) {
+    // Default to collapsed (true) if not specified
+    const rootCollapsed = collapsedPaths['root'] !== false;
+    if (rootCollapsed) {
       console.log('Root is marked as collapsed in diagram');
       rootNode.data.isCollapsed = true;
     } else {
@@ -47,10 +49,10 @@ export const generateNodesAndEdges = (
     // Process properties if root isn't collapsed
     if (schema.type === 'object' && schema.properties) {
       console.log(`Schema has ${Object.keys(schema.properties).length} properties`);
-      console.log(`Root collapsed: ${collapsedPaths['root'] === true}`);
+      console.log(`Root collapsed: ${rootCollapsed}`);
       
       // If root is collapsed, skip generating child nodes
-      if (collapsedPaths['root'] === true) {
+      if (rootCollapsed) {
         console.log('Root is collapsed, skipping property nodes generation');
         return result;
       }

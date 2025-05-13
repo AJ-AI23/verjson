@@ -1,11 +1,9 @@
 
+import { Node, Edge } from '@xyflow/react';
 import { DiagramElements, CollapsedState } from '../types';
-import { createGroupNode } from '../nodeGenerator';
 import { createEdge } from '../edgeGenerator';
-import { calculateGridPosition } from './gridPositionUtils';
-import { GridConfig, GridState, ProcessingQueueItem, LayoutContext } from './types';
-import { processObjectProperty } from './objectProcessor';
-import { processArrayProperty } from './arrayProcessor';
+import { createGroupNode } from '../nodeGenerator';
+import { getGroupPositions } from './gridPositionUtils';
 
 export const generateGroupedLayout = (
   schema: any, 
@@ -16,168 +14,162 @@ export const generateGroupedLayout = (
     nodes: [],
     edges: []
   };
-
+  
   if (!schema || !schema.type || schema.type !== 'object' || !schema.properties) {
     return result;
   }
-
-  // Grid layout configuration
-  const gridConfig: GridConfig = {
-    initialX: 0,         // Starting X position
-    startY: 150,         // Starting Y position
-    xGap: 350,           // Horizontal gap between nodes
-    yGap: 200,           // Vertical gap between levels
-    columnWidth: 200     // Width of a column
-  };
   
-  // Grid state tracking
-  const gridState: GridState = {
-    grid: {},
-    maxNodesPerLevel: {}
-  };
+  // Check if root is collapsed (default to collapsed if not explicitly set)
+  const rootCollapsed = collapsedPaths['root'] !== false;
   
-  // Create layout context
-  const context: LayoutContext = {
-    gridConfig,
-    gridState,
-    collapsedPaths,
-    maxDepth,
-    nodes: [],
-    edges: []
-  };
-  
-  // Check if root is collapsed or properties path is collapsed
-  const rootCollapsed = collapsedPaths['root'] === true;
-  const propertiesPathCollapsed = collapsedPaths['root.properties'] === true;
-  
-  // If root is collapsed or properties path is collapsed, return empty result
-  if (rootCollapsed || propertiesPathCollapsed) {
-    console.log('Root or root.properties is collapsed in grouped layout, skipping property nodes generation');
+  if (rootCollapsed) {
+    console.log('Root is collapsed in groupedPropertiesLayout, skipping property nodes generation');
     return result;
   }
   
-  // Get properties from schema
+  // Get the top-level properties
   const properties = schema.properties;
-  const requiredProps = schema.required || [];
   
-  // Process queue for breadth-first traversal
-  const objectsToProcess: ProcessingQueueItem[] = [
-    { 
-      parentId: 'root', 
-      schema: { properties, required: requiredProps },
-      level: 0,
-      index: 0,
-      depth: 1,
-      path: 'root'
+  // Get groups of properties by type
+  const propertyGroups = groupPropertiesByType(properties);
+  
+  // Position the groups in a grid layout
+  const groupPositions = getGroupPositions(Object.keys(propertyGroups).length);
+  
+  // Create nodes and edges for each group
+  let groupIdx = 0;
+  for (const [type, props] of Object.entries(propertyGroups)) {
+    const pos = groupPositions[groupIdx++] || { x: 0, y: 200 * groupIdx };
+    const groupPath = `root.${type}`;
+    
+    // Skip if this group is collapsed (default to collapsed if not set)
+    const isExplicitlyExpanded = collapsedPaths[groupPath] === false;
+    if (!isExplicitlyExpanded) {
+      console.log(`Skipping collapsed group: ${groupPath}`);
+      continue;
     }
-  ];
-  
-  // Process all objects in the schema
-  processObjectsQueue(objectsToProcess, context);
-  
-  // Add nodes and edges to result
-  result.nodes = context.nodes;
-  result.edges = context.edges;
+    
+    // Create group node
+    const groupNode = createGroupNode(
+      type, 
+      props.length, 
+      `${type} Properties`, 
+      pos.x, 
+      pos.y
+    );
+    
+    // Create edge from root to group
+    const groupEdge = createEdge('root', groupNode.id, 'has');
+    
+    // Add group node and edge
+    result.nodes.push(groupNode);
+    result.edges.push(groupEdge);
+    
+    // Process properties in this group up to max depth
+    processGroupProperties(
+      props, 
+      schema.properties, 
+      schema.required || [], 
+      groupNode, 
+      result, 
+      1, 
+      maxDepth,
+      collapsedPaths,
+      groupPath
+    );
+  }
   
   return result;
 };
 
-/**
- * Process the queue of objects to add to the diagram
- */
-const processObjectsQueue = (
-  objectsToProcess: ProcessingQueueItem[], 
-  context: LayoutContext
-): void => {
-  while (objectsToProcess.length > 0) {
-    const current = objectsToProcess.shift();
-    if (!current) continue;
+// Group properties by their type
+function groupPropertiesByType(properties: Record<string, any>) {
+  const groups: Record<string, Array<{name: string, schema: any}>> = {};
+  
+  // Group properties by their type
+  for (const [propName, propSchema] of Object.entries(properties)) {
+    const type = propSchema.type || 'unknown';
     
-    const { parentId, schema: objSchema, level, index, depth, path } = current;
-    const objProperties = objSchema.properties;
-    const objRequired = objSchema.required || [];
-
-    // Check if this path is collapsed
-    const isPathCollapsed = context.collapsedPaths[path] === true;
-    const isPropertiesPath = `${path}.properties`;
-    const isPropertiesCollapsed = context.collapsedPaths[isPropertiesPath] === true;
-    
-    // Skip processing completely if collapsed
-    if (isPathCollapsed || isPropertiesCollapsed) {
-      console.log(`Path ${path} or ${isPropertiesPath} is collapsed, skipping node and child nodes generation`);
-      continue;
+    if (!groups[type]) {
+      groups[type] = [];
     }
-
-    // Stop processing if we've reached max depth
-    if (depth > context.maxDepth) {
-      continue;
-    }
-
-    // Calculate grid position for this group node
-    const position = calculateGridPosition(level, index, context.gridState, context.gridConfig);
     
-    // Create a group node for all properties of this object
-    const groupNode = createGroupNode(parentId, objProperties, objRequired, position.y);
-    // Apply calculated x position
-    groupNode.position.x = position.x;
-    
-    context.nodes.push(groupNode);
-    
-    // Create edge from parent to group
-    const edge = createEdge(parentId, groupNode.id);
-    context.edges.push(edge);
-    
-    // Process properties of this object
-    processObjectProperties(objProperties, groupNode, current, objectsToProcess, context);
+    groups[type].push({ name: propName, schema: propSchema });
   }
-};
+  
+  return groups;
+}
 
-/**
- * Process the properties of an object node
- */
-const processObjectProperties = (
-  objProperties: Record<string, any>,
-  groupNode: any,
-  current: ProcessingQueueItem,
-  objectsToProcess: ProcessingQueueItem[],
-  context: LayoutContext
-): void => {
+// Process properties within a group
+function processGroupProperties(
+  properties: Array<{name: string, schema: any}>,
+  allProperties: Record<string, any>,
+  required: string[],
+  groupNode: Node,
+  result: DiagramElements,
+  currentDepth: number,
+  maxDepth: number,
+  collapsedPaths: CollapsedState = {},
+  currentPath: string = ''
+) {
+  // Skip if we've reached max depth
+  if (currentDepth > maxDepth) {
+    return;
+  }
+  
+  // Calculate positions for properties
+  const count = properties.length;
+  const spacing = 180;
+  const totalWidth = count * spacing;
+  const startX = groupNode.position.x - totalWidth / 2 + spacing / 2;
+  const y = groupNode.position.y + 150;
+  
   // Process each property
-  Object.entries(objProperties).forEach(([propName, propSchema]: [string, any], propIndex) => {
-    // Build the property path for collapse checking
-    const propPath = `${current.path}.properties.${propName}`;
+  properties.forEach((prop, index) => {
+    const x = startX + index * spacing;
+    const propPath = `${currentPath}.${prop.name}`;
     
-    // Skip this property if it's explicitly collapsed
-    if (context.collapsedPaths[propPath] === true) {
-      console.log(`Skipping collapsed property: ${propPath}`);
+    // Skip if this property is collapsed (default to collapsed if not explicitly set)
+    const isExplicitlyExpanded = collapsedPaths[propPath] === false;
+    if (!isExplicitlyExpanded) {
+      console.log(`Skipping collapsed property in group: ${propPath}`);
       return;
     }
     
-    // Process nested objects
-    if (propSchema && propSchema.type === 'object' && propSchema.properties) {
-      processObjectProperty(
-        propName, 
-        propSchema, 
-        groupNode, 
-        context, 
-        current, 
-        objectsToProcess, 
-        propIndex
-      );
-    }
+    // Create property node based on type
+    const propNode = createPropertyNode(prop, allProperties, required, x, y);
     
-    // Process arrays with object items
-    else if (propSchema && propSchema.type === 'array' && propSchema.items && 
-        propSchema.items.type === 'object' && propSchema.items.properties) {
-      processArrayProperty(
-        propName,
-        propSchema,
-        groupNode,
-        context,
-        current,
-        objectsToProcess,
-        propIndex
-      );
-    }
+    // Create edge from group to property
+    const edge = createEdge(groupNode.id, propNode.id);
+    
+    // Add node and edge to result
+    result.nodes.push(propNode);
+    result.edges.push(edge);
   });
-};
+}
+
+// Helper to create a property node
+function createPropertyNode(
+  prop: {name: string, schema: any},
+  allProperties: Record<string, any>,
+  required: string[],
+  x: number,
+  y: number
+): Node {
+  const isRequired = required.includes(prop.name);
+  
+  return {
+    id: `prop-${prop.name}`,
+    type: 'schemaType',
+    position: { x, y },
+    data: {
+      label: prop.name,
+      type: prop.schema.type || 'unknown',
+      description: prop.schema.description || '',
+      required: isRequired,
+      format: prop.schema.format || null,
+      default: prop.schema.default,
+      enum: prop.schema.enum
+    }
+  };
+}

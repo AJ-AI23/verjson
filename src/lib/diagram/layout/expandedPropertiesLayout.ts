@@ -1,6 +1,5 @@
 
 import { DiagramElements, CollapsedState } from '../types';
-import { createEdge } from '../edgeGenerator';
 import { processProperty } from './expandedLayoutProcessor';
 
 /**
@@ -20,7 +19,7 @@ export const generateExpandedLayout = (
   console.log('- Schema:', schema ? { type: schema.type, properties: schema.properties ? Object.keys(schema.properties).length : 0 } : 'invalid schema');
   console.log('- maxDepth:', maxDepth);
   console.log('- collapsedPaths keys:', Object.keys(collapsedPaths));
-  console.log('- Root collapsed?', collapsedPaths['root'] === true);
+  console.log('- Root collapsed?', collapsedPaths['root'] !== false);
 
   if (!schema || !schema.type || schema.type !== 'object' || !schema.properties) {
     console.log('Invalid schema or schema has no properties, returning empty result');
@@ -31,17 +30,20 @@ export const generateExpandedLayout = (
   
   const properties = schema.properties;
   const requiredProps = schema.required || [];
-  let xOffset = -200;
-  const yOffset = 150;
+  
+  // Calculate layout grid
+  const propertyCount = Object.keys(properties).length;
   const xSpacing = 200;
+  const yOffset = 150;
   
   // Calculate starting x position to center the nodes
-  const totalWidth = Object.keys(properties).length * xSpacing;
-  xOffset = -totalWidth / 2 + xSpacing / 2;
+  const totalWidth = propertyCount * xSpacing;
+  const startXOffset = -totalWidth / 2 + xSpacing / 2;
   
   // Check if root path or properties path is collapsed
-  const rootCollapsed = collapsedPaths['root'] === true;
-  const propertiesPathCollapsed = collapsedPaths['root.properties'] === true;
+  // Default to collapsed (true) if not explicitly set to false
+  const rootCollapsed = collapsedPaths['root'] !== false;
+  const propertiesPathCollapsed = collapsedPaths['root.properties'] !== false;
   
   // If root is collapsed or properties path is collapsed, only return the empty result
   if (rootCollapsed) {
@@ -55,21 +57,19 @@ export const generateExpandedLayout = (
   }
   
   console.log('Processing properties with:');
-  console.log('- Property count:', Object.keys(properties).length);
+  console.log('- Property count:', propertyCount);
   console.log('- Required properties:', requiredProps);
   
-  // Process the first level of properties (depth 1)
-  // Calculate starting x position to center the nodes
-  const startXOffset = -totalWidth / 2 + xSpacing / 2;
-  
+  // Process each top-level property
   Object.entries(properties).forEach(([propName, propSchema], index) => {
     const xPos = startXOffset + index * xSpacing;
     const propPath = `root.properties.${propName}`;
     
-    console.log(`Processing property ${propName}, path: ${propPath}`);
+    console.log(`Processing top-level property ${propName}, path: ${propPath}`);
     
-    // Skip this property if it's explicitly collapsed
-    if (collapsedPaths[propPath] === true) {
+    // Skip this property if it's collapsed (default to collapsed if not set)
+    const isExplicitlyExpanded = collapsedPaths[propPath] === false;
+    if (!isExplicitlyExpanded) {
       console.log(`Skipping collapsed property: ${propPath}`);
       return;
     }
