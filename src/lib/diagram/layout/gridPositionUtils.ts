@@ -41,3 +41,34 @@ export const calculateGridPosition = (
   
   return { x, y };
 };
+
+/**
+ * Calculates positions for a group of nodes in a grid layout
+ */
+export const getGroupPositions = (groupCount: number): Array<{ x: number, y: number }> => {
+  const positions: Array<{ x: number, y: number }> = [];
+  const centerX = 0;
+  const startY = 150;
+  const xGap = 300;
+  const yGap = 250;
+  
+  // Position groups in a balanced grid layout
+  for (let i = 0; i < groupCount; i++) {
+    // For odd number of groups, place one in the center and others symmetrically
+    // For even number, place them symmetrically around the center
+    let x = centerX;
+    if (groupCount > 1) {
+      const isEven = groupCount % 2 === 0;
+      const offset = isEven ? (i % 2 === 0 ? -1 : 1) * Math.ceil(i / 2) : Math.floor(i - groupCount / 2);
+      x = centerX + (offset * xGap);
+    }
+    
+    // Calculate row based on maximum items per row (3)
+    const row = Math.floor(i / 3);
+    const y = startY + (row * yGap);
+    
+    positions.push({ x, y });
+  }
+  
+  return positions;
+};
