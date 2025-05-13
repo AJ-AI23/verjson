@@ -46,12 +46,18 @@ export const useJsonEditorInitialization = ({
       }
       
       // Set initial content
-      try {
-        editor.set(JSON.parse(value));
-      } catch (e) {
-        // If parsing fails, just show the raw text
-        editor.setText(value);
-        console.error('Failed to parse initial JSON:', e);
+      if (value && value.trim() !== '') {
+        try {
+          const parsedValue = JSON.parse(value);
+          editor.set(parsedValue);
+        } catch (e) {
+          // If parsing fails, just show the raw text
+          editor.setText(value);
+          console.error('Failed to parse initial JSON:', e);
+        }
+      } else {
+        // Set empty object if no value provided
+        editor.set({});
       }
 
       // Store the editor instance in the ref
