@@ -39,7 +39,7 @@ export const useJsonEditor = ({
   console.log('- maxDepth:', maxDepth);
   console.log('- onToggleCollapse handler present:', !!onToggleCollapse);
 
-  // Use our event handlers hook
+  // Use our event handlers hook with the improved toggle logic
   const { createEditorEventHandlers, getPathState, collapsedPathsRef: eventsPathsRef } = useJsonEditorEvents({
     onToggleCollapse,
     setFoldingDebug,

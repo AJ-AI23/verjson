@@ -1,4 +1,3 @@
-
 import { useRef, useCallback, useEffect } from 'react';
 import { CollapsedState } from '@/lib/diagram/types';
 import { FoldingDebugInfo } from './types';
@@ -53,18 +52,27 @@ export const useJsonEditorEvents = ({
 
   // Create event handlers for JSONEditor
   const createEditorEventHandlers = useCallback(() => {
-    console.log('Creating JSONEditor event handlers');
+    console.log('Creating JSONEditor event handlers with toggle logic');
     
-    // Handle expand event - this fires when a node is EXPANDED (not collapsed)
-    const onExpand = (node: any) => {
+    // Handle node visibility toggle - now we use the same handler for both expand/collapse operations
+    const onToggleNode = (node: any, actionType: string) => {
       const path = node.path.length > 0 ? node.path.join('.') : 'root';
       const normalizedPath = normalizePath(path);
       
-      console.log(`onExpand called for path: ${normalizedPath}`);
+      console.log(`onToggleNode called for path: ${normalizedPath}, action: ${actionType}`);
+      
+      // Get the current tracked state (true = collapsed, false = expanded)
+      const currentlyCollapsed = getPathState(normalizedPath);
+      
+      // If expanding, the new state should be false (not collapsed)
+      // If implicit collapse (no event but logical opposite of expand), the new state should be true (collapsed)
+      const newCollapsedState = actionType === 'expand' ? false : true;
+      
+      console.log(`Path ${normalizedPath}: currently ${currentlyCollapsed ? 'collapsed' : 'expanded'}, 
+                  setting to ${newCollapsedState ? 'collapsed' : 'expanded'}`);
       
       if (onToggleCollapse) {
-        // When expanding, we set isCollapsed to FALSE
-        onToggleCollapse(normalizedPath, false);
+        onToggleCollapse(normalizedPath, newCollapsedState);
       }
       
       // Update debug state if needed
@@ -72,40 +80,21 @@ export const useJsonEditorEvents = ({
         setFoldingDebug({
           timestamp: Date.now(),
           path: normalizedPath,
-          lastOperation: 'expand',
-          isCollapsed: false,
-          previousState: getPathState(normalizedPath)
+          lastOperation: actionType,
+          isCollapsed: newCollapsedState,
+          previousState: currentlyCollapsed
         });
       }
     };
     
-    // Handle collapse event - this fires when a node is COLLAPSED
-    const onCollapse = (node: any) => {
-      const path = node.path.length > 0 ? node.path.join('.') : 'root';
-      const normalizedPath = normalizePath(path);
-      
-      console.log(`onCollapse called for path: ${normalizedPath}`);
-      
-      if (onToggleCollapse) {
-        // When collapsing, we set isCollapsed to TRUE
-        onToggleCollapse(normalizedPath, true);
-      }
-      
-      // Update debug state if needed
-      if (setFoldingDebug) {
-        setFoldingDebug({
-          timestamp: Date.now(),
-          path: normalizedPath,
-          lastOperation: 'collapse',
-          isCollapsed: true,
-          previousState: getPathState(normalizedPath)
-        });
-      }
+    // We'll use onExpand event and infer onCollapse by tracking state
+    const onExpand = (node: any) => {
+      onToggleNode(node, 'expand');
     };
     
     return { 
-      onExpand,
-      onCollapse
+      onExpand
+      // Note: We don't need a separate onCollapse handler anymore
     };
   }, [getPathState, normalizePath, onToggleCollapse, setFoldingDebug]);
 

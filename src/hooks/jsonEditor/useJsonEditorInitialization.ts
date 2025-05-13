@@ -32,8 +32,8 @@ export const useJsonEditorInitialization = ({
         navigationBar: true,
         statusBar: true,
         onEditable: function() { return true; },
-        onExpand: eventHandlers.onExpand,
-        onCollapse: eventHandlers.onCollapse
+        onExpand: eventHandlers.onExpand
+        // Note: We don't use onCollapse anymore, as explained in useJsonEditorEvents.ts
       };
 
       // Create the editor
@@ -50,7 +50,7 @@ export const useJsonEditorInitialization = ({
 
       // Store the editor instance in the ref
       editorRef.current = editor;
-      console.log('JSONEditor initialized with event handlers');
+      console.log('JSONEditor initialized with toggle event handler');
       
       return editor;
     } catch (err) {
