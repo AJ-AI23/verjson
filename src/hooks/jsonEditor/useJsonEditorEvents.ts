@@ -45,7 +45,7 @@ export const useJsonEditorEvents = ({
     const normalizedPath = normalizePath(path);
     const currentState = collapsedPathsRef.current[normalizedPath] !== undefined ? 
       collapsedPathsRef.current[normalizedPath] : 
-      false; // Default to expanded if not specified
+      true; // Default to collapsed if not specified
     
     return currentState;
   }, [normalizePath, collapsedPathsRef]);
@@ -54,22 +54,23 @@ export const useJsonEditorEvents = ({
   const createEditorEventHandlers = useCallback(() => {
     console.log('Creating JSONEditor event handlers with toggle logic');
     
-    // Handle node visibility toggle - now we use the same handler for both expand/collapse operations
-    const onToggleNode = (node: any, actionType: string) => {
+    // Handle expand event from JSONEditor - we use this to toggle the collapsed state
+    const onExpand = (node: any) => {
       const path = node.path.length > 0 ? node.path.join('.') : 'root';
       const normalizedPath = normalizePath(path);
       
-      console.log(`onToggleNode called for path: ${normalizedPath}, action: ${actionType}`);
+      console.log(`onExpand called for path: ${normalizedPath}`);
       
-      // Get the current tracked state (true = collapsed, false = expanded)
+      // Get the current state (default to true/collapsed if not set)
       const currentlyCollapsed = getPathState(normalizedPath);
       
-      // If expanding, the new state should be false (not collapsed)
-      // If implicit collapse (no event but logical opposite of expand), the new state should be true (collapsed)
-      const newCollapsedState = actionType === 'expand' ? false : true;
+      // Toggle the state - inverse of current state
+      // If current state is true (collapsed), new state is false (expanded)
+      // If current state is false (expanded), new state is true (collapsed)
+      const newCollapsedState = !currentlyCollapsed;
       
       console.log(`Path ${normalizedPath}: currently ${currentlyCollapsed ? 'collapsed' : 'expanded'}, 
-                  setting to ${newCollapsedState ? 'collapsed' : 'expanded'}`);
+                  toggling to ${newCollapsedState ? 'collapsed' : 'expanded'}`);
       
       if (onToggleCollapse) {
         onToggleCollapse(normalizedPath, newCollapsedState);
@@ -80,21 +81,15 @@ export const useJsonEditorEvents = ({
         setFoldingDebug({
           timestamp: Date.now(),
           path: normalizedPath,
-          lastOperation: actionType,
+          lastOperation: 'toggle',
           isCollapsed: newCollapsedState,
           previousState: currentlyCollapsed
         });
       }
     };
     
-    // We'll use onExpand event and infer onCollapse by tracking state
-    const onExpand = (node: any) => {
-      onToggleNode(node, 'expand');
-    };
-    
     return { 
       onExpand
-      // Note: We don't need a separate onCollapse handler anymore
     };
   }, [getPathState, normalizePath, onToggleCollapse, setFoldingDebug]);
 
