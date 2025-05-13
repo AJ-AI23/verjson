@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { defaultSchema } from '@/lib/defaultSchema';
@@ -24,7 +23,7 @@ export const Editor = () => {
   const [schemaType, setSchemaType] = useState<SchemaType>('json-schema');
   const [groupProperties, setGroupProperties] = useState(false);
   const [collapsedPaths, setCollapsedPaths] = useState<CollapsedState>({});
-  const [maxDepth, setMaxDepth] = useState(3); // Default max depth for initial rendering
+  const [maxDepth] = useState(3); // Default max depth for initial rendering
   
   // Use our custom versioning hook
   const {
@@ -50,23 +49,18 @@ export const Editor = () => {
       [path]: isCollapsed
     }));
     
-    // Show a short-lived toast notification - now correctly displaying the message based on isCollapsed
+    // Show a short-lived toast notification - FIX: correct the message based on isCollapsed value
     if (isCollapsed) {
       toast.info(`Collapsed: ${path}`, {
-        description: "Section folded",
-        duration: 1500
+        description: "Section folded", // This is now correctly "Section folded" when isCollapsed = true
+        duration: 1500 // 1.5 seconds
       });
     } else {
       toast.info(`Expanded: ${path}`, {
-        description: "Section unfolded",
-        duration: 1500
+        description: "Section unfolded", // This is now correctly "Section unfolded" when isCollapsed = false
+        duration: 1500 // 1.5 seconds
       });
     }
-  }, []);
-
-  // Update maxDepth when changed in diagram
-  const handleMaxDepthChange = useCallback((newDepth: number) => {
-    setMaxDepth(newDepth);
   }, []);
 
   // Debounced schema validation to avoid excessive processing
@@ -153,7 +147,6 @@ export const Editor = () => {
         onEditorChange={handleEditorChange}
         onVersionBump={handleVersionBump}
         onToggleCollapse={handleToggleCollapse}
-        onMaxDepthChange={handleMaxDepthChange}
       />
       
       {/* Version History Dialog */}

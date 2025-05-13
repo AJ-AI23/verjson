@@ -13,7 +13,6 @@ interface DiagramContainerProps {
   groupProperties?: boolean;
   collapsedPaths?: CollapsedState;
   maxDepth?: number;
-  onMaxDepthChange?: (newDepth: number) => void;
 }
 
 export const DiagramContainer: React.FC<DiagramContainerProps> = ({ 
@@ -21,8 +20,7 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   error, 
   groupProperties = false,
   collapsedPaths = {},
-  maxDepth = 3,
-  onMaxDepthChange
+  maxDepth = 3
 }) => {
   const [localMaxDepth, setLocalMaxDepth] = useState(maxDepth);
 
@@ -30,20 +28,12 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   const memoizedSchema = useMemo(() => schema, [JSON.stringify(schema)]);
   const memoizedCollapsedPaths = useMemo(() => collapsedPaths, [JSON.stringify(collapsedPaths)]);
 
-  // Update local maxDepth when prop changes
-  useEffect(() => {
-    if (maxDepth !== localMaxDepth) {
-      setLocalMaxDepth(maxDepth);
-    }
-  }, [maxDepth]);
-
   // Debug logs
   useEffect(() => {
     console.log('DiagramContainer received schema:', schema);
     console.log('Schema is null or undefined:', schema === null || schema === undefined);
     console.log('Error state:', error);
-    console.log('Collapsed paths count:', Object.keys(memoizedCollapsedPaths).length);
-  }, [schema, error, memoizedCollapsedPaths]);
+  }, [schema, error]);
 
   const {
     nodes,
@@ -71,9 +61,6 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
 
   const handleMaxDepthChange = (newDepth: number) => {
     setLocalMaxDepth(newDepth);
-    if (onMaxDepthChange) {
-      onMaxDepthChange(newDepth);
-    }
     toast.success(`Diagram depth set to ${newDepth} levels`);
   };
 

@@ -19,7 +19,6 @@ interface EditorContentProps {
   onEditorChange: (value: string) => void;
   onVersionBump: (newVersion: Version, tier: VersionTier, description: string) => void;
   onToggleCollapse: (path: string, isCollapsed: boolean) => void;
-  onMaxDepthChange: (newDepth: number) => void;
 }
 
 export const EditorContent: React.FC<EditorContentProps> = ({
@@ -34,7 +33,6 @@ export const EditorContent: React.FC<EditorContentProps> = ({
   onEditorChange,
   onVersionBump,
   onToggleCollapse,
-  onMaxDepthChange
 }) => {
   return (
     <SplitPane>
@@ -45,7 +43,6 @@ export const EditorContent: React.FC<EditorContentProps> = ({
           error={error}
           collapsedPaths={collapsedPaths}
           onToggleCollapse={onToggleCollapse}
-          maxDepth={maxDepth}
         />
         <VersionControls 
           version={currentVersion} 
@@ -59,7 +56,6 @@ export const EditorContent: React.FC<EditorContentProps> = ({
         groupProperties={groupProperties}
         collapsedPaths={collapsedPaths}
         maxDepth={maxDepth}
-        onMaxDepthChange={onMaxDepthChange}
       />
     </SplitPane>
   );
