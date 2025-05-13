@@ -4,7 +4,7 @@ import { JsonEditorPoc } from '@/components/JsonEditorPoc';
 import { parseJsonSchema } from '@/lib/schemaUtils';
 import { CollapsedState } from '@/lib/diagram/types';
 import { defaultSchema } from '@/lib/defaultSchema';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/use-toast';
 
 const JsonEditorPocPage = () => {
   const [schema, setSchema] = useState(defaultSchema);
@@ -34,8 +34,9 @@ const JsonEditorPocPage = () => {
     }));
     
     // Show notification
-    toast.info(`${isCollapsed ? 'Collapsed' : 'Expanded'}: ${path}`, { 
-      duration: 1500 
+    toast({
+      title: `${isCollapsed ? 'Collapsed' : 'Expanded'}`,
+      description: path
     });
   }, []);
 
@@ -45,7 +46,10 @@ const JsonEditorPocPage = () => {
       ...prev,
       [path]: true
     }));
-    toast.info(`Force collapsed: ${path}`);
+    toast({
+      title: "Force collapsed",
+      description: path
+    });
   };
   
   return (

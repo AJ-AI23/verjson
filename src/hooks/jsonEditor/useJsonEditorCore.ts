@@ -79,7 +79,7 @@ export const useJsonEditor = ({
   // Force update of editor fold state when collapsedPaths changes
   useEffect(() => {
     if (editorRef.current && initialSetupDone.current) {
-      console.log('collapsedPaths changed, force updating editor fold state');
+      console.log('collapsedPaths changed, force updating editor fold state:', collapsedPaths);
       forceUpdateEditorFoldState();
     }
   }, [collapsedPaths, forceUpdateEditorFoldState]);

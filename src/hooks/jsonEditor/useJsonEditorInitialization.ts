@@ -1,7 +1,7 @@
 
 import { useRef, useCallback } from 'react';
 import JSONEditor from 'jsoneditor';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/use-toast';
 
 interface UseJsonEditorInitializationProps {
   value: string;
@@ -32,33 +32,25 @@ export const useJsonEditorInitialization = ({
         navigationBar: true,
         statusBar: true,
         onEditable: function() { return true; },
-        // Use the onExpand/onCollapse direct handlers instead of general onEvent
-        onExpand: function(node) {
-          console.log('JSONEditor EXPAND event detected:', node);
-          try {
-            const path = node.path.length > 0 ? node.path.join('.') : 'root';
-            console.log('Node expanded at path:', path);
-            
-            if (eventHandlers.onFoldChange) {
-              console.log('Calling onFoldChange with path:', path, 'isCollapsed:', false);
-              eventHandlers.onFoldChange(path, false);
+        // Use the onExpand/onCollapse handlers
+        onEvent: function(node, event) {
+          console.log('JSONEditor event:', event.type, node);
+          
+          // Only process expand/collapse events
+          if (event.type === 'expand' || event.type === 'collapse') {
+            try {
+              const path = node.path.length > 0 ? node.path.join('.') : 'root';
+              const isCollapsed = event.type === 'collapse';
+              
+              console.log(`Node ${isCollapsed ? 'collapsed' : 'expanded'} at path:`, path);
+              
+              if (eventHandlers.onFoldChange) {
+                console.log('Calling onFoldChange with path:', path, 'isCollapsed:', isCollapsed);
+                eventHandlers.onFoldChange(path, isCollapsed);
+              }
+            } catch (err) {
+              console.error(`Error in ${event.type} handler:`, err);
             }
-          } catch (err) {
-            console.error('Error in expand handler:', err);
-          }
-        },
-        onCollapse: function(node) {
-          console.log('JSONEditor COLLAPSE event detected:', node);
-          try {
-            const path = node.path.length > 0 ? node.path.join('.') : 'root';
-            console.log('Node collapsed at path:', path);
-            
-            if (eventHandlers.onFoldChange) {
-              console.log('Calling onFoldChange with path:', path, 'isCollapsed:', true);
-              eventHandlers.onFoldChange(path, true);
-            }
-          } catch (err) {
-            console.error('Error in collapse handler:', err);
           }
         }
       };
@@ -84,7 +76,9 @@ export const useJsonEditorInitialization = ({
       return editor;
     } catch (err) {
       console.error('Error initializing JSONEditor:', err);
-      toast.error('Failed to initialize JSON editor', {
+      toast({
+        variant: "destructive",
+        title: "Failed to initialize JSON editor",
         description: err instanceof Error ? err.message : String(err)
       });
       return null;

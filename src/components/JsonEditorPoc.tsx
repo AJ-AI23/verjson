@@ -3,6 +3,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import 'jsoneditor/dist/jsoneditor.css';
 import { CollapsedState } from '@/lib/diagram/types';
 import { useJsonEditor } from '@/hooks/useJsonEditor';
+import { toast } from '@/components/ui/use-toast';
 
 interface JsonEditorPocProps {
   value: string;
@@ -66,6 +67,11 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     // Cleanup on unmount
     return destroyEditor;
   }, []);
+
+  // Log collapsedPaths changes for debugging
+  useEffect(() => {
+    console.log('JsonEditorPoc: collapsedPaths changed:', collapsedPaths);
+  }, [collapsedPaths]);
 
   return (
     <div className="h-full flex flex-col">
