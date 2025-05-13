@@ -1,5 +1,5 @@
 
-import { generateGroupedLayout } from '../groupedPropertiesLayout';
+import { generateGroupedLayout } from '../layout/groupedPropertiesLayout';
 import { generateExpandedLayout } from '../expandedPropertiesLayout';
 
 // Mock node and edge generators to simplify tests

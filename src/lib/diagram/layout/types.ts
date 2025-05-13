@@ -38,3 +38,9 @@ export interface LayoutContext {
   nodes: any[];
   edges: any[];
 }
+
+// Path tracking for property paths
+export interface PropertyPath {
+  nodePath: string;
+  fullPath: string;
+}

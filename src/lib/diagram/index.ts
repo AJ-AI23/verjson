@@ -1,9 +1,8 @@
-
 import { Node, Edge } from '@xyflow/react';
 import { DiagramElements, CollapsedState } from './types';
 import { createRootNode } from './nodeGenerator';
 import { generateGroupedLayout } from './layout/groupedPropertiesLayout';
-import { generateExpandedLayout } from './expandedPropertiesLayout';
+import { generateExpandedLayout } from './layout/expandedPropertiesLayout';
 
 export const generateNodesAndEdges = (
   schema: any, 
