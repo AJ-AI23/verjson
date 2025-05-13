@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect } from 'react';
-import { useJsonEditor } from '@/hooks/useJsonEditor';
+import { useJsonEditor } from '@/hooks/jsonEditor';
 import { CollapsedState } from '@/lib/diagram/types';
 import 'jsoneditor/dist/jsoneditor.css';
 
@@ -36,10 +36,12 @@ export const JsonEditorWrapper = ({
     let timer: number;
     
     if (containerRef.current) {
-      // Small delay to ensure DOM is fully ready
+      // Longer delay to ensure DOM is fully ready
       timer = window.setTimeout(() => {
-        initializeEditor(containerRef.current!);
-      }, 10);
+        if (containerRef.current) {
+          initializeEditor(containerRef.current);
+        }
+      }, 50); // Increased timeout for stability
     }
     
     // Clean up when component unmounts

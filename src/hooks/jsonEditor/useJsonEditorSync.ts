@@ -52,7 +52,7 @@ export const useJsonEditorSync = ({
           
           // Clear flag after updating
           isInternalChange.current = false;
-        }, 50);
+        }, 100); // Increased timeout to 100ms for more reliability
       } catch (err) {
         console.error('Error updating JSONEditor:', err);
         isInternalChange.current = false;
@@ -63,7 +63,9 @@ export const useJsonEditorSync = ({
     useEffect(() => {
       if (!editorRef.current) return;
       
+      // Define the handler in a variable to avoid re-creation on each render
       const handleChange = () => {
+        // If this is an internal change, ignore it
         if (isInternalChange.current || !editorRef.current) return;
         
         try {

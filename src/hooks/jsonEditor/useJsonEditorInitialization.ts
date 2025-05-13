@@ -20,6 +20,16 @@ export const useJsonEditorInitialization = ({
     if (!container) return null;
 
     try {
+      // First, make sure we don't have an existing editor
+      if (editorRef.current) {
+        try {
+          editorRef.current.destroy();
+        } catch (e) {
+          console.error('Error destroying previous editor:', e);
+        }
+        editorRef.current = null;
+      }
+      
       // Get event handlers from our events hook
       const eventHandlers = createEditorEventHandlers();
       
@@ -62,12 +72,22 @@ export const useJsonEditorInitialization = ({
           } catch (e) {
             // If parsing fails, just show the raw text
             if (editorRef.current) {
-              editorRef.current.setText(value || '{}');
+              try {
+                editorRef.current.setText(value || '{}');
+              } catch (textErr) {
+                console.error('Failed to set text content:', textErr);
+                // Last resort - try setting an empty object
+                try {
+                  editorRef.current.set({});
+                } catch (setErr) {
+                  console.error('All editor content setting methods failed:', setErr);
+                }
+              }
             }
             console.error('Failed to parse initial JSON:', e);
           }
         }
-      }, 100);
+      }, 150); // Increased timeout for more stable initialization
       
       return editor;
     } catch (err) {
