@@ -2,7 +2,7 @@
 import { Node, Edge } from '@xyflow/react';
 import { DiagramElements, CollapsedState } from './types';
 import { createRootNode } from './nodeGenerator';
-import { generateGroupedLayout } from './groupedPropertiesLayout';
+import { generateGroupedLayout } from './layout/groupedPropertiesLayout';
 import { generateExpandedLayout } from './expandedPropertiesLayout';
 
 export const generateNodesAndEdges = (
