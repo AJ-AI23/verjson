@@ -1,3 +1,3 @@
 
-// Re-export the core hook for backward compatibility
-export { useJsonEditor } from './jsonEditor';
+// Export all JSON editor hooks for backward compatibility
+export * from './jsonEditor';
