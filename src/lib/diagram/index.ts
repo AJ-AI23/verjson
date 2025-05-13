@@ -18,6 +18,7 @@ export const generateNodesAndEdges = (
 
   console.log('generateNodesAndEdges called with schema:', schema ? 
     { type: schema.type, hasProperties: !!schema.properties } : 'null or undefined');
+  console.log('Collapsed paths in diagram generator:', Object.keys(collapsedPaths).length);
 
   if (!schema || !schema.type) {
     console.log('No valid schema provided to generateNodesAndEdges');
@@ -27,8 +28,21 @@ export const generateNodesAndEdges = (
   try {
     // Start with the root node
     const rootNode = createRootNode(schema);
+    
+    // Check if root is collapsed, if so, mark it on the node
+    if (collapsedPaths['root'] === true) {
+      console.log('Root is marked as collapsed in diagram');
+      rootNode.data.isCollapsed = true;
+    }
+    
     result.nodes.push(rootNode);
     console.log('Root node created:', rootNode);
+
+    // If root is collapsed, we should not render children
+    if (collapsedPaths['root'] === true) {
+      console.log('Root is collapsed, skipping child nodes generation');
+      return result;
+    }
 
     // Process properties if this is an object
     if (schema.type === 'object' && schema.properties) {

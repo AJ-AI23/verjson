@@ -34,6 +34,15 @@ export const generateExpandedLayout = (
   const totalWidth = Object.keys(properties).length * xSpacing;
   xOffset = -totalWidth / 2 + xSpacing / 2;
   
+  // Check if root itself is collapsed
+  const rootCollapsed = collapsedPaths['root'] === true;
+  
+  // If root is collapsed, we should skip generating child nodes
+  if (rootCollapsed) {
+    console.log('Root is collapsed, skipping property nodes generation');
+    return result;
+  }
+  
   // Process the first level of properties (depth 1)
   processProperties(
     properties, 
@@ -80,14 +89,19 @@ function processProperties(
     // Create node for property
     const propNode = createPropertyNode(propName, propSchema, requiredProps, xPos, yOffset);
     
+    // Check if the path is collapsed in the editor
+    const isCollapsed = collapsedPaths[propPath] === true;
+    if (isCollapsed) {
+      // Update node to show it's collapsed in the editor
+      propNode.data.isCollapsed = true;
+      console.log(`Node ${propPath} is marked as collapsed in diagram`);
+    }
+    
     // Add edge from parent to property
     const edge = createEdge(parentId, propNode.id);
     
     result.nodes.push(propNode);
     result.edges.push(edge);
-    
-    // Check if the path is collapsed
-    const isCollapsed = collapsedPaths[propPath] === true;
     
     // Only process nested properties if we haven't reached max depth and not collapsed
     if (currentDepth < maxDepth && !isCollapsed) {
@@ -139,7 +153,10 @@ function processProperties(
           const itemRequired = itemSchema.required || [];
           const itemPath = `${propPath}.items`;
           
-          if (!collapsedPaths[itemPath]) {
+          // Check if this items path is collapsed
+          const itemsCollapsed = collapsedPaths[itemPath] === true;
+          
+          if (!itemsCollapsed) {
             processProperties(
               itemProps,
               itemRequired,
@@ -153,9 +170,15 @@ function processProperties(
               collapsedPaths,
               itemPath
             );
+          } else {
+            // Mark item node as collapsed
+            itemNode.data.isCollapsed = true;
           }
         }
       }
+    } else if (isCollapsed) {
+      // This node is collapsed, so mark it as such
+      propNode.data.isCollapsed = true;
     } else {
       // At max depth or collapsed, add indicator that there are more levels
       if ((propSchema.type === 'object' && propSchema.properties) || 
