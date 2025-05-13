@@ -48,7 +48,7 @@ export const useJsonEditor = ({
     expandAll, 
     collapseAll, 
     expandFirstLevel, 
-    forceUpdateEditorFoldState, 
+    forceUpdateEditorFoldState,
     collapsedPathsRef: foldingRef 
   } = useJsonEditorFolding({ 
     editorRef, 

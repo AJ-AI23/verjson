@@ -14,7 +14,7 @@ export const useJsonEditorCollapse = ({
   initialSetupDone,
   collapsedPaths
 }: UseJsonEditorCollapseProps) => {
-  // Additional effect to apply collapsedPaths changes to the editor
+  // Effect to apply collapsedPaths changes to the editor
   useEffect(() => {
     // Skip during initial setup
     if (!editorRef.current || !initialSetupDone.current) return;
@@ -35,6 +35,10 @@ export const useJsonEditorCollapse = ({
             editor.expandAll();
           }
         }
+        
+        // Attempt to apply other path collapses
+        // This requires the editor to support path-based expansion/collapse
+        // If available, we'd iterate through collapsedPaths and apply each state
       }
     } catch (e) {
       console.error('Error applying collapsed paths to editor:', e);

@@ -44,26 +44,25 @@ export const useJsonEditorSetup = ({
     if (editorRef.current && !initialSetupDone.current) {
       console.log('Setting up initial editor folding state');
       
-      // Make sure we have the root state set properly first
-      if (onToggleCollapse && collapsedPathsRef.current['root'] === undefined) {
-        console.log('Setting initial root collapsed state to true');
-        onToggleCollapse('root', true);
-        // Update our local reference as well
-        collapsedPathsRef.current = { ...collapsedPathsRef.current, root: true };
-      }
-      
       // Wait a moment for the editor to fully initialize
       const timer = setTimeout(() => {
-        // First, collapse everything to ensure we start from a known state
-        if (editorRef.current && editorRef.current.collapseAll) {
-          editorRef.current.collapseAll();
-          console.log('Initially collapsed all nodes');
-          
-          // After collapsing all, check if root should be expanded
-          if (collapsedPathsRef.current['root'] === false) {
-            console.log('Root should be expanded according to collapsedPaths');
+        if (!editorRef.current) return;
+        
+        // Check if root is defined and apply initial state
+        if (collapsedPaths.root !== undefined) {
+          if (collapsedPaths.root === true) {
+            console.log('Initially collapsing all nodes');
+            editorRef.current.collapseAll();
+          } else {
+            console.log('Initially expanding first level');
             expandFirstLevel();
           }
+        } else if (onToggleCollapse) {
+          // If root state isn't defined, default to collapsed
+          console.log('Setting initial root collapsed state to true');
+          onToggleCollapse('root', true);
+          // Collapse all nodes in the editor
+          editorRef.current.collapseAll();
         }
         
         // Mark initial setup as done
@@ -73,7 +72,7 @@ export const useJsonEditorSetup = ({
       
       return () => clearTimeout(timer);
     }
-  }, [editorRef.current, onToggleCollapse, expandFirstLevel, maxDepth]);
+  }, [editorRef.current, onToggleCollapse, expandFirstLevel, collapsedPaths.root]);
 
   return {
     initialSetupDone,

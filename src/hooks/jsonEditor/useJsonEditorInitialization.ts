@@ -23,6 +23,8 @@ export const useJsonEditorInitialization = ({
       // Get event handlers from our events hook
       const eventHandlers = createEditorEventHandlers();
       
+      console.log('Initializing JSONEditor with event handlers', eventHandlers);
+      
       // JSONEditor options
       const options = {
         mode: 'tree',

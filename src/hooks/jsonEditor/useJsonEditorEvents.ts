@@ -1,3 +1,4 @@
+
 import { useRef, useCallback } from 'react';
 import { CollapsedState } from '@/lib/diagram/types';
 import { FoldingDebugInfo } from './types';
@@ -54,7 +55,7 @@ export const useJsonEditorEvents = ({
   const createEditorEventHandlers = useCallback(() => {
     console.log('Creating JSONEditor event handlers');
     
-    // Handle expand event
+    // Handle expand event - this fires when a node is EXPANDED (not collapsed)
     const onExpand = (node: any) => {
       const path = node.path.length > 0 ? node.path.join('.') : 'root';
       const normalizedPath = normalizePath(path);
@@ -62,6 +63,7 @@ export const useJsonEditorEvents = ({
       console.log(`onExpand called for path: ${normalizedPath}`);
       
       if (onToggleCollapse) {
+        // When expanding, we set isCollapsed to FALSE
         onToggleCollapse(normalizedPath, false);
       }
       
@@ -77,7 +79,7 @@ export const useJsonEditorEvents = ({
       }
     };
     
-    // Handle collapse event
+    // Handle collapse event - this fires when a node is COLLAPSED
     const onCollapse = (node: any) => {
       const path = node.path.length > 0 ? node.path.join('.') : 'root';
       const normalizedPath = normalizePath(path);
@@ -85,6 +87,7 @@ export const useJsonEditorEvents = ({
       console.log(`onCollapse called for path: ${normalizedPath}`);
       
       if (onToggleCollapse) {
+        // When collapsing, we set isCollapsed to TRUE
         onToggleCollapse(normalizedPath, true);
       }
       
