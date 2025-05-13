@@ -19,8 +19,10 @@ export const useSchemaProcessor = () => {
   const previousMaxDepthRef = useRef<number>(3);
   const processingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastProcessTimeRef = useRef<number>(Date.now());
+  const pendingProcessRef = useRef<boolean>(false);
+  const processCountRef = useRef<number>(0);
   
-  // Memoize schema string for comparison with optimized stringification
+  // Optimized schema string generation with caching
   const getSchemaString = useCallback((schema: any) => {
     try {
       // Skip if processing would be too frequent
@@ -30,9 +32,17 @@ export const useSchemaProcessor = () => {
         return schemaStringRef.current;
       }
       
+      // Skip if we're seeing too many process requests
+      if (processCountRef.current > 10) {
+        console.log('Too many schema processing requests, throttling');
+        processCountRef.current = 0; // Reset counter
+        return schemaStringRef.current;
+      }
+      
       // Only stringify the essential parts of the schema
       if (!schema) return '';
       
+      // Generate cache key based on important properties only
       const essentialParts = {
         type: schema.type,
         title: schema.title,
@@ -65,7 +75,7 @@ export const useSchemaProcessor = () => {
   ) => {
     // Skip frequent processing to prevent reload loops
     const now = Date.now();
-    if (now - lastProcessTimeRef.current < 1000) {
+    if (now - lastProcessTimeRef.current < 2000) {
       return {
         hasAnyChange: false,
         schemaChanged: false,
@@ -76,12 +86,28 @@ export const useSchemaProcessor = () => {
       };
     }
     
+    // Increment the process counter
+    processCountRef.current++;
+    
     const schemaString = getSchemaString(schema);
     const collapsedPathsString = getCollapsedPathsString(collapsedPaths);
     
     const maxDepthChanged = previousMaxDepthRef.current !== maxDepth;
     const schemaChanged = schemaString !== schemaStringRef.current;
     const collapsedPathsChanged = collapsedPathsString !== getCollapsedPathsString(collapsedPathsRef.current);
+    
+    // If we're seeing too many changes in a short period, throttle
+    if (processCountRef.current > 5 && (now - lastProcessTimeRef.current < 5000)) {
+      console.log('Too many updates in short period, throttling');
+      return {
+        hasAnyChange: false,
+        schemaChanged: false,
+        maxDepthChanged: false,
+        collapsedPathsChanged: false,
+        schemaString,
+        collapsedPathsString
+      };
+    }
     
     return {
       hasAnyChange: schemaChanged || maxDepthChanged || collapsedPathsChanged,
@@ -93,7 +119,7 @@ export const useSchemaProcessor = () => {
     };
   }, [getSchemaString, getCollapsedPathsString]);
   
-  // Process schema to generate diagram with debounced execution
+  // Process schema to generate diagram with enhanced debouncing
   const processSchema = useCallback(({
     schema,
     groupProperties,
@@ -110,15 +136,24 @@ export const useSchemaProcessor = () => {
     
     // Skip if we've processed very recently (prevent loop)
     const now = Date.now();
-    if (now - lastProcessTimeRef.current < 1000) {
-      console.log('Skipping redundant diagram updates');
+    if (now - lastProcessTimeRef.current < 2000) {
+      console.log('Skipping redundant diagram updates - too soon');
       return;
     }
-    lastProcessTimeRef.current = now;
+    
+    // Skip if we already have a pending process
+    if (pendingProcessRef.current) {
+      console.log('Skipping redundant diagram updates - already pending');
+      return;
+    }
+    
+    // Mark that we have a pending process
+    pendingProcessRef.current = true;
     
     // Use a longer debounce to batch multiple rapid changes
     processingTimerRef.current = setTimeout(() => {
       console.log(`Generating nodes and edges with maxDepth: ${maxDepth}`);
+      lastProcessTimeRef.current = Date.now();
       
       const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(
         schema, 
@@ -141,7 +176,9 @@ export const useSchemaProcessor = () => {
       previousMaxDepthRef.current = maxDepth;
       
       processingTimerRef.current = null;
-    }, 300); // Longer debounce for batching
+      pendingProcessRef.current = false;
+      processCountRef.current = 0; // Reset process counter after successful update
+    }, 500); // Longer debounce for batching
   }, [getSchemaString]);
   
   return {

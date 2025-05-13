@@ -9,24 +9,41 @@ export const useDiagramUpdateThrottling = () => {
   const processingUpdateRef = useRef<boolean>(false);
   const lastUpdateTimeRef = useRef<number>(Date.now());
   const updateCountRef = useRef<number>(0);
+  const consecutiveUpdatesRef = useRef<number>(0);
+  const lastCollapsedPathsRef = useRef<string>('');
   
-  // Throttle updates to prevent excessive rendering - aggressive throttling to fix performance
-  const throttleUpdates = useCallback(() => {
+  // Enhanced throttling system with more aggressive limits
+  const throttleUpdates = useCallback((collapsedPathsString: string = '') => {
     const now = Date.now();
     updateCountRef.current++;
     
-    // Only allow updates every 1000ms (1 second)
-    const shouldThrottle = (now - lastUpdateTimeRef.current) < 1000;
+    // If same collapsedPaths are triggering updates, count as consecutive
+    if (collapsedPathsString === lastCollapsedPathsRef.current) {
+      consecutiveUpdatesRef.current++;
+    } else {
+      consecutiveUpdatesRef.current = 0;
+      lastCollapsedPathsRef.current = collapsedPathsString;
+    }
     
-    // After 10 rapid updates, force an extra long throttle to break any potential loops
-    if (updateCountRef.current > 10 && (now - lastUpdateTimeRef.current) < 2000) {
+    // After several consecutive identical updates, block completely for a longer period
+    if (consecutiveUpdatesRef.current > 3) {
+      console.log('Blocking identical consecutive updates to break render loop');
+      return true;
+    }
+    
+    // Only allow updates every 2000ms (2 seconds) - more aggressive throttling
+    const shouldThrottle = (now - lastUpdateTimeRef.current) < 2000;
+    
+    // After 5 rapid updates, force an extra long throttle
+    if (updateCountRef.current > 5 && (now - lastUpdateTimeRef.current) < 4000) {
       console.log('Excessive updates detected, applying extended throttling');
       return true;
     }
     
     // Reset the counter periodically
-    if ((now - lastUpdateTimeRef.current) > 3000) {
+    if ((now - lastUpdateTimeRef.current) > 5000) {
       updateCountRef.current = 0;
+      consecutiveUpdatesRef.current = 0;
     }
     
     return shouldThrottle;

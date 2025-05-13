@@ -16,6 +16,16 @@ const nodeTypes = {
   schemaType: SchemaTypeNode,
 };
 
+// Memoize static configuration objects
+const staticFlowOptions = {
+  minZoom: 0.5,
+  maxZoom: 2,
+  deleteKeyCode: null, // Disable deletion with Delete key
+  attributionPosition: 'bottom-right' as PanelPosition,
+  snapToGrid: false, // Disable snap to grid for smoother panning
+  elevateNodesOnSelect: false // Don't change z-index when selecting nodes
+};
+
 export const DiagramFlow = memo(({
   nodes,
   edges,
@@ -28,18 +38,20 @@ export const DiagramFlow = memo(({
   const viewportRef = useRef<{ x: number; y: number; zoom: number }>({ x: 0, y: 0, zoom: 1 });
   const didFitViewRef = useRef<boolean>(false);
   const viewportUpdateTimeout = useRef<NodeJS.Timeout | null>(null);
+  const fitViewTimeout = useRef<NodeJS.Timeout | null>(null);
+  const lastFitViewTime = useRef<number>(0);
   
   // Memoize nodes and edges to prevent unnecessary re-renders
   const memoizedNodes = useMemo(() => nodes, [nodes]);
   const memoizedEdges = useMemo(() => edges, [edges]);
   
-  // Store viewport when it changes - throttle updates
+  // Store viewport when it changes - throttle updates more aggressively
   const onMove = useCallback((event: any, viewport: any) => {
     if (viewport && !viewportUpdateTimeout.current) {
       viewportUpdateTimeout.current = setTimeout(() => {
         viewportRef.current = viewport;
         viewportUpdateTimeout.current = null;
-      }, 100); // Throttle viewport updates
+      }, 200); // More aggressive throttling of viewport updates
     }
   }, []);
 
@@ -60,36 +72,49 @@ export const DiagramFlow = memo(({
     }
   }, [shouldFitView]);
 
-  // Force fit view when needed - with debouncing
+  // Force fit view when needed - with debouncing and time limits
   useEffect(() => {
     console.log(`DiagramFlow rendering with ${nodes.length} nodes and ${edges.length} edges`);
     
+    // Clear any existing timeout
+    if (fitViewTimeout.current) {
+      clearTimeout(fitViewTimeout.current);
+      fitViewTimeout.current = null;
+    }
+    
+    const now = Date.now();
+    // Don't fit view more often than every 5 seconds
+    if (now - lastFitViewTime.current < 5000) {
+      return;
+    }
+    
     if (reactFlowInstanceRef.current && shouldFitView && nodes.length > 0) {
-      const timeout = setTimeout(() => {
+      // Set a new timeout with a longer delay
+      fitViewTimeout.current = setTimeout(() => {
         if (reactFlowInstanceRef.current) {
           console.log('Fitting view to diagram content');
           reactFlowInstanceRef.current.fitView({ 
             padding: 0.2,
             includeHiddenNodes: false
           });
+          lastFitViewTime.current = Date.now();
         }
-      }, 100);
+      }, 300);
       
-      return () => clearTimeout(timeout);
+      return () => {
+        if (fitViewTimeout.current) {
+          clearTimeout(fitViewTimeout.current);
+        }
+      };
     }
   }, [schemaKey, shouldFitView, nodes.length, edges.length]);
 
-  // Performance options for ReactFlow
+  // Performance options for ReactFlow - memoized to prevent rerenders
   const flowOptions = useMemo(() => ({
     fitView: shouldFitView && nodes.length > 0,
     fitViewOptions: { padding: 0.2 },
-    minZoom: 0.5,
-    maxZoom: 2,
-    deleteKeyCode: null, // Disable deletion with Delete key
     defaultViewport: viewportRef.current,
-    attributionPosition: 'bottom-right' as PanelPosition,
-    snapToGrid: false, // Disable snap to grid for smoother panning
-    elevateNodesOnSelect: false // Don't change z-index when selecting nodes
+    ...staticFlowOptions
   }), [shouldFitView, nodes.length]);
 
   return (
