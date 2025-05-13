@@ -19,6 +19,7 @@ export const generateNodesAndEdges = (
   console.log('generateNodesAndEdges called with schema:', schema ? 
     { type: schema.type, hasProperties: !!schema.properties } : 'null or undefined');
   console.log('Collapsed paths in diagram generator:', Object.keys(collapsedPaths).length);
+  console.log('Collapsed paths object:', collapsedPaths);
 
   if (!schema || !schema.type) {
     console.log('No valid schema provided to generateNodesAndEdges');

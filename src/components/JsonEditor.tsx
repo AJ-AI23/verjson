@@ -9,6 +9,7 @@ interface JsonEditorProps {
   error: string | null;
   collapsedPaths?: CollapsedState;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
+  maxDepth?: number;
 }
 
 export const JsonEditor = ({ 
@@ -16,7 +17,8 @@ export const JsonEditor = ({
   onChange, 
   error, 
   collapsedPaths = {},
-  onToggleCollapse 
+  onToggleCollapse,
+  maxDepth = 3
 }: JsonEditorProps) => {
   return (
     <JsonEditorWrapper
@@ -25,6 +27,7 @@ export const JsonEditor = ({
       error={error}
       collapsedPaths={collapsedPaths}
       onToggleCollapse={onToggleCollapse}
+      maxDepth={maxDepth}
     />
   );
 };

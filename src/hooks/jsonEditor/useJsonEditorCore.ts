@@ -13,7 +13,7 @@ export const useJsonEditor = ({
   onChange,
   collapsedPaths = {},
   onToggleCollapse,
-  maxDepth = 3 // Add maxDepth parameter with default value
+  maxDepth = 3
 }: UseJsonEditorProps): JsonEditorResult => {
   // Keep track of whether we're programmatically changing the editor
   // to avoid infinite loops when syncing state
@@ -51,7 +51,7 @@ export const useJsonEditor = ({
     onToggleCollapse,
     collapsedPaths,
     expandFirstLevel,
-    maxDepth // Pass the maxDepth parameter
+    maxDepth
   });
 
   // Use our collapsedPaths update hook
@@ -66,6 +66,8 @@ export const useJsonEditor = ({
     editorRef, isInternalChange, previousValueRef, value, onChange 
   });
 
+  console.log('useJsonEditor hook running, collapsedPaths:', collapsedPaths);
+
   // Sync editor with props
   syncEditorWithProps();
 
@@ -78,6 +80,6 @@ export const useJsonEditor = ({
     expandFirstLevel,
     foldingDebug,
     collapsedPaths: collapsedPathsRef.current,
-    pathExceedsMaxDepth // Return the utility function for consumers to use
+    pathExceedsMaxDepth
   };
 };

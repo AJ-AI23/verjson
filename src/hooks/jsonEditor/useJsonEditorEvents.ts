@@ -1,4 +1,3 @@
-
 import { useRef, useCallback } from 'react';
 import { CollapsedState } from '@/lib/diagram/types';
 import { FoldingDebugInfo } from './types';
@@ -45,7 +44,7 @@ export const useJsonEditorEvents = ({
     // Function to track folding changes
     const onFoldChange = (path: string, isCollapsed: boolean) => {
       // Keep path as is, don't normalize yet
-      console.log(`Toggle collapse for path: ${path}`);
+      console.log(`Toggle collapse for path: ${path} to ${isCollapsed ? 'collapsed' : 'expanded'}`);
       const trackedState = getPathState(path);
       console.log(`Current tracked state: ${trackedState ? 'collapsed' : 'expanded'}`);
       console.log(`Setting new state to: ${isCollapsed ? 'collapsed' : 'expanded'}`);
@@ -62,7 +61,8 @@ export const useJsonEditorEvents = ({
       console.log('Collapse event:', foldEventInfo);
       
       // If the state has changed, notify the parent component
-      if (onToggleCollapse && trackedState !== isCollapsed) {
+      if (onToggleCollapse) {
+        console.log(`Calling onToggleCollapse with path: ${normalizedPath}, isCollapsed: ${isCollapsed}`);
         onToggleCollapse(normalizedPath, isCollapsed);
       }
       
@@ -71,7 +71,7 @@ export const useJsonEditorEvents = ({
         setFoldingDebug({
           timestamp: Date.now(),
           path: normalizedPath,
-          lastOperation: isCollapsed ? 'collapse' : 'expand', // Add the lastOperation
+          lastOperation: isCollapsed ? 'collapse' : 'expand',
           isCollapsed,
           previousState: trackedState
         });

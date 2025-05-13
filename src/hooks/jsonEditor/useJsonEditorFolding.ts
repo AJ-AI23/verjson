@@ -1,11 +1,11 @@
-import { useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import JSONEditor from 'jsoneditor';
-import { toast } from 'sonner';
+import { CollapsedState } from '@/lib/diagram/types';
 
 interface UseJsonEditorFoldingProps {
   editorRef: React.MutableRefObject<JSONEditor | null>;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
-  collapsedPaths?: Record<string, boolean>;
+  collapsedPaths: CollapsedState;
 }
 
 export const useJsonEditorFolding = ({
@@ -22,145 +22,64 @@ export const useJsonEditorFolding = ({
     console.log('Updated collapsedPathsRef in useJsonEditorFolding:', collapsedPathsRef.current);
   }
 
-  // Helper to get the current state of a path (defaults to true if not set)
-  const getPathState = (path: string): boolean => {
-    return collapsedPathsRef.current[path] !== undefined ? collapsedPathsRef.current[path] : true;
-  };
-
-  // Expand all nodes
-  const expandAll = () => {
-    try {
-      if (!editorRef.current) return;
-      
-      // First, use JSONEditor's built-in expandAll
-      editorRef.current.expandAll();
-      
-      // Update collapsed state in parent component
-      if (onToggleCollapse) {
-        // First handle the root node
-        console.log('Expanding root node');
-        onToggleCollapse('root', false);
-        
-        // Create a new local copy to track updates
-        const updatedCollapsedPaths = { ...collapsedPathsRef.current, root: false };
-        
-        // Then handle any other known paths that were previously collapsed
-        Object.keys(collapsedPathsRef.current).forEach(path => {
-          if (collapsedPathsRef.current[path] === true) {
-            console.log(`Expanding path: ${path}`);
-            onToggleCollapse(path, false);
-            updatedCollapsedPaths[path] = false;
-          }
-        });
-        
-        // Update our local reference
-        collapsedPathsRef.current = updatedCollapsedPaths;
-      }
-      
-      console.log('After expandAll, collapsedPaths object:', collapsedPathsRef.current);
-      toast.success('All nodes expanded');
-    } catch (e) {
-      console.error('Error expanding all:', e);
-    }
-  };
-
-  // Collapse all nodes
-  const collapseAll = () => {
-    try {
-      if (!editorRef.current) return;
-      
-      // First, use JSONEditor's built-in collapseAll
-      editorRef.current.collapseAll();
-      
-      // Update collapsed state in parent component
-      if (onToggleCollapse) {
-        // First handle the root node
-        console.log('Collapsing root node');
-        onToggleCollapse('root', true);
-        
-        // Create a new local copy to track updates
-        const updatedCollapsedPaths = { ...collapsedPathsRef.current, root: true };
-        
-        // Then handle any other known paths that were previously expanded
-        Object.keys(collapsedPathsRef.current).forEach(path => {
-          if (collapsedPathsRef.current[path] === false) {
-            console.log(`Collapsing path: ${path}`);
-            onToggleCollapse(path, true);
-            updatedCollapsedPaths[path] = true;
-          }
-        });
-        
-        // Update our local reference
-        collapsedPathsRef.current = updatedCollapsedPaths;
-      }
-      
-      console.log('After collapseAll, collapsedPaths object:', collapsedPathsRef.current);
-      toast.success('All nodes collapsed');
-    } catch (e) {
-      console.error('Error collapsing all:', e);
-    }
-  };
-
-  // Expand only the first level nodes
-  const expandFirstLevel = () => {
+  // Expand all nodes in the editor
+  const expandAll = useCallback(() => {
+    console.log('Expanding all nodes');
     if (!editorRef.current) return;
     
     try {
-      // First collapse everything
-      console.log('First collapsing everything');
+      editorRef.current.expandAll();
       
-      // Use JSONEditor's built-in collapseAll
+      // If we have a toggle callback, notify about the expansion of root
+      if (onToggleCollapse) {
+        onToggleCollapse('root', false);
+      }
+    } catch (err) {
+      console.error('Error expanding all nodes:', err);
+    }
+  }, [editorRef, onToggleCollapse]);
+
+  // Collapse all nodes in the editor
+  const collapseAll = useCallback(() => {
+    console.log('Collapsing all nodes');
+    if (!editorRef.current) return;
+    
+    try {
       editorRef.current.collapseAll();
       
-      // Update all paths to collapsed in the state
+      // If we have a toggle callback, notify about the collapse of root
       if (onToggleCollapse) {
-        // Create a new local copy to track updates
-        const updatedCollapsedPaths: Record<string, boolean> = {};
-        
-        // Set root to collapsed first (will be expanded after)
         onToggleCollapse('root', true);
-        updatedCollapsedPaths['root'] = true;
+      }
+    } catch (err) {
+      console.error('Error collapsing all nodes:', err);
+    }
+  }, [editorRef, onToggleCollapse]);
+
+  // Expand only the first level nodes
+  const expandFirstLevel = useCallback(() => {
+    console.log('Expanding first level nodes');
+    if (!editorRef.current) return;
+    
+    try {
+      // First collapse all
+      editorRef.current.collapseAll();
+      
+      // Then expand root node
+      const rootNode = editorRef.current.node.childs?.[0];
+      if (rootNode) {
+        rootNode.expand(false);
+        console.log('Expanded root node');
         
-        // Set all other paths to collapsed 
-        Object.keys(collapsedPathsRef.current).forEach(path => {
-          if (path !== 'root' && collapsedPathsRef.current[path] === false) {
-            console.log(`Setting ${path} to collapsed during expandFirstLevel`);
-            onToggleCollapse(path, true);
-            updatedCollapsedPaths[path] = true;
-          } else {
-            updatedCollapsedPaths[path] = collapsedPathsRef.current[path];
-          }
-        });
-        
-        // Then expand only the root node
-        console.log('Then expanding just the root node');
-        onToggleCollapse('root', false);
-        updatedCollapsedPaths['root'] = false;
-        
-        // Update local reference
-        collapsedPathsRef.current = updatedCollapsedPaths;
-        
-        // Also ensure the editor UI reflects this
-        if (editorRef.current) {
-          // Use the editor's expand method for root node
-          try {
-            // Find the root node and expand it
-            const rootNode = editorRef.current.node;
-            if (rootNode && rootNode.expand) {
-              rootNode.expand();
-            }
-          } catch (err) {
-            console.error('Error expanding root node directly:', err);
-          }
+        // Notify about root expansion
+        if (onToggleCollapse) {
+          onToggleCollapse('root', false);
         }
       }
-      
-      console.log('After expandFirstLevel, collapsedPaths object:', collapsedPathsRef.current);
-      console.log('Expanded first level nodes');
-    } catch (e) {
-      console.error('Error expanding first level:', e);
+    } catch (err) {
+      console.error('Error expanding first level:', err);
     }
-  };
+  }, [editorRef, onToggleCollapse]);
 
   return {
     expandAll,
