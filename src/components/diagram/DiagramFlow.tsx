@@ -1,6 +1,6 @@
 
-import React, { useCallback, useEffect, useRef, memo, useMemo } from 'react';
-import { ReactFlow, Background, Controls, Node, Edge, ReactFlowInstance, OnNodesChange, OnEdgesChange, PanelPosition } from '@xyflow/react';
+import React, { useCallback, useEffect, useRef, memo } from 'react';
+import { ReactFlow, Background, Controls, Node, Edge, ReactFlowInstance, OnNodesChange, OnEdgesChange } from '@xyflow/react';
 import { SchemaTypeNode } from '@/components/SchemaTypeNode';
 
 interface DiagramFlowProps {
@@ -16,16 +16,6 @@ const nodeTypes = {
   schemaType: SchemaTypeNode,
 };
 
-// Memoize static configuration objects
-const staticFlowOptions = {
-  minZoom: 0.5,
-  maxZoom: 2,
-  deleteKeyCode: null, // Disable deletion with Delete key
-  attributionPosition: 'bottom-right' as PanelPosition,
-  snapToGrid: false, // Disable snap to grid for smoother panning
-  elevateNodesOnSelect: false // Don't change z-index when selecting nodes
-};
-
 export const DiagramFlow = memo(({
   nodes,
   edges,
@@ -37,21 +27,11 @@ export const DiagramFlow = memo(({
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const viewportRef = useRef<{ x: number; y: number; zoom: number }>({ x: 0, y: 0, zoom: 1 });
   const didFitViewRef = useRef<boolean>(false);
-  const viewportUpdateTimeout = useRef<NodeJS.Timeout | null>(null);
-  const fitViewTimeout = useRef<NodeJS.Timeout | null>(null);
-  const lastFitViewTime = useRef<number>(0);
   
-  // Memoize nodes and edges to prevent unnecessary re-renders
-  const memoizedNodes = useMemo(() => nodes, [nodes]);
-  const memoizedEdges = useMemo(() => edges, [edges]);
-  
-  // Store viewport when it changes - throttle updates more aggressively
+  // Store viewport when it changes
   const onMove = useCallback((event: any, viewport: any) => {
-    if (viewport && !viewportUpdateTimeout.current) {
-      viewportUpdateTimeout.current = setTimeout(() => {
-        viewportRef.current = viewport;
-        viewportUpdateTimeout.current = null;
-      }, 200); // More aggressive throttling of viewport updates
+    if (viewport) {
+      viewportRef.current = viewport;
     }
   }, []);
 
@@ -72,66 +52,45 @@ export const DiagramFlow = memo(({
     }
   }, [shouldFitView]);
 
-  // Force fit view when needed - with debouncing and time limits
+  // Force fit view when needed
   useEffect(() => {
     console.log(`DiagramFlow rendering with ${nodes.length} nodes and ${edges.length} edges`);
     
-    // Clear any existing timeout
-    if (fitViewTimeout.current) {
-      clearTimeout(fitViewTimeout.current);
-      fitViewTimeout.current = null;
-    }
-    
-    const now = Date.now();
-    // Don't fit view more often than every 5 seconds
-    if (now - lastFitViewTime.current < 5000) {
-      return;
-    }
-    
     if (reactFlowInstanceRef.current && shouldFitView && nodes.length > 0) {
-      // Set a new timeout with a longer delay
-      fitViewTimeout.current = setTimeout(() => {
+      const timeout = setTimeout(() => {
         if (reactFlowInstanceRef.current) {
           console.log('Fitting view to diagram content');
           reactFlowInstanceRef.current.fitView({ 
             padding: 0.2,
             includeHiddenNodes: false
           });
-          lastFitViewTime.current = Date.now();
         }
-      }, 300);
+      }, 100);
       
-      return () => {
-        if (fitViewTimeout.current) {
-          clearTimeout(fitViewTimeout.current);
-        }
-      };
+      return () => clearTimeout(timeout);
     }
   }, [schemaKey, shouldFitView, nodes.length, edges.length]);
-
-  // Performance options for ReactFlow - memoized to prevent rerenders
-  const flowOptions = useMemo(() => ({
-    fitView: shouldFitView && nodes.length > 0,
-    fitViewOptions: { padding: 0.2 },
-    defaultViewport: viewportRef.current,
-    ...staticFlowOptions
-  }), [shouldFitView, nodes.length]);
 
   return (
     <div className="flex-1 diagram-container" data-testid="diagram-flow">
       <ReactFlow
         key={`flow-${schemaKey}`}
-        nodes={memoizedNodes}
-        edges={memoizedEdges}
+        nodes={nodes}
+        edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
+        fitView={shouldFitView && nodes.length > 0}
+        fitViewOptions={{ padding: 0.2 }}
+        minZoom={0.5}
+        maxZoom={2}
+        deleteKeyCode={null} // Disable deletion with Delete key
         onInit={onInit}
         onMove={onMove}
         onMoveEnd={onMove}
-        {...flowOptions}
+        defaultViewport={viewportRef.current} // Use stored viewport as default
       >
-        <Controls showInteractive={false} />
+        <Controls />
         <Background gap={16} size={1} color="#e5e7eb" />
       </ReactFlow>
     </div>

@@ -1,7 +1,3 @@
 
-// Export all JSON editor hooks for backward compatibility
-export * from './jsonEditor';
-
-// Here we'll fix any module resolution issues by re-exporting core functions
-import { useJsonEditor } from './jsonEditor';
-export { useJsonEditor };
+// Re-export the core hook for backward compatibility
+export { useJsonEditor } from './jsonEditor';

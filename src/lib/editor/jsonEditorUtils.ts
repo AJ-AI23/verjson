@@ -36,36 +36,3 @@ export function toggleCollapsedState(
     newState
   };
 }
-
-/**
- * Safely set content in a JSON Editor
- * This handles the various ways content can be set to avoid DOM errors
- */
-export function safelySetEditorContent(editor: any, content: any) {
-  if (!editor) return;
-  
-  try {
-    // First try to set as parsed JSON
-    editor.set(content);
-  } catch (e) {
-    console.error('Failed to set editor content as object:', e);
-    
-    // If that fails, try setting as string
-    try {
-      const contentStr = typeof content === 'string' 
-        ? content 
-        : JSON.stringify(content, null, 2);
-        
-      editor.setText(contentStr);
-    } catch (textErr) {
-      console.error('Failed to set editor content as text:', textErr);
-      
-      // Last resort - set empty object
-      try {
-        editor.set({});
-      } catch (finalErr) {
-        console.error('All content setting methods failed:', finalErr);
-      }
-    }
-  }
-}

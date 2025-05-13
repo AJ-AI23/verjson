@@ -1,8 +1,7 @@
 
-import React, { useRef, useEffect } from 'react';
-import { useJsonEditor } from '@/hooks/jsonEditor';
+import React from 'react';
+import { JsonEditorPoc } from './JsonEditorPoc';
 import { CollapsedState } from '@/lib/diagram/types';
-import 'jsoneditor/dist/jsoneditor.css';
 
 interface JsonEditorWrapperProps {
   value: string;
@@ -12,68 +11,20 @@ interface JsonEditorWrapperProps {
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const JsonEditorWrapper = ({ 
-  value, 
-  onChange, 
+export const JsonEditorWrapper: React.FC<JsonEditorWrapperProps> = ({
+  value,
+  onChange,
   error,
-  collapsedPaths = {},
-  onToggleCollapse 
-}: JsonEditorWrapperProps) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  
-  const { 
-    initializeEditor, 
-    destroyEditor,
-  } = useJsonEditor({
-    value,
-    onChange,
-    collapsedPaths,
-    onToggleCollapse
-  });
-
-  // Initialize editor when component mounts
-  useEffect(() => {
-    let timer: number;
-    
-    if (containerRef.current) {
-      // First ensure the container is empty
-      while (containerRef.current.firstChild) {
-        containerRef.current.removeChild(containerRef.current.firstChild);
-      }
-      
-      // Longer delay to ensure DOM is fully ready
-      console.log('Setting up JSON editor with delay');
-      timer = window.setTimeout(() => {
-        if (containerRef.current) {
-          initializeEditor(containerRef.current);
-        }
-      }, 100); // Increased timeout for stability
-    }
-    
-    // Clean up when component unmounts
-    return () => {
-      window.clearTimeout(timer);
-      destroyEditor();
-    };
-  }, [initializeEditor, destroyEditor]); // Only re-run if these functions change
-
+  collapsedPaths,
+  onToggleCollapse
+}) => {
   return (
-    <div className="w-full h-full flex flex-col relative">
-      {/* Error message display */}
-      {error && (
-        <div className="absolute top-0 left-0 right-0 bg-red-50 text-red-600 p-2 border border-red-200 z-10 overflow-auto max-h-32">
-          {error}
-        </div>
-      )}
-      {/* JSON Editor container */}
-      <div 
-        ref={containerRef} 
-        className="w-full flex-1 overflow-auto" 
-        style={{ 
-          height: error ? 'calc(100% - 40px)' : '100%',
-          marginTop: error ? '40px' : '0'
-        }}
-      />
-    </div>
+    <JsonEditorPoc
+      value={value}
+      onChange={onChange}
+      error={error}
+      collapsedPaths={collapsedPaths}
+      onToggleCollapse={onToggleCollapse}
+    />
   );
 };

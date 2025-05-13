@@ -1,10 +1,9 @@
 
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { CollapsedState } from '@/lib/diagram/types';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Node, Edge, useNodesState, useEdgesState } from '@xyflow/react';
+import { generateNodesAndEdges } from '@/lib/diagram';
 import { useNodePositions } from './useNodePositions';
-import { useDiagramState } from './useDiagramState';
-import { useDiagramUpdateThrottling } from './useDiagramUpdateThrottling';
-import { useSchemaProcessor } from './useSchemaProcessor';
+import { CollapsedState } from '@/lib/diagram/types';
 
 export const useDiagramNodes = (
   schema: any, 
@@ -13,74 +12,59 @@ export const useDiagramNodes = (
   maxDepth: number = 3,
   collapsedPaths: CollapsedState = {}
 ) => {
-  const {
-    nodes,
-    edges,
-    setNodes,
-    setEdges,
-    onNodesChange,
-    onEdgesChange,
-    schemaKey,
-    incrementSchemaKey
-  } = useDiagramState();
-  
-  // Memoize inputs to reduce unnecessary processing
-  const memoizedSchema = useMemo(() => schema, [JSON.stringify(schema)]);
-  const memoizedCollapsedPaths = useMemo(() => collapsedPaths, [JSON.stringify(collapsedPaths)]);
-  const collapsedPathsStringRef = useRef<string>(JSON.stringify(collapsedPaths));
-  
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [prevGroupSetting, setPrevGroupSetting] = useState(groupProperties);
+  const [schemaKey, setSchemaKey] = useState(0);
   const { nodePositionsRef, applyStoredPositions } = useNodePositions(nodes);
+  
+  // Track schema changes
+  const schemaStringRef = useRef<string>('');
+  const collapsedPathsRef = useRef<CollapsedState>(collapsedPaths);
+  const updateTimeoutRef = useRef<number | null>(null);
+  const processingUpdateRef = useRef<boolean>(false);
+  const previousMaxDepthRef = useRef<number>(maxDepth);
+  const lastUpdateTimeRef = useRef<number>(Date.now());
   const initialRenderRef = useRef<boolean>(true);
-  const lastProcessTimeRef = useRef<number>(Date.now());
-  const skipUpdateRef = useRef<boolean>(false);
-  
-  const {
-    throttleUpdates,
-    startProcessingUpdate,
-    finishProcessingUpdate,
-    clearPendingUpdates,
-    isProcessingUpdate
-  } = useDiagramUpdateThrottling();
-  
-  const {
-    hasChanges,
-    processSchema,
-    previousMaxDepthRef,
-    schemaStringRef,
-    collapsedPathsRef
-  } = useSchemaProcessor();
 
-  // Check if we've recently processed and should skip
-  const shouldSkipUpdate = useRef(() => {
-    const now = Date.now();
-    const elapsed = now - lastProcessTimeRef.current;
-    if (elapsed < 3000) {
-      // If less than 3 seconds since last process, skip
-      return true;
+  // Memoize the schema JSON string for comparison
+  const schemaString = useMemo(() => {
+    try {
+      return schema ? JSON.stringify(schema) : '';
+    } catch (e) {
+      console.error('Failed to stringify schema:', e);
+      return '';
     }
-    return false;
-  });
+  }, [schema]);
 
-  // Only log changes to collapsedPaths when they actually change
+  // Memoize the collapsedPaths JSON string for comparison
+  const collapsedPathsString = useMemo(() => {
+    try {
+      return JSON.stringify(collapsedPaths);
+    } catch (e) {
+      console.error('Failed to stringify collapsedPaths:', e);
+      return '';
+    }
+  }, [collapsedPaths]);
+
+  // Log changes to collapsedPaths for debugging
   useEffect(() => {
-    const newPathsString = JSON.stringify(collapsedPaths);
-    // Only process if the stringified paths actually changed
-    if (newPathsString !== collapsedPathsStringRef.current) {
-      const pathsCount = Object.keys(collapsedPaths).length;
-      console.log(`useDiagramNodes: collapsedPaths updated with ${pathsCount} entries`);
-      console.log('Collapsed paths:', collapsedPaths);
-      
-      // Update the reference
-      collapsedPathsStringRef.current = newPathsString;
-      
-      // Force schemaKey increment to trigger redraw when collapsedPaths changes
-      if (pathsCount > 0 && !initialRenderRef.current) {
-        incrementSchemaKey();
-        lastProcessTimeRef.current = Date.now(); // Mark that we just processed
-      }
+    const pathsCount = Object.keys(collapsedPaths).length;
+    console.log(`useDiagramNodes: collapsedPaths updated with ${pathsCount} entries`);
+    console.log('Collapsed paths:', collapsedPaths);
+    
+    // Force schemaKey increment to trigger redraw when collapsedPaths changes
+    if (pathsCount > 0 && !initialRenderRef.current) {
+      setSchemaKey(prev => prev + 1);
     }
-  }, [collapsedPaths, incrementSchemaKey]);
+  }, [collapsedPathsString]);
+
+  // Throttle updates to prevent excessive rendering
+  const throttleUpdates = useCallback(() => {
+    const now = Date.now();
+    // Only process updates if more than 300ms has passed since last update
+    return (now - lastUpdateTimeRef.current) < 300;
+  }, []);
 
   // Generate nodes and edges when dependencies change
   useEffect(() => {
@@ -89,15 +73,9 @@ export const useDiagramNodes = (
       console.log('Initial useDiagramNodes render');
       initialRenderRef.current = false;
     }
-    
-    // Check if we should skip due to recent processing
-    if (shouldSkipUpdate.current()) {
-      return;
-    }
 
     // Skip if we're already processing an update or throttling
-    const collapsedPathsString = JSON.stringify(collapsedPaths);
-    if (isProcessingUpdate() || (!initialRenderRef.current && throttleUpdates(collapsedPathsString))) {
+    if (processingUpdateRef.current || (!initialRenderRef.current && throttleUpdates())) {
       return;
     }
     
@@ -120,17 +98,13 @@ export const useDiagramNodes = (
       return;
     }
 
-    // Check if something important has changed
+    // Only update if something important has changed
+    const maxDepthChanged = previousMaxDepthRef.current !== maxDepth;
+    const schemaChanged = schemaString !== schemaStringRef.current;
     const groupSettingChanged = prevGroupSetting !== groupProperties;
-    const { 
-      hasAnyChange, 
-      schemaChanged, 
-      maxDepthChanged, 
-      collapsedPathsChanged,
-      schemaString 
-    } = hasChanges(schema, maxDepth, groupProperties, collapsedPaths);
+    const collapsedPathsChanged = collapsedPathsString !== JSON.stringify(collapsedPathsRef.current);
     
-    if (hasAnyChange || groupSettingChanged) {
+    if (schemaChanged || groupSettingChanged || maxDepthChanged || collapsedPathsChanged) {
       console.log('Schema or settings changed, generating new diagram', {
         schemaChanged,
         groupSettingChanged,
@@ -138,29 +112,43 @@ export const useDiagramNodes = (
         collapsedPathsChanged
       });
       
+      // Update refs with current values
+      schemaStringRef.current = schemaString;
+      collapsedPathsRef.current = {...collapsedPaths};
+      previousMaxDepthRef.current = maxDepth;
+      lastUpdateTimeRef.current = Date.now();
+      
       // Mark that we're processing an update
-      startProcessingUpdate();
-      lastProcessTimeRef.current = Date.now();
+      processingUpdateRef.current = true;
       
       // Clear any pending updates
-      clearPendingUpdates();
+      if (updateTimeoutRef.current !== null) {
+        clearTimeout(updateTimeoutRef.current);
+      }
       
       // Use simple counter for schema key
-      incrementSchemaKey();
+      setSchemaKey(prev => prev + 1);
       
-      // Process the schema to generate diagram
-      processSchema({
-        schema,
-        groupProperties,
-        maxDepth,
-        collapsedPaths,
-        applyStoredPositions,
-        setNodes,
-        setEdges
-      });
+      // Process the update immediately instead of with a delay
+      console.log(`Generating nodes and edges with maxDepth: ${maxDepth}`);
+      const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(
+        schema, 
+        groupProperties, 
+        maxDepth, 
+        collapsedPaths
+      );
+      
+      // Apply saved positions to new nodes where possible
+      const positionedNodes = applyStoredPositions(newNodes);
+      console.log(`Generated ${positionedNodes.length} nodes and ${newEdges.length} edges`);
+      
+      // Set the new nodes and edges
+      setNodes(positionedNodes);
+      setEdges(newEdges);
       
       // Reset the processing flag
-      finishProcessingUpdate();
+      updateTimeoutRef.current = null;
+      processingUpdateRef.current = false;
     }
 
     // Update group properties setting when it changes
@@ -171,24 +159,19 @@ export const useDiagramNodes = (
     
   }, [
     schema, 
+    schemaString, 
     error, 
     groupProperties, 
     maxDepth, 
-    collapsedPaths, 
+    collapsedPaths,
+    collapsedPathsString, 
     setNodes, 
     setEdges, 
     applyStoredPositions,
     prevGroupSetting,
     throttleUpdates,
     nodes.length,
-    edges.length,
-    hasChanges,
-    processSchema,
-    startProcessingUpdate,
-    finishProcessingUpdate,
-    clearPendingUpdates,
-    isProcessingUpdate,
-    incrementSchemaKey
+    edges.length
   ]);
 
   return {

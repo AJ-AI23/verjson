@@ -1,4 +1,3 @@
-
 import { useRef } from 'react';
 import JSONEditor from 'jsoneditor';
 import { toast } from 'sonner';
@@ -135,30 +134,29 @@ export const useJsonEditorFolding = ({
         
         // Then expand only the root node
         console.log('Then expanding just the root node');
-        setTimeout(() => {
-          if (editorRef.current) {
-            try {
-              onToggleCollapse('root', false);
-              updatedCollapsedPaths['root'] = false;
-              
-              // Use the editor's expand method for root node
-              // Find the root node and expand it
-              const rootNode = editorRef.current.node;
-              if (rootNode && rootNode.expand) {
-                rootNode.expand();
-              }
-            } catch (err) {
-              console.error('Error expanding root node directly:', err);
-            }
-          }
-        }, 100);
+        onToggleCollapse('root', false);
+        updatedCollapsedPaths['root'] = false;
         
         // Update local reference
         collapsedPathsRef.current = updatedCollapsedPaths;
+        
+        // Also ensure the editor UI reflects this
+        if (editorRef.current) {
+          // Use the editor's expand method for root node
+          try {
+            // Find the root node and expand it
+            const rootNode = editorRef.current.node;
+            if (rootNode && rootNode.expand) {
+              rootNode.expand();
+            }
+          } catch (err) {
+            console.error('Error expanding root node directly:', err);
+          }
+        }
       }
       
       console.log('After expandFirstLevel, collapsedPaths object:', collapsedPathsRef.current);
-      toast.success('First level expanded');
+      console.log('Expanded first level nodes');
     } catch (e) {
       console.error('Error expanding first level:', e);
     }
