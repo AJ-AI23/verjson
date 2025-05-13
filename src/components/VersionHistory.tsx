@@ -6,7 +6,7 @@ import { Undo } from 'lucide-react';
 
 interface VersionHistoryProps {
   patches: SchemaPatch[];
-  onRevert?: (toVersion: SchemaPatch) => void;
+  onRevert?: (patch: SchemaPatch) => void; // Changed from index: number to patch: SchemaPatch
 }
 
 export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onRevert }) => {
@@ -62,7 +62,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onRever
                     size="sm"
                     variant="outline"
                     className="text-xs gap-1"
-                    onClick={() => onRevert(patch)}
+                    onClick={() => onRevert(patch)} // Changed from index to patch
                     title={`Revert to version ${formatVersion(patch.version)}`}
                   >
                     <Undo size={12} />

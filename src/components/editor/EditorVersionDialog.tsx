@@ -2,13 +2,14 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { VersionHistory } from '@/components/VersionHistory';
-import { JsonPatch } from 'fast-json-patch';
+import { Operation } from 'fast-json-patch'; // Changed from JsonPatch to Operation
+import { SchemaPatch } from '@/lib/versionUtils'; // Added import for SchemaPatch
 
 interface EditorVersionDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  patches: JsonPatch[];
-  onRevert: (index: number) => void;
+  patches: SchemaPatch[]; // Changed from JsonPatch[] to SchemaPatch[]
+  onRevert: (patch: SchemaPatch) => void; // Changed parameter from index: number to patch: SchemaPatch
 }
 
 export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({

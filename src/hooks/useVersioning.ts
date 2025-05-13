@@ -76,7 +76,7 @@ export const useVersioning = ({
     }
   };
 
-  const handleRevertToVersion = (targetPatch: SchemaPatch) => {
+  const handleRevertToVersion = (targetPatch: SchemaPatch) => { // Accept SchemaPatch directly
     try {
       // Parse the current schema
       const parsedCurrentSchema = JSON.parse(schema);
