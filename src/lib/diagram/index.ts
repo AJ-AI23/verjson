@@ -1,3 +1,4 @@
+
 import { Node, Edge } from '@xyflow/react';
 import { DiagramElements, CollapsedState } from './types';
 import { createRootNode } from './nodeGenerator';

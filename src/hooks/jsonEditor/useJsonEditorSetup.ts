@@ -63,15 +63,15 @@ export const useJsonEditorSetup = ({
           
           // Update collapsed paths for all nodes
           if (onToggleCollapse) {
-            // We're setting everything to collapsed initially
-            console.log("Setting all paths to collapsed in state");
+            // We're only setting the root to collapsed initially
+            console.log("Setting only root to collapsed in state");
             onToggleCollapse('root', true);
           }
         }
         
         // Mark initial setup as done
         initialSetupDone.current = true;
-        console.log('Initial folding setup completed - all properties collapsed');
+        console.log('Initial folding setup completed - only root collapsed');
       }, 300);
       
       return () => clearTimeout(timer);

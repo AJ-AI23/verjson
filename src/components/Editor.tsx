@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { defaultSchema } from '@/lib/defaultSchema';
@@ -22,7 +23,7 @@ export const Editor = () => {
   const [error, setError] = useState<string | null>(null);
   const [schemaType, setSchemaType] = useState<SchemaType>('json-schema');
   const [groupProperties, setGroupProperties] = useState(false);
-  const [collapsedPaths, setCollapsedPaths] = useState<CollapsedState>({});
+  const [collapsedPaths, setCollapsedPaths] = useState<CollapsedState>({ root: true });
   const [maxDepth] = useState(3); // Default max depth for initial rendering
   
   // Use our custom versioning hook
@@ -49,15 +50,15 @@ export const Editor = () => {
       [path]: isCollapsed
     }));
     
-    // Show a short-lived toast notification - FIX: correct the message based on isCollapsed value
+    // Show a short-lived toast notification
     if (isCollapsed) {
       toast.info(`Collapsed: ${path}`, {
-        description: "Section folded", // This is now correctly "Section folded" when isCollapsed = true
+        description: "Section folded",
         duration: 1500 // 1.5 seconds
       });
     } else {
       toast.info(`Expanded: ${path}`, {
-        description: "Section unfolded", // This is now correctly "Section unfolded" when isCollapsed = false
+        description: "Section unfolded",
         duration: 1500 // 1.5 seconds
       });
     }
@@ -106,7 +107,7 @@ export const Editor = () => {
   const handleSchemaTypeChange = (value: SchemaType) => {
     setSchemaType(value);
     // Reset collapsed paths when changing schema type
-    setCollapsedPaths({});
+    setCollapsedPaths({ root: true });
   };
 
   const handleImportSchema = (importedSchema: string, detectedType?: SchemaType) => {
@@ -118,7 +119,7 @@ export const Editor = () => {
     setSchema(importedSchema);
     setSavedSchema(importedSchema);
     // Reset collapsed paths when importing a new schema
-    setCollapsedPaths({});
+    setCollapsedPaths({ root: true });
   };
   
   return (
