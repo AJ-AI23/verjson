@@ -114,11 +114,6 @@
   @apply bg-slate-50;
 }
 
-/* Monaco Editor Customization */
-.monaco-editor .margin {
-  @apply bg-slate-50;
-}
-
 .editor-container {
   @apply h-full overflow-hidden border rounded-md;
 }
