@@ -1,9 +1,9 @@
 
 import React from 'react';
+import { JsonEditorPoc } from './JsonEditorPoc';
 import { CollapsedState } from '@/lib/diagram/types';
-import { JsonEditorWrapper } from './JsonEditorWrapper';
 
-interface JsonEditorProps {
+interface JsonEditorWrapperProps {
   value: string;
   onChange: (value: string) => void;
   error: string | null;
@@ -11,15 +11,15 @@ interface JsonEditorProps {
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const JsonEditor = ({ 
-  value, 
-  onChange, 
-  error, 
-  collapsedPaths = {},
-  onToggleCollapse 
-}: JsonEditorProps) => {
+export const JsonEditorWrapper: React.FC<JsonEditorWrapperProps> = ({
+  value,
+  onChange,
+  error,
+  collapsedPaths,
+  onToggleCollapse
+}) => {
   return (
-    <JsonEditorWrapper
+    <JsonEditorPoc
       value={value}
       onChange={onChange}
       error={error}
