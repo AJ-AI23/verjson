@@ -29,11 +29,21 @@ export const useJsonEditorInitialization = ({
         mainMenuBar: false,
         navigationBar: true,
         statusBar: true,
+        schema: null, // No schema validation by default
+        schemaRefs: null, // No schema references by default
+        enableSort: false, // Disable sorting to avoid validation issues
+        enableTransform: false, // Disable transform to avoid validation issues
         ...eventHandlers,
       };
 
       // Create the editor
       const editor = new JSONEditor(container, options);
+      
+      // Disable built-in validation features
+      if (editor.validate) {
+        // Override validate method if it exists to avoid undefined issues
+        editor.validate = () => [];
+      }
       
       // Set initial content
       try {
