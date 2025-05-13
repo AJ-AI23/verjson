@@ -1,0 +1,158 @@
+
+import { useState, useCallback, useEffect } from 'react';
+import { toast } from 'sonner';
+import { parseJsonSchema, validateJsonSchema, extractSchemaComponents, SchemaType } from '@/lib/schemaUtils';
+import { CollapsedState } from '@/lib/diagram/types';
+import { useVersioning } from '@/hooks/useVersioning';
+
+export const useEditorState = (defaultSchema: string) => {
+  const [schema, setSchema] = useState(defaultSchema);
+  const [savedSchema, setSavedSchema] = useState(defaultSchema);
+  const [parsedSchema, setParsedSchema] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [schemaType, setSchemaType] = useState<SchemaType>('json-schema');
+  const [groupProperties, setGroupProperties] = useState(false);
+  
+  // Set default collapsed state - initially collapsed
+  const [collapsedPaths, setCollapsedPaths] = useState<CollapsedState>({ root: true });
+  
+  const [maxDepth] = useState(3); // Default max depth for initial rendering
+  
+  // Use our custom versioning hook
+  const {
+    patches,
+    isVersionHistoryOpen,
+    isModified,
+    currentVersion,
+    handleVersionBump,
+    handleRevertToVersion,
+    toggleVersionHistory
+  } = useVersioning({
+    schema,
+    savedSchema,
+    setSavedSchema,
+    setSchema
+  });
+  
+  // Debug collapsedPaths when it changes
+  useEffect(() => {
+    console.log('Editor: collapsedPaths updated:', collapsedPaths);
+    console.log('Root collapsed:', collapsedPaths.root === true);
+    console.log('Collapsed paths count:', Object.keys(collapsedPaths).length);
+  }, [collapsedPaths]);
+  
+  // Function to handle toggling collapsed state of a path
+  const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
+    console.log(`Editor: Toggle collapse event for ${path}, isCollapsed: ${isCollapsed}`);
+    
+    setCollapsedPaths(prev => {
+      const updated = {
+        ...prev,
+        [path]: isCollapsed
+      };
+      console.log('Updated collapsedPaths:', updated);
+      return updated;
+    });
+    
+    // Show a short-lived toast notification
+    if (isCollapsed) {
+      toast.info(`Collapsed: ${path}`, {
+        description: "Section folded",
+        duration: 1500 // 1.5 seconds
+      });
+    } else {
+      toast.info(`Expanded: ${path}`, {
+        description: "Section unfolded",
+        duration: 1500 // 1.5 seconds
+      });
+    }
+  }, []);
+
+  // Debounced schema validation to avoid excessive processing
+  const validateSchema = useCallback((schemaText: string, type: SchemaType) => {
+    try {
+      console.log('Validating schema text:', schemaText?.substring(0, 50) + '...');
+      
+      // Parse and validate the schema based on the selected type
+      const parsed = validateJsonSchema(schemaText, type);
+      console.log('Schema validation successful');
+      
+      // Extract the relevant schema components for visualization
+      const schemaForDiagram = extractSchemaComponents(parsed, type);
+      console.log('Schema components extracted:', schemaForDiagram?.type);
+      
+      setParsedSchema(schemaForDiagram);
+      setError(null);
+    } catch (err) {
+      console.error('Schema validation error:', err);
+      setError((err as Error).message);
+      setParsedSchema(null); // Clear parsed schema on error
+      toast.error('Invalid Schema', {
+        description: (err as Error).message,
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    console.log('Editor: schema or schemaType changed, validating schema');
+    validateSchema(schema, schemaType);
+  }, [schema, schemaType, validateSchema]);
+
+  // Debug log whenever parsedSchema changes
+  useEffect(() => {
+    console.log('Parsed schema updated:', parsedSchema ? 
+      { type: parsedSchema.type, hasProperties: !!parsedSchema.properties } : 'null');
+  }, [parsedSchema]);
+
+  const handleEditorChange = (value: string) => {
+    console.log('Editor content changed');
+    setSchema(value);
+  };
+
+  const handleSchemaTypeChange = (value: SchemaType) => {
+    console.log('Schema type changed to:', value);
+    setSchemaType(value);
+    // Reset collapsed paths when changing schema type
+    setCollapsedPaths({ root: true });
+  };
+
+  const handleImportSchema = (importedSchema: string, detectedType?: SchemaType) => {
+    console.log('Importing new schema');
+    if (detectedType && detectedType !== schemaType) {
+      // Update schema type if detected
+      console.log('Detected schema type:', detectedType);
+      setSchemaType(detectedType);
+    }
+    
+    setSchema(importedSchema);
+    setSavedSchema(importedSchema);
+    // Reset collapsed paths when importing a new schema
+    setCollapsedPaths({ root: true });
+  };
+
+  return {
+    schema,
+    setSchema,
+    savedSchema,
+    setSavedSchema,
+    parsedSchema,
+    error,
+    schemaType,
+    groupProperties,
+    setGroupProperties,
+    collapsedPaths,
+    setCollapsedPaths,
+    maxDepth,
+    handleToggleCollapse,
+    handleEditorChange,
+    handleSchemaTypeChange,
+    handleImportSchema,
+    isModified,
+    currentVersion,
+    handleVersionBump,
+    patches,
+    isVersionHistoryOpen,
+    toggleVersionHistory,
+    handleRevertToVersion
+  };
+};
