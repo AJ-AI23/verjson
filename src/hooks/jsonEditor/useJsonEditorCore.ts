@@ -1,3 +1,4 @@
+
 import { useState, useRef } from 'react';
 import { UseJsonEditorProps, FoldingDebugInfo, JsonEditorResult } from './types';
 import { useJsonEditorSync } from './useJsonEditorSync';
@@ -11,7 +12,8 @@ export const useJsonEditor = ({
   value,
   onChange,
   collapsedPaths = {},
-  onToggleCollapse
+  onToggleCollapse,
+  maxDepth = 3 // Add maxDepth parameter with default value
 }: UseJsonEditorProps): JsonEditorResult => {
   // Keep track of whether we're programmatically changing the editor
   // to avoid infinite loops when syncing state
@@ -44,11 +46,12 @@ export const useJsonEditor = ({
   });
 
   // Use our setup hook
-  const { initialSetupDone, collapsedPathsRef } = useJsonEditorSetup({
+  const { initialSetupDone, collapsedPathsRef, pathExceedsMaxDepth } = useJsonEditorSetup({
     editorRef,
     onToggleCollapse,
     collapsedPaths,
-    expandFirstLevel
+    expandFirstLevel,
+    maxDepth // Pass the maxDepth parameter
   });
 
   // Use our collapsedPaths update hook
@@ -74,6 +77,7 @@ export const useJsonEditor = ({
     collapseAll,
     expandFirstLevel,
     foldingDebug,
-    collapsedPaths: collapsedPathsRef.current
+    collapsedPaths: collapsedPathsRef.current,
+    pathExceedsMaxDepth // Return the utility function for consumers to use
   };
 };

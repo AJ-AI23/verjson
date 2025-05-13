@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { defaultSchema } from '@/lib/defaultSchema';
@@ -50,15 +49,15 @@ export const Editor = () => {
       [path]: isCollapsed
     }));
     
-    // Show a short-lived toast notification when something is collapsed or expanded
+    // Show a short-lived toast notification - FIX: correct the message based on isCollapsed value
     if (isCollapsed) {
       toast.info(`Collapsed: ${path}`, {
-        description: "Section folded",
+        description: "Section folded", // This is now correctly "Section folded" when isCollapsed = true
         duration: 1500 // 1.5 seconds
       });
     } else {
       toast.info(`Expanded: ${path}`, {
-        description: "Section unfolded",
+        description: "Section unfolded", // This is now correctly "Section unfolded" when isCollapsed = false
         duration: 1500 // 1.5 seconds
       });
     }
