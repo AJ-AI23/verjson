@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { CollapsedState } from '@/lib/diagram/types';
-import { JsonEditorWrapper } from './JsonEditorWrapper';
+import { useJsonEditor } from '@/hooks/useJsonEditor';
 
 interface JsonEditorProps {
   value: string;
@@ -18,13 +18,41 @@ export const JsonEditor = ({
   collapsedPaths = {},
   onToggleCollapse 
 }: JsonEditorProps) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  const { 
+    initializeEditor, 
+    destroyEditor 
+  } = useJsonEditor({
+    value,
+    onChange,
+    collapsedPaths,
+    onToggleCollapse
+  });
+
+  // Initialize the editor when the component mounts
+  useEffect(() => {
+    if (containerRef.current) {
+      initializeEditor(containerRef.current);
+    }
+    
+    // Clean up the editor when the component unmounts
+    return () => {
+      destroyEditor();
+    };
+  }, [initializeEditor, destroyEditor]);
+
   return (
-    <JsonEditorWrapper
-      value={value}
-      onChange={onChange}
-      error={error}
-      collapsedPaths={collapsedPaths}
-      onToggleCollapse={onToggleCollapse}
-    />
+    <div className="h-full">
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 mb-2 rounded text-sm">
+          {error}
+        </div>
+      )}
+      <div 
+        ref={containerRef} 
+        className="jsoneditor-container h-full"
+      />
+    </div>
   );
 };

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { SplitPane } from '@/components/SplitPane';
-import { JsonEditorWrapper } from '@/components/JsonEditorWrapper';
+import { JsonEditor } from '@/components/JsonEditor';
 import { SchemaDiagram } from '@/components/diagram/SchemaDiagram';
 import { VersionControls } from '@/components/VersionControls';
 import { CollapsedState } from '@/lib/diagram/types';
@@ -37,7 +37,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
   return (
     <SplitPane>
       <div className="flex flex-col h-full">
-        <JsonEditorWrapper
+        <JsonEditor
           value={schema} 
           onChange={onEditorChange} 
           error={error}
