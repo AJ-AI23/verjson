@@ -49,7 +49,7 @@ export const generateGroupedLayout = (
   // Check if root is collapsed
   const rootCollapsed = collapsedPaths['root'] === true;
   
-  // If root is collapsed, skip generating children
+  // If root is collapsed, we should still render the root node but no children
   if (rootCollapsed) {
     console.log('Root is collapsed in grouped layout, skipping property nodes generation');
     return result;

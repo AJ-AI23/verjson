@@ -33,7 +33,8 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     console.log('DiagramContainer received schema:', schema);
     console.log('Schema is null or undefined:', schema === null || schema === undefined);
     console.log('Error state:', error);
-  }, [schema, error]);
+    console.log('Root collapsed:', collapsedPaths?.root === true);
+  }, [schema, error, collapsedPaths]);
 
   const {
     nodes,
@@ -53,7 +54,9 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   // Debug logs for nodes and edges
   useEffect(() => {
     console.log(`DiagramContainer has ${nodes?.length || 0} nodes and ${edges?.length || 0} edges`);
-    console.log('First few nodes:', nodes?.slice(0, 2));
+    if (nodes && nodes.length > 0) {
+      console.log('First node:', nodes[0]);
+    }
   }, [nodes, edges]);
 
   // Check if there are any stored node positions
@@ -69,24 +72,23 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     return <DiagramEmpty error={true} />;
   }
 
-  if (!schema || !nodes || nodes.length === 0) {
-    console.log('DiagramContainer: Rendering DiagramEmpty due to no schema or no nodes');
-    console.log('Schema exists:', !!schema);
-    console.log('Nodes exist:', !!nodes);
-    console.log('Nodes length:', nodes?.length || 0);
-    return <DiagramEmpty noSchema={!schema} />;
+  if (!schema) {
+    console.log('DiagramContainer: Rendering DiagramEmpty due to no schema');
+    return <DiagramEmpty noSchema={true} />;
   }
-
+  
+  // Always show diagram if we have a schema, even when there are no nodes 
+  // (could happen due to errors or all being collapsed)
   return (
     <div className="h-full flex flex-col">
       <DiagramHeader maxDepth={localMaxDepth} onMaxDepthChange={handleMaxDepthChange} />
       <DiagramFlow
-        nodes={nodes}
-        edges={edges}
+        nodes={nodes || []}
+        edges={edges || []}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         schemaKey={schemaKey}
-        shouldFitView={nodes.length > 0 && !hasStoredPositions}
+        shouldFitView={nodes?.length > 0 && !hasStoredPositions}
       />
     </div>
   );

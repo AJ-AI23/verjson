@@ -109,7 +109,8 @@ export const useDiagramNodes = (
         schemaChanged,
         groupSettingChanged,
         maxDepthChanged,
-        collapsedPathsChanged
+        collapsedPathsChanged,
+        rootCollapsed: collapsedPaths.root === true
       });
       
       // Update refs with current values

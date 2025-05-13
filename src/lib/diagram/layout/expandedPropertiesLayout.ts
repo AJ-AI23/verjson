@@ -35,9 +35,10 @@ export const generateExpandedLayout = (
   // Check if root itself is collapsed
   const rootCollapsed = collapsedPaths['root'] === true;
   
-  // If root is collapsed, we should skip generating child nodes
+  // If root is collapsed, only return the empty result with no child nodes
+  // The root node is already added by the main function
   if (rootCollapsed) {
-    console.log('Root is collapsed, skipping property nodes generation');
+    console.log('Root is collapsed in expandedPropertiesLayout, skipping property nodes generation');
     return result;
   }
   
