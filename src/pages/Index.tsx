@@ -1,10 +1,7 @@
-
 import React from 'react';
 import { Editor } from '@/components/Editor';
-
 const Index = () => {
-  return (
-    <div className="min-h-screen bg-slate-100 flex flex-col">
+  return <div className="min-h-screen bg-slate-100 flex flex-col">
       <header className="bg-white border-b py-3 px-6 shadow-sm">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold text-blue-600">JSON Schema Visual Blueprint</h1>
@@ -18,11 +15,7 @@ const Index = () => {
         <Editor />
       </main>
       
-      <footer className="py-2 px-6 border-t text-center text-xs text-slate-500">
-        Schema Editor - Supporting JSON Schema and OpenAPI 3.1
-      </footer>
-    </div>
-  );
+      
+    </div>;
 };
-
 export default Index;
