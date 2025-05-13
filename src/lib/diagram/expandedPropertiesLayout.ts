@@ -85,16 +85,18 @@ function processProperties(
     
     const xPos = startXOffset + index * xSpacing;
     const propPath = currentPath ? `${currentPath}.${propName}` : propName;
+    const fullPath = `${currentPath}.properties.${propName}`;
+    
+    // Check if the property's path or its parent is collapsed
+    const isCollapsed = collapsedPaths[fullPath] === true || collapsedPaths[`${currentPath}.properties`] === true;
     
     // Create node for property
     const propNode = createPropertyNode(propName, propSchema, requiredProps, xPos, yOffset);
     
-    // Check if the path is collapsed in the editor
-    const isCollapsed = collapsedPaths[propPath] === true;
+    // Update node to show it's collapsed in the editor if applicable
     if (isCollapsed) {
-      // Update node to show it's collapsed in the editor
       propNode.data.isCollapsed = true;
-      console.log(`Node ${propPath} is marked as collapsed in diagram`);
+      console.log(`Node ${fullPath} is marked as collapsed in diagram`);
     }
     
     // Add edge from parent to property
@@ -126,7 +128,7 @@ function processProperties(
           currentDepth + 1, 
           maxDepth,
           collapsedPaths,
-          propPath
+          fullPath
         );
       }
       
@@ -151,7 +153,7 @@ function processProperties(
         if (itemSchema.type === 'object' && itemSchema.properties && currentDepth + 1 < maxDepth) {
           const itemProps = itemSchema.properties;
           const itemRequired = itemSchema.required || [];
-          const itemPath = `${propPath}.items`;
+          const itemPath = `${fullPath}.items`;
           
           // Check if this items path is collapsed
           const itemsCollapsed = collapsedPaths[itemPath] === true;
@@ -176,17 +178,18 @@ function processProperties(
           }
         }
       }
-    } else if (isCollapsed) {
-      // This node is collapsed, so mark it as such
-      propNode.data.isCollapsed = true;
-    } else {
-      // At max depth or collapsed, add indicator that there are more levels
+    } else if (currentDepth >= maxDepth) {
+      // At max depth, add indicator that there are more levels
       if ((propSchema.type === 'object' && propSchema.properties) || 
           (propSchema.type === 'array' && propSchema.items && 
            propSchema.items.type === 'object' && propSchema.items.properties)) {
         propNode.data.hasMoreLevels = true;
-        propNode.data.isCollapsed = isCollapsed;
       }
+    }
+    
+    // Always mark collapsed if the property itself is collapsed
+    if (isCollapsed) {
+      propNode.data.isCollapsed = true;
     }
   });
 }

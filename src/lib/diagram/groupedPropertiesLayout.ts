@@ -94,6 +94,15 @@ export const generateGroupedLayout = (
     maxNodesPerLevel: {}
   };
   
+  // Check if root is collapsed
+  const rootCollapsed = collapsedPaths['root'] === true;
+  
+  // If root is collapsed, skip generating children
+  if (rootCollapsed) {
+    console.log('Root is collapsed in grouped layout, skipping property nodes generation');
+    return result;
+  }
+  
   // Process queue for breadth-first traversal
   let yOffset = gridConfig.startY;
   const objectsToProcess = [
@@ -117,10 +126,18 @@ export const generateGroupedLayout = (
     const objRequired = objSchema.required || [];
 
     // Check if this path is collapsed
-    const isCollapsed = collapsedPaths[path] === true;
+    const isPathCollapsed = collapsedPaths[path] === true;
+    const isPropertiesCollapsed = collapsedPaths[`${path}.properties`] === true;
+    const isCollapsed = isPathCollapsed || isPropertiesCollapsed;
 
-    // Stop processing if we've reached max depth or the path is collapsed
-    if (depth > maxDepth || isCollapsed) {
+    // Skip processing if collapsed
+    if (isCollapsed) {
+      console.log(`Path ${path} is collapsed, skipping child nodes generation`);
+      continue;
+    }
+
+    // Stop processing if we've reached max depth
+    if (depth > maxDepth) {
       continue;
     }
 
@@ -148,7 +165,7 @@ export const generateGroupedLayout = (
     
     // Process nested objects
     Object.entries(objProperties).forEach(([propName, propSchema]: [string, any], propIndex) => {
-      const propPath = path ? `${path}.${propName}` : propName;
+      const propPath = path ? `${path}.properties.${propName}` : propName;
       const isPropCollapsed = collapsedPaths[propPath] === true;
       
       // Process nested objects

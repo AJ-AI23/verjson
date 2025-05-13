@@ -46,6 +46,15 @@ export const useJsonEditorEvents = ({
           console.log(`Setting new state to: ${toggleResult.newState ? 'collapsed' : 'expanded'}`);
           console.log(`Current collapsedPaths object:`, collapsedPathsRef.current);
           
+          // Debug expanded vs. properties paths
+          if (pathStr.includes('properties')) {
+            console.log('Path includes properties, showing full path details:', pathStr);
+          } else {
+            // Expand the path to include properties for diagram consistency
+            const propertiesPath = pathStr.replace(/\.([^.]+)$/, '.properties.$1');
+            console.log(`Normalized path for diagram: ${propertiesPath}`);
+          }
+          
           // Log in a cleaner format
           console.log('Collapse event:', { 
             path: pathStr, 

@@ -36,6 +36,18 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
         properties: schema.properties ? Object.keys(schema.properties) : []
       });
     }
+    
+    // Debug collapsed paths
+    if (collapsedPaths && Object.keys(collapsedPaths).length > 0) {
+      console.log('Collapsed paths in SchemaDiagram:');
+      Object.entries(collapsedPaths).forEach(([path, isCollapsed]) => {
+        if (isCollapsed) {
+          console.log(`- Collapsed: ${path}`);
+        } else {
+          console.log(`- Expanded: ${path}`);
+        }
+      });
+    }
   }, [schema, error, groupProperties, collapsedPaths]);
   
   return <DiagramContainer 
@@ -60,6 +72,17 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
     
     if (!result) {
       console.log('SchemaDiagram props changed, will re-render');
+      
+      // Log exactly what changed
+      if (!schemaEqual) console.log('Schema changed');
+      if (!collapsedEqual) {
+        console.log('CollapsedPaths changed');
+        console.log('Prev:', prevProps.collapsedPaths);
+        console.log('Next:', nextProps.collapsedPaths);
+      }
+      if (prevProps.error !== nextProps.error) console.log('Error state changed');
+      if (prevProps.groupProperties !== nextProps.groupProperties) console.log('Group properties changed');
+      if (prevProps.maxDepth !== nextProps.maxDepth) console.log('Max depth changed');
     }
     
     return result;

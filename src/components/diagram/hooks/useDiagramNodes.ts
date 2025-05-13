@@ -47,6 +47,18 @@ export const useDiagramNodes = (
     }
   }, [collapsedPaths]);
 
+  // Log changes to collapsedPaths for debugging
+  useEffect(() => {
+    const pathsCount = Object.keys(collapsedPaths).length;
+    console.log(`useDiagramNodes: collapsedPaths updated with ${pathsCount} entries`);
+    console.log('Collapsed paths:', collapsedPaths);
+    
+    // Force schemaKey increment to trigger redraw when collapsedPaths changes
+    if (pathsCount > 0 && !initialRenderRef.current) {
+      setSchemaKey(prev => prev + 1);
+    }
+  }, [collapsedPathsString]);
+
   // Throttle updates to prevent excessive rendering
   const throttleUpdates = useCallback(() => {
     const now = Date.now();
