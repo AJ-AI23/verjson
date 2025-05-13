@@ -8,7 +8,7 @@ interface UseJsonEditorSetupProps {
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
   collapsedPaths: CollapsedState;
   expandFirstLevel: () => void;
-  maxDepth?: number; // Add maxDepth parameter
+  maxDepth?: number;
 }
 
 export const useJsonEditorSetup = ({
@@ -16,7 +16,7 @@ export const useJsonEditorSetup = ({
   onToggleCollapse,
   collapsedPaths,
   expandFirstLevel,
-  maxDepth = 3 // Default to 3 if not provided
+  maxDepth = 3
 }: UseJsonEditorSetupProps) => {
   // Track collapsedPaths in a ref for debugging
   const collapsedPathsRef = useRef<Record<string, boolean>>(collapsedPaths);

@@ -77,8 +77,7 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     return <DiagramEmpty noSchema={true} />;
   }
   
-  // Always show diagram if we have a schema, even when there are no nodes 
-  // (could happen due to errors or all being collapsed)
+  // Always render diagram when we have a schema, regardless of nodes count
   return (
     <div className="h-full flex flex-col">
       <DiagramHeader maxDepth={localMaxDepth} onMaxDepthChange={handleMaxDepthChange} />

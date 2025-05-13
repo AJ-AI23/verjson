@@ -54,7 +54,7 @@ export const useDiagramNodes = (
     console.log('Collapsed paths:', collapsedPaths);
     
     // Force schemaKey increment to trigger redraw when collapsedPaths changes
-    if (pathsCount > 0 && !initialRenderRef.current) {
+    if (!initialRenderRef.current) {
       setSchemaKey(prev => prev + 1);
     }
   }, [collapsedPathsString]);
@@ -104,12 +104,16 @@ export const useDiagramNodes = (
     const groupSettingChanged = prevGroupSetting !== groupProperties;
     const collapsedPathsChanged = collapsedPathsString !== JSON.stringify(collapsedPathsRef.current);
     
-    if (schemaChanged || groupSettingChanged || maxDepthChanged || collapsedPathsChanged) {
+    // Force update on initial render to make sure root node is always shown
+    const forceUpdate = initialRenderRef.current === true;
+    
+    if (schemaChanged || groupSettingChanged || maxDepthChanged || collapsedPathsChanged || forceUpdate) {
       console.log('Schema or settings changed, generating new diagram', {
         schemaChanged,
         groupSettingChanged,
         maxDepthChanged,
         collapsedPathsChanged,
+        forceUpdate,
         rootCollapsed: collapsedPaths.root === true
       });
       
@@ -130,7 +134,7 @@ export const useDiagramNodes = (
       // Use simple counter for schema key
       setSchemaKey(prev => prev + 1);
       
-      // Process the update immediately instead of with a delay
+      // Generate diagram elements
       console.log(`Generating nodes and edges with maxDepth: ${maxDepth}`);
       const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(
         schema, 

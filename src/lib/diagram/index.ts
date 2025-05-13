@@ -26,7 +26,7 @@ export const generateNodesAndEdges = (
   }
 
   try {
-    // Start with the root node
+    // Always create the root node regardless of collapsed state
     const rootNode = createRootNode(schema);
     
     // Check if root is collapsed, if so, mark it on the node
@@ -38,31 +38,25 @@ export const generateNodesAndEdges = (
     result.nodes.push(rootNode);
     console.log('Root node created:', rootNode);
 
-    // Skip property generation if root is collapsed
-    if (collapsedPaths['root'] === true) {
-      console.log('Root is collapsed, skipping property generation');
-      return result;
-    }
-    
-    // Process properties if this is an object
-    if (schema.type === 'object' && schema.properties) {
-      console.log(`Schema has ${Object.keys(schema.properties).length} properties`);
+    // Process properties if root isn't collapsed or we're only creating the root node
+    if (collapsedPaths['root'] !== true && schema.type === 'object' && schema.properties) {
+      console.log(`Schema has ${Object.keys(schema.properties).length} properties and root is not collapsed`);
       
       if (groupProperties) {
-        // Group properties mode - create one node per object
+        // Group properties mode
         console.log('Using grouped layout mode');
         const groupedLayout = generateGroupedLayout(schema, maxDepth, collapsedPaths);
         result.nodes.push(...groupedLayout.nodes);
         result.edges.push(...groupedLayout.edges);
       } else {
-        // Expanded properties mode (original behavior)
+        // Expanded properties mode
         console.log('Using expanded layout mode');
         const expandedLayout = generateExpandedLayout(schema, maxDepth, collapsedPaths);
         result.nodes.push(...expandedLayout.nodes);
         result.edges.push(...expandedLayout.edges);
       }
     } else {
-      console.log(`Schema type is ${schema.type}, not generating property nodes`);
+      console.log(`Root is collapsed or schema type is ${schema.type}, only showing root node`);
     }
     
     console.log(`Generated ${result.nodes.length} nodes and ${result.edges.length} edges`);
