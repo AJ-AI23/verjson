@@ -16,13 +16,16 @@ export const generateNodesAndEdges = (
     edges: []
   };
 
-  console.log('generateNodesAndEdges called with schema:', schema ? 
-    { type: schema.type, hasProperties: !!schema.properties } : 'null or undefined');
-  console.log('Collapsed paths in diagram generator:', Object.keys(collapsedPaths).length);
-  console.log('Collapsed paths object:', collapsedPaths);
-
+  console.log('generateNodesAndEdges called with:');
+  console.log('- Schema:', schema ? 
+    { type: schema.type, hasProperties: !!schema.properties, title: schema.title } : 'null or undefined');
+  console.log('- Group properties:', groupProperties);
+  console.log('- Max depth:', maxDepth);
+  console.log('- Collapsed paths count:', Object.keys(collapsedPaths).length);
+  console.log('- Root collapsed?', collapsedPaths['root'] === true);
+  
   if (!schema || !schema.type) {
-    console.log('No valid schema provided to generateNodesAndEdges');
+    console.error('No valid schema provided to generateNodesAndEdges');
     return result;
   }
 
@@ -34,6 +37,8 @@ export const generateNodesAndEdges = (
     if (collapsedPaths['root'] === true) {
       console.log('Root is marked as collapsed in diagram');
       rootNode.data.isCollapsed = true;
+    } else {
+      console.log('Root is NOT collapsed in diagram');
     }
     
     result.nodes.push(rootNode);
@@ -41,19 +46,28 @@ export const generateNodesAndEdges = (
 
     // Process properties if root isn't collapsed
     if (schema.type === 'object' && schema.properties) {
-      console.log(`Schema has ${Object.keys(schema.properties).length} properties, root collapsed: ${collapsedPaths['root'] === true}`);
+      console.log(`Schema has ${Object.keys(schema.properties).length} properties`);
+      console.log(`Root collapsed: ${collapsedPaths['root'] === true}`);
       
-      // Always generate the layout but respect collapsed paths inside
+      // If root is collapsed, skip generating child nodes
+      if (collapsedPaths['root'] === true) {
+        console.log('Root is collapsed, skipping property nodes generation');
+        return result;
+      }
+      
+      // Generate layout based on mode
       if (groupProperties) {
         // Group properties mode
         console.log('Using grouped layout mode');
         const groupedLayout = generateGroupedLayout(schema, maxDepth, collapsedPaths);
+        console.log(`Grouped layout generated ${groupedLayout.nodes.length} nodes and ${groupedLayout.edges.length} edges`);
         result.nodes.push(...groupedLayout.nodes);
         result.edges.push(...groupedLayout.edges);
       } else {
         // Expanded properties mode
         console.log('Using expanded layout mode');
         const expandedLayout = generateExpandedLayout(schema, maxDepth, collapsedPaths);
+        console.log(`Expanded layout generated ${expandedLayout.nodes.length} nodes and ${expandedLayout.edges.length} edges`);
         result.nodes.push(...expandedLayout.nodes);
         result.edges.push(...expandedLayout.edges);
       }
@@ -61,7 +75,7 @@ export const generateNodesAndEdges = (
       console.log(`Schema type is ${schema.type}, only showing root node`);
     }
     
-    console.log(`Generated ${result.nodes.length} nodes and ${result.edges.length} edges`);
+    console.log(`Final diagram: ${result.nodes.length} nodes and ${result.edges.length} edges`);
     return result;
   } catch (error) {
     console.error('Error generating nodes and edges:', error);

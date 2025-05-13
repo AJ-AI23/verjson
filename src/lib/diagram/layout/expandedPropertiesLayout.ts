@@ -16,7 +16,14 @@ export const generateExpandedLayout = (
     edges: []
   };
 
+  console.log('generateExpandedLayout called with:');
+  console.log('- Schema:', schema ? { type: schema.type, properties: schema.properties ? Object.keys(schema.properties).length : 0 } : 'invalid schema');
+  console.log('- maxDepth:', maxDepth);
+  console.log('- collapsedPaths keys:', Object.keys(collapsedPaths));
+  console.log('- Root collapsed?', collapsedPaths['root'] === true);
+
   if (!schema || !schema.type || schema.type !== 'object' || !schema.properties) {
+    console.log('Invalid schema or schema has no properties, returning empty result');
     return result;
   }
 
@@ -37,18 +44,29 @@ export const generateExpandedLayout = (
   const propertiesPathCollapsed = collapsedPaths['root.properties'] === true;
   
   // If root is collapsed or properties path is collapsed, only return the empty result
-  if (rootCollapsed || propertiesPathCollapsed) {
-    console.log('Root or root.properties is collapsed in expandedPropertiesLayout, skipping property nodes generation');
+  if (rootCollapsed) {
+    console.log('Root is collapsed in expandedPropertiesLayout, skipping property nodes generation');
     return result;
   }
   
+  if (propertiesPathCollapsed) {
+    console.log('root.properties is collapsed in expandedPropertiesLayout, skipping property nodes generation');
+    return result;
+  }
+  
+  console.log('Processing properties with:');
+  console.log('- Property count:', Object.keys(properties).length);
+  console.log('- Required properties:', requiredProps);
+  
   // Process the first level of properties (depth 1)
   // Calculate starting x position to center the nodes
-  const startXOffset = xOffset - totalWidth / 2 + xSpacing / 2;
+  const startXOffset = -totalWidth / 2 + xSpacing / 2;
   
   Object.entries(properties).forEach(([propName, propSchema], index) => {
     const xPos = startXOffset + index * xSpacing;
     const propPath = `root.properties.${propName}`;
+    
+    console.log(`Processing property ${propName}, path: ${propPath}`);
     
     // Skip this property if it's explicitly collapsed
     if (collapsedPaths[propPath] === true) {
@@ -71,5 +89,6 @@ export const generateExpandedLayout = (
     );
   });
   
+  console.log(`Expanded layout generated ${result.nodes.length} nodes and ${result.edges.length} edges`);
   return result;
 };

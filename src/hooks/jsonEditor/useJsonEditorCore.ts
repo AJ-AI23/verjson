@@ -1,5 +1,5 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { UseJsonEditorProps, FoldingDebugInfo, JsonEditorResult } from './types';
 import { useJsonEditorSync } from './useJsonEditorSync';
 import { useJsonEditorFolding } from './useJsonEditorFolding';
@@ -25,6 +25,11 @@ export const useJsonEditor = ({
   // Debug state to track folding operations
   const [foldingDebug, setFoldingDebug] = useState<FoldingDebugInfo | null>(null);
 
+  console.log('useJsonEditor hook running with:');
+  console.log('- collapsedPaths:', collapsedPaths);
+  console.log('- maxDepth:', maxDepth);
+  console.log('- onToggleCollapse handler present:', !!onToggleCollapse);
+
   // Use our event handlers hook
   const { createEditorEventHandlers, getPathState } = useJsonEditorEvents({
     onToggleCollapse,
@@ -39,7 +44,13 @@ export const useJsonEditor = ({
   });
 
   // Use our folding hook
-  const { expandAll, collapseAll, expandFirstLevel, collapsedPathsRef: foldingRef } = useJsonEditorFolding({ 
+  const { 
+    expandAll, 
+    collapseAll, 
+    expandFirstLevel, 
+    forceUpdateEditorFoldState, 
+    collapsedPathsRef: foldingRef 
+  } = useJsonEditorFolding({ 
     editorRef, 
     onToggleCollapse,
     collapsedPaths
@@ -66,7 +77,13 @@ export const useJsonEditor = ({
     editorRef, isInternalChange, previousValueRef, value, onChange 
   });
 
-  console.log('useJsonEditor hook running, collapsedPaths:', collapsedPaths);
+  // Force update of editor fold state when collapsedPaths changes
+  useEffect(() => {
+    if (editorRef.current && initialSetupDone.current) {
+      console.log('collapsedPaths changed, force updating editor fold state');
+      forceUpdateEditorFoldState();
+    }
+  }, [collapsedPaths, forceUpdateEditorFoldState]);
 
   // Sync editor with props
   syncEditorWithProps();

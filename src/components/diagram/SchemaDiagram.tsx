@@ -27,7 +27,8 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
       error, 
       groupProperties, 
       collapsedPathsCount: collapsedPaths ? Object.keys(collapsedPaths).length : 0,
-      rootCollapsed: collapsedPaths?.root === true
+      rootCollapsed: collapsedPaths?.root === true,
+      maxDepth
     });
     
     if (schema) {
@@ -48,16 +49,28 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
           console.log(`- Expanded: ${path}`);
         }
       });
+    } else {
+      console.log('No collapsed paths in SchemaDiagram');
     }
-  }, [schema, error, groupProperties, collapsedPaths]);
+  }, [schema, error, groupProperties, collapsedPaths, maxDepth]);
   
-  return <DiagramContainer 
-    schema={schema}
-    error={error}
-    groupProperties={groupProperties}
-    collapsedPaths={collapsedPaths}
-    maxDepth={maxDepth}
-  />;
+  return (
+    <React.Fragment>
+      {/* Debug information display */}
+      <div className="p-1 bg-amber-50 border-b border-amber-200 text-amber-700 text-xs">
+        <div>Diagram Debug - Collapsed Paths: {Object.keys(collapsedPaths || {}).length}</div>
+        <div>Root collapsed: {collapsedPaths?.root === true ? 'Yes' : 'No'}</div>
+      </div>
+      
+      <DiagramContainer 
+        schema={schema}
+        error={error}
+        groupProperties={groupProperties}
+        collapsedPaths={collapsedPaths}
+        maxDepth={maxDepth}
+      />
+    </React.Fragment>
+  );
 }, (prevProps, nextProps) => {
   try {
     // Custom comparison function for memoization

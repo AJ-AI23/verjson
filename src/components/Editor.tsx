@@ -23,7 +23,10 @@ export const Editor = () => {
   const [error, setError] = useState<string | null>(null);
   const [schemaType, setSchemaType] = useState<SchemaType>('json-schema');
   const [groupProperties, setGroupProperties] = useState(false);
+  
+  // Set default collapsed state - initially collapsed
   const [collapsedPaths, setCollapsedPaths] = useState<CollapsedState>({ root: true });
+  
   const [maxDepth] = useState(3); // Default max depth for initial rendering
   
   // Use our custom versioning hook
@@ -42,13 +45,25 @@ export const Editor = () => {
     setSchema
   });
   
+  // Debug collapsedPaths when it changes
+  useEffect(() => {
+    console.log('Editor: collapsedPaths updated:', collapsedPaths);
+    console.log('Root collapsed:', collapsedPaths.root === true);
+    console.log('Collapsed paths count:', Object.keys(collapsedPaths).length);
+  }, [collapsedPaths]);
+  
   // Function to handle toggling collapsed state of a path
   const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
-    console.log(`Toggle collapse event received: ${path}, isCollapsed: ${isCollapsed}`);
-    setCollapsedPaths(prev => ({
-      ...prev,
-      [path]: isCollapsed
-    }));
+    console.log(`Editor: Toggle collapse event for ${path}, isCollapsed: ${isCollapsed}`);
+    
+    setCollapsedPaths(prev => {
+      const updated = {
+        ...prev,
+        [path]: isCollapsed
+      };
+      console.log('Updated collapsedPaths:', updated);
+      return updated;
+    });
     
     // Show a short-lived toast notification
     if (isCollapsed) {
@@ -101,18 +116,22 @@ export const Editor = () => {
   }, [parsedSchema]);
 
   const handleEditorChange = (value: string) => {
+    console.log('Editor content changed');
     setSchema(value);
   };
 
   const handleSchemaTypeChange = (value: SchemaType) => {
+    console.log('Schema type changed to:', value);
     setSchemaType(value);
     // Reset collapsed paths when changing schema type
     setCollapsedPaths({ root: true });
   };
 
   const handleImportSchema = (importedSchema: string, detectedType?: SchemaType) => {
+    console.log('Importing new schema');
     if (detectedType && detectedType !== schemaType) {
       // Update schema type if detected
+      console.log('Detected schema type:', detectedType);
       setSchemaType(detectedType);
     }
     
@@ -120,6 +139,26 @@ export const Editor = () => {
     setSavedSchema(importedSchema);
     // Reset collapsed paths when importing a new schema
     setCollapsedPaths({ root: true });
+  };
+  
+  // Debug button for force expanding root
+  const forceExpandRoot = () => {
+    console.log('Force expanding root');
+    setCollapsedPaths(prev => ({
+      ...prev,
+      root: false
+    }));
+    toast.info('Root expanded (forced)');
+  };
+  
+  // Debug button for force collapsing root
+  const forceCollapseRoot = () => {
+    console.log('Force collapsing root');
+    setCollapsedPaths(prev => ({
+      ...prev,
+      root: true
+    }));
+    toast.info('Root collapsed (forced)');
   };
   
   return (
@@ -135,6 +174,26 @@ export const Editor = () => {
         setSchema={setSchema}
         setSavedSchema={setSavedSchema}
       />
+      
+      {/* Debug controls */}
+      <div className="px-2 py-1 bg-yellow-50 border-b border-yellow-200 flex gap-2 items-center">
+        <span className="text-xs text-yellow-700 font-semibold">Debug Controls:</span>
+        <button 
+          onClick={forceExpandRoot}
+          className="text-xs px-2 py-0.5 bg-green-100 hover:bg-green-200 text-green-800 rounded"
+        >
+          Force Expand Root
+        </button>
+        <button 
+          onClick={forceCollapseRoot}
+          className="text-xs px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded"
+        >
+          Force Collapse Root
+        </button>
+        <span className="text-xs text-yellow-600 ml-4">
+          Root state: {collapsedPaths.root === true ? 'Collapsed' : 'Expanded'}
+        </span>
+      </div>
       
       <EditorContent 
         schema={schema}

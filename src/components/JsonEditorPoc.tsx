@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import 'jsoneditor/dist/jsoneditor.css';
 import { CollapsedState } from '@/lib/diagram/types';
 import { useJsonEditor } from '@/hooks/useJsonEditor';
@@ -24,6 +24,21 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   // Create a ref to the editor container DOM element
   const containerRef = useRef<HTMLDivElement>(null);
   
+  // Debug state for component props
+  const [lastToggleEvent, setLastToggleEvent] = useState<{path: string, isCollapsed: boolean} | null>(null);
+  
+  // Wrap onToggleCollapse to track the last event
+  const handleToggleCollapse = (path: string, isCollapsed: boolean) => {
+    console.log(`JsonEditorPoc: Toggle collapse for path=${path}, isCollapsed=${isCollapsed}`);
+    setLastToggleEvent({path, isCollapsed});
+    
+    if (onToggleCollapse) {
+      onToggleCollapse(path, isCollapsed);
+    } else {
+      console.warn('JsonEditorPoc: No onToggleCollapse handler provided');
+    }
+  };
+  
   // Use the custom hook for editor functionality
   const {
     initializeEditor,
@@ -37,7 +52,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     value,
     onChange,
     collapsedPaths,
-    onToggleCollapse,
+    onToggleCollapse: handleToggleCollapse,
     maxDepth
   });
 
@@ -45,8 +60,10 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   useEffect(() => {
     if (!containerRef.current) return;
     
-    console.log('Initializing JSON editor with collapsed paths:', collapsedPaths);
-    console.log('Max depth setting:', maxDepth);
+    console.log('JsonEditorPoc: Initializing editor with:');
+    console.log('- Collapsed paths:', collapsedPaths);
+    console.log('- Max depth:', maxDepth);
+    console.log('- onToggleCollapse handler present:', !!onToggleCollapse);
     
     // Initialize the editor
     initializeEditor(containerRef.current);
@@ -54,6 +71,13 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     // Cleanup on unmount
     return destroyEditor;
   }, []);
+  
+  // Debug log for collapsedPaths changes
+  useEffect(() => {
+    console.log('JsonEditorPoc: collapsedPaths changed:', collapsedPaths);
+    console.log('Paths count:', Object.keys(collapsedPaths).length);
+    console.log('Root collapsed?', collapsedPaths.root === true);
+  }, [collapsedPaths]);
 
   return (
     <div className="h-full flex flex-col">
@@ -61,19 +85,28 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
         <h2 className="font-semibold text-slate-700">JSON Editor</h2>
         <div className="flex gap-2">
           <button
-            onClick={expandAll}
+            onClick={() => {
+              console.log('Expand All button clicked');
+              expandAll();
+            }}
             className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
           >
             Expand All
           </button>
           <button
-            onClick={collapseAll}
+            onClick={() => {
+              console.log('Collapse All button clicked');
+              collapseAll();
+            }}
             className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
           >
             Collapse All
           </button>
           <button
-            onClick={expandFirstLevel}
+            onClick={() => {
+              console.log('Expand First Level button clicked');
+              expandFirstLevel();
+            }}
             className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
           >
             Expand First Level
@@ -91,21 +124,24 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
         </div>
       )}
       
-      {/* Debug info - can be removed in production */}
-      {foldingDebug && (
-        <div className="p-1 bg-blue-50 border-t border-blue-200 text-blue-700 text-xs">
+      {/* Debug info */}
+      <div className="p-1 bg-blue-50 border-t border-blue-200 text-blue-700 text-xs flex flex-col gap-1">
+        <div>Last toggle event: {lastToggleEvent ? 
+          `${lastToggleEvent.path} - ${lastToggleEvent.isCollapsed ? 'collapsed' : 'expanded'}` : 
+          'none'}</div>
+        {foldingDebug && (
           <div>Last {foldingDebug.lastOperation}: {foldingDebug.path} at {new Date(foldingDebug.timestamp).toLocaleTimeString()}</div>
-          <div className="mt-1 text-xs">
-            <span>Collapsed paths: </span>
-            {Object.keys(collapsedPaths).length > 0 ? 
-              Object.entries(collapsedPaths)
-                .filter(([_, isCollapsed]) => isCollapsed)
-                .map(([path]) => path)
-                .join(', ') 
-              : 'None'}
-          </div>
+        )}
+        <div>
+          <span>Collapsed paths: </span>
+          {Object.keys(collapsedPaths).length > 0 ? 
+            Object.entries(collapsedPaths)
+              .filter(([_, isCollapsed]) => isCollapsed)
+              .map(([path]) => path)
+              .join(', ') 
+            : 'None'}
         </div>
-      )}
+      </div>
     </div>
   );
 };
