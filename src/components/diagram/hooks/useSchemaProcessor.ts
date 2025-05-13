@@ -17,11 +17,21 @@ export const useSchemaProcessor = () => {
   const schemaStringRef = useRef<string>('');
   const collapsedPathsRef = useRef<CollapsedState>({});
   const previousMaxDepthRef = useRef<number>(3);
+  const processingTimerRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Memoize schema string for comparison
+  // Memoize schema string for comparison with optimized stringification
   const getSchemaString = useCallback((schema: any) => {
     try {
-      return schema ? JSON.stringify(schema) : '';
+      // Only stringify the essential parts of the schema
+      if (!schema) return '';
+      
+      const essentialParts = {
+        type: schema.type,
+        title: schema.title,
+        properties: schema.properties ? Object.keys(schema.properties) : []
+      };
+      
+      return JSON.stringify(essentialParts);
     } catch (e) {
       console.error('Failed to stringify schema:', e);
       return '';
@@ -38,7 +48,7 @@ export const useSchemaProcessor = () => {
     }
   }, []);
   
-  // Check if schema or settings have changed
+  // Check if schema or settings have changed - with optimized comparisons
   const hasChanges = useCallback((
     schema: any,
     maxDepth: number,
@@ -62,7 +72,7 @@ export const useSchemaProcessor = () => {
     };
   }, [getSchemaString, getCollapsedPathsString]);
   
-  // Process schema to generate diagram
+  // Process schema to generate diagram with debounced execution
   const processSchema = useCallback(({
     schema,
     groupProperties,
@@ -72,26 +82,37 @@ export const useSchemaProcessor = () => {
     setNodes,
     setEdges
   }: SchemaProcessorProps) => {
-    console.log(`Generating nodes and edges with maxDepth: ${maxDepth}`);
-    const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(
-      schema, 
-      groupProperties, 
-      maxDepth, 
-      collapsedPaths
-    );
+    // Clear any existing processing timer
+    if (processingTimerRef.current) {
+      clearTimeout(processingTimerRef.current);
+    }
     
-    // Apply saved positions to new nodes where possible
-    const positionedNodes = applyStoredPositions(newNodes);
-    console.log(`Generated ${positionedNodes.length} nodes and ${newEdges.length} edges`);
-    
-    // Set the new nodes and edges
-    setNodes(positionedNodes);
-    setEdges(newEdges);
-    
-    // Update reference values
-    schemaStringRef.current = getSchemaString(schema);
-    collapsedPathsRef.current = {...collapsedPaths};
-    previousMaxDepthRef.current = maxDepth;
+    // Use a short debounce to batch multiple rapid changes
+    processingTimerRef.current = setTimeout(() => {
+      console.log(`Generating nodes and edges with maxDepth: ${maxDepth}`);
+      
+      const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(
+        schema, 
+        groupProperties, 
+        maxDepth, 
+        collapsedPaths
+      );
+      
+      // Apply saved positions to new nodes where possible
+      const positionedNodes = applyStoredPositions(newNodes);
+      console.log(`Generated ${positionedNodes.length} nodes and ${newEdges.length} edges`);
+      
+      // Set the new nodes and edges
+      setNodes(positionedNodes);
+      setEdges(newEdges);
+      
+      // Update reference values
+      schemaStringRef.current = getSchemaString(schema);
+      collapsedPathsRef.current = {...collapsedPaths};
+      previousMaxDepthRef.current = maxDepth;
+      
+      processingTimerRef.current = null;
+    }, 50); // Short debounce for batching
   }, [getSchemaString]);
   
   return {
