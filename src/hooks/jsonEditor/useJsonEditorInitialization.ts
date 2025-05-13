@@ -31,29 +31,34 @@ export const useJsonEditorInitialization = ({
         mainMenuBar: false,
         navigationBar: true,
         statusBar: true,
-        onEvent: function(node, event) {
-          console.log('JSONEditor event:', event.type, 'on node:', node);
-          
-          // Handle fold/unfold events
-          if (event.type === 'fold' || event.type === 'unfold') {
-            try {
-              const path = node.path.length > 0 ? node.path.join('.') : 'root';
-              const isCollapsed = event.type === 'fold';
-              console.log(`JSONEditor ${event.type} event detected on path:`, path, 
-                'node.path:', node.path, 
-                'node collapsed:', node.collapsed,
-                'isCollapsed flag:', isCollapsed);
-              
-              // Call our custom handler
-              if (eventHandlers.onFoldChange) {
-                console.log('Calling onFoldChange with:', path, isCollapsed);
-                eventHandlers.onFoldChange(path, isCollapsed);
-              } else {
-                console.warn('No onFoldChange handler available');
-              }
-            } catch (err) {
-              console.error('Error in fold/unfold handler:', err);
+        onEditable: function() { return true; },
+        // Use the onExpand/onCollapse direct handlers instead of general onEvent
+        onExpand: function(node) {
+          console.log('JSONEditor EXPAND event detected:', node);
+          try {
+            const path = node.path.length > 0 ? node.path.join('.') : 'root';
+            console.log('Node expanded at path:', path);
+            
+            if (eventHandlers.onFoldChange) {
+              console.log('Calling onFoldChange with path:', path, 'isCollapsed:', false);
+              eventHandlers.onFoldChange(path, false);
             }
+          } catch (err) {
+            console.error('Error in expand handler:', err);
+          }
+        },
+        onCollapse: function(node) {
+          console.log('JSONEditor COLLAPSE event detected:', node);
+          try {
+            const path = node.path.length > 0 ? node.path.join('.') : 'root';
+            console.log('Node collapsed at path:', path);
+            
+            if (eventHandlers.onFoldChange) {
+              console.log('Calling onFoldChange with path:', path, 'isCollapsed:', true);
+              eventHandlers.onFoldChange(path, true);
+            }
+          } catch (err) {
+            console.error('Error in collapse handler:', err);
           }
         }
       };

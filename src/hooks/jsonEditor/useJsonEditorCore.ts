@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { UseJsonEditorProps, FoldingDebugInfo, JsonEditorResult } from './types';
 import { useJsonEditorSync } from './useJsonEditorSync';

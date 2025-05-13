@@ -34,8 +34,6 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     
     if (onToggleCollapse) {
       onToggleCollapse(path, isCollapsed);
-    } else {
-      console.warn('JsonEditorPoc: No onToggleCollapse handler provided');
     }
   };
   
@@ -60,10 +58,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   useEffect(() => {
     if (!containerRef.current) return;
     
-    console.log('JsonEditorPoc: Initializing editor with:');
-    console.log('- Collapsed paths:', collapsedPaths);
-    console.log('- Max depth:', maxDepth);
-    console.log('- onToggleCollapse handler present:', !!onToggleCollapse);
+    console.log('JsonEditorPoc: Initializing editor');
     
     // Initialize the editor
     initializeEditor(containerRef.current);
@@ -71,13 +66,6 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     // Cleanup on unmount
     return destroyEditor;
   }, []);
-  
-  // Debug log for collapsedPaths changes
-  useEffect(() => {
-    console.log('JsonEditorPoc: collapsedPaths changed:', collapsedPaths);
-    console.log('Paths count:', Object.keys(collapsedPaths).length);
-    console.log('Root collapsed?', collapsedPaths.root === true);
-  }, [collapsedPaths]);
 
   return (
     <div className="h-full flex flex-col">
