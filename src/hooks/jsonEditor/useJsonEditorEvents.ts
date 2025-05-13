@@ -23,7 +23,12 @@ export const useJsonEditorEvents = ({
   }
   
   // Helper to normalize a path for diagram consumption
-  const normalizePath = useCallback((path: string): string => {
+  const normalizePath = useCallback((path: string | string[]): string => {
+    // If path is an array, join it
+    if (Array.isArray(path)) {
+      path = path.join('.');
+    }
+    
     // Empty path is root
     if (!path || path === '') {
       return 'root';
@@ -84,6 +89,18 @@ export const useJsonEditorEvents = ({
     };
     
     return { 
+      onExpand: (node: any) => {
+        // Get path from node
+        const path = node.path.length > 0 ? node.path.join('.') : 'root';
+        onFoldChange(path, false);
+      },
+      
+      onCollapse: (node: any) => {
+        // Get path from node
+        const path = node.path.length > 0 ? node.path.join('.') : 'root';
+        onFoldChange(path, true);
+      },
+      
       onFoldChange
     };
   }, [getPathState, normalizePath, onToggleCollapse, setFoldingDebug]);

@@ -36,6 +36,12 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     if (onToggleCollapse) {
       onToggleCollapse(path, isCollapsed);
     }
+    
+    // Show toast notification
+    toast({
+      title: isCollapsed ? "Collapsed" : "Expanded",
+      description: path
+    });
   };
   
   // Use the custom hook for editor functionality
@@ -59,8 +65,6 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   useEffect(() => {
     if (!containerRef.current) return;
     
-    console.log('JsonEditorPoc: Initializing editor');
-    
     // Initialize the editor
     initializeEditor(containerRef.current);
     
@@ -68,39 +72,25 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     return destroyEditor;
   }, []);
 
-  // Log collapsedPaths changes for debugging
-  useEffect(() => {
-    console.log('JsonEditorPoc: collapsedPaths changed:', collapsedPaths);
-  }, [collapsedPaths]);
-
   return (
     <div className="h-full flex flex-col">
       <div className="p-2 border-b bg-slate-50 flex justify-between items-center">
         <h2 className="font-semibold text-slate-700">JSON Editor</h2>
         <div className="flex gap-2">
           <button
-            onClick={() => {
-              console.log('Expand All button clicked');
-              expandAll();
-            }}
+            onClick={expandAll}
             className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
           >
             Expand All
           </button>
           <button
-            onClick={() => {
-              console.log('Collapse All button clicked');
-              collapseAll();
-            }}
+            onClick={collapseAll}
             className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
           >
             Collapse All
           </button>
           <button
-            onClick={() => {
-              console.log('Expand First Level button clicked');
-              expandFirstLevel();
-            }}
+            onClick={expandFirstLevel}
             className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
           >
             Expand First Level

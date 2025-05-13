@@ -23,8 +23,6 @@ export const useJsonEditorInitialization = ({
       // Get event handlers from our events hook
       const eventHandlers = createEditorEventHandlers();
       
-      console.log('Initializing JSONEditor with event handlers:', eventHandlers);
-      
       // JSONEditor options
       const options = {
         mode: 'tree',
@@ -32,37 +30,16 @@ export const useJsonEditorInitialization = ({
         navigationBar: true,
         statusBar: true,
         onEditable: function() { return true; },
-        // Use the onExpand/onCollapse handlers
-        onEvent: function(node, event) {
-          console.log('JSONEditor event:', event.type, node);
-          
-          // Only process expand/collapse events
-          if (event.type === 'expand' || event.type === 'collapse') {
-            try {
-              const path = node.path.length > 0 ? node.path.join('.') : 'root';
-              const isCollapsed = event.type === 'collapse';
-              
-              console.log(`Node ${isCollapsed ? 'collapsed' : 'expanded'} at path:`, path);
-              
-              if (eventHandlers.onFoldChange) {
-                console.log('Calling onFoldChange with path:', path, 'isCollapsed:', isCollapsed);
-                eventHandlers.onFoldChange(path, isCollapsed);
-              }
-            } catch (err) {
-              console.error(`Error in ${event.type} handler:`, err);
-            }
-          }
-        }
+        onExpand: eventHandlers.onExpand,
+        onCollapse: eventHandlers.onCollapse
       };
 
       // Create the editor
       const editor = new JSONEditor(container, options);
-      console.log('JSONEditor instance created');
       
       // Set initial content
       try {
         editor.set(JSON.parse(value));
-        console.log('Initial JSON content set in editor');
       } catch (e) {
         // If parsing fails, just show the raw text
         editor.setText(value);
@@ -71,7 +48,6 @@ export const useJsonEditorInitialization = ({
 
       // Store the editor instance in the ref
       editorRef.current = editor;
-      console.log('JSONEditor initialized successfully, instance stored in ref');
       
       return editor;
     } catch (err) {
@@ -88,7 +64,6 @@ export const useJsonEditorInitialization = ({
   // Cleanup function
   const destroyEditor = () => {
     if (editorRef.current) {
-      console.log('Destroying JSONEditor instance');
       editorRef.current.destroy();
       editorRef.current = null;
     }
