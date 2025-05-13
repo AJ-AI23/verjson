@@ -39,10 +39,11 @@ export const generateNodesAndEdges = (
     result.nodes.push(rootNode);
     console.log('Root node created:', rootNode);
 
-    // Process properties if root isn't collapsed or we're only creating the root node
-    if (collapsedPaths['root'] !== true && schema.type === 'object' && schema.properties) {
-      console.log(`Schema has ${Object.keys(schema.properties).length} properties and root is not collapsed`);
+    // Process properties if root isn't collapsed
+    if (schema.type === 'object' && schema.properties) {
+      console.log(`Schema has ${Object.keys(schema.properties).length} properties, root collapsed: ${collapsedPaths['root'] === true}`);
       
+      // Always generate the layout but respect collapsed paths inside
       if (groupProperties) {
         // Group properties mode
         console.log('Using grouped layout mode');
@@ -57,7 +58,7 @@ export const generateNodesAndEdges = (
         result.edges.push(...expandedLayout.edges);
       }
     } else {
-      console.log(`Root is collapsed or schema type is ${schema.type}, only showing root node`);
+      console.log(`Schema type is ${schema.type}, only showing root node`);
     }
     
     console.log(`Generated ${result.nodes.length} nodes and ${result.edges.length} edges`);

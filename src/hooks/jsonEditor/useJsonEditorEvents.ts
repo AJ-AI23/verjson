@@ -1,3 +1,4 @@
+
 import { useRef, useCallback } from 'react';
 import { CollapsedState } from '@/lib/diagram/types';
 import { FoldingDebugInfo } from './types';
@@ -25,10 +26,16 @@ export const useJsonEditorEvents = ({
   // Helper to normalize a path for diagram consumption
   // Different parts of the app may use slightly different path formats
   const normalizePath = useCallback((path: string): string => {
+    // If path is empty, return 'root'
+    if (!path || path === '') return 'root';
+    
+    // If path doesn't start with 'root', prepend it
+    const normalizedPath = path.startsWith('root') ? path : `root.${path}`;
+    
     // Strip any array indices from the path for now
-    const normalizedPath = path.replace(/\[\d+\]/g, '');
-    console.log('Normalized path for diagram:', normalizedPath);
-    return normalizedPath;
+    const cleanPath = normalizedPath.replace(/\[\d+\]/g, '');
+    console.log('Normalized path for diagram:', cleanPath);
+    return cleanPath;
   }, []);
 
   // Helper to get the current state of a path (defaults to true if not set)
@@ -43,19 +50,21 @@ export const useJsonEditorEvents = ({
   const createEditorEventHandlers = useCallback(() => {
     // Function to track folding changes
     const onFoldChange = (path: string, isCollapsed: boolean) => {
-      // Keep path as is, don't normalize yet
+      // For direct paths, make sure we have a consistent format
+      if (!path || path === '') {
+        path = 'root';
+      }
+      
       console.log(`Toggle collapse for path: ${path} to ${isCollapsed ? 'collapsed' : 'expanded'}`);
-      const trackedState = getPathState(path);
+      const normalizedPath = normalizePath(path);
+      const trackedState = getPathState(normalizedPath);
       console.log(`Current tracked state: ${trackedState ? 'collapsed' : 'expanded'}`);
       console.log(`Setting new state to: ${isCollapsed ? 'collapsed' : 'expanded'}`);
-      
-      const normalizedPath = normalizePath(path);
-      console.log(`Current collapsedPaths object:`, collapsedPathsRef.current);
       
       // Log fold change event
       const foldEventInfo = {
         path: normalizedPath,
-        collapsed: isCollapsed,
+        isCollapsed,
         previousState: trackedState
       };
       console.log('Collapse event:', foldEventInfo);

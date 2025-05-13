@@ -46,6 +46,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     if (!containerRef.current) return;
     
     console.log('Initializing JSON editor with collapsed paths:', collapsedPaths);
+    console.log('Max depth setting:', maxDepth);
     
     // Initialize the editor
     initializeEditor(containerRef.current);

@@ -29,7 +29,19 @@ export const useJsonEditorInitialization = ({
         mainMenuBar: false,
         navigationBar: true,
         statusBar: true,
-        ...eventHandlers,
+        onEvent: function(node, event) {
+          // Handle fold/unfold events
+          if (event.type === 'fold' || event.type === 'unfold') {
+            const path = node.path.join('.');
+            const isCollapsed = event.type === 'fold';
+            console.log(`JSONEditor ${event.type} event detected on path: ${path}`);
+            
+            // Call our custom handler
+            if (eventHandlers.onFoldChange) {
+              eventHandlers.onFoldChange(path, isCollapsed);
+            }
+          }
+        }
       };
 
       // Create the editor
@@ -46,6 +58,7 @@ export const useJsonEditorInitialization = ({
 
       // Store the editor instance in the ref
       editorRef.current = editor;
+      console.log('JSONEditor initialized successfully');
       
       return editor;
     } catch (err) {

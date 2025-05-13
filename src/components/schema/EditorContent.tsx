@@ -43,6 +43,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
           error={error}
           collapsedPaths={collapsedPaths}
           onToggleCollapse={onToggleCollapse}
+          maxDepth={maxDepth}
         />
         <VersionControls 
           version={currentVersion} 
