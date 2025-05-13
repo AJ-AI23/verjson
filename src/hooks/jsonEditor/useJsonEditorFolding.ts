@@ -1,3 +1,4 @@
+
 import { useCallback, useRef, useEffect } from 'react';
 import JSONEditor from 'jsoneditor';
 import { CollapsedState } from '@/lib/diagram/types';
@@ -34,6 +35,8 @@ export const useJsonEditorFolding = ({
       if (onToggleCollapse) {
         onToggleCollapse('root', false);
       }
+      
+      console.log('Expanded all nodes');
     } catch (err) {
       console.error('Error expanding all nodes:', err);
     }
@@ -52,6 +55,8 @@ export const useJsonEditorFolding = ({
       if (onToggleCollapse) {
         onToggleCollapse('root', true);
       }
+      
+      console.log('Collapsed all nodes');
     } catch (err) {
       console.error('Error collapsing all nodes:', err);
     }
@@ -76,6 +81,8 @@ export const useJsonEditorFolding = ({
         if (onToggleCollapse) {
           onToggleCollapse('root', false);
         }
+        
+        console.log('Expanded first level nodes');
       }
     } catch (err) {
       console.error('Error expanding first level:', err);
@@ -95,9 +102,11 @@ export const useJsonEditorFolding = ({
         
         if (rootCollapsed !== editorRootCollapsed) {
           if (rootCollapsed) {
-            editorRef.current.node.collapse();
+            editorRef.current.collapseAll();
+            console.log('Force collapsed root');
           } else {
-            editorRef.current.node.expand();
+            editorRef.current.expandAll();
+            console.log('Force expanded root');
           }
         }
       }

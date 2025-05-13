@@ -23,11 +23,15 @@ export const useJsonEditorCollapse = ({
       const editor = editorRef.current;
       
       if (editor && editor.node) {
+        console.log('Applying collapsed paths to editor', collapsedPaths);
+        
         // Handle root node's collapsed state
         if (collapsedPaths.root !== undefined) {
           if (collapsedPaths.root === true && !editor.node.collapsed) {
+            console.log('Collapsing root node based on collapsedPaths');
             editor.collapseAll();
           } else if (collapsedPaths.root === false && editor.node.collapsed) {
+            console.log('Expanding root node based on collapsedPaths');
             editor.expandAll();
           }
         }
@@ -35,5 +39,5 @@ export const useJsonEditorCollapse = ({
     } catch (e) {
       console.error('Error applying collapsed paths to editor:', e);
     }
-  }, [collapsedPaths]);
+  }, [collapsedPaths, editorRef, initialSetupDone]);
 };

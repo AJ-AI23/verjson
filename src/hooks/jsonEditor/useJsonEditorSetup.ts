@@ -27,6 +27,7 @@ export const useJsonEditorSetup = ({
   // Update the ref when collapsedPaths changes
   useEffect(() => {
     collapsedPathsRef.current = { ...collapsedPaths };
+    console.log('Updated collapsedPathsRef in useJsonEditorSetup:', collapsedPathsRef.current);
   }, [collapsedPaths]);
 
   // Helper function to determine if a path exceeds the maximum depth
@@ -41,8 +42,11 @@ export const useJsonEditorSetup = ({
   // Effect to handle initial folding state after initialization
   useEffect(() => {
     if (editorRef.current && !initialSetupDone.current) {
+      console.log('Setting up initial editor folding state');
+      
       // Make sure we have the root state set properly first
       if (onToggleCollapse && collapsedPathsRef.current['root'] === undefined) {
+        console.log('Setting initial root collapsed state to true');
         onToggleCollapse('root', true);
         // Update our local reference as well
         collapsedPathsRef.current = { ...collapsedPathsRef.current, root: true };
@@ -53,16 +57,18 @@ export const useJsonEditorSetup = ({
         // First, collapse everything to ensure we start from a known state
         if (editorRef.current && editorRef.current.collapseAll) {
           editorRef.current.collapseAll();
+          console.log('Initially collapsed all nodes');
           
-          // Update collapsed paths for all nodes
-          if (onToggleCollapse) {
-            // We're only setting the root to collapsed initially
-            onToggleCollapse('root', true);
+          // After collapsing all, check if root should be expanded
+          if (collapsedPathsRef.current['root'] === false) {
+            console.log('Root should be expanded according to collapsedPaths');
+            expandFirstLevel();
           }
         }
         
         // Mark initial setup as done
         initialSetupDone.current = true;
+        console.log('Initial editor setup complete');
       }, 300);
       
       return () => clearTimeout(timer);

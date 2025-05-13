@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { UseJsonEditorProps, FoldingDebugInfo, JsonEditorResult } from './types';
 import { useJsonEditorSync } from './useJsonEditorSync';
@@ -79,6 +80,7 @@ export const useJsonEditor = ({
   // Force update of editor fold state when collapsedPaths changes
   useEffect(() => {
     if (editorRef.current && initialSetupDone.current) {
+      console.log('Forcing update of editor fold state due to collapsedPaths change');
       forceUpdateEditorFoldState();
     }
   }, [collapsedPaths, forceUpdateEditorFoldState]);

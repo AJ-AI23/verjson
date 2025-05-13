@@ -48,6 +48,7 @@ export const useJsonEditorInitialization = ({
 
       // Store the editor instance in the ref
       editorRef.current = editor;
+      console.log('JSONEditor initialized with event handlers');
       
       return editor;
     } catch (err) {
