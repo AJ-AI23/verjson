@@ -1,5 +1,5 @@
 
-import { calculateGridPosition } from './gridPositionUtils';
+import { Node } from '@xyflow/react';
 import { ProcessingQueueItem, LayoutContext } from './types';
 import { createArrayNode } from '../nodeGenerator';
 import { createEdge } from '../edgeGenerator';
@@ -24,8 +24,14 @@ export const processArrayProperty = (
   const itemPath = `${propPath}.items`;
   const isItemCollapsed = collapsedPaths[itemPath] === true;
   
-  // Calculate position for this array node
-  const arrayPosition = calculateGridPosition(level + 1, propIndex, context.gridState, context.gridConfig);
+  // Calculate position directly instead of using calculateGridPosition
+  const spacing = 200;
+  const levelSpacing = 150;
+  
+  const arrayPosition = {
+    x: propIndex * spacing - ((propIndex * spacing) / 2),
+    y: level * levelSpacing
+  };
   
   // Create array node
   const arrayNode = createArrayNode(groupNode.id, propName, propSchema, arrayPosition.y);
@@ -46,8 +52,15 @@ export const processArrayProperty = (
   const arrayEdge = createEdge(groupNode.id, arrayNode.id);
   context.edges.push(arrayEdge);
   
-  // Add the array's item object to process if we can process further and it's not collapsed
-  if (canProcessFurther(depth, maxDepth) && !isItemCollapsed) {
+  // Handle parent path explicitly expanded case
+  const parentPathKey = `${path}.properties`;
+  const isParentExplicitlyExpanded = collapsedPaths[parentPathKey] === false;
+  
+  // Add the array's item object to process if:
+  // 1. We can process further AND
+  // 2. Either it's not collapsed OR parent is explicitly expanded
+  if (canProcessFurther(depth, maxDepth) && 
+     (!isItemCollapsed || isParentExplicitlyExpanded)) {
     objectsToProcess.push({
       parentId: arrayNode.id,
       schema: {
@@ -68,3 +81,4 @@ export const processArrayProperty = (
 const canProcessFurther = (depth: number, maxDepth: number): boolean => {
   return depth < maxDepth;
 };
+

@@ -1,5 +1,4 @@
 
-import { calculateGridPosition } from './gridPositionUtils';
 import { ProcessingQueueItem, LayoutContext } from './types';
 import { createEdge } from '../edgeGenerator';
 
@@ -22,8 +21,14 @@ export const processObjectProperty = (
   const propPath = path ? `${path}.properties.${propName}` : propName;
   const isPropCollapsed = collapsedPaths[propPath] === true;
   
-  // Calculate position for this object node
-  const objPosition = calculateGridPosition(level + 1, propIndex, context.gridState, context.gridConfig);
+  // Calculate position directly without using calculateGridPosition
+  const spacing = 200;
+  const levelSpacing = 150;
+  
+  const objPosition = {
+    x: propIndex * spacing - ((propIndex * spacing) / 2),
+    y: level * levelSpacing
+  };
   
   // Create a dedicated node for this object property
   const objectNodeId = `${groupNode.id}-${propName}-object`;
@@ -49,8 +54,15 @@ export const processObjectProperty = (
   const objEdge = createEdge(groupNode.id, objectNodeId);
   context.edges.push(objEdge);
   
-  // Queue this object for processing if we can process further and it's not collapsed
-  if (canProcessFurther(depth, maxDepth) && !isPropCollapsed) {
+  // Check if parent path is explicitly expanded
+  const parentPathKey = `${path}.properties`;
+  const isParentExplicitlyExpanded = collapsedPaths[parentPathKey] === false;
+  
+  // Queue this object for processing if:
+  // 1. We can process further AND
+  // 2. Either it's not collapsed OR parent is explicitly expanded
+  if (canProcessFurther(depth, maxDepth) && 
+     (!isPropCollapsed || isParentExplicitlyExpanded)) {
     objectsToProcess.push({
       parentId: objectNodeId,
       schema: {
@@ -71,3 +83,4 @@ export const processObjectProperty = (
 const canProcessFurther = (depth: number, maxDepth: number): boolean => {
   return depth < maxDepth;
 };
+
