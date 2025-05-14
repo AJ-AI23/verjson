@@ -45,8 +45,8 @@ export const generateGroupedLayout = (
     // Create group node with the correct number of arguments (4)
     const groupNode = createGroupNode(
       `group-${type}`, // id
-      type,           // label
-      props.length,   // count
+      type,            // label
+      props.length,    // count
       `${type} Properties` // description
     );
     
@@ -61,18 +61,22 @@ export const generateGroupedLayout = (
     result.nodes.push(groupNode);
     result.edges.push(groupEdge);
     
-    // Check if the parent path (root.properties) is explicitly expanded
-    const parentPathKey = 'root.properties';
-    const isParentExplicitlyExpanded = collapsedPaths[parentPathKey] === false;
+    // Check if this specific group's parent path has its properties explicitly expanded
+    const parentPropertiesPath = 'root.properties';
+    const isParentPropertiesExplicitlyExpanded = collapsedPaths[parentPropertiesPath] === false;
     
     // Check if this specific group is collapsed
     const thisGroupExplicitlyCollapsed = collapsedPaths[groupPath] === true;
     
-    // Process properties in this group if not explicitly collapsed or if parent is explicitly expanded
-    if (!thisGroupExplicitlyCollapsed || isParentExplicitlyExpanded) {
+    // Process properties in this group if:
+    // 1. The parent's properties are explicitly expanded (regardless of this group's collapsed state)
+    // OR
+    // 2. This group is NOT explicitly collapsed
+    if (isParentPropertiesExplicitlyExpanded || !thisGroupExplicitlyCollapsed) {
+      // FIX HERE - Passing props (which is an array) to processGroupProperties
       processGroupProperties(
         props, 
-        schema.properties, 
+        schema.properties, // This is the actual Record<string, any> containing all properties
         schema.required || [], 
         groupNode, 
         result, 
@@ -264,7 +268,7 @@ function processChildProperties(
   });
 }
 
-// Helper to create a property node (implementation fixed to match expected arguments)
+// Helper to create a property node
 function createPropertyNode(
   prop: {name: string, schema: any},
   allProperties: Record<string, any>,
@@ -289,3 +293,4 @@ function createPropertyNode(
     }
   };
 }
+
