@@ -73,10 +73,11 @@ export const generateGroupedLayout = (
     // OR
     // 2. This group is NOT explicitly collapsed
     if (isParentPropertiesExplicitlyExpanded || !thisGroupExplicitlyCollapsed) {
-      // FIX HERE - Passing props (which is an array) to processGroupProperties
+      // FIX: Pass the correct arguments to processGroupProperties
+      // Props is an array of {name: string, schema: any} objects
       processGroupProperties(
-        props, 
-        schema.properties, // This is the actual Record<string, any> containing all properties
+        props,  // Array of property objects
+        schema.properties, // Record<string, any> containing all properties
         schema.required || [], 
         groupNode, 
         result, 
@@ -293,4 +294,3 @@ function createPropertyNode(
     }
   };
 }
-
