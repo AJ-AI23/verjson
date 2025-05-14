@@ -35,7 +35,7 @@ export const generateExpandedLayout = (
   xOffset = -totalWidth / 2 + xSpacing / 2;
   
   // Check if root itself is collapsed
-  const rootCollapsed = collapsedPaths['root'] === true;
+  const rootCollapsed = collapsedPaths['root'] !== false;
   
   // If root is collapsed, we should skip generating child nodes
   if (rootCollapsed) {
@@ -79,40 +79,40 @@ function processProperties(
   const totalWidth = Object.keys(properties).length * xSpacing;
   const startXOffset = xOffset - totalWidth / 2 + xSpacing / 2;
   
-  // Check if the parent path is explicitly set to false (expanded)
-  const parentPathKey = `${currentPath}.properties`;
-  const isParentExplicitlyExpanded = collapsedPaths[parentPathKey] === false;
+  // Check if the parent path's properties are explicitly expanded
+  const parentPropertiesPath = `${currentPath}.properties`;
+  const isParentPropertiesExplicitlyExpanded = collapsedPaths[parentPropertiesPath] === false;
+  
+  console.log(`Processing properties at path: ${currentPath}`);
+  console.log(`Parent properties expanded: ${isParentPropertiesExplicitlyExpanded}`);
   
   Object.entries(properties).forEach(([propName, propSchema]: [string, any], index) => {
     // Skip if propSchema is null or undefined
     if (!propSchema) return;
     
     const xPos = startXOffset + index * xSpacing;
-    const fullPath = `${currentPath}.properties.${propName}`;
+    const fullPath = `${currentPath}.${propName}`;
     
-    // Special case: If parent path is explicitly expanded, always render direct children
-    // regardless of their collapsed state, but respect their state for deeper levels
-    let shouldRenderThis = false;
-    if (isParentExplicitlyExpanded) {
-      // Always render direct children of explicitly expanded parent
-      shouldRenderThis = true; 
-    } else {
-      // Check if this property or its parent is expanded (not collapsed)
-      shouldRenderThis = collapsedPaths[fullPath] === false || collapsedPaths[parentPathKey] === false;
-    }
+    // Check if this specific path is explicitly collapsed
+    const isPathExplicitlyCollapsed = collapsedPaths[fullPath] === true;
     
-    // Skip rendering completely if not expanded and not a direct child of explicitly expanded parent
-    if (!shouldRenderThis && !isParentExplicitlyExpanded) {
-      console.log(`Skipping non-expanded property: ${fullPath}`);
+    // Determine if we should render this node:
+    // 1. If parent's properties path is explicitly expanded, always render direct children
+    // 2. OR if this path is explicitly NOT collapsed (set to false)
+    const shouldRenderNode = isParentPropertiesExplicitlyExpanded || collapsedPaths[fullPath] === false;
+    
+    if (!shouldRenderNode) {
+      console.log(`Skipping node at path ${fullPath} (not explicitly expanded)`);
       return;
     }
+    
+    console.log(`Creating node for path: ${fullPath}, collapsed: ${isPathExplicitlyCollapsed}`);
     
     // Create node for property
     const propNode = createPropertyNode(propName, propSchema, requiredProps, xPos, yOffset);
     
     // Set collapsed state on node for UI representation
-    // If this property is explicitly collapsed, mark it visually
-    if (collapsedPaths[fullPath] === true) {
+    if (isPathExplicitlyCollapsed) {
       propNode.data.isCollapsed = true;
       console.log(`Node ${fullPath} is marked as collapsed in diagram`);
     }
@@ -123,13 +123,10 @@ function processProperties(
     result.nodes.push(propNode);
     result.edges.push(edge);
     
-    // Check if this specific path is collapsed, to determine whether to process children
-    const thisPathExplicitlyCollapsed = collapsedPaths[fullPath] === true;
-    
     // Only process nested properties if:
     // 1. We haven't reached max depth AND
     // 2. This property is not explicitly collapsed
-    if (currentDepth < maxDepth && !thisPathExplicitlyCollapsed) {
+    if (currentDepth < maxDepth && !isPathExplicitlyCollapsed) {
       // If the property is an object with nested properties
       if (propSchema.type === 'object' && propSchema.properties) {
         const nestedProps = propSchema.properties;
@@ -139,20 +136,27 @@ function processProperties(
         // Update the parent node data with property count
         propNode.data.properties = Object.keys(nestedProps).length;
         
-        // Process nested properties (depth + 1)
-        processProperties(
-          nestedProps, 
-          nestedRequired, 
-          xPos, 
-          nestedYOffset, 
-          xSpacing * 0.8, 
-          result, 
-          propNode.id, 
-          currentDepth + 1, 
-          maxDepth,
-          collapsedPaths,
-          fullPath
-        );
+        // Check if this path's properties are explicitly expanded
+        const thisPropertiesPath = `${fullPath}.properties`;
+        const isThisPropertiesExplicitlyExpanded = collapsedPaths[thisPropertiesPath] === false;
+        
+        // Only process nested properties if this path is explicitly expanded or its properties path is explicitly expanded
+        if (collapsedPaths[fullPath] === false || isThisPropertiesExplicitlyExpanded) {
+          // Process nested properties (depth + 1)
+          processProperties(
+            nestedProps, 
+            nestedRequired, 
+            xPos, 
+            nestedYOffset, 
+            xSpacing * 0.8, 
+            result, 
+            propNode.id, 
+            currentDepth + 1, 
+            maxDepth,
+            collapsedPaths,
+            fullPath
+          );
+        }
       }
       
       // If the property is an array, add its items
@@ -172,17 +176,21 @@ function processProperties(
         result.nodes.push(itemNode);
         result.edges.push(itemsEdge);
         
-        // If array items are objects with properties, process them too (depth + 2)
-        if (itemSchema.type === 'object' && itemSchema.properties && currentDepth + 1 < maxDepth) {
+        // Check if this items path is explicitly collapsed
+        const itemPath = `${fullPath}.items`;
+        const itemsExplicitlyCollapsed = collapsedPaths[itemPath] === true;
+        
+        // If array items are objects with properties, process them too if not collapsed
+        if (itemSchema.type === 'object' && itemSchema.properties && currentDepth + 1 < maxDepth && !itemsExplicitlyCollapsed) {
           const itemProps = itemSchema.properties;
           const itemRequired = itemSchema.required || [];
-          const itemPath = `${fullPath}.items`;
           
-          // Check if this items path is collapsed
-          const itemsCollapsed = collapsedPaths[itemPath] === true;
+          // Check if item path's properties are explicitly expanded
+          const itemPropertiesPath = `${itemPath}.properties`;
+          const itemPropertiesExplicitlyExpanded = collapsedPaths[itemPropertiesPath] === false;
           
-          // Process array item's properties if not collapsed
-          if (!itemsCollapsed) {
+          // Only process item properties if this item path is explicitly expanded or its properties path is explicitly expanded
+          if (collapsedPaths[itemPath] === false || itemPropertiesExplicitlyExpanded) {
             processProperties(
               itemProps,
               itemRequired,
@@ -196,10 +204,12 @@ function processProperties(
               collapsedPaths,
               itemPath
             );
-          } else {
-            // Mark item node as collapsed
-            itemNode.data.isCollapsed = true;
           }
+        }
+        
+        // Mark item node as collapsed if needed
+        if (itemsExplicitlyCollapsed) {
+          itemNode.data.isCollapsed = true;
         }
       }
     } else if (currentDepth >= maxDepth) {
