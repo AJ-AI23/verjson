@@ -42,7 +42,7 @@ export const generateGroupedLayout = (
     const pos = groupPositions[groupIdx++] || { x: 0, y: 200 * groupIdx };
     const groupPath = `root.${type}`;
     
-    // Create group node with the correct number of arguments (4)
+    // Create group node with the correct number of arguments
     const groupNode = createGroupNode(
       `group-${type}`, // id
       type,            // label
@@ -73,8 +73,6 @@ export const generateGroupedLayout = (
     // OR
     // 2. This group is NOT explicitly collapsed
     if (isParentPropertiesExplicitlyExpanded || !thisGroupExplicitlyCollapsed) {
-      // FIX: Pass the correct arguments to processGroupProperties
-      // Props is an array of {name: string, schema: any} objects
       processGroupProperties(
         props,  // Array of property objects
         schema.properties, // Record<string, any> containing all properties
