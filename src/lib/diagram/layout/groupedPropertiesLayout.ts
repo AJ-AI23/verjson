@@ -75,7 +75,7 @@ export const generateGroupedLayout = (
     if (isParentPropertiesExplicitlyExpanded || !thisGroupExplicitlyCollapsed) {
       processGroupProperties(
         props,  // Array of property objects
-        schema.properties, // Record<string, any> containing all properties
+        properties, // Record<string, any> containing all properties (FIX: passing the correct object type)
         schema.required || [], 
         groupNode, 
         result, 
