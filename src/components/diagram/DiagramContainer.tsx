@@ -28,10 +28,23 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   const memoizedSchema = useMemo(() => schema, [JSON.stringify(schema)]);
   const memoizedCollapsedPaths = useMemo(() => collapsedPaths, [JSON.stringify(collapsedPaths)]);
 
-  // Debug logs
+  // Debug logs - let's check the actual structure rather than console.log truncation
   useEffect(() => {
-    console.log('DiagramContainer received schema:', schema);
-    console.log('Schema is null or undefined:', schema === null || schema === undefined);
+    console.log('DiagramContainer received schema - checking actual structure:');
+    console.log('Schema type:', typeof schema);
+    console.log('Schema is null:', schema === null);
+    if (schema && schema.properties && schema.properties.exampleObject) {
+      console.log('exampleObject type:', schema.properties.exampleObject.type);
+      console.log('exampleObject has properties:', !!schema.properties.exampleObject.properties);
+      if (schema.properties.exampleObject.properties) {
+        console.log('exampleObject.properties keys:', Object.keys(schema.properties.exampleObject.properties));
+        if (schema.properties.exampleObject.properties.nestedField) {
+          console.log('nestedField exists:', true);
+          console.log('nestedField type:', schema.properties.exampleObject.properties.nestedField.type);
+          console.log('nestedField type is string:', typeof schema.properties.exampleObject.properties.nestedField.type === 'string');
+        }
+      }
+    }
     console.log('Error state:', error);
     console.log('Root collapsed:', collapsedPaths?.root === true);
   }, [schema, error, collapsedPaths]);
