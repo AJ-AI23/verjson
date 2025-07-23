@@ -159,7 +159,7 @@ function processProperties(
         }
       }
       
-      // If the property is an array, add its items
+      // If the property is an array, check if we should show its items
       if (propSchema.type === 'array' && propSchema.items) {
         const itemSchema = propSchema.items;
         
@@ -167,49 +167,47 @@ function processProperties(
         propNode.data.minItems = propSchema.minItems;
         propNode.data.maxItems = propSchema.maxItems;
         
-        // Create node for array items
-        const itemNode = createArrayItemNode(propNode.id, itemSchema, xPos, yOffset + 150);
-        
-        // Add edge from array to items
-        const itemsEdge = createEdge(propNode.id, itemNode.id, 'items');
-        
-        result.nodes.push(itemNode);
-        result.edges.push(itemsEdge);
-        
-        // Check if this items path is explicitly collapsed
+        // Check if this items path is explicitly expanded
         const itemPath = `${fullPath}.items`;
-        const itemsExplicitlyCollapsed = collapsedPaths[itemPath] === true;
+        const itemsExplicitlyExpanded = collapsedPaths[itemPath] === false;
         
-        // If array items are objects with properties, process them too if not collapsed
-        if (itemSchema.type === 'object' && itemSchema.properties && currentDepth + 1 < maxDepth && !itemsExplicitlyCollapsed) {
-          const itemProps = itemSchema.properties;
-          const itemRequired = itemSchema.required || [];
+        // Only create array item node if the items are explicitly expanded
+        if (itemsExplicitlyExpanded) {
+          // Create node for array items
+          const itemNode = createArrayItemNode(propNode.id, itemSchema, xPos, yOffset + 150);
           
-          // Check if item path's properties are explicitly expanded
-          const itemPropertiesPath = `${itemPath}.properties`;
-          const itemPropertiesExplicitlyExpanded = collapsedPaths[itemPropertiesPath] === false;
+          // Add edge from array to items
+          const itemsEdge = createEdge(propNode.id, itemNode.id, 'items');
           
-          // Only process item properties if this item path is explicitly expanded or its properties path is explicitly expanded
-          if (collapsedPaths[itemPath] === false || itemPropertiesExplicitlyExpanded) {
-            processProperties(
-              itemProps,
-              itemRequired,
-              xPos,
-              yOffset + 300,
-              xSpacing * 0.8,
-              result,
-              itemNode.id,
-              currentDepth + 2,
-              maxDepth,
-              collapsedPaths,
-              itemPath
-            );
+          result.nodes.push(itemNode);
+          result.edges.push(itemsEdge);
+          
+          // If array items are objects with properties, process them too
+          if (itemSchema.type === 'object' && itemSchema.properties && currentDepth + 1 < maxDepth) {
+            const itemProps = itemSchema.properties;
+            const itemRequired = itemSchema.required || [];
+            
+            // Check if item path's properties are explicitly expanded
+            const itemPropertiesPath = `${itemPath}.properties`;
+            const itemPropertiesExplicitlyExpanded = collapsedPaths[itemPropertiesPath] === false;
+            
+            // Only process item properties if its properties path is explicitly expanded
+            if (itemPropertiesExplicitlyExpanded) {
+              processProperties(
+                itemProps,
+                itemRequired,
+                xPos,
+                yOffset + 300,
+                xSpacing * 0.8,
+                result,
+                itemNode.id,
+                currentDepth + 2,
+                maxDepth,
+                collapsedPaths,
+                itemPath
+              );
+            }
           }
-        }
-        
-        // Mark item node as collapsed if needed
-        if (itemsExplicitlyCollapsed) {
-          itemNode.data.isCollapsed = true;
         }
       }
     } else if (currentDepth >= maxDepth) {
