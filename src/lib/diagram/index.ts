@@ -34,8 +34,8 @@ export const generateNodesAndEdges = (
     const rootNode = createRootNode(schema);
     
     // Check if root is collapsed, if so, mark it on the node
-    // Default to collapsed (true) if not specified
-    const rootCollapsed = collapsedPaths['root'] !== false;
+    // Default to expanded unless explicitly collapsed
+    const rootCollapsed = collapsedPaths['root'] === true;
     if (rootCollapsed) {
       console.log('Root is marked as collapsed in diagram');
       rootNode.data.isCollapsed = true;

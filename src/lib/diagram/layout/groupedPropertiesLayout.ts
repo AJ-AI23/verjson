@@ -19,8 +19,8 @@ export const generateGroupedLayout = (
     return result;
   }
   
-  // Check if root is collapsed (default to collapsed if not explicitly set)
-  const rootCollapsed = collapsedPaths['root'] !== false;
+  // Check if root is collapsed (default to expanded unless explicitly collapsed)
+  const rootCollapsed = collapsedPaths['root'] === true;
   
   if (rootCollapsed) {
     console.log('Root is collapsed in groupedPropertiesLayout, skipping property nodes generation');
@@ -73,11 +73,8 @@ export const generateGroupedLayout = (
     // Check if this specific group is collapsed
     const thisGroupExplicitlyCollapsed = collapsedPaths[groupPath] === true;
     
-    // Process properties in this group if:
-    // 1. The parent's properties are explicitly expanded (regardless of this group's collapsed state)
-    // OR
-    // 2. This group is NOT explicitly collapsed
-    if (isParentPropertiesExplicitlyExpanded || !thisGroupExplicitlyCollapsed) {
+    // Process properties in this group if this group is NOT explicitly collapsed
+    if (!thisGroupExplicitlyCollapsed) {
       processGroupProperties(
         props,  // Array of property objects
         properties, // Record<string, any> containing all properties (FIX: passing the correct object type)
@@ -149,10 +146,8 @@ function processGroupProperties(
     // Check if this specific path is explicitly collapsed
     const isPathExplicitlyCollapsed = collapsedPaths[fullPath] === true;
     
-    // Render the node if:
-    // 1. If parent's properties path is explicitly expanded, always render direct children
-    // 2. OR if this path is explicitly NOT collapsed (set to false)
-    const shouldRenderNode = isParentPropertiesExplicitlyExpanded || collapsedPaths[fullPath] === false;
+    // Render the node unless it's explicitly collapsed
+    const shouldRenderNode = !isPathExplicitlyCollapsed;
     
     // Skip if we shouldn't render this node
     if (!shouldRenderNode) {
@@ -231,8 +226,8 @@ function processChildProperties(
   const parentPropertiesPath = `${path}.properties`;
   const isParentPropertiesExplicitlyExpanded = collapsedPaths[parentPropertiesPath] === false;
   
-  // Skip if parent properties are not explicitly expanded and path is not explicitly expanded
-  if (!isParentPropertiesExplicitlyExpanded && collapsedPaths[path] !== false) {
+  // Skip if path is explicitly collapsed
+  if (collapsedPaths[path] === true) {
     return;
   }
   
