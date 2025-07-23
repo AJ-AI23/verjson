@@ -85,6 +85,7 @@ function processProperties(
   
   console.log(`Processing properties at path: ${currentPath}`);
   console.log(`Parent properties expanded: ${isParentPropertiesExplicitlyExpanded}`);
+  console.log(`All collapsed paths:`, collapsedPaths);
   
   Object.entries(properties).forEach(([propName, propSchema]: [string, any], index) => {
     // Skip if propSchema is null or undefined
@@ -103,6 +104,8 @@ function processProperties(
     
     if (!shouldRenderNode) {
       console.log(`Skipping node at path ${fullPath} (not explicitly expanded)`);
+      console.log(`  - Parent properties path: ${parentPropertiesPath}, expanded: ${isParentPropertiesExplicitlyExpanded}`);
+      console.log(`  - Full path in collapsedPaths: ${collapsedPaths[fullPath]}`);
       return;
     }
     
@@ -139,6 +142,9 @@ function processProperties(
         // Check if this path's properties are explicitly expanded
         const thisPropertiesPath = `${fullPath}.properties`;
         const isThisPropertiesExplicitlyExpanded = collapsedPaths[thisPropertiesPath] === false;
+        
+        console.log(`Object ${fullPath} - checking nested properties`);
+        console.log(`  - This properties path: ${thisPropertiesPath}, expanded: ${isThisPropertiesExplicitlyExpanded}`);
         
         // Only process nested properties if this path's properties are explicitly expanded
         if (isThisPropertiesExplicitlyExpanded) {
