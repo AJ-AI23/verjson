@@ -129,8 +129,14 @@ function processProperties(
     // Only process nested properties if:
     // 1. We haven't reached max depth AND
     // 2. This property is not explicitly collapsed
+    console.log(`Checking if should process nested for ${fullPath}:`);
+    console.log(`  - currentDepth: ${currentDepth}, maxDepth: ${maxDepth}`);
+    console.log(`  - isPathExplicitlyCollapsed: ${isPathExplicitlyCollapsed}`);
+    console.log(`  - Should process: ${currentDepth < maxDepth && !isPathExplicitlyCollapsed}`);
+    
     if (currentDepth < maxDepth && !isPathExplicitlyCollapsed) {
       // If the property is an object with nested properties
+      console.log(`Processing deeper for ${fullPath}, schema type: ${propSchema.type}`);
       if (propSchema.type === 'object' && propSchema.properties) {
         const nestedProps = propSchema.properties;
         const nestedRequired = propSchema.required || [];
