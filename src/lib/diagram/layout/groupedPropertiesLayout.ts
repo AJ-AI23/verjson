@@ -42,12 +42,17 @@ export const generateGroupedLayout = (
     const pos = groupPositions[groupIdx++] || { x: 0, y: 200 * groupIdx };
     const groupPath = `root.${type}`;
     
-    // Create group node with the correct number of arguments
+    // Create group node with the correct arguments matching nodeGenerator signature
+    const typeProperties: Record<string, any> = {};
+    props.forEach(prop => {
+      typeProperties[prop.name] = prop.schema;
+    });
+    
     const groupNode = createGroupNode(
-      `group-${type}`, // id
-      type,            // label
-      props.length,    // count
-      `${type} Properties` // description
+      `group-${type}`, // parentId
+      typeProperties,  // properties
+      schema.required || [], // requiredProps
+      200 * groupIdx   // yPosition
     );
     
     // Set position separately
