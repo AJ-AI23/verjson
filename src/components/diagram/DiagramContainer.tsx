@@ -80,7 +80,7 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   // Always render diagram when we have a schema, regardless of nodes count
   return (
     <div className="h-full flex flex-col">
-      <DiagramHeader maxDepth={localMaxDepth} onMaxDepthChange={handleMaxDepthChange} />
+      <DiagramHeader />
       <DiagramFlow
         nodes={nodes || []}
         edges={edges || []}

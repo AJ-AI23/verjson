@@ -6,8 +6,10 @@ import { EditorContent } from './schema/EditorContent';
 import { useEditorState } from './editor/useEditorState';
 import { EditorDebugControls } from './editor/EditorDebugControls';
 import { EditorVersionDialog } from './editor/EditorVersionDialog';
+import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 
 export const Editor = () => {
+  const { settings, updateGroupProperties } = useEditorSettings();
   const {
     schema,
     setSchema,
@@ -16,11 +18,8 @@ export const Editor = () => {
     parsedSchema,
     error,
     schemaType,
-    groupProperties,
-    setGroupProperties,
     collapsedPaths,
     setCollapsedPaths,
-    maxDepth,
     handleToggleCollapse,
     handleEditorChange,
     handleSchemaTypeChange,
@@ -39,9 +38,10 @@ export const Editor = () => {
       <EditorToolbar 
         schema={schema}
         schemaType={schemaType}
-        groupProperties={groupProperties}
+        groupProperties={settings.groupProperties}
+        maxDepth={settings.maxDepth}
         onSchemaTypeChange={handleSchemaTypeChange}
-        onGroupPropertiesChange={setGroupProperties}
+        onGroupPropertiesChange={updateGroupProperties}
         onImport={handleImportSchema}
         toggleVersionHistory={toggleVersionHistory}
         setSchema={setSchema}
@@ -61,8 +61,8 @@ export const Editor = () => {
         isModified={isModified}
         currentVersion={currentVersion}
         collapsedPaths={collapsedPaths}
-        groupProperties={groupProperties}
-        maxDepth={maxDepth}
+        groupProperties={settings.groupProperties}
+        maxDepth={settings.maxDepth}
         onEditorChange={handleEditorChange}
         onVersionBump={handleVersionBump}
         onToggleCollapse={handleToggleCollapse}

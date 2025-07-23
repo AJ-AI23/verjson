@@ -11,12 +11,9 @@ export const useEditorState = (defaultSchema: string) => {
   const [parsedSchema, setParsedSchema] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [schemaType, setSchemaType] = useState<SchemaType>('json-schema');
-  const [groupProperties, setGroupProperties] = useState(false);
   
   // Set default collapsed state - initially collapsed
   const [collapsedPaths, setCollapsedPaths] = useState<CollapsedState>({ root: true });
-  
-  const [maxDepth] = useState(3); // Default max depth for initial rendering
   
   // Use our custom versioning hook
   const {
@@ -138,11 +135,8 @@ export const useEditorState = (defaultSchema: string) => {
     parsedSchema,
     error,
     schemaType,
-    groupProperties,
-    setGroupProperties,
     collapsedPaths,
     setCollapsedPaths,
-    maxDepth,
     handleToggleCollapse,
     handleEditorChange,
     handleSchemaTypeChange,

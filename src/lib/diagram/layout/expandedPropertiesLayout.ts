@@ -35,7 +35,7 @@ export const generateExpandedLayout = (
   xOffset = -totalWidth / 2 + xSpacing / 2;
   
   // Check if root itself is collapsed
-  const rootCollapsed = collapsedPaths['root'] === true;
+  const rootCollapsed = collapsedPaths['root'] !== false;
   
   // If root is collapsed, we should skip generating child nodes
   if (rootCollapsed) {
@@ -97,13 +97,12 @@ function processProperties(
     const isPathExplicitlyCollapsed = collapsedPaths[fullPath] === true;
     
     // Determine if we should render this node:
-    // Default behavior: render unless explicitly collapsed
-    // Special case: if parent properties are explicitly collapsed, don't render
-    const parentPropertiesExplicitlyCollapsed = collapsedPaths[parentPropertiesPath] === true;
-    const shouldRenderNode = !isPathExplicitlyCollapsed && !parentPropertiesExplicitlyCollapsed;
+    // 1. If parent's properties path is explicitly expanded, always render direct children
+    // 2. OR if this path is explicitly NOT collapsed (set to false)
+    const shouldRenderNode = isParentPropertiesExplicitlyExpanded || collapsedPaths[fullPath] === false;
     
     if (!shouldRenderNode) {
-      console.log(`Skipping node at path ${fullPath} (explicitly collapsed or parent properties collapsed)`);
+      console.log(`Skipping node at path ${fullPath} (not explicitly expanded)`);
       return;
     }
     
@@ -141,8 +140,8 @@ function processProperties(
         const thisPropertiesPath = `${fullPath}.properties`;
         const isThisPropertiesExplicitlyExpanded = collapsedPaths[thisPropertiesPath] === false;
         
-        // Only process nested properties if this path is NOT explicitly collapsed
-        if (!isPathExplicitlyCollapsed) {
+        // Only process nested properties if this path is explicitly expanded or its properties path is explicitly expanded
+        if (collapsedPaths[fullPath] === false || isThisPropertiesExplicitlyExpanded) {
           // Process nested properties (depth + 1)
           processProperties(
             nestedProps, 
@@ -190,8 +189,8 @@ function processProperties(
           const itemPropertiesPath = `${itemPath}.properties`;
           const itemPropertiesExplicitlyExpanded = collapsedPaths[itemPropertiesPath] === false;
           
-          // Only process item properties if this item path is NOT explicitly collapsed
-          if (!itemsExplicitlyCollapsed) {
+          // Only process item properties if this item path is explicitly expanded or its properties path is explicitly expanded
+          if (collapsedPaths[itemPath] === false || itemPropertiesExplicitlyExpanded) {
             processProperties(
               itemProps,
               itemRequired,
