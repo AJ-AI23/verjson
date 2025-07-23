@@ -140,8 +140,8 @@ function processProperties(
         const thisPropertiesPath = `${fullPath}.properties`;
         const isThisPropertiesExplicitlyExpanded = collapsedPaths[thisPropertiesPath] === false;
         
-        // Only process nested properties if this path is explicitly expanded or its properties path is explicitly expanded
-        if (collapsedPaths[fullPath] === false || isThisPropertiesExplicitlyExpanded) {
+        // Only process nested properties if this path's properties are explicitly expanded
+        if (isThisPropertiesExplicitlyExpanded) {
           // Process nested properties (depth + 1)
           processProperties(
             nestedProps, 
