@@ -140,11 +140,15 @@ function processProperties(
         propNode.data.properties = Object.keys(nestedProps).length;
         
         // Check if this path's properties are explicitly expanded
+        // The JSON editor sets paths like "root.properties.exampleObject.properties"
+        // but we construct paths like "root.exampleObject" 
+        // So we need to check for the correct nested properties path
         const thisPropertiesPath = `${fullPath}.properties`;
         const isThisPropertiesExplicitlyExpanded = collapsedPaths[thisPropertiesPath] === false;
         
         console.log(`Object ${fullPath} - checking nested properties`);
         console.log(`  - This properties path: ${thisPropertiesPath}, expanded: ${isThisPropertiesExplicitlyExpanded}`);
+        console.log(`  - Available collapsed paths:`, Object.keys(collapsedPaths));
         
         // Only process nested properties if this path's properties are explicitly expanded
         if (isThisPropertiesExplicitlyExpanded) {
