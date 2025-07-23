@@ -31,6 +31,8 @@ export const useJsonEditorInitialization = ({
         mainMenuBar: false,
         navigationBar: true,
         statusBar: true,
+        limitDragging: false,
+        maxVisibleChilds: 1000, // Increase the limit for visible children
         onEditable: function() { return true; },
         onExpand: eventHandlers.onExpand
         // Note: We don't use onCollapse anymore, as we rely on toggling with onExpand
