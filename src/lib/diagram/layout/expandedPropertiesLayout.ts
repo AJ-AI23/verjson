@@ -95,11 +95,13 @@ function processProperties(
     
     const xPos = startXOffset + index * xSpacing;
     
-    // JSON editor uses paths like "root.properties.propName"
-    // but our diagram uses paths like "root.propName"
-    // We need to check both patterns for compatibility
-    const diagramPath = `${currentPath}.${propName}`;
-    const jsonEditorPath = `${currentPath}.properties.${propName}`;
+    // Build paths correctly based on whether we're at root level or nested
+    // JSON editor uses: root.properties.propName, root.properties.propName.properties.nestedProp
+    // Diagram uses: root.propName, root.propName.nestedProp
+    const diagramPath = currentPath === 'root' ? propName : `${currentPath}.${propName}`;
+    const jsonEditorPath = currentPath === 'root' ? 
+      `root.properties.${propName}` : 
+      `${currentPath}.${propName}`;
     
     // Check if this specific path is explicitly collapsed
     const isPathExplicitlyCollapsed = collapsedPaths[diagramPath] === true || collapsedPaths[jsonEditorPath] === true;
