@@ -181,7 +181,7 @@ function processProperties(
             currentDepth + 1, 
             maxDepth,
             collapsedPaths,
-            diagramPath
+            jsonEditorPath
           );
         }
       }
