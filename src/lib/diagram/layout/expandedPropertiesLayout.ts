@@ -79,6 +79,18 @@ function processProperties(
   const totalWidth = Object.keys(properties).length * xSpacing;
   const startXOffset = xOffset - totalWidth / 2 + xSpacing / 2;
   
+  // Helper function to check if any ancestor path is collapsed
+  const isAnyAncestorCollapsed = (path: string): boolean => {
+    const pathParts = path.split('.');
+    for (let i = 1; i <= pathParts.length; i++) {
+      const ancestorPath = pathParts.slice(0, i).join('.');
+      if (collapsedPaths[ancestorPath] === true) {
+        return true;
+      }
+    }
+    return false;
+  };
+  
   // Check if the parent path's properties are explicitly expanded
   // The JSON editor uses paths like "root.properties.propName"
   // So for checking if parent properties are expanded, we look for that exact pattern
@@ -106,11 +118,16 @@ function processProperties(
     // Check if this specific path is explicitly collapsed
     const isPathExplicitlyCollapsed = collapsedPaths[diagramPath] === true || collapsedPaths[jsonEditorPath] === true;
     
+    // Check if any ancestor path is collapsed (this would hide this node)
+    const hasCollapsedAncestor = isAnyAncestorCollapsed(jsonEditorPath);
+    
     // Determine if we should render this node:
-    // Check if either path pattern indicates the node should be expanded
-    const shouldRenderNode = isParentPropertiesExplicitlyExpanded || 
+    // 1. Check if either path pattern indicates the node should be expanded
+    // 2. AND ensure no ancestor is collapsed
+    const shouldRenderNode = (isParentPropertiesExplicitlyExpanded || 
                             collapsedPaths[diagramPath] === false || 
-                            collapsedPaths[jsonEditorPath] === false;
+                            collapsedPaths[jsonEditorPath] === false) && 
+                            !hasCollapsedAncestor;
     
     if (!shouldRenderNode) {
       console.log(`Skipping node at path ${diagramPath}/${jsonEditorPath} (not explicitly expanded)`);
