@@ -122,9 +122,9 @@ function processProperties(
     const hasCollapsedAncestor = isAnyAncestorCollapsed(jsonEditorPath);
     
     // Determine if we should render this node:
-    // Always render the node if its parent properties are not collapsed and no ancestor is collapsed
-    // Individual nodes should remain visible even when collapsed (they'll show a collapsed indicator)
-    const shouldRenderNode = !isParentPropertiesCollapsed && !hasCollapsedAncestor;
+    // Only hide nodes when their immediate parent "properties" container is collapsed
+    // Individual property nodes always render (they show collapse indicators when collapsed)
+    const shouldRenderNode = !isParentPropertiesCollapsed;
     
     console.log(`Checking render for ${diagramPath}:`);
     console.log(`  - Parent properties collapsed: ${isParentPropertiesCollapsed}`);
