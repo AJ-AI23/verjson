@@ -122,16 +122,19 @@ function processProperties(
     const hasCollapsedAncestor = isAnyAncestorCollapsed(jsonEditorPath);
     
     // Determine if we should render this node:
-    // 1. Show if parent properties are expanded OR if this path has been explicitly set (expanded or collapsed)
+    // 1. Show if parent properties are expanded (this ensures nodes stay visible when parent is open)
     // 2. AND ensure no ancestor is collapsed
-    const hasBeenExplicitlySet = collapsedPaths[diagramPath] !== undefined || collapsedPaths[jsonEditorPath] !== undefined;
-    const shouldRenderNode = (isParentPropertiesExplicitlyExpanded || hasBeenExplicitlySet) && 
-                            !hasCollapsedAncestor;
+    // Note: We always show nodes if their parent properties container is expanded, regardless of their own collapsed state
+    const shouldRenderNode = isParentPropertiesExplicitlyExpanded && !hasCollapsedAncestor;
+    
+    console.log(`Checking render for ${diagramPath}:`);
+    console.log(`  - Parent properties expanded: ${isParentPropertiesExplicitlyExpanded}`);
+    console.log(`  - Has collapsed ancestor: ${hasCollapsedAncestor}`);
+    console.log(`  - Should render: ${shouldRenderNode}`);
     
     if (!shouldRenderNode) {
-      console.log(`Skipping node at path ${diagramPath}/${jsonEditorPath} (not explicitly expanded)`);
+      console.log(`Skipping node at path ${diagramPath}/${jsonEditorPath} (parent not expanded)`);
       console.log(`  - Parent properties path: ${parentPropertiesPath}, expanded: ${isParentPropertiesExplicitlyExpanded}`);
-      console.log(`  - Has been explicitly set: ${hasBeenExplicitlySet}`);
       console.log(`  - Has collapsed ancestor: ${hasCollapsedAncestor}`);
       console.log(`  - Diagram path in collapsedPaths: ${collapsedPaths[diagramPath]}`);
       console.log(`  - JSON editor path in collapsedPaths: ${collapsedPaths[jsonEditorPath]}`);
