@@ -195,7 +195,7 @@ function processProperties(
         propNode.data.maxItems = propSchema.maxItems;
         
         // Check if this items path is explicitly expanded
-        const itemPath = `${diagramPath}.items`;
+        const itemPath = `${jsonEditorPath}.items`;
         const itemsExplicitlyExpanded = collapsedPaths[itemPath] === false;
         
         // Only create array item node if the items are explicitly expanded
