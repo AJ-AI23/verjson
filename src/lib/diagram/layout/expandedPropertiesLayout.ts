@@ -122,11 +122,10 @@ function processProperties(
     const hasCollapsedAncestor = isAnyAncestorCollapsed(jsonEditorPath);
     
     // Determine if we should render this node:
-    // 1. Check if either path pattern indicates the node should be expanded
+    // 1. Show if parent properties are expanded OR if this path has been explicitly set (expanded or collapsed)
     // 2. AND ensure no ancestor is collapsed
-    const shouldRenderNode = (isParentPropertiesExplicitlyExpanded || 
-                            collapsedPaths[diagramPath] === false || 
-                            collapsedPaths[jsonEditorPath] === false) && 
+    const hasBeenExplicitlySet = collapsedPaths[diagramPath] !== undefined || collapsedPaths[jsonEditorPath] !== undefined;
+    const shouldRenderNode = (isParentPropertiesExplicitlyExpanded || hasBeenExplicitlySet) && 
                             !hasCollapsedAncestor;
     
     if (!shouldRenderNode) {
