@@ -55,7 +55,7 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   }, [schema, error, groupProperties, collapsedPaths, maxDepth]);
   
   return (
-    <React.Fragment>
+    <div>
       {/* Debug information display */}
       <div className="p-1 bg-amber-50 border-b border-amber-200 text-amber-700 text-xs">
         <div>Diagram Debug - Collapsed Paths: {Object.keys(collapsedPaths || {}).length}</div>
@@ -69,7 +69,7 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
         collapsedPaths={collapsedPaths}
         maxDepth={maxDepth}
       />
-    </React.Fragment>
+    </div>
   );
 }, (prevProps, nextProps) => {
   try {

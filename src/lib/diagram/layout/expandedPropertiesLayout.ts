@@ -144,31 +144,9 @@ function processProperties(
     
     // Create node for property
     const propNode = createPropertyNode(propName, propSchema, requiredProps, xPos, yOffset);
-    
-    // Detect additional properties (excluding standard JSON Schema properties)
-    const standardProps = ['type', 'description', 'properties', 'items', 'required', 'format', 
-                          'minItems', 'maxItems', '$ref', 'enum', 'const', 'examples', 'default',
-                          'minimum', 'maximum', 'pattern', 'minLength', 'maxLength', 'additionalProperties'];
-    
-    const additionalProps = Object.entries(propSchema)
-      .filter(([key]) => !standardProps.includes(key))
-      .map(([key, value]) => ({
-        name: key,
-        value: typeof value === 'object' ? JSON.stringify(value) : String(value)
-      }));
 
     // Set collapsed state on node for UI representation
-    // Show collapsed indicator if the node has collapsible content OR additional properties
-    const hasCollapsibleContent = (propSchema.type === 'object' && propSchema.properties) || 
-                                  (propSchema.type === 'array' && propSchema.items);
-    const hasAdditionalProps = additionalProps.length > 0;
-    
-    if (isPathExplicitlyCollapsed || hasCollapsibleContent || hasAdditionalProps) {
-      propNode.data.isCollapsed = isPathExplicitlyCollapsed;
-      propNode.data.hasCollapsibleContent = hasCollapsibleContent;
-      propNode.data.additionalProperties = additionalProps;
-      propNode.data.additionalPropsCount = additionalProps.length;
-    }
+    propNode.data.isCollapsed = isPathExplicitlyCollapsed;
     
     // Add edge from parent to property
     const edge = createEdge(parentId, propNode.id);

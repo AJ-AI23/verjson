@@ -88,6 +88,13 @@ export const createPropertyNode = (
       value: typeof value === 'object' ? JSON.stringify(value) : String(value)
     }));
 
+  console.log(`Creating node for ${propName}:`, {
+    propSchema,
+    standardProps: standardProps.slice(0, 5) + '...',  // Show first few
+    additionalProps,
+    additionalPropsCount: additionalProps.length
+  });
+
   return {
     id: nodeId,
     type: 'schemaType',

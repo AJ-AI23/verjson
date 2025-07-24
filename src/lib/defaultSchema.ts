@@ -8,11 +8,16 @@ export const defaultSchema = `{
   "properties": {
     "exampleString": {
       "type": "string",
-      "description": "A simple string field"
+      "description": "A simple string field",
+      "customAttribute": "test value",
+      "maxLength": 50
     },
     "exampleNumber": {
       "type": "number",
-      "description": "A numeric field"
+      "description": "A numeric field",
+      "minimum": 0,
+      "maximum": 100,
+      "customValidation": true
     },
     "exampleBoolean": {
       "type": "boolean",
