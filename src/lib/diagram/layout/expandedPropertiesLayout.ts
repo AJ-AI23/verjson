@@ -131,6 +131,8 @@ function processProperties(
     if (!shouldRenderNode) {
       console.log(`Skipping node at path ${diagramPath}/${jsonEditorPath} (not explicitly expanded)`);
       console.log(`  - Parent properties path: ${parentPropertiesPath}, expanded: ${isParentPropertiesExplicitlyExpanded}`);
+      console.log(`  - Has been explicitly set: ${hasBeenExplicitlySet}`);
+      console.log(`  - Has collapsed ancestor: ${hasCollapsedAncestor}`);
       console.log(`  - Diagram path in collapsedPaths: ${collapsedPaths[diagramPath]}`);
       console.log(`  - JSON editor path in collapsedPaths: ${collapsedPaths[jsonEditorPath]}`);
       return;
