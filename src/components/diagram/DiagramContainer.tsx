@@ -20,9 +20,16 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   error, 
   groupProperties = false,
   collapsedPaths = {},
-  maxDepth = 3
+  maxDepth
 }) => {
-  const [localMaxDepth, setLocalMaxDepth] = useState(maxDepth);
+  const [localMaxDepth, setLocalMaxDepth] = useState(maxDepth || 3);
+
+  // Update local maxDepth when prop changes
+  useEffect(() => {
+    if (maxDepth !== undefined) {
+      setLocalMaxDepth(maxDepth);
+    }
+  }, [maxDepth]);
 
   // Deep memoize the schema and collapsedPaths to prevent unnecessary re-renders
   const memoizedSchema = useMemo(() => schema, [JSON.stringify(schema)]);
