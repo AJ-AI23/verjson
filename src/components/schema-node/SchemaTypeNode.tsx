@@ -32,6 +32,7 @@ interface SchemaTypeNodeProps {
     propertyDetails?: PropertyDetail[];
     hasMoreLevels?: boolean;
     isCollapsed?: boolean;
+    hasCollapsibleContent?: boolean;
   };
   id: string;
   isConnectable: boolean;
@@ -53,6 +54,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
     propertyDetails,
     hasMoreLevels,
     isCollapsed,
+    hasCollapsibleContent,
   } = data;
 
   // Memoize the node container classes to prevent recalculation
@@ -104,6 +106,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
         <NodeCollapseIndicator 
           hasMoreLevels={hasMoreLevels}
           isCollapsed={isCollapsed}
+          hasCollapsibleContent={hasCollapsibleContent}
         />
       </div>
 

@@ -146,9 +146,13 @@ function processProperties(
     const propNode = createPropertyNode(propName, propSchema, requiredProps, xPos, yOffset);
     
     // Set collapsed state on node for UI representation
-    if (isPathExplicitlyCollapsed) {
-      propNode.data.isCollapsed = true;
-      console.log(`Node ${diagramPath} is marked as collapsed in diagram`);
+    // Show collapsed indicator if the node has collapsible content OR is explicitly collapsed
+    const hasCollapsibleContent = (propSchema.type === 'object' && propSchema.properties) || 
+                                  (propSchema.type === 'array' && propSchema.items);
+    
+    if (isPathExplicitlyCollapsed || hasCollapsibleContent) {
+      propNode.data.isCollapsed = isPathExplicitlyCollapsed;
+      propNode.data.hasCollapsibleContent = hasCollapsibleContent;
     }
     
     // Add edge from parent to property
