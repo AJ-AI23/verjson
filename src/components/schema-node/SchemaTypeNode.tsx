@@ -16,6 +16,11 @@ interface PropertyDetail {
   reference?: string;
 }
 
+interface AdditionalProperty {
+  name: string;
+  value: string;
+}
+
 interface SchemaTypeNodeProps {
   data: {
     label: string;
@@ -33,6 +38,8 @@ interface SchemaTypeNodeProps {
     hasMoreLevels?: boolean;
     isCollapsed?: boolean;
     hasCollapsibleContent?: boolean;
+    additionalProperties?: AdditionalProperty[];
+    additionalPropsCount?: number;
   };
   id: string;
   isConnectable: boolean;
@@ -55,6 +62,8 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
     hasMoreLevels,
     isCollapsed,
     hasCollapsibleContent,
+    additionalProperties,
+    additionalPropsCount,
   } = data;
 
   // Memoize the node container classes to prevent recalculation
@@ -103,10 +112,27 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
           <PropertyDetails propertyDetails={propertyDetails} />
         )}
 
+        {!isCollapsed && additionalProperties && additionalProperties.length > 0 && (
+          <div className="mt-2 border-t pt-2">
+            <div className="text-xs font-medium mb-1">Additional Properties:</div>
+            <div className="grid gap-1">
+              {additionalProperties.map((prop, index) => (
+                <div key={index} className="flex items-start gap-1 text-xs">
+                  <span className="font-medium text-slate-600">{prop.name}:</span>
+                  <span className="text-slate-500 truncate" title={prop.value}>
+                    {prop.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <NodeCollapseIndicator 
           hasMoreLevels={hasMoreLevels}
           isCollapsed={isCollapsed}
           hasCollapsibleContent={hasCollapsibleContent}
+          additionalPropsCount={additionalPropsCount}
         />
       </div>
 

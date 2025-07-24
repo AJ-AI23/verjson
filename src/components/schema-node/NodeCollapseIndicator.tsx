@@ -6,14 +6,16 @@ interface NodeCollapseIndicatorProps {
   hasMoreLevels?: boolean;
   isCollapsed?: boolean;
   hasCollapsibleContent?: boolean;
+  additionalPropsCount?: number;
 }
 
 export const NodeCollapseIndicator = memo(({ 
   hasMoreLevels,
   isCollapsed,
-  hasCollapsibleContent
+  hasCollapsibleContent,
+  additionalPropsCount = 0
 }: NodeCollapseIndicatorProps) => {
-  if (!hasMoreLevels && !isCollapsed && !hasCollapsibleContent) {
+  if (!hasMoreLevels && !isCollapsed && !hasCollapsibleContent && additionalPropsCount === 0) {
     return null;
   }
   
@@ -33,10 +35,13 @@ export const NodeCollapseIndicator = memo(({
         </div>
       )}
 
-      {hasCollapsibleContent && !isCollapsed && !hasMoreLevels && (
+      {(hasCollapsibleContent || additionalPropsCount > 0) && !isCollapsed && !hasMoreLevels && (
         <div className="mt-1 text-xs text-slate-500 flex items-center gap-1">
           <ChevronDown size={12} />
-          <span>Expandable</span>
+          <span>
+            Expandable
+            {additionalPropsCount > 0 && ` (${additionalPropsCount})`}
+          </span>
         </div>
       )}
     </>
