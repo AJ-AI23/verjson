@@ -100,6 +100,9 @@ function processProperties(
   console.log(`Processing properties at path: ${currentPath}`);
   console.log(`Parent properties path: ${parentPropertiesPath}, collapsed: ${isParentPropertiesCollapsed}`);
   console.log(`All collapsed paths:`, collapsedPaths);
+  console.log(`Properties object:`, properties);
+  console.log(`Properties keys:`, Object.keys(properties));
+  console.log(`Properties entries count:`, Object.entries(properties).length);
   
   Object.entries(properties).forEach(([propName, propSchema]: [string, any], index) => {
     console.log(`Processing property ${index}: ${propName}`, propSchema ? 'has schema' : 'NO SCHEMA');
