@@ -95,10 +95,10 @@ function processProperties(
   // The JSON editor uses paths like "root.properties.propName"
   // So for checking if parent properties are expanded, we look for that exact pattern
   const parentPropertiesPath = `${currentPath}.properties`;
-  const isParentPropertiesExplicitlyExpanded = collapsedPaths[parentPropertiesPath] === false;
+  const isParentPropertiesCollapsed = collapsedPaths[parentPropertiesPath] === true;
   
   console.log(`Processing properties at path: ${currentPath}`);
-  console.log(`Parent properties expanded: ${isParentPropertiesExplicitlyExpanded}`);
+  console.log(`Parent properties path: ${parentPropertiesPath}, collapsed: ${isParentPropertiesCollapsed}`);
   console.log(`All collapsed paths:`, collapsedPaths);
   
   Object.entries(properties).forEach(([propName, propSchema]: [string, any], index) => {
@@ -122,19 +122,19 @@ function processProperties(
     const hasCollapsedAncestor = isAnyAncestorCollapsed(jsonEditorPath);
     
     // Determine if we should render this node:
-    // 1. Show if parent properties are expanded (this ensures nodes stay visible when parent is open)
+    // 1. Show if parent properties are NOT collapsed (this ensures nodes stay visible when parent is open)
     // 2. AND ensure no ancestor is collapsed
-    // Note: We always show nodes if their parent properties container is expanded, regardless of their own collapsed state
-    const shouldRenderNode = isParentPropertiesExplicitlyExpanded && !hasCollapsedAncestor;
+    // Note: We show nodes if their parent properties container is not collapsed, regardless of their own collapsed state
+    const shouldRenderNode = !isParentPropertiesCollapsed && !hasCollapsedAncestor;
     
     console.log(`Checking render for ${diagramPath}:`);
-    console.log(`  - Parent properties expanded: ${isParentPropertiesExplicitlyExpanded}`);
+    console.log(`  - Parent properties collapsed: ${isParentPropertiesCollapsed}`);
     console.log(`  - Has collapsed ancestor: ${hasCollapsedAncestor}`);
     console.log(`  - Should render: ${shouldRenderNode}`);
     
     if (!shouldRenderNode) {
       console.log(`Skipping node at path ${diagramPath}/${jsonEditorPath} (parent not expanded)`);
-      console.log(`  - Parent properties path: ${parentPropertiesPath}, expanded: ${isParentPropertiesExplicitlyExpanded}`);
+      console.log(`  - Parent properties path: ${parentPropertiesPath}, collapsed: ${isParentPropertiesCollapsed}`);
       console.log(`  - Has collapsed ancestor: ${hasCollapsedAncestor}`);
       console.log(`  - Diagram path in collapsedPaths: ${collapsedPaths[diagramPath]}`);
       console.log(`  - JSON editor path in collapsedPaths: ${collapsedPaths[jsonEditorPath]}`);
