@@ -102,8 +102,13 @@ function processProperties(
   console.log(`All collapsed paths:`, collapsedPaths);
   
   Object.entries(properties).forEach(([propName, propSchema]: [string, any], index) => {
+    console.log(`Processing property ${index}: ${propName}`, propSchema ? 'has schema' : 'NO SCHEMA');
+    
     // Skip if propSchema is null or undefined
-    if (!propSchema) return;
+    if (!propSchema) {
+      console.log(`Skipping ${propName} - no schema`);
+      return;
+    }
     
     const xPos = startXOffset + index * xSpacing;
     
@@ -142,17 +147,27 @@ function processProperties(
     
     console.log(`Creating node for path: ${diagramPath}/${jsonEditorPath}, collapsed: ${isPathExplicitlyCollapsed}`);
     
-    // Create node for property
-    const propNode = createPropertyNode(propName, propSchema, requiredProps, xPos, yOffset);
+    let propNode: Node;
+    try {
+      // Create node for property
+      propNode = createPropertyNode(propName, propSchema, requiredProps, xPos, yOffset);
 
-    // Set collapsed state on node for UI representation
-    propNode.data.isCollapsed = isPathExplicitlyCollapsed;
-    
-    // Add edge from parent to property
-    const edge = createEdge(parentId, propNode.id);
-    
-    result.nodes.push(propNode);
-    result.edges.push(edge);
+      // Set collapsed state on node for UI representation
+      propNode.data.isCollapsed = isPathExplicitlyCollapsed;
+      
+      console.log(`Successfully created node for ${propName}:`, propNode.id);
+      
+      // Add edge from parent to property
+      const edge = createEdge(parentId, propNode.id);
+      
+      result.nodes.push(propNode);
+      result.edges.push(edge);
+      
+      console.log(`Added node ${propNode.id} and edge to result`);
+    } catch (error) {
+      console.error(`Error creating node for ${propName}:`, error);
+      return; // Skip this property if creation fails
+    }
     
     // Only process nested properties if:
     // 1. We haven't reached max depth AND

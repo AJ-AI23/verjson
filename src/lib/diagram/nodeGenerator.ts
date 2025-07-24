@@ -89,8 +89,7 @@ export const createPropertyNode = (
     }));
 
   console.log(`Creating node for ${propName}:`, {
-    propSchema,
-    standardProps: standardProps.slice(0, 5) + '...',  // Show first few
+    propSchema: Object.keys(propSchema),
     additionalProps,
     additionalPropsCount: additionalProps.length
   });
