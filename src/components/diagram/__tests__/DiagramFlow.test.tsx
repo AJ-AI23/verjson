@@ -42,6 +42,7 @@ describe('DiagramFlow', () => {
     
     const containerElement = screen.getByTestId('mock-react-flow').parentElement;
     expect(containerElement).toHaveClass('flex-1');
+    expect(containerElement).toHaveClass('min-h-0');
     expect(containerElement).toHaveClass('diagram-container');
   });
 

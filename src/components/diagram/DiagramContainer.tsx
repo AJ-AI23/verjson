@@ -99,7 +99,7 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   
   // Always render diagram when we have a schema, regardless of nodes count
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex flex-col flex-1 min-h-0">
       <DiagramHeader />
       <DiagramFlow
         nodes={nodes || []}

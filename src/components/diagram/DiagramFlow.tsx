@@ -89,7 +89,7 @@ export const DiagramFlow = memo(({
   }, [nodes]);
 
   return (
-    <div className="flex-1 diagram-container" data-testid="diagram-flow">
+    <div className="flex-1 min-h-0 diagram-container" data-testid="diagram-flow">
       <ReactFlow
         key={`flow-${schemaKey}`}
         nodes={nodes}
