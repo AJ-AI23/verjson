@@ -103,6 +103,57 @@ export const useJsonEditor = ({
   // Sync editor with props
   syncEditorWithProps();
 
+  // Bind editor -> props changes
+  useEffect(() => {
+    const editor = editorRef.current as any;
+    if (!editor) return;
+
+    const handleChange = () => {
+      try {
+        if (isInternalChange.current) return;
+        // Prefer text to preserve formatting; fall back to JSON stringify
+        let nextValue: string;
+        try {
+          nextValue = editor.getText();
+        } catch {
+          const json = editor.get();
+          nextValue = JSON.stringify(json, null, 2);
+        }
+        // Avoid redundant updates
+        if (nextValue !== previousValueRef.current) {
+          previousValueRef.current = nextValue;
+          onChange(nextValue);
+        }
+      } catch (err) {
+        console.error('Error reading change from JSONEditor:', err);
+      }
+    };
+
+    // Attach listener
+    try {
+      if (typeof editor.on === 'function') {
+        editor.on('change', handleChange);
+      } else {
+        // Fallback: poll very lightly if events API not present
+        const interval = setInterval(handleChange, 500);
+        return () => clearInterval(interval);
+      }
+    } catch (e) {
+      console.warn('JSONEditor event binding failed, using fallback:', e);
+      const interval = setInterval(handleChange, 500);
+      return () => clearInterval(interval);
+    }
+
+    // Cleanup
+    return () => {
+      try {
+        if (typeof editor.off === 'function') {
+          editor.off('change', handleChange);
+        }
+      } catch {}
+    };
+  }, [editorRef.current, onChange]);
+
   return {
     editorRef,
     initializeEditor,
