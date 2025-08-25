@@ -102,26 +102,37 @@ export const useBulkExpandCollapse = ({
     return current;
   }, []);
   
-  // Bulk expand function - simplified for reliability
+  // Helper to convert dot path to array path for JSONEditor
+  const convertPathToArray = useCallback((path: string): string[] => {
+    return path.split('.').filter(segment => segment !== 'root');
+  }, []);
+
+  // Bulk expand function using direct JSONEditor API calls
   const bulkExpand = useCallback((
     basePath: string, 
     rootSchema: any,
     isExpanding: boolean = true,
     editorRef?: React.MutableRefObject<any>
   ) => {
-    console.log(`[BULK-SIMPLE] Starting bulk expand for: ${basePath}`);
+    console.log(`[BULK-DIRECT] Starting bulk expand for: ${basePath}`);
     
-    if (!onToggleCollapse || !rootSchema) return;
+    if (!editorRef?.current || !rootSchema) {
+      console.log(`[BULK-DIRECT] Missing editor ref or schema`);
+      return;
+    }
     
     // Get schema at path
     const schemaAtPath = getSchemaAtPath(rootSchema, basePath);
-    if (!schemaAtPath) return;
+    if (!schemaAtPath) {
+      console.log(`[BULK-DIRECT] No schema found at path: ${basePath}`);
+      return;
+    }
     
     // Generate paths directly without complex recursion
     const pathsToExpand: string[] = [];
     
     if (schemaAtPath.type === 'object' && schemaAtPath.properties) {
-      // Add properties container
+      // Add properties container first (parent before children)
       pathsToExpand.push(`${basePath}.properties`);
       
       // Add each property
@@ -149,16 +160,31 @@ export const useBulkExpandCollapse = ({
       });
     }
     
-    console.log(`[BULK-SIMPLE] Generated ${pathsToExpand.length} paths:`, pathsToExpand);
+    console.log(`[BULK-DIRECT] Generated ${pathsToExpand.length} paths:`, pathsToExpand);
     
-    // Process each path immediately
+    // Process each path using JSONEditor API directly
     pathsToExpand.forEach((path, index) => {
-      console.log(`[BULK-SIMPLE] Processing ${index + 1}/${pathsToExpand.length}: ${path}`);
-      onToggleCollapse(path, false); // false = expanded
+      try {
+        const pathArray = convertPathToArray(path);
+        console.log(`[BULK-DIRECT] Expanding ${index + 1}/${pathsToExpand.length}: ${path} -> [${pathArray.join(', ')}]`);
+        
+        // Call JSONEditor expand method directly
+        editorRef.current.expand({
+          path: pathArray,
+          isExpand: true,
+          recursive: false
+        });
+        
+        // Also update the collapsed state for consistency
+        onToggleCollapse?.(path, false);
+        
+      } catch (error) {
+        console.error(`[BULK-DIRECT] Error expanding path ${path}:`, error);
+      }
     });
     
-    console.log(`[BULK-SIMPLE] Completed processing ${pathsToExpand.length} paths`);
-  }, [onToggleCollapse, maxDepth, getSchemaAtPath]);
+    console.log(`[BULK-DIRECT] Completed processing ${pathsToExpand.length} paths`);
+  }, [onToggleCollapse, maxDepth, getSchemaAtPath, convertPathToArray]);
   
   return {
     bulkExpand,
