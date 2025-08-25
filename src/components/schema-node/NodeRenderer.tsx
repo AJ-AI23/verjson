@@ -1,0 +1,43 @@
+import React, { memo } from 'react';
+import { SchemaTypeNode } from './SchemaTypeNode';
+import { InfoNode } from './InfoNode';
+import { EndpointNode } from './EndpointNode';
+import { ComponentsNode } from './ComponentsNode';
+import { MethodNode } from './MethodNode';
+import { ResponseNode } from './ResponseNode';
+import { RequestBodyNode } from './RequestBodyNode';
+
+interface NodeRendererProps {
+  data: any;
+  id: string;
+  isConnectable: boolean;
+}
+
+export const NodeRenderer = memo(({ data, id, isConnectable }: NodeRendererProps) => {
+  const nodeType = data.nodeType || (id.includes('info') ? 'info' : 
+                   id.includes('endpoint') ? 'endpoint' :
+                   id.includes('components') ? 'components' :
+                   id.includes('method') ? 'method' :
+                   id.includes('response') ? 'response' :
+                   id.includes('request-body') ? 'requestBody' :
+                   'schemaType');
+
+  switch (nodeType) {
+    case 'info':
+      return <InfoNode data={data} id={id} isConnectable={isConnectable} />;
+    case 'endpoint':
+      return <EndpointNode data={data} id={id} isConnectable={isConnectable} />;
+    case 'components':
+      return <ComponentsNode data={data} id={id} isConnectable={isConnectable} />;
+    case 'method':
+      return <MethodNode data={data} id={id} isConnectable={isConnectable} />;
+    case 'response':
+      return <ResponseNode data={data} id={id} isConnectable={isConnectable} />;
+    case 'requestBody':
+      return <RequestBodyNode data={data} id={id} isConnectable={isConnectable} />;
+    default:
+      return <SchemaTypeNode data={data} id={id} isConnectable={isConnectable} />;
+  }
+});
+
+NodeRenderer.displayName = 'NodeRenderer';

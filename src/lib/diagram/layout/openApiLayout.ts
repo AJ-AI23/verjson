@@ -7,7 +7,9 @@ import {
   createInfoNode,
   createEndpointNode,
   createComponentsNode,
-  createMethodNode
+  createMethodNode,
+  createResponseNode,
+  createRequestBodyNode
 } from '../nodeGenerator';
 import { createEdge } from '../edgeGenerator';
 
@@ -447,6 +449,82 @@ function processOpenApiPaths(
       result.edges.push(edge);
       
       console.log(`[OPENAPI LAYOUT] Created method node for ${methodEntry.fullLabel} with ID: ${methodNode.id}`);
+      
+      // Process request body if it has application/json content
+      if (methodEntry.methodData.requestBody?.content?.['application/json']) {
+        const requestBodyNode = createRequestBodyNode(
+          methodEntry.methodData.requestBody,
+          methodX - 200,
+          yPos + 150
+        );
+        
+        const requestBodyEdge = createEdge(methodNode.id, requestBodyNode.id, undefined, false, {}, 'default');
+        
+        result.nodes.push(requestBodyNode);
+        result.edges.push(requestBodyEdge);
+        
+        console.log(`[OPENAPI LAYOUT] Created request body node for ${methodEntry.fullLabel}`);
+        
+        // If request body has a schema, create a schema node
+        const requestBodySchema = methodEntry.methodData.requestBody.content['application/json'].schema;
+        if (requestBodySchema) {
+          const schemaNode = createPropertyNode(
+            'Schema',
+            requestBodySchema,
+            [],
+            methodX - 200,
+            yPos + 300,
+            false
+          );
+          
+          const schemaEdge = createEdge(requestBodyNode.id, schemaNode.id, undefined, false, {}, 'default');
+          
+          result.nodes.push(schemaNode);
+          result.edges.push(schemaEdge);
+        }
+      }
+      
+      // Process responses that have application/json content
+      if (methodEntry.methodData.responses) {
+        const responseEntries = Object.entries(methodEntry.methodData.responses)
+          .filter(([_, responseData]: [string, any]) => 
+            responseData?.content?.['application/json']
+          );
+        
+        responseEntries.forEach(([statusCode, responseData]: [string, any], responseIndex) => {
+          const responseNode = createResponseNode(
+            statusCode,
+            responseData,
+            methodX + 200 + (responseIndex * 150),
+            yPos + 150
+          );
+          
+          const responseEdge = createEdge(methodNode.id, responseNode.id, undefined, false, {}, 'default');
+          
+          result.nodes.push(responseNode);
+          result.edges.push(responseEdge);
+          
+          console.log(`[OPENAPI LAYOUT] Created response node for ${methodEntry.fullLabel} - ${statusCode}`);
+          
+          // If response has a schema, create a schema node
+          const responseSchema = responseData.content['application/json'].schema;
+          if (responseSchema) {
+            const schemaNode = createPropertyNode(
+              'Schema',
+              responseSchema,
+              [],
+              methodX + 200 + (responseIndex * 150),
+              yPos + 300,
+              false
+            );
+            
+            const schemaEdge = createEdge(responseNode.id, schemaNode.id, undefined, false, {}, 'default');
+            
+            result.nodes.push(schemaNode);
+            result.edges.push(schemaEdge);
+          }
+        });
+      }
       
       // Add reference detection for request/response schemas
       detectAndCreateReferences(methodEntry.methodData, methodNode.id, result, methodX, yPos + 150);

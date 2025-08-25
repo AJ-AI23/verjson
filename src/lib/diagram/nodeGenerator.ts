@@ -301,3 +301,44 @@ export const createArrayItemNode = (
     }
   };
 };
+
+export const createResponseNode = (
+  statusCode: string,
+  responseData: any,
+  x: number,
+  y: number
+): Node => {
+  const nodeId = `response-${statusCode}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  return {
+    id: nodeId,
+    type: 'response',
+    position: { x, y },
+    data: {
+      statusCode,
+      description: responseData?.description,
+      schema: responseData?.content?.['application/json']?.schema,
+      label: `Response ${statusCode}`
+    }
+  };
+};
+
+export const createRequestBodyNode = (
+  requestBodyData: any,
+  x: number,
+  y: number
+): Node => {
+  const nodeId = `request-body-${Math.random().toString(36).substr(2, 9)}`;
+  
+  return {
+    id: nodeId,
+    type: 'requestBody',
+    position: { x, y },
+    data: {
+      description: requestBodyData?.description,
+      required: requestBodyData?.required,
+      schema: requestBodyData?.content?.['application/json']?.schema,
+      label: 'Request Body'
+    }
+  };
+};
