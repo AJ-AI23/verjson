@@ -97,7 +97,8 @@ export const useBulkExpandCollapse = ({
   const bulkExpand = useCallback((
     basePath: string, 
     rootSchema: any,
-    isExpanding: boolean = true
+    isExpanding: boolean = true,
+    editorRef?: React.MutableRefObject<any>
   ) => {
     if (!onToggleCollapse || !rootSchema) return;
     
@@ -126,6 +127,40 @@ export const useBulkExpandCollapse = ({
     nestedPaths.forEach(path => {
       console.log(`Bulk ${isExpanding ? 'expanding' : 'collapsing'} path: ${path}`);
       onToggleCollapse(path, !isExpanding);
+      
+      // Also apply the expansion to the JSONEditor instance if available
+      if (editorRef && editorRef.current && isExpanding) {
+        try {
+          // Convert the path to an array format for JSONEditor
+          // Remove 'root.' prefix and handle special cases
+          let editorPath = path.replace(/^root\./, '');
+          
+          // Skip 'properties' containers as they're not actual nodes in the editor
+          if (editorPath.includes('.properties.')) {
+            editorPath = editorPath.replace(/\.properties\./g, '.');
+          }
+          if (editorPath.endsWith('.properties')) {
+            editorPath = editorPath.replace(/\.properties$/, '');
+          }
+          if (editorPath.startsWith('properties.')) {
+            editorPath = editorPath.replace(/^properties\./, '');
+          }
+          
+          // Convert to array path
+          const pathArray = editorPath === '' ? [] : editorPath.split('.');
+          
+          console.log(`Applying expansion to JSONEditor for path: ${path} -> editor path: [${pathArray.join(', ')}]`);
+          
+          // Use the expand method to expand this specific node in the editor
+          editorRef.current.expand({
+            path: pathArray,
+            isExpand: true,
+            recursive: false
+          });
+        } catch (error) {
+          console.warn(`Failed to expand path ${path} in JSONEditor:`, error);
+        }
+      }
     });
     
     console.log(`Bulk ${isExpanding ? 'expand' : 'collapse'} completed`);

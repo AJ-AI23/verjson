@@ -94,7 +94,7 @@ export const useJsonEditorEvents = ({
           console.log(`Performing bulk expand for path: ${normalizedPath} with maxDepth: ${maxDepth}`);
           // Use setTimeout to ensure the first toggle is processed before bulk expand
           setTimeout(() => {
-            bulkExpand(normalizedPath, rootSchema, true);
+            bulkExpand(normalizedPath, rootSchema, true, editorRef);
           }, 10);
         }
       }
