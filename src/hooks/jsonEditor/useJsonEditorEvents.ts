@@ -101,7 +101,7 @@ export const useJsonEditorEvents = ({
           console.log(`[DEBUG] Editor ref available:`, !!editorRef?.current);
           
           // Remove setTimeout and call immediately
-          bulkExpand(normalizedPath, rootSchema, true, editorRef);
+          bulkExpand(normalizedPath, rootSchema, true, editorRef, collapsedPathsRef);
         } else {
           console.log(`[DEBUG] Not triggering bulk expand - newCollapsedState: ${newCollapsedState}, rootSchema: ${!!rootSchema}`);
         }

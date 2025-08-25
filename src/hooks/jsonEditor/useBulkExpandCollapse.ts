@@ -112,7 +112,8 @@ export const useBulkExpandCollapse = ({
     basePath: string, 
     rootSchema: any,
     isExpanding: boolean = true,
-    editorRef?: React.MutableRefObject<any>
+    editorRef?: React.MutableRefObject<any>,
+    collapsedPathsRef?: React.MutableRefObject<CollapsedState>
   ) => {
     console.log(`[BULK-DIRECT] Starting bulk expand for: ${basePath}`);
     console.log(`[DEBUG] bulkExpand received maxDepth: ${maxDepth}`);
@@ -228,6 +229,25 @@ export const useBulkExpandCollapse = ({
     }
     
     console.log(`[BULK-DIRECT] Generated ${pathsToExpand.length} paths:`, pathsToExpand);
+    
+    // Before expanding new paths, collapse any existing paths that are deeper than maxDepth
+    // This ensures that when switching from higher depth to lower depth, we don't keep old expanded paths
+    if (onToggleCollapse) {
+      // Find paths that are deeper than the current maxDepth relative to basePath
+      const baseDepth = basePath === 'root' ? 0 : basePath.split('.').length - 1;
+      const maxAllowedDepth = baseDepth + maxDepth;
+      
+      // Check all existing expanded paths and collapse those that exceed maxDepth
+      Object.entries(collapsedPathsRef?.current || {}).forEach(([path, isCollapsed]) => {
+        if (!isCollapsed && path.startsWith(basePath) && path !== basePath) {
+          const pathDepth = path === 'root' ? 0 : path.split('.').length - 1;
+          if (pathDepth > maxAllowedDepth) {
+            console.log(`[BULK-CLEANUP] Collapsing deep path: ${path} (depth ${pathDepth} > max ${maxAllowedDepth})`);
+            onToggleCollapse(path, true); // true = collapsed
+          }
+        }
+      });
+    }
     
     // Process each path using JSONEditor API directly
     pathsToExpand.forEach((path, index) => {
