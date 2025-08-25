@@ -132,17 +132,18 @@ export const useBulkExpandCollapse = ({
     const pathsToExpand: string[] = [];
     
     if (schemaAtPath.type === 'object' && schemaAtPath.properties) {
-      // Level 2: Add properties container (1 level deeper than starting node)
+      // Clicked node (basePath) = Level 1
+      // Level 2: Add properties container (1 level deeper than clicked node)
       if (maxDepth >= 2) {
         pathsToExpand.push(`${basePath}.properties`);
         
-        // Level 3: Add each property (2 levels deeper than starting node)
+        // Level 3: Add each property (2 levels deeper than clicked node)
         if (maxDepth >= 3) {
           Object.keys(schemaAtPath.properties).forEach(propName => {
             const propPath = `${basePath}.properties.${propName}`;
             pathsToExpand.push(propPath);
             
-            // Level 4: Check if this property has nested content (3 levels deeper than starting node)
+            // Level 4: Check if this property has nested content (3 levels deeper than clicked node)
             if (maxDepth >= 4) {
               const propSchema = schemaAtPath.properties[propName];
               
