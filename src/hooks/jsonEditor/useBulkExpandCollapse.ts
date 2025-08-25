@@ -102,103 +102,63 @@ export const useBulkExpandCollapse = ({
     return current;
   }, []);
   
-  // Bulk expand function
+  // Bulk expand function - simplified for reliability
   const bulkExpand = useCallback((
     basePath: string, 
     rootSchema: any,
     isExpanding: boolean = true,
     editorRef?: React.MutableRefObject<any>
   ) => {
-    try {
-      console.log(`[BULK-START] Function called with basePath: ${basePath}, isExpanding: ${isExpanding}`);
-      console.log(`[BULK-START] onToggleCollapse available:`, !!onToggleCollapse);
-      console.log(`[BULK-START] rootSchema available:`, !!rootSchema);
+    console.log(`[BULK-SIMPLE] Starting bulk expand for: ${basePath}`);
+    
+    if (!onToggleCollapse || !rootSchema) return;
+    
+    // Get schema at path
+    const schemaAtPath = getSchemaAtPath(rootSchema, basePath);
+    if (!schemaAtPath) return;
+    
+    // Generate paths directly without complex recursion
+    const pathsToExpand: string[] = [];
+    
+    if (schemaAtPath.type === 'object' && schemaAtPath.properties) {
+      // Add properties container
+      pathsToExpand.push(`${basePath}.properties`);
       
-      if (!onToggleCollapse || !rootSchema) {
-        console.log(`[BULK-START] Early exit - missing dependencies`);
-        return;
-      }
-      
-      console.log(`[BULK-START] Bulk ${isExpanding ? 'expand' : 'collapse'} starting from path: ${basePath}`);
-      console.log(`[BULK-START] Max relative depth: ${maxDepth}`);
-      console.log(`[BULK-START] Root schema structure:`, {
-        type: rootSchema?.type,
-        hasProperties: !!rootSchema?.properties,
-        propertyKeys: rootSchema?.properties ? Object.keys(rootSchema.properties) : []
-      });
-      
-      console.log(`[BULK-START] Calling getSchemaAtPath with basePath: ${basePath}`);
-      // Find the schema object at the base path
-      const schemaAtPath = getSchemaAtPath(rootSchema, basePath);
-      console.log(`[BULK-START] Schema lookup result:`, schemaAtPath ? {
-        type: schemaAtPath.type,
-        hasProperties: !!schemaAtPath.properties,
-        propertyKeys: schemaAtPath.properties ? Object.keys(schemaAtPath.properties) : []
-      } : 'null');
-      
-      if (!schemaAtPath) {
-        console.log(`[BULK-START] No schema found at path: ${basePath} - exiting`);
-        return;
-      }
-      
-      console.log(`[BULK-START] Calling getAllNestedPaths...`);
-      // Get all nested paths up to maxDepth
-      const nestedPaths = getAllNestedPaths(schemaAtPath, basePath, 0, maxDepth);
-      console.log(`[BULK-START] getAllNestedPaths returned ${nestedPaths.length} paths:`, nestedPaths);
-      
-      console.log(`[BULK-START] About to start forEach loop with ${nestedPaths.length} paths`);
-      console.log(`[BULK-START] nestedPaths is array:`, Array.isArray(nestedPaths));
-      console.log(`[BULK-START] First path:`, nestedPaths[0]);
-      
-      // Apply the expand/collapse action to all paths
-      console.log(`[BULK-START] Processing ${nestedPaths.length} paths...`);
-      nestedPaths.forEach((path, index) => {
-        console.log(`[BULK-START] Processing path ${index + 1}/${nestedPaths.length}: ${path}`);
-        console.log(`[BULK-START] Calling onToggleCollapse(${path}, ${!isExpanding})`);
-        onToggleCollapse(path, !isExpanding);
+      // Add each property
+      Object.keys(schemaAtPath.properties).forEach(propName => {
+        const propPath = `${basePath}.properties.${propName}`;
+        pathsToExpand.push(propPath);
         
-        // Also apply the expansion to the JSONEditor instance if available
-        if (editorRef && editorRef.current && isExpanding) {
-          try {
-            // Convert the path to an array format for JSONEditor
-            // Remove 'root.' prefix and handle special cases
-            let editorPath = path.replace(/^root\./, '');
-            
-            // Skip 'properties' containers as they're not actual nodes in the editor
-            if (editorPath.includes('.properties.')) {
-              editorPath = editorPath.replace(/\.properties\./g, '.');
-            }
-            if (editorPath.endsWith('.properties')) {
-              editorPath = editorPath.replace(/\.properties$/, '');
-            }
-            if (editorPath.startsWith('properties.')) {
-              editorPath = editorPath.replace(/^properties\./, '');
-            }
-            
-            // Convert to array path
-            const pathArray = editorPath === '' ? [] : editorPath.split('.');
-            
-            console.log(`[BULK-START] Applying expansion to JSONEditor for path: ${path} -> editor path: [${pathArray.join(', ')}]`);
-            
-            // Use the expand method to expand this specific node in the editor
-            editorRef.current.expand({
-              path: pathArray,
-              isExpand: true,
-              recursive: false
+        // Check if this property has nested properties (depth 2)
+        const propSchema = schemaAtPath.properties[propName];
+        if (propSchema && propSchema.type === 'object' && propSchema.properties && maxDepth > 2) {
+          pathsToExpand.push(`${propPath}.properties`);
+          
+          // Add nested properties (depth 3)
+          if (maxDepth > 3) {
+            Object.keys(propSchema.properties).forEach(nestedProp => {
+              pathsToExpand.push(`${propPath}.properties.${nestedProp}`);
             });
-            console.log(`[BULK-START] JSONEditor expand completed for path: ${path}`);
-          } catch (error) {
-            console.warn(`[BULK-START] Failed to expand path ${path} in JSONEditor:`, error);
           }
         }
+        
+        // Handle arrays
+        if (propSchema && propSchema.type === 'array' && propSchema.items && maxDepth > 2) {
+          pathsToExpand.push(`${propPath}.items`);
+        }
       });
-      
-      console.log(`[BULK-START] Bulk ${isExpanding ? 'expand' : 'collapse'} completed - processed ${nestedPaths.length} paths`);
-    } catch (error) {
-      console.error(`[BULK-START] Error in bulk expand function:`, error);
-      console.error(`[BULK-START] Error stack:`, error.stack);
     }
-  }, [onToggleCollapse, maxDepth, getAllNestedPaths, getSchemaAtPath]);
+    
+    console.log(`[BULK-SIMPLE] Generated ${pathsToExpand.length} paths:`, pathsToExpand);
+    
+    // Process each path immediately
+    pathsToExpand.forEach((path, index) => {
+      console.log(`[BULK-SIMPLE] Processing ${index + 1}/${pathsToExpand.length}: ${path}`);
+      onToggleCollapse(path, false); // false = expanded
+    });
+    
+    console.log(`[BULK-SIMPLE] Completed processing ${pathsToExpand.length} paths`);
+  }, [onToggleCollapse, maxDepth, getSchemaAtPath]);
   
   return {
     bulkExpand,
