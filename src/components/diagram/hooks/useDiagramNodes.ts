@@ -68,14 +68,23 @@ export const useDiagramNodes = (
 
   // Generate nodes and edges when dependencies change
   useEffect(() => {
+    // Check if this is the initial render before changing the flag
+    const isInitialRender = initialRenderRef.current;
+    
     // For the first render or if there's an error, log but continue
-    if (initialRenderRef.current) {
+    if (isInitialRender) {
       console.log('Initial useDiagramNodes render');
       initialRenderRef.current = false;
     }
 
-    // Skip if we're already processing an update or throttling
-    if (processingUpdateRef.current || (!initialRenderRef.current && throttleUpdates())) {
+    // Skip if we're already processing an update  
+    if (processingUpdateRef.current) {
+      return;
+    }
+    
+    // For initial render, skip throttling to ensure diagram appears
+    const shouldThrottle = !isInitialRender && throttleUpdates();
+    if (shouldThrottle) {
       return;
     }
     
@@ -105,7 +114,7 @@ export const useDiagramNodes = (
     const collapsedPathsChanged = collapsedPathsString !== JSON.stringify(collapsedPathsRef.current);
     
     // Force update on initial render to make sure root node is always shown
-    const forceUpdate = initialRenderRef.current === true;
+    const forceUpdate = isInitialRender;
     
     if (schemaChanged || groupSettingChanged || maxDepthChanged || collapsedPathsChanged || forceUpdate) {
       console.log('Schema or settings changed, generating new diagram', {
