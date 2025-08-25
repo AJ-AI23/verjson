@@ -115,6 +115,7 @@ export const useBulkExpandCollapse = ({
     editorRef?: React.MutableRefObject<any>
   ) => {
     console.log(`[BULK-DIRECT] Starting bulk expand for: ${basePath}`);
+    console.log(`[DEBUG] bulkExpand received maxDepth: ${maxDepth}`);
     
     if (!editorRef?.current || !rootSchema) {
       console.log(`[BULK-DIRECT] Missing editor ref or schema`);
