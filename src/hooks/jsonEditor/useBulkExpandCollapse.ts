@@ -132,32 +132,31 @@ export const useBulkExpandCollapse = ({
     const pathsToExpand: string[] = [];
     
     if (schemaAtPath.type === 'object' && schemaAtPath.properties) {
-      // Add properties container first (parent before children)
+      // Level 1: Add properties container first (parent before children)
       pathsToExpand.push(`${basePath}.properties`);
       
-      // Add each property
-      Object.keys(schemaAtPath.properties).forEach(propName => {
-        const propPath = `${basePath}.properties.${propName}`;
-        pathsToExpand.push(propPath);
-        
-        // Check if this property has nested properties (depth 2)
-        const propSchema = schemaAtPath.properties[propName];
-        if (propSchema && propSchema.type === 'object' && propSchema.properties && maxDepth > 2) {
-          pathsToExpand.push(`${propPath}.properties`);
+      // Level 2: Add each property (if maxDepth >= 2)
+      if (maxDepth >= 2) {
+        Object.keys(schemaAtPath.properties).forEach(propName => {
+          const propPath = `${basePath}.properties.${propName}`;
+          pathsToExpand.push(propPath);
           
-          // Add nested properties (depth 3)
-          if (maxDepth > 3) {
-            Object.keys(propSchema.properties).forEach(nestedProp => {
-              pathsToExpand.push(`${propPath}.properties.${nestedProp}`);
-            });
+          // Level 3: Check if this property has nested content (only if maxDepth >= 3)
+          if (maxDepth >= 3) {
+            const propSchema = schemaAtPath.properties[propName];
+            
+            // Handle nested object properties
+            if (propSchema && propSchema.type === 'object' && propSchema.properties) {
+              pathsToExpand.push(`${propPath}.properties`);
+            }
+            
+            // Handle arrays
+            if (propSchema && propSchema.type === 'array' && propSchema.items) {
+              pathsToExpand.push(`${propPath}.items`);
+            }
           }
-        }
-        
-        // Handle arrays
-        if (propSchema && propSchema.type === 'array' && propSchema.items && maxDepth > 2) {
-          pathsToExpand.push(`${propPath}.items`);
-        }
-      });
+        });
+      }
     }
     
     console.log(`[BULK-DIRECT] Generated ${pathsToExpand.length} paths:`, pathsToExpand);
