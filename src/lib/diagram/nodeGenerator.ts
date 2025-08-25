@@ -9,6 +9,14 @@ export const createRootNode = (schema: any): Node => {
                           (schema.openapi || schema.swagger) &&
                           (schema.info || schema.paths);
   
+  console.log('createRootNode - OpenAPI detection:', {
+    hasOpenapi: !!schema.openapi,
+    hasSwagger: !!schema.swagger,
+    hasInfo: !!schema.info,
+    hasPaths: !!schema.paths,
+    isOpenApiSchema
+  });
+  
   if (isOpenApiSchema) {
     const version = schema.openapi || schema.swagger;
     const title = schema.info?.title || 'OpenAPI Specification';
