@@ -132,30 +132,32 @@ export const useBulkExpandCollapse = ({
     const pathsToExpand: string[] = [];
     
     if (schemaAtPath.type === 'object' && schemaAtPath.properties) {
-      // Level 1: Add properties container first (parent before children)
-      pathsToExpand.push(`${basePath}.properties`);
-      
-      // Level 2: Add each property (if maxDepth >= 2)
+      // Level 2: Add properties container (1 level deeper than starting node)
       if (maxDepth >= 2) {
-        Object.keys(schemaAtPath.properties).forEach(propName => {
-          const propPath = `${basePath}.properties.${propName}`;
-          pathsToExpand.push(propPath);
-          
-          // Level 3: Check if this property has nested content (only if maxDepth >= 3)
-          if (maxDepth >= 3) {
-            const propSchema = schemaAtPath.properties[propName];
+        pathsToExpand.push(`${basePath}.properties`);
+        
+        // Level 3: Add each property (2 levels deeper than starting node)
+        if (maxDepth >= 3) {
+          Object.keys(schemaAtPath.properties).forEach(propName => {
+            const propPath = `${basePath}.properties.${propName}`;
+            pathsToExpand.push(propPath);
             
-            // Handle nested object properties
-            if (propSchema && propSchema.type === 'object' && propSchema.properties) {
-              pathsToExpand.push(`${propPath}.properties`);
+            // Level 4: Check if this property has nested content (3 levels deeper than starting node)
+            if (maxDepth >= 4) {
+              const propSchema = schemaAtPath.properties[propName];
+              
+              // Handle nested object properties
+              if (propSchema && propSchema.type === 'object' && propSchema.properties) {
+                pathsToExpand.push(`${propPath}.properties`);
+              }
+              
+              // Handle arrays
+              if (propSchema && propSchema.type === 'array' && propSchema.items) {
+                pathsToExpand.push(`${propPath}.items`);
+              }
             }
-            
-            // Handle arrays
-            if (propSchema && propSchema.type === 'array' && propSchema.items) {
-              pathsToExpand.push(`${propPath}.items`);
-            }
-          }
-        });
+          });
+        }
       }
     }
     
