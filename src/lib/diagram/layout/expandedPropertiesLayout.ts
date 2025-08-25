@@ -53,6 +53,9 @@ export const generateExpandedLayout = (
   const rootPropertiesExpanded = collapsedPaths[rootPropertiesPath] === false;
   
   console.log(`[EXPANDED LAYOUT] Root properties path: ${rootPropertiesPath}, expanded: ${rootPropertiesExpanded}`);
+  console.log(`[EXPANDED LAYOUT] Value in collapsedPaths:`, collapsedPaths[rootPropertiesPath]);
+  console.log(`[EXPANDED LAYOUT] Strict equality check:`, collapsedPaths[rootPropertiesPath] === false);
+  console.log(`[EXPANDED LAYOUT] Type of value:`, typeof collapsedPaths[rootPropertiesPath]);
   
   // Only process first level properties if root.properties is explicitly expanded
   if (rootPropertiesExpanded) {
