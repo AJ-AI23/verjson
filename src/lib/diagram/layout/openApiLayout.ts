@@ -574,12 +574,18 @@ function processOpenApiPaths(
         Object.entries(methodEntry.methodData.responses).forEach(([statusCode, responseData]: [string, any]) => {
           console.log(`[OPENAPI LAYOUT] Checking response ${statusCode}:`, responseData?.content?.['application/json']?.schema);
           
-          if (responseData?.content?.['application/json']?.schema?.$ref) {
-            const refPath = responseData.content['application/json'].schema.$ref.replace('#/components/schemas/', '');
+          // Check for $ref in the response schema or its items property
+          const responseSchema = responseData?.content?.['application/json']?.schema;
+          const hasDirectRef = responseSchema?.$ref;
+          const hasItemsRef = responseSchema?.items?.$ref;
+          
+          if (hasDirectRef || hasItemsRef) {
+            const refValue = hasDirectRef ? responseSchema.$ref : responseSchema.items.$ref;
+            const refPath = refValue.replace('#/components/schemas/', '');
             const componentNodeId = `prop-${refPath}`;
             const existingComponentNode = result.nodes.find(node => node.id === componentNodeId);
             
-            console.log(`[OPENAPI LAYOUT] Found $ref: ${responseData.content['application/json'].schema.$ref}`);
+            console.log(`[OPENAPI LAYOUT] Found $ref: ${refValue}`);
             console.log(`[OPENAPI LAYOUT] Component node ID: ${componentNodeId}`);
             console.log(`[OPENAPI LAYOUT] Component node exists:`, !!existingComponentNode);
             console.log(`[OPENAPI LAYOUT] All node IDs:`, result.nodes.map(n => n.id));
