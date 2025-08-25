@@ -118,37 +118,32 @@ export const useBulkExpandCollapse = ({
       return;
     }
     
-    console.log(`Bulk ${isExpanding ? 'expand' : 'collapse'} starting from path: ${basePath}`);
-    console.log(`Max relative depth: ${maxDepth}`);
-    console.log(`Root schema structure:`, {
+    console.log(`[BULK-START] Bulk ${isExpanding ? 'expand' : 'collapse'} starting from path: ${basePath}`);
+    console.log(`[BULK-START] Max relative depth: ${maxDepth}`);
+    console.log(`[BULK-START] Root schema structure:`, {
       type: rootSchema?.type,
       hasProperties: !!rootSchema?.properties,
       propertyKeys: rootSchema?.properties ? Object.keys(rootSchema.properties) : []
     });
     
+    console.log(`[BULK-START] Calling getSchemaAtPath with basePath: ${basePath}`);
     // Find the schema object at the base path
     const schemaAtPath = getSchemaAtPath(rootSchema, basePath);
-    console.log(`Schema lookup for path "${basePath}":`, schemaAtPath ? {
+    console.log(`[BULK-START] Schema lookup result:`, schemaAtPath ? {
       type: schemaAtPath.type,
       hasProperties: !!schemaAtPath.properties,
       propertyKeys: schemaAtPath.properties ? Object.keys(schemaAtPath.properties) : []
     } : 'null');
     
     if (!schemaAtPath) {
-      console.log(`No schema found at path: ${basePath}`);
+      console.log(`[BULK-START] No schema found at path: ${basePath} - exiting`);
       return;
     }
     
-    console.log(`Schema at path ${basePath}:`, {
-      type: schemaAtPath.type,
-      hasProperties: !!schemaAtPath.properties,
-      hasItems: !!schemaAtPath.items
-    });
-    
+    console.log(`[BULK-START] Calling getAllNestedPaths...`);
     // Get all nested paths up to maxDepth
     const nestedPaths = getAllNestedPaths(schemaAtPath, basePath, 0, maxDepth);
-    
-    console.log(`Found ${nestedPaths.length} nested paths to bulk ${isExpanding ? 'expand' : 'collapse'}:`, nestedPaths);
+    console.log(`[BULK-START] getAllNestedPaths returned ${nestedPaths.length} paths:`, nestedPaths);
     
     // Apply the expand/collapse action to all paths
     nestedPaths.forEach(path => {
