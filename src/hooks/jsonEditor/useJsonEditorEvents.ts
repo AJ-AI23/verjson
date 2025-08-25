@@ -54,11 +54,6 @@ export const useJsonEditorEvents = ({
     const valueInRef = collapsedPathsRef.current[normalizedPath];
     const currentState = valueInRef !== undefined ? valueInRef : true; // Default to collapsed if not specified
     
-    console.log(`[DEBUG] getPathState for ${normalizedPath}:`);
-    console.log(`  - Value in ref: ${valueInRef}`);
-    console.log(`  - Current state: ${currentState}`);
-    console.log(`  - Full ref:`, collapsedPathsRef.current);
-    
     return currentState;
   }, [normalizePath, collapsedPathsRef]);
 

@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { parseJsonSchema, validateJsonSchema, extractSchemaComponents, SchemaType } from '@/lib/schemaUtils';
 import { CollapsedState } from '@/lib/diagram/types';
 import { useVersioning } from '@/hooks/useVersioning';
+import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 
 export const useEditorState = (defaultSchema: string) => {
   const [schema, setSchema] = useState(defaultSchema);
@@ -12,9 +13,37 @@ export const useEditorState = (defaultSchema: string) => {
   const [error, setError] = useState<string | null>(null);
   const [schemaType, setSchemaType] = useState<SchemaType>('json-schema');
   
+  // Get current maxDepth from context
+  const { settings } = useEditorSettings();
+  const { maxDepth } = settings;
+  
   // Set default collapsed state - initially collapsed
   const [collapsedPaths, setCollapsedPaths] = useState<CollapsedState>({ root: true });
   
+  // Function to clean up collapsed paths based on maxDepth
+  const cleanupCollapsedPaths = useCallback((paths: CollapsedState, maxDepth: number): CollapsedState => {
+    const cleaned: CollapsedState = {};
+    
+    Object.entries(paths).forEach(([path, isCollapsed]) => {
+      // Count the depth of the path (number of dots + 1, but root is depth 0)
+      const pathDepth = path === 'root' ? 0 : path.split('.').length - 1;
+      
+      // Keep paths that are within the maxDepth limit
+      if (pathDepth <= maxDepth) {
+        cleaned[path] = isCollapsed;
+      }
+    });
+    
+    console.log(`[DEBUG] Cleaned up collapsed paths for maxDepth ${maxDepth}:`, cleaned);
+    return cleaned;
+  }, []);
+
+  // Clean up collapsed paths when maxDepth changes
+  useEffect(() => {
+    console.log(`[DEBUG] MaxDepth changed to ${maxDepth}, cleaning up collapsed paths`);
+    setCollapsedPaths(prev => cleanupCollapsedPaths(prev, maxDepth));
+  }, [maxDepth, cleanupCollapsedPaths]);
+
   // Use our custom versioning hook
   const {
     patches,
