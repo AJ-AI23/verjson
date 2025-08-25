@@ -23,10 +23,6 @@ export const useJsonEditorInitialization = ({
       // Get event handlers from our events hook
       const eventHandlers = createEditorEventHandlers();
       
-      console.log('Initializing JSONEditor with event handlers', eventHandlers);
-      console.log('onExpand handler exists:', !!eventHandlers.onExpand);
-      console.log('onExpand handler type:', typeof eventHandlers.onExpand);
-      
       // JSONEditor options
       const options = {
         mode: 'tree',
@@ -40,15 +36,8 @@ export const useJsonEditorInitialization = ({
         // Note: We don't use onCollapse anymore, as we rely on toggling with onExpand
       };
 
-      console.log('JSONEditor options:', options);
-      console.log('onExpand in options:', !!options.onExpand);
-
       // Create the editor
       const editor = new JSONEditor(container, options);
-      
-      console.log('JSONEditor created:', !!editor);
-      console.log('Editor options after creation:', editor.options);
-      console.log('Editor onExpand after creation:', !!editor.options?.onExpand);
       
       // Set initial content
       try {
