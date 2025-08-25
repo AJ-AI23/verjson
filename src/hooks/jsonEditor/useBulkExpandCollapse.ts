@@ -171,9 +171,11 @@ export const useBulkExpandCollapse = ({
             if (propLevel <= maxDepth) {
               pathsToExpand.push(propPath);
               
-              // Continue recursively from this property
+              // Continue recursively from this property only if we have more depth available
               const propSchema = currentSchema.properties[propName];
-              generateExpansionPaths(propSchema, propPath, propLevel);
+              if (propLevel < maxDepth) {
+                generateExpansionPaths(propSchema, propPath, propLevel);
+              }
             }
           });
         }
@@ -187,8 +189,10 @@ export const useBulkExpandCollapse = ({
         if (itemsLevel <= maxDepth) {
           pathsToExpand.push(itemsPath);
           
-          // Continue recursively from array items
-          generateExpansionPaths(currentSchema.items, itemsPath, itemsLevel);
+          // Continue recursively from array items only if we have more depth available
+          if (itemsLevel < maxDepth) {
+            generateExpansionPaths(currentSchema.items, itemsPath, itemsLevel);
+          }
         }
       }
     };
