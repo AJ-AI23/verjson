@@ -116,6 +116,8 @@ function processProperties(
   console.log(`Properties object:`, properties);
   console.log(`Properties keys:`, Object.keys(properties));
   console.log(`Properties entries count:`, Object.entries(properties).length);
+  console.log(`Current depth: ${currentDepth}, Max depth: ${maxDepth}`);
+  console.log(`Is parent properties collapsed: ${isParentPropertiesCollapsed}`);
   
   Object.entries(properties).forEach(([propName, propSchema]: [string, any], index) => {
     console.log(`[DEBUG] Processing property ${index}: ${propName}`);
