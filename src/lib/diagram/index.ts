@@ -17,8 +17,8 @@ export const generateNodesAndEdges = (
     edges: []
   };
 
-  console.log('generateNodesAndEdges called with:');
-  console.log('- Schema:', schema ? 
+  console.log('🟢 generateNodesAndEdges called with:');
+  console.log('🟢 - Schema:', schema ? 
     { 
       type: schema.type, 
       hasProperties: !!schema.properties, 
@@ -29,10 +29,10 @@ export const generateNodesAndEdges = (
       hasPaths: !!schema.paths,
       schemaKeys: Object.keys(schema)
     } : 'null or undefined');
-  console.log('- Group properties:', groupProperties);
-  console.log('- Max depth:', maxDepth);
-  console.log('- Collapsed paths count:', Object.keys(collapsedPaths).length);
-  console.log('- Root collapsed?', collapsedPaths['root'] === true);
+  console.log('🟢 - Group properties:', groupProperties);
+  console.log('🟢 - Max depth:', maxDepth);
+  console.log('🟢 - Collapsed paths count:', Object.keys(collapsedPaths).length);
+  console.log('🟢 - Root collapsed?', collapsedPaths['root'] === true);
   
   if (!schema) {
     console.error('No valid schema provided to generateNodesAndEdges');
