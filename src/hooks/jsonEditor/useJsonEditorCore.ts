@@ -1,6 +1,6 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { UseJsonEditorProps, JsonEditorResult } from './types';
+import { UseJsonEditorProps, FoldingDebugInfo, JsonEditorResult } from './types';
 import { useJsonEditorSync } from './useJsonEditorSync';
 import { useJsonEditorFolding } from './useJsonEditorFolding';
 import { useJsonEditorEvents } from './useJsonEditorEvents';
@@ -31,6 +31,9 @@ export const useJsonEditor = ({
   // Previous value for comparison
   const previousValueRef = useRef<string>(value);
   
+  // Debug state to track folding operations
+  const [foldingDebug, setFoldingDebug] = useState<FoldingDebugInfo | null>(null);
+
   // Create a master ref for the collapsed paths
   const masterCollapsedPathsRef = useRef<Record<string, boolean>>(collapsedPaths);
   
@@ -51,6 +54,7 @@ export const useJsonEditor = ({
   // Use our event handlers hook with the improved toggle logic
   const { createEditorEventHandlers, getPathState, collapsedPathsRef: eventsPathsRef } = useJsonEditorEvents({
     onToggleCollapse,
+    setFoldingDebug,
     collapsedPaths,
     editorRef,
     maxDepth,
@@ -68,6 +72,7 @@ export const useJsonEditor = ({
   const { 
     expandAll, 
     collapseAll, 
+    expandFirstLevel, 
     forceUpdateEditorFoldState,
     collapsedPathsRef: foldingRef 
   } = useJsonEditorFolding({ 
@@ -81,6 +86,7 @@ export const useJsonEditor = ({
     editorRef,
     onToggleCollapse,
     collapsedPaths,
+    expandFirstLevel,
     maxDepth
   });
 
@@ -165,6 +171,8 @@ export const useJsonEditor = ({
     destroyEditor,
     expandAll,
     collapseAll,
+    expandFirstLevel,
+    foldingDebug,
     collapsedPaths: masterCollapsedPathsRef.current,
     pathExceedsMaxDepth
   };

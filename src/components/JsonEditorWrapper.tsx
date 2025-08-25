@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { JsonEditorImplementation } from './JsonEditorImplementation';
+import { JsonEditorPoc } from './JsonEditorPoc';
 import { CollapsedState } from '@/lib/diagram/types';
 
 interface JsonEditorWrapperProps {
@@ -21,7 +21,7 @@ export const JsonEditorWrapper: React.FC<JsonEditorWrapperProps> = ({
   maxDepth
 }) => {
   return (
-    <JsonEditorImplementation
+    <JsonEditorPoc
       value={value}
       onChange={onChange}
       error={error}

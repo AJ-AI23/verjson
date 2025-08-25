@@ -7,6 +7,7 @@ interface UseJsonEditorSetupProps {
   editorRef: React.MutableRefObject<JSONEditor | null>;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
   collapsedPaths: CollapsedState;
+  expandFirstLevel: () => void;
   maxDepth: number;
 }
 
@@ -14,6 +15,7 @@ export const useJsonEditorSetup = ({
   editorRef,
   onToggleCollapse,
   collapsedPaths,
+  expandFirstLevel,
   maxDepth
 }: UseJsonEditorSetupProps) => {
   // Track collapsedPaths in a ref for debugging
@@ -53,31 +55,7 @@ export const useJsonEditorSetup = ({
             editorRef.current.collapseAll();
           } else {
             console.log('Initially expanding first level');
-            // Inline expandFirstLevel logic to maintain exact same behavior
-            try {
-              // First collapse all
-              editorRef.current.expand({
-                path: [],
-                isExpand: false,
-                recursive: true
-              });
-              
-              // Then expand root node only (without recursion)
-              editorRef.current.expand({
-                path: [],
-                isExpand: true,
-                recursive: false
-              });
-              
-              // Notify about root expansion
-              if (onToggleCollapse) {
-                onToggleCollapse('root', false);
-              }
-              
-              console.log('Expanded first level nodes using targeted expand() calls');
-            } catch (err) {
-              console.error('Error expanding first level:', err);
-            }
+            expandFirstLevel();
           }
         } else if (onToggleCollapse) {
           // If root state isn't defined, default to collapsed
@@ -94,7 +72,7 @@ export const useJsonEditorSetup = ({
       
       return () => clearTimeout(timer);
     }
-  }, [editorRef.current, onToggleCollapse, collapsedPaths.root]);
+  }, [editorRef.current, onToggleCollapse, expandFirstLevel, collapsedPaths.root]);
 
   return {
     initialSetupDone,
