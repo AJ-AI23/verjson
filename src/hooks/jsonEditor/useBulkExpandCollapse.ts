@@ -153,43 +153,37 @@ export const useBulkExpandCollapse = ({
       if (remainingDepth <= 0 || !currentSchema) return;
       
       if (currentSchema.type === 'object' && currentSchema.properties) {
-        // Add properties container if we have depth remaining
-        if (remainingDepth >= 1) {
-          const propertiesPath = `${currentPath}.properties`;
-          pathsToExpand.push(propertiesPath);
+        // Add properties container
+        const propertiesPath = `${currentPath}.properties`;
+        pathsToExpand.push(propertiesPath);
+        
+        // Add each property
+        Object.keys(currentSchema.properties).forEach(propName => {
+          const propPath = `${propertiesPath}.${propName}`;
+          pathsToExpand.push(propPath);
           
-          // Add each property if we have depth remaining
-          if (remainingDepth >= 2) {
-            Object.keys(currentSchema.properties).forEach(propName => {
-              const propPath = `${propertiesPath}.${propName}`;
-              pathsToExpand.push(propPath);
-              
-              // Recursively expand nested content if we have depth remaining
-              if (remainingDepth >= 3) {
-                const propSchema = currentSchema.properties[propName];
-                generateExpansionPaths(propSchema, propPath, remainingDepth - 2);
-              }
-            });
+          // Recursively expand nested content if we have depth remaining
+          if (remainingDepth > 1) {
+            const propSchema = currentSchema.properties[propName];
+            generateExpansionPaths(propSchema, propPath, remainingDepth - 1);
           }
-        }
+        });
       }
       
       if (currentSchema.type === 'array' && currentSchema.items) {
-        // Add items container if we have depth remaining
-        if (remainingDepth >= 1) {
-          const itemsPath = `${currentPath}.items`;
-          pathsToExpand.push(itemsPath);
-          
-          // Recursively expand array items if we have depth remaining
-          if (remainingDepth >= 2) {
-            generateExpansionPaths(currentSchema.items, itemsPath, remainingDepth - 1);
-          }
+        // Add items container
+        const itemsPath = `${currentPath}.items`;
+        pathsToExpand.push(itemsPath);
+        
+        // Recursively expand array items if we have depth remaining
+        if (remainingDepth > 1) {
+          generateExpansionPaths(currentSchema.items, itemsPath, remainingDepth - 1);
         }
       }
     };
     
     // Start recursive expansion from the clicked node with full maxDepth
-    generateExpansionPaths(schemaAtPath, actualBasePath, maxDepth - 1);
+    generateExpansionPaths(schemaAtPath, actualBasePath, maxDepth);
     
     console.log(`[BULK-DIRECT] Generated ${pathsToExpand.length} paths:`, pathsToExpand);
     
