@@ -56,11 +56,6 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   
   return (
     <div className="h-full flex flex-col min-h-0">
-      {/* Debug information display */}
-      <div className="p-1 bg-amber-50 border-b border-amber-200 text-amber-700 text-xs">
-        <div>Diagram Debug - Collapsed Paths: {Object.keys(collapsedPaths || {}).length}</div>
-        <div>Root collapsed: {collapsedPaths?.root === true ? 'Yes' : 'No'}</div>
-      </div>
       
       <DiagramContainer 
         schema={schema}
