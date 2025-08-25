@@ -86,6 +86,21 @@ export const useBulkExpandCollapse = ({
       
       if (currentDepth >= baseDepth + maxDepth || !currentSchema) return;
 
+      // Handle properties object directly (when currentSchema is a properties object)
+      if (currentSchema && typeof currentSchema === 'object' && !currentSchema.type) {
+        // This is likely a properties object, iterate through its keys
+        Object.keys(currentSchema).forEach(propName => {
+          const propPath = currentPath === 'root' ? `root.${propName}` : `${currentPath}.${propName}`;
+          const propDepth = propPath.split('.').length - 1;
+          
+          if (propDepth <= baseDepth + maxDepth) {
+            pathsToExpand.push(propPath);
+            generatePaths(currentSchema[propName], propPath);
+          }
+        });
+        return;
+      }
+
       if (currentSchema.type === 'object' && currentSchema.properties) {
         Object.keys(currentSchema.properties).forEach(propName => {
           const propPath = currentPath === 'root' ? `root.${propName}` : `${currentPath}.${propName}`;
