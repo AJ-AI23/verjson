@@ -5,7 +5,7 @@ import { CollapsedState } from '@/lib/diagram/types';
 import { useJsonEditor } from '@/hooks/useJsonEditor';
 import { toast } from '@/components/ui/use-toast';
 
-interface JsonEditorPocProps {
+interface JsonEditorImplementationProps {
   value: string;
   onChange: (value: string) => void;
   error: string | null;
@@ -14,7 +14,7 @@ interface JsonEditorPocProps {
   maxDepth: number;
 }
 
-export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
+export const JsonEditorImplementation: React.FC<JsonEditorImplementationProps> = ({
   value,
   onChange,
   error,
@@ -30,7 +30,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   
   // Wrap onToggleCollapse to prevent initial setup events
   const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
-    console.log(`JsonEditorPoc: Toggle collapse for path=${path}, isCollapsed=${isCollapsed}`);
+    console.log(`JsonEditorImplementation: Toggle collapse for path=${path}, isCollapsed=${isCollapsed}`);
     
     // Only call the callback after initial mount to prevent initial setup events
     if (isMountedRef.current && onToggleCollapse) {
