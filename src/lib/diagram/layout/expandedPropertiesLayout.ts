@@ -141,13 +141,22 @@ function processProperties(
     const diagramPathValue = collapsedPaths[diagramPath];
     const jsonEditorPathValue = collapsedPaths[jsonEditorPath];
     
+    console.log(`Path checking for ${propName}:`);
+    console.log(`  - diagramPath: ${diagramPath}, value:`, diagramPathValue);
+    console.log(`  - jsonEditorPath: ${jsonEditorPath}, value:`, jsonEditorPathValue);
+    
     const isDiagramPathExpanded = diagramPathValue === false || 
       (typeof diagramPathValue === 'object' && diagramPathValue !== null);
     const isJsonEditorPathExpanded = jsonEditorPathValue === false || 
       (typeof jsonEditorPathValue === 'object' && jsonEditorPathValue !== null);
     
+    console.log(`  - isDiagramPathExpanded: ${isDiagramPathExpanded}`);
+    console.log(`  - isJsonEditorPathExpanded: ${isJsonEditorPathExpanded}`);
+    
     const isPathExplicitlyExpanded = isDiagramPathExpanded || isJsonEditorPathExpanded;
     const isPathExplicitlyCollapsed = !isPathExplicitlyExpanded;
+    
+    console.log(`  - Final: isPathExplicitlyExpanded: ${isPathExplicitlyExpanded}, isPathExplicitlyCollapsed: ${isPathExplicitlyCollapsed}`);
     
     // Check if any ancestor path is collapsed (this would hide this node)
     const hasCollapsedAncestor = isAnyAncestorCollapsed(jsonEditorPath);
