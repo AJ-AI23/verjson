@@ -110,12 +110,13 @@ export const useDiagramNodes = (
     const forceUpdate = isInitialRender;
     
     if (schemaChanged || groupSettingChanged || collapsedPathsChanged || forceUpdate) {
-      console.log('Schema or settings changed, generating new diagram', {
+      console.log('🔵 Schema or settings changed, generating new diagram', {
         schemaChanged,
         groupSettingChanged,
         collapsedPathsChanged,
         forceUpdate,
-        rootCollapsed: collapsedPaths.root === true
+        rootCollapsed: collapsedPaths.root === true,
+        collapsedPathsString: collapsedPathsString.substring(0, 100) + '...'
       });
       
       // Update refs with current values
