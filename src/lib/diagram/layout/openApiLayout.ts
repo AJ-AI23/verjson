@@ -3,7 +3,10 @@ import { DiagramElements, CollapsedState } from '../types';
 import { 
   createPropertyNode, 
   createNestedPropertyNode, 
-  createArrayItemNode 
+  createArrayItemNode,
+  createInfoNode,
+  createEndpointNode,
+  createComponentsNode
 } from '../nodeGenerator';
 import { createEdge } from '../edgeGenerator';
 
@@ -48,116 +51,74 @@ export const generateOpenApiLayout = (
   if (rootPropertiesExpanded) {
     console.log('[OPENAPI LAYOUT] Root properties are explicitly expanded, processing OpenAPI structure');
     
-    // Get all properties that exist in the schema
-    const allProperties = Object.keys(schema);
-    const requiredProperties = allProperties.filter(prop => 
-      OPENAPI_REQUIRED_PROPERTIES.includes(prop) && schema[prop] !== undefined
-    );
-    const optionalProperties = allProperties.filter(prop => 
-      OPENAPI_OPTIONAL_PROPERTIES.includes(prop) && schema[prop] !== undefined
-    );
-    const otherProperties = allProperties.filter(prop => 
-      !OPENAPI_REQUIRED_PROPERTIES.includes(prop) && 
-      !OPENAPI_OPTIONAL_PROPERTIES.includes(prop)
-    );
+    let yOffset = 150;
+    const nodeSpacing = 400;
     
-    const visibleProperties = [...requiredProperties, ...optionalProperties, ...otherProperties];
+    // Create special nodes for info, paths, and components
+    const specialNodes = [];
     
-    let xOffset = -200;
-    const yOffset = 150;
-    const xSpacing = 200;
+    // Create Info node if info exists
+    if (schema.info) {
+      const infoNode = createInfoNode(schema.info, -400, yOffset);
+      const infoEdge = createEdge('root', infoNode.id, 'info', false, {}, 'structure');
+      result.nodes.push(infoNode);
+      result.edges.push(infoEdge);
+      specialNodes.push('info');
+    }
     
-    // Calculate starting x position to center the nodes
-    const totalWidth = visibleProperties.length * xSpacing;
-    xOffset = -totalWidth / 2 + xSpacing / 2;
-    
-    // Process each OpenAPI property
-    visibleProperties.forEach((propName, index) => {
-      const propValue = schema[propName];
-      const xPos = xOffset + index * xSpacing;
-      const propPath = `root.properties.${propName}`;
+    // Create Components node if components.schemas exists
+    if (schema.components?.schemas) {
+      const componentsNode = createComponentsNode(schema.components.schemas, 0, yOffset);
+      const componentsEdge = createEdge('root', componentsNode.id, 'components', false, {}, 'structure');
+      result.nodes.push(componentsNode);
+      result.edges.push(componentsEdge);
+      specialNodes.push('components');
       
-      // Check if this property is collapsed
-      const isPropertyCollapsed = collapsedPaths[propPath] === true;
-      
-      // Create a pseudo-schema for the property
-      const propSchema = createOpenApiPropertySchema(propName, propValue);
-      
-      console.log(`Creating OpenAPI property node for: ${propName}`, propSchema);
-      
-      // Create property node
-      const propNode = createPropertyNode(
-        propName, 
-        propSchema, 
-        OPENAPI_REQUIRED_PROPERTIES, 
-        xPos, 
-        yOffset, 
-        isPropertyCollapsed
+      // Create individual schema nodes connected to components
+      processComponentsSchemas(
+        schema.components.schemas,
+        componentsNode.id,
+        0,
+        yOffset + 200,
+        200,
+        result,
+        maxDepth,
+        collapsedPaths,
+        'root.properties.components'
       );
-      
-      // Add edge from root to property
-      const edge = createEdge('root', propNode.id);
-      
-      result.nodes.push(propNode);
-      result.edges.push(edge);
-      
-      // Special handling for different OpenAPI properties
-      if (!isPropertyCollapsed && maxDepth > 0) {
-        if (propName === 'components' && propValue?.schemas) {
-          // Handle components.schemas specially - these should be treated as JSON schemas
-          processComponentsSchemas(
-            propValue.schemas,
-            propNode.id,
-            xPos,
-            yOffset + 150,
-            xSpacing,
-            result,
-            maxDepth,
-            collapsedPaths,
-            propPath
-          );
-        } else if (propName === 'paths' && typeof propValue === 'object') {
-          // Handle paths structure
-          processOpenApiPaths(
-            propValue,
-            propNode.id,
-            xPos,
-            yOffset + 150,
-            xSpacing,
-            result,
-            maxDepth,
-            collapsedPaths,
-            propPath
-          );
-        } else if (propName === 'info' && typeof propValue === 'object') {
-          // Handle info structure
-          processOpenApiInfo(
-            propValue,
-            propNode.id,
-            xPos,
-            yOffset + 150,
-            xSpacing,
-            result,
-            maxDepth,
-            collapsedPaths,
-            propPath
-          );
-        } else if (typeof propValue === 'object' && propValue !== null) {
-          // Handle other object properties generically
-          processGenericOpenApiObject(
-            propValue,
-            propNode.id,
-            xPos,
-            yOffset + 150,
-            xSpacing,
-            result,
-            maxDepth,
-            collapsedPaths,
-            propPath
-          );
-        }
-      }
-    });
+    }
+    
+    // Create Paths structure if paths exist
+    if (schema.paths) {
+      processOpenApiPaths(
+        schema.paths,
+        'root',
+        400,
+        yOffset,
+        200,
+        result,
+        maxDepth,
+        collapsedPaths,
+        'root.properties.paths'
+      );
+    }
+    
+    // Process any other top-level properties that aren't special
+    const processedProps = ['info', 'paths', 'components', 'openapi', 'swagger'];
+    const otherProps = Object.keys(schema).filter(prop => !processedProps.includes(prop));
+    
+    if (otherProps.length > 0) {
+      processOtherOpenApiProperties(
+        schema,
+        otherProps,
+        -600,
+        yOffset + 300,
+        200,
+        result,
+        maxDepth,
+        collapsedPaths
+      );
+    }
   } else {
     console.log('[OPENAPI LAYOUT] Root properties are not explicitly expanded, skipping OpenAPI structure');
   }
@@ -335,7 +296,7 @@ function processJsonSchemaProperties(
   });
 }
 
-// Process OpenAPI paths structure
+// Process OpenAPI paths structure - creates endpoint nodes
 function processOpenApiPaths(
   paths: Record<string, any>,
   parentNodeId: string,
@@ -347,43 +308,109 @@ function processOpenApiPaths(
   collapsedPaths: CollapsedState,
   parentPath: string
 ) {
-  const pathsPropertiesPath = `${parentPath}.properties`;
-  const pathsPropertiesExpanded = collapsedPaths[pathsPropertiesPath] === false;
-  
-  if (!pathsPropertiesExpanded) {
-    return;
-  }
-  
   const pathNames = Object.keys(paths);
   const startX = xPos - (pathNames.length * xSpacing) / 2 + xSpacing / 2;
   
   pathNames.forEach((pathName, index) => {
     const pathValue = paths[pathName];
     const pathX = startX + index * xSpacing;
-    const pathPath = `${parentPath}.properties.${pathName}`;
     
-    const isPathCollapsed = collapsedPaths[pathPath] === true;
+    // Create endpoint node instead of generic property node
+    const endpointNode = createEndpointNode(pathName, pathValue, pathX, yPos);
+    const edge = createEdge(parentNodeId, endpointNode.id, undefined, false, {}, 'structure');
     
-    // Create a schema for the path
-    const pathSchema = {
-      type: 'object',
-      description: `API path: ${pathName}`,
-      properties: pathValue
-    };
+    result.nodes.push(endpointNode);
+    result.edges.push(edge);
     
-    const pathNode = createPropertyNode(
-      pathName,
-      pathSchema,
+    // TODO: Add reference detection for request/response schemas
+    detectAndCreateReferences(pathValue, endpointNode.id, result, pathX, yPos + 150);
+  });
+}
+
+// Process other OpenAPI properties generically
+function processOtherOpenApiProperties(
+  schema: Record<string, any>,
+  otherProps: string[],
+  xPos: number,
+  yPos: number,
+  xSpacing: number,
+  result: DiagramElements,
+  maxDepth: number,
+  collapsedPaths: CollapsedState
+) {
+  const startX = xPos - (otherProps.length * xSpacing) / 2 + xSpacing / 2;
+  
+  otherProps.forEach((propName, index) => {
+    const propValue = schema[propName];
+    const propX = startX + index * xSpacing;
+    const propPath = `root.properties.${propName}`;
+    
+    const isPropCollapsed = collapsedPaths[propPath] === true;
+    const propSchema = createOpenApiPropertySchema(propName, propValue);
+    
+    const propNode = createPropertyNode(
+      propName,
+      propSchema,
       [],
-      pathX,
+      propX,
       yPos,
-      isPathCollapsed
+      isPropCollapsed
     );
     
-    const edge = createEdge(parentNodeId, pathNode.id);
+    const edge = createEdge('root', propNode.id);
     
-    result.nodes.push(pathNode);
+    result.nodes.push(propNode);
     result.edges.push(edge);
+  });
+}
+
+// Detect and create reference edges for $ref properties
+function detectAndCreateReferences(
+  obj: any,
+  sourceNodeId: string,
+  result: DiagramElements,
+  xPos: number,
+  yPos: number
+): void {
+  if (!obj || typeof obj !== 'object') return;
+  
+  const findReferences = (data: any, path: string[] = []): string[] => {
+    const refs: string[] = [];
+    
+    if (data && typeof data === 'object') {
+      if (data.$ref && typeof data.$ref === 'string') {
+        refs.push(data.$ref);
+      }
+      
+      Object.entries(data).forEach(([key, value]) => {
+        refs.push(...findReferences(value, [...path, key]));
+      });
+    }
+    
+    return refs;
+  };
+  
+  const references = findReferences(obj);
+  
+  references.forEach((ref, index) => {
+    if (ref.includes('#/components/schemas/')) {
+      const schemaName = ref.split('/').pop();
+      if (schemaName) {
+        const targetNodeId = `prop-${schemaName}`;
+        
+        // Create reference edge if target exists
+        const referenceEdge = createEdge(
+          sourceNodeId,
+          targetNodeId,
+          `ref: ${schemaName}`,
+          false,
+          {},
+          'reference'
+        );
+        
+        result.edges.push(referenceEdge);
+      }
+    }
   });
 }
 

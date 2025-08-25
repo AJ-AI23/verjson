@@ -2,6 +2,9 @@
 import React, { useCallback, useEffect, useRef, memo } from 'react';
 import { ReactFlow, Background, Controls, Node, Edge, ReactFlowInstance, OnNodesChange, OnEdgesChange } from '@xyflow/react';
 import { SchemaTypeNode } from '@/components/SchemaTypeNode';
+import { InfoNode } from '@/components/schema-node/InfoNode';
+import { EndpointNode } from '@/components/schema-node/EndpointNode';
+import { ComponentsNode } from '@/components/schema-node/ComponentsNode';
 
 interface DiagramFlowProps {
   nodes: Node[];
@@ -14,6 +17,9 @@ interface DiagramFlowProps {
 
 const nodeTypes = {
   schemaType: SchemaTypeNode,
+  info: InfoNode,
+  endpoint: EndpointNode,
+  components: ComponentsNode,
 };
 
 export const DiagramFlow = memo(({

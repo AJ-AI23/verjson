@@ -142,6 +142,82 @@ export const createPropertyNode = (
   };
 };
 
+export const createInfoNode = (
+  infoData: any,
+  xPos: number,
+  yOffset: number
+): Node => {
+  const properties = Object.entries(infoData)
+    .filter(([key]) => !['title', 'version'].includes(key))
+    .map(([key, value]) => ({
+      name: key,
+      value: typeof value === 'object' ? JSON.stringify(value) : String(value),
+      type: typeof value
+    }));
+
+  return {
+    id: 'info-node',
+    type: 'info',
+    position: { x: xPos, y: yOffset },
+    data: {
+      title: infoData.title || 'API',
+      version: infoData.version || '1.0.0',
+      description: infoData.description,
+      properties
+    }
+  };
+};
+
+export const createEndpointNode = (
+  path: string,
+  pathData: any,
+  xPos: number,
+  yOffset: number
+): Node => {
+  const methods = Object.entries(pathData)
+    .filter(([method]) => ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'].includes(method.toLowerCase()))
+    .map(([method, methodData]: [string, any]) => ({
+      method: method.toLowerCase(),
+      summary: methodData.summary,
+      description: methodData.description,
+      requestBody: methodData.requestBody,
+      responses: methodData.responses
+    }));
+
+  return {
+    id: `endpoint-${path.replace(/[^\w]/g, '-')}`,
+    type: 'endpoint',
+    position: { x: xPos, y: yOffset },
+    data: {
+      path,
+      methods
+    }
+  };
+};
+
+export const createComponentsNode = (
+  schemasData: Record<string, any>,
+  xPos: number,
+  yOffset: number
+): Node => {
+  const schemas = Object.entries(schemasData).map(([name, schema]) => ({
+    name,
+    type: schema?.type || 'object',
+    description: schema?.description,
+    propertiesCount: schema?.properties ? Object.keys(schema.properties).length : 0
+  }));
+
+  return {
+    id: 'components-node',
+    type: 'components',
+    position: { x: xPos, y: yOffset },
+    data: {
+      schemasCount: schemas.length,
+      schemas
+    }
+  };
+};
+
 export const createNestedPropertyNode = (
   parentNodeId: string,
   nestedName: string,
