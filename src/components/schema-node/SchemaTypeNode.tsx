@@ -136,7 +136,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
         />
       </div>
 
-      {(type === 'object' || type === 'array' || type === 'reference') && (
+      {(type === 'object' || type === 'array' || type === 'reference' || type === 'openapi' || type === 'info' || type === 'components' || type === 'endpoint') && (
         <Handle
           type="source"
           position={Position.Bottom}
