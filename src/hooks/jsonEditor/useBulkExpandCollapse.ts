@@ -157,8 +157,8 @@ export const useBulkExpandCollapse = ({
             const propPath = `${propertiesPath}.${propName}`;
             pathsToExpand.push(propPath);
             
-            // Level 4: Check if this property has nested content (3 levels deeper than clicked node)
-            if (maxDepth >= 4) {
+            // Level 3: Check if this property has nested content (2 levels deeper than clicked node)
+            if (maxDepth >= 3) {
               const propSchema = schemaAtPath.properties[propName];
               
               // Handle nested object properties
