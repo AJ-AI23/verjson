@@ -542,7 +542,7 @@ function processOpenApiPaths(
               // If schema has a $ref, create a dotted edge to the referenced component
               if (responseSchema.$ref) {
                 const refPath = responseSchema.$ref.replace('#/components/schemas/', '');
-                const componentNodeId = `components_schemas_${refPath}`;
+                const componentNodeId = `prop-${refPath}`;
                 
                 // Check if the referenced component node exists
                 const existingComponentNode = result.nodes.find(node => node.id === componentNodeId);
@@ -576,7 +576,7 @@ function processOpenApiPaths(
           
           if (responseData?.content?.['application/json']?.schema?.$ref) {
             const refPath = responseData.content['application/json'].schema.$ref.replace('#/components/schemas/', '');
-            const componentNodeId = `components_schemas_${refPath}`;
+            const componentNodeId = `prop-${refPath}`;
             const existingComponentNode = result.nodes.find(node => node.id === componentNodeId);
             
             console.log(`[OPENAPI LAYOUT] Found $ref: ${responseData.content['application/json'].schema.$ref}`);
@@ -640,7 +640,7 @@ function processOpenApiPaths(
           (collapsedPaths[requestBodyPath] && typeof collapsedPaths[requestBodyPath] === 'object');
         
         const refPath = methodEntry.methodData.requestBody.content['application/json'].schema.$ref.replace('#/components/schemas/', '');
-        const componentNodeId = `components_schemas_${refPath}`;
+        const componentNodeId = `prop-${refPath}`;
         const existingComponentNode = result.nodes.find(node => node.id === componentNodeId);
         
         if (existingComponentNode) {
