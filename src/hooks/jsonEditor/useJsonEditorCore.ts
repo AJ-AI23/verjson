@@ -23,6 +23,7 @@ export const useJsonEditor = ({
       return null;
     }
   }, [value]);
+  
   // Keep track of whether we're programmatically changing the editor
   // to avoid infinite loops when syncing state
   const isInternalChange = useRef<boolean>(false);
