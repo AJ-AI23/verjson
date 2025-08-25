@@ -103,9 +103,40 @@ export const useBulkExpandCollapse = ({
     };
 
     // Get the schema for the clicked path and generate expansion paths
-    const schemaAtPath = getSchemaAtPath(rootSchema, basePath);
+    let schemaPath = basePath;
+    let actualBasePath = basePath;
+    
+    // Handle .properties paths - they represent the parent object's properties
+    if (basePath.endsWith('.properties')) {
+      schemaPath = basePath.replace(/\.properties$/, '');
+      actualBasePath = basePath;
+      console.log(`[BULK-DIRECT] Adjusted schema path from ${basePath} to ${schemaPath}`);
+    }
+    
+    const schemaAtPath = getSchemaAtPath(rootSchema, schemaPath);
+    console.log(`[BULK-DIRECT] Schema at path ${schemaPath}:`, schemaAtPath);
+    
     if (schemaAtPath) {
-      generatePaths(schemaAtPath, basePath);
+      // When expanding a .properties node, we want to expand its children
+      if (basePath.endsWith('.properties')) {
+        // Start generating paths from the children of the clicked .properties node
+        if (schemaAtPath.type === 'object' && schemaAtPath.properties) {
+          Object.keys(schemaAtPath.properties).forEach(propName => {
+            const childPath = `${actualBasePath}.${propName}`;
+            const childDepth = childPath.split('.').length - 1;
+            
+            if (childDepth <= baseDepth + maxDepth) {
+              pathsToExpand.push(childPath);
+              generatePaths(schemaAtPath.properties[propName], childPath);
+            }
+          });
+        }
+      } else {
+        // For non-.properties paths, generate normally
+        generatePaths(schemaAtPath, basePath);
+      }
+    } else {
+      console.log(`[BULK-DIRECT] No schema found at path: ${schemaPath}`);
     }
 
     console.log(`[BULK-DIRECT] Generated ${pathsToExpand.length} paths for baseDepth ${baseDepth} + maxDepth ${maxDepth}:`, pathsToExpand);
