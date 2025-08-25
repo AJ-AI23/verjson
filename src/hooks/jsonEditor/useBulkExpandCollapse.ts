@@ -195,27 +195,32 @@ export const useBulkExpandCollapse = ({
     
     // Special handling when clicking on a .properties node
     if (basePath.endsWith('.properties')) {
-      // When clicking on a properties container, treat it as the starting point
-      if (schemaAtPath.type === 'object' && schemaAtPath.properties) {
+      // With maxDepth 1: only expand the clicked .properties node (no children)
+      // With maxDepth 2+: expand children as well
+      if (maxDepth > 1 && schemaAtPath.type === 'object' && schemaAtPath.properties) {
         Object.keys(schemaAtPath.properties).forEach(propName => {
           const propPath = `${actualBasePath}.${propName}`;
-          // Individual properties are level 1 from the clicked .properties node
-          const propLevel = 1; 
+          // Individual properties are level 2 from the clicked .properties node
+          const propLevel = 2; 
           
           if (propLevel <= maxDepth) {
             pathsToExpand.push(propPath);
             
             // Continue recursively from this property if we have more depth
-            if (maxDepth > 1) {
+            if (maxDepth > 2) {
               const propSchema = schemaAtPath.properties[propName];
               generateExpansionPaths(propSchema, propPath, propLevel);
             }
           }
         });
       }
+      // If maxDepth is 1, don't add any children - just expand the clicked node itself
     } else {
       // Normal expansion for non-.properties nodes
-      generateExpansionPaths(schemaAtPath, actualBasePath, 1);
+      // Only generate children if maxDepth > 1
+      if (maxDepth > 1) {
+        generateExpansionPaths(schemaAtPath, actualBasePath, 1);
+      }
     }
     
     console.log(`[BULK-DIRECT] Generated ${pathsToExpand.length} paths:`, pathsToExpand);
