@@ -121,10 +121,23 @@ export const useBulkExpandCollapse = ({
       return;
     }
     
-    // Get schema at path
-    const schemaAtPath = getSchemaAtPath(rootSchema, basePath);
+    // Handle the case where basePath ends with .properties
+    // We need to get the parent object schema, not the properties container
+    let schemaPath = basePath;
+    let actualBasePath = basePath;
+    
+    if (basePath.endsWith('.properties')) {
+      // Remove .properties to get the parent object path
+      schemaPath = basePath.replace(/\.properties$/, '');
+      actualBasePath = basePath.replace(/\.properties$/, '');
+    }
+    
+    console.log(`[BULK-DIRECT] Schema path: ${schemaPath}, Actual base path: ${actualBasePath}`);
+    
+    // Get schema at the corrected path
+    const schemaAtPath = getSchemaAtPath(rootSchema, schemaPath);
     if (!schemaAtPath) {
-      console.log(`[BULK-DIRECT] No schema found at path: ${basePath}`);
+      console.log(`[BULK-DIRECT] No schema found at path: ${schemaPath}`);
       return;
     }
     
@@ -132,15 +145,16 @@ export const useBulkExpandCollapse = ({
     const pathsToExpand: string[] = [];
     
     if (schemaAtPath.type === 'object' && schemaAtPath.properties) {
-      // Clicked node (basePath) = Level 1
+      // Clicked node (actualBasePath) = Level 1
       // Level 2: Add properties container (1 level deeper than clicked node)
       if (maxDepth >= 2) {
-        pathsToExpand.push(`${basePath}.properties`);
+        const propertiesPath = `${actualBasePath}.properties`;
+        pathsToExpand.push(propertiesPath);
         
         // Level 3: Add each property (2 levels deeper than clicked node)
         if (maxDepth >= 3) {
           Object.keys(schemaAtPath.properties).forEach(propName => {
-            const propPath = `${basePath}.properties.${propName}`;
+            const propPath = `${propertiesPath}.${propName}`;
             pathsToExpand.push(propPath);
             
             // Level 4: Check if this property has nested content (3 levels deeper than clicked node)
