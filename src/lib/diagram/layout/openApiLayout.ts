@@ -489,7 +489,8 @@ function processOpenApiPaths(
       // Process responses that have application/json content - only if responses property is expanded
       if (methodEntry.methodData.responses) {
         const responsesPath = `${methodEntry.basePath}.responses`;
-        const responsesExpanded = collapsedPaths[responsesPath] === false;
+        const responsesExpanded = collapsedPaths[responsesPath] === false || 
+          (collapsedPaths[responsesPath] && typeof collapsedPaths[responsesPath] === 'object');
         
         console.log(`[OPENAPI LAYOUT] Responses path: ${responsesPath}, expanded: ${responsesExpanded}`);
         
@@ -516,7 +517,8 @@ function processOpenApiPaths(
             
             // Check if the schema property is expanded for this response
             const schemaPath = `${methodEntry.basePath}.responses.${statusCode}.content.application/json.schema`;
-            const schemaExpanded = collapsedPaths[schemaPath] === false;
+            const schemaExpanded = collapsedPaths[schemaPath] === false || 
+              (collapsedPaths[schemaPath] && typeof collapsedPaths[schemaPath] === 'object');
             
             console.log(`[OPENAPI LAYOUT] Schema path: ${schemaPath}, expanded: ${schemaExpanded}`);
             
@@ -567,14 +569,16 @@ function processOpenApiPaths(
       // Create reference edges for responses that have $ref but no expanded schema
       if (methodEntry.methodData.responses) {
         const responsesPath = `${methodEntry.basePath}.responses`;
-        const responsesExpanded = collapsedPaths[responsesPath] === false;
+        const responsesExpanded = collapsedPaths[responsesPath] === false || 
+          (collapsedPaths[responsesPath] && typeof collapsedPaths[responsesPath] === 'object');
         
         if (responsesExpanded) {
           // Check each response for references when schema is not expanded
           Object.entries(methodEntry.methodData.responses).forEach(([statusCode, responseData]: [string, any]) => {
             if (responseData?.content?.['application/json']?.schema?.$ref) {
               const schemaPath = `${methodEntry.basePath}.responses.${statusCode}.content.application/json.schema`;
-              const schemaExpanded = collapsedPaths[schemaPath] === false;
+              const schemaExpanded = collapsedPaths[schemaPath] === false || 
+                (collapsedPaths[schemaPath] && typeof collapsedPaths[schemaPath] === 'object');
               
               // If schema is not expanded, create reference edge from response node
               if (!schemaExpanded) {
