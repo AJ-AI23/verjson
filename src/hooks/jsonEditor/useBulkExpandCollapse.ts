@@ -123,14 +123,15 @@ export const useBulkExpandCollapse = ({
     }
     
     // Handle the case where basePath ends with .properties
-    // We need to get the parent object schema, not the properties container
+    // When clicking on a .properties node, we want to expand its children
     let schemaPath = basePath;
     let actualBasePath = basePath;
     
     if (basePath.endsWith('.properties')) {
-      // Remove .properties to get the parent object path
+      // Get the parent object schema for structure info
       schemaPath = basePath.replace(/\.properties$/, '');
-      actualBasePath = basePath.replace(/\.properties$/, '');
+      // But keep the actual base path as the properties container
+      actualBasePath = basePath;
     }
     
     console.log(`[BULK-DIRECT] Schema path: ${schemaPath}, Actual base path: ${actualBasePath}`);
@@ -192,8 +193,27 @@ export const useBulkExpandCollapse = ({
       }
     };
     
-    // Start expansion: clicked node is level 1, expand from level 2 onwards
-    generateExpansionPaths(schemaAtPath, actualBasePath, 1);
+    // Special handling when clicking on a .properties node
+    if (basePath.endsWith('.properties')) {
+      // When clicking on a properties container, expand its individual properties directly
+      if (schemaAtPath.type === 'object' && schemaAtPath.properties) {
+        Object.keys(schemaAtPath.properties).forEach(propName => {
+          const propPath = `${actualBasePath}.${propName}`;
+          const propLevel = 2; // Level 2 from the clicked .properties node
+          
+          if (propLevel <= maxDepth) {
+            pathsToExpand.push(propPath);
+            
+            // Continue recursively from this property if we have more depth
+            const propSchema = schemaAtPath.properties[propName];
+            generateExpansionPaths(propSchema, propPath, propLevel);
+          }
+        });
+      }
+    } else {
+      // Normal expansion for non-.properties nodes
+      generateExpansionPaths(schemaAtPath, actualBasePath, 1);
+    }
     
     console.log(`[BULK-DIRECT] Generated ${pathsToExpand.length} paths:`, pathsToExpand);
     
