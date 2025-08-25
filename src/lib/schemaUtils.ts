@@ -89,19 +89,10 @@ export const extractSchemaComponents = (schema: any, schemaType: SchemaType = 'j
     // For JSON Schema, return the schema directly
     console.log('Returning JSON schema directly');
     return schema;
-  } else if (schemaType === 'oas-3.1' && schema?.components?.schemas) {
-    // For OAS, we'll visualize the schema components
-    // Create a root object that points to all the schemas
-    const result = {
-      type: "object",
-      title: "API Schemas",
-      description: "Components from OpenAPI specification",
-      properties: schema.components.schemas
-    };
-    
-    console.log('Created root object from OAS components.schemas with properties:', 
-      Object.keys(schema.components.schemas).length);
-    return result;
+  } else if (schemaType === 'oas-3.1') {
+    // For OpenAPI schemas, return the full schema to preserve OpenAPI structure
+    console.log('Returning full OpenAPI schema for diagram visualization');
+    return schema;
   }
   
   console.log('Schema did not match expected format, returning original');
