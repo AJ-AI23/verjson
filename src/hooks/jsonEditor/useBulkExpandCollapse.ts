@@ -113,9 +113,20 @@ export const useBulkExpandCollapse = ({
     
     console.log(`Bulk ${isExpanding ? 'expand' : 'collapse'} starting from path: ${basePath}`);
     console.log(`Max relative depth: ${maxDepth}`);
+    console.log(`Root schema structure:`, {
+      type: rootSchema?.type,
+      hasProperties: !!rootSchema?.properties,
+      propertyKeys: rootSchema?.properties ? Object.keys(rootSchema.properties) : []
+    });
     
     // Find the schema object at the base path
     const schemaAtPath = getSchemaAtPath(rootSchema, basePath);
+    console.log(`Schema lookup for path "${basePath}":`, schemaAtPath ? {
+      type: schemaAtPath.type,
+      hasProperties: !!schemaAtPath.properties,
+      propertyKeys: schemaAtPath.properties ? Object.keys(schemaAtPath.properties) : []
+    } : 'null');
+    
     if (!schemaAtPath) {
       console.log(`No schema found at path: ${basePath}`);
       return;
