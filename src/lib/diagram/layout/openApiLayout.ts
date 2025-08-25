@@ -77,11 +77,12 @@ export const generateOpenApiLayout = (
       
       if (!infoCollapsed) {
         const infoNode = createInfoNode(schema.info, -400, yOffset);
-        const infoEdge = createEdge('root', infoNode.id, 'info', false, {}, 'structure');
+        const infoEdge = createEdge('root', infoNode.id, undefined, false, {}, 'default');
         result.nodes.push(infoNode);
         result.edges.push(infoEdge);
         specialNodes.push('info');
-        console.log(`[OPENAPI LAYOUT] Created info node`);
+        console.log(`[OPENAPI LAYOUT] Created info node with ID: ${infoNode.id}`);
+        console.log(`[OPENAPI LAYOUT] Created info edge:`, infoEdge);
       }
     }
     
@@ -94,11 +95,12 @@ export const generateOpenApiLayout = (
       
       if (!componentsCollapsed) {
         const componentsNode = createComponentsNode(schema.components.schemas, 0, yOffset);
-        const componentsEdge = createEdge('root', componentsNode.id, 'components', false, {}, 'structure');
+        const componentsEdge = createEdge('root', componentsNode.id, undefined, false, {}, 'default');
         result.nodes.push(componentsNode);
         result.edges.push(componentsEdge);
         specialNodes.push('components');
-        console.log(`[OPENAPI LAYOUT] Created components node`);
+        console.log(`[OPENAPI LAYOUT] Created components node with ID: ${componentsNode.id}`);
+        console.log(`[OPENAPI LAYOUT] Created components edge:`, componentsEdge);
         
         // Create individual schema nodes connected to components if components.schemas is expanded
         const componentsSchemasPath = 'root.components.schemas';
@@ -144,10 +146,11 @@ export const generateOpenApiLayout = (
           false
         );
         
-        const pathsContainerEdge = createEdge('root', pathsContainerNode.id, 'paths', false, {}, 'structure');
+        const pathsContainerEdge = createEdge('root', pathsContainerNode.id, undefined, false, {}, 'default');
         result.nodes.push(pathsContainerNode);
         result.edges.push(pathsContainerEdge);
-        console.log(`[OPENAPI LAYOUT] Created paths container node`);
+        console.log(`[OPENAPI LAYOUT] Created paths container node with ID: ${pathsContainerNode.id}`);
+        console.log(`[OPENAPI LAYOUT] Created paths container edge:`, pathsContainerEdge);
         
         // Then create individual endpoint nodes connected to the paths container
         processOpenApiPaths(
