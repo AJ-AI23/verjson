@@ -9,6 +9,7 @@ import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 
 const JsonEditorPocPage = () => {
   const { settings } = useEditorSettings();
+  console.log('[DEBUG] JsonEditorPocPage settings:', settings);
   const [schema, setSchema] = useState(defaultSchema);
   const [error, setError] = useState<string | null>(null);
   const [collapsedPaths, setCollapsedPaths] = useState<CollapsedState>({});
