@@ -195,18 +195,21 @@ export const useBulkExpandCollapse = ({
     
     // Special handling when clicking on a .properties node
     if (basePath.endsWith('.properties')) {
-      // When clicking on a properties container, expand its individual properties directly
+      // When clicking on a properties container, treat it as the starting point
       if (schemaAtPath.type === 'object' && schemaAtPath.properties) {
         Object.keys(schemaAtPath.properties).forEach(propName => {
           const propPath = `${actualBasePath}.${propName}`;
-          const propLevel = 2; // Level 2 from the clicked .properties node
+          // Individual properties are level 1 from the clicked .properties node
+          const propLevel = 1; 
           
           if (propLevel <= maxDepth) {
             pathsToExpand.push(propPath);
             
             // Continue recursively from this property if we have more depth
-            const propSchema = schemaAtPath.properties[propName];
-            generateExpansionPaths(propSchema, propPath, propLevel);
+            if (maxDepth > 1) {
+              const propSchema = schemaAtPath.properties[propName];
+              generateExpansionPaths(propSchema, propPath, propLevel);
+            }
           }
         });
       }
