@@ -146,8 +146,10 @@ export const useBulkExpandCollapse = ({
     console.log(`[BULK-START] getAllNestedPaths returned ${nestedPaths.length} paths:`, nestedPaths);
     
     // Apply the expand/collapse action to all paths
-    nestedPaths.forEach(path => {
-      console.log(`Bulk ${isExpanding ? 'expanding' : 'collapsing'} path: ${path}`);
+    console.log(`[BULK-START] Processing ${nestedPaths.length} paths...`);
+    nestedPaths.forEach((path, index) => {
+      console.log(`[BULK-START] Processing path ${index + 1}/${nestedPaths.length}: ${path}`);
+      console.log(`[BULK-START] Calling onToggleCollapse(${path}, ${!isExpanding})`);
       onToggleCollapse(path, !isExpanding);
       
       // Also apply the expansion to the JSONEditor instance if available
@@ -171,7 +173,7 @@ export const useBulkExpandCollapse = ({
           // Convert to array path
           const pathArray = editorPath === '' ? [] : editorPath.split('.');
           
-          console.log(`Applying expansion to JSONEditor for path: ${path} -> editor path: [${pathArray.join(', ')}]`);
+          console.log(`[BULK-START] Applying expansion to JSONEditor for path: ${path} -> editor path: [${pathArray.join(', ')}]`);
           
           // Use the expand method to expand this specific node in the editor
           editorRef.current.expand({
@@ -179,13 +181,14 @@ export const useBulkExpandCollapse = ({
             isExpand: true,
             recursive: false
           });
+          console.log(`[BULK-START] JSONEditor expand completed for path: ${path}`);
         } catch (error) {
-          console.warn(`Failed to expand path ${path} in JSONEditor:`, error);
+          console.warn(`[BULK-START] Failed to expand path ${path} in JSONEditor:`, error);
         }
       }
     });
     
-    console.log(`Bulk ${isExpanding ? 'expand' : 'collapse'} completed`);
+    console.log(`[BULK-START] Bulk ${isExpanding ? 'expand' : 'collapse'} completed - processed ${nestedPaths.length} paths`);
   }, [onToggleCollapse, maxDepth, getAllNestedPaths, getSchemaAtPath]);
   
   return {
