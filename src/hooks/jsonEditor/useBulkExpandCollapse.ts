@@ -200,24 +200,36 @@ export const useBulkExpandCollapse = ({
     
     // Special handling when clicking on a .properties node
     if (basePath.endsWith('.properties')) {
-      // With maxDepth 1: only expand the clicked .properties node (no children)
-      // With maxDepth 2+: expand children as well
-      if (maxDepth > 1 && schemaAtPath.type === 'object' && schemaAtPath.properties) {
+      console.log(`[BULK-DEBUG] Processing .properties node`);
+      console.log(`[BULK-DEBUG] schemaAtPath:`, schemaAtPath);
+      console.log(`[BULK-DEBUG] schemaAtPath.type:`, schemaAtPath?.type);
+      console.log(`[BULK-DEBUG] schemaAtPath.properties:`, schemaAtPath?.properties);
+      
+      // With maxDepth 1: expand direct children only
+      // With maxDepth 2+: expand children and potentially go deeper
+      if (schemaAtPath.type === 'object' && schemaAtPath.properties) {
+        console.log(`[BULK-DEBUG] Found object with properties, keys:`, Object.keys(schemaAtPath.properties));
         Object.keys(schemaAtPath.properties).forEach(propName => {
           const propPath = `${actualBasePath}.${propName}`;
           // Individual properties are level 2 from the clicked .properties node
           const propLevel = 2; 
           
-          if (propLevel <= maxDepth) {
+          console.log(`[BULK-DEBUG] Checking prop ${propName}, propLevel: ${propLevel}, maxDepth + 1: ${maxDepth + 1}`);
+          if (propLevel <= maxDepth + 1) { // +1 because we always want to show at least the direct children
+            console.log(`[BULK-DEBUG] Adding path: ${propPath}`);
             pathsToExpand.push(propPath);
             
             // Continue recursively from this property if we have more depth
-            if (maxDepth > 2) {
+            if (maxDepth > 1) {
               const propSchema = schemaAtPath.properties[propName];
               generateExpansionPaths(propSchema, propPath, propLevel);
             }
+          } else {
+            console.log(`[BULK-DEBUG] Skipping path: ${propPath} (exceeds depth)`);
           }
         });
+      } else {
+        console.log(`[BULK-DEBUG] Schema is not an object with properties`);
       }
       // If maxDepth is 1, don't add any children - just expand the clicked node itself
     } else {
