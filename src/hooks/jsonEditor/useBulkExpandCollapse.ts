@@ -26,7 +26,14 @@ export const useBulkExpandCollapse = ({
     let current = schema;
     
     for (const part of parts) {
-      if (current?.properties?.[part]) {
+      if (part === 'properties') {
+        // .properties refers to the properties object of the current schema
+        if (current?.type === 'object' && current?.properties) {
+          current = current.properties;
+        } else {
+          return null;
+        }
+      } else if (current?.properties?.[part]) {
         current = current.properties[part];
       } else if (current?.items && part === 'items') {
         current = current.items;
