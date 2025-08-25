@@ -82,6 +82,9 @@ export const useJsonEditorEvents = ({
       console.log(`[DEBUG] Current maxDepth: ${maxDepth}`);
       console.log(`[DEBUG] rootSchema available:`, !!rootSchema);
       
+      // Force update the ref to latest state before reading
+      collapsedPathsRef.current = { ...collapsedPaths };
+      
       // Get the current state (default to true/collapsed if not set)
       const currentlyCollapsed = getPathState(normalizedPath);
       
@@ -152,7 +155,7 @@ export const useJsonEditorEvents = ({
     return { 
       onExpand
     };
-  }, [getPathState, normalizePath, onToggleCollapse, setFoldingDebug, editorRef, bulkExpand, rootSchema, maxDepth]);
+  }, [getPathState, normalizePath, onToggleCollapse, setFoldingDebug, editorRef, bulkExpand, rootSchema, maxDepth, collapsedPaths]);
 
   return {
     createEditorEventHandlers,
