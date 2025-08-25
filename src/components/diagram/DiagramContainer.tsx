@@ -67,7 +67,6 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     memoizedSchema, 
     error, 
     groupProperties, 
-    localMaxDepth, 
     memoizedCollapsedPaths
   );
 

@@ -9,7 +9,6 @@ export const useDiagramNodes = (
   schema: any, 
   error: boolean, 
   groupProperties: boolean,
-  maxDepth: number,
   collapsedPaths: CollapsedState = {}
 ) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -23,7 +22,6 @@ export const useDiagramNodes = (
   const collapsedPathsRef = useRef<CollapsedState>(collapsedPaths);
   const updateTimeoutRef = useRef<number | null>(null);
   const processingUpdateRef = useRef<boolean>(false);
-  const previousMaxDepthRef = useRef<number>(maxDepth);
   const lastUpdateTimeRef = useRef<number>(Date.now());
   const initialRenderRef = useRef<boolean>(true);
 
@@ -104,7 +102,6 @@ export const useDiagramNodes = (
     }
     
     // Only update if something important has changed
-    const maxDepthChanged = previousMaxDepthRef.current !== maxDepth;
     const schemaChanged = schemaString !== schemaStringRef.current;
     const groupSettingChanged = prevGroupSetting !== groupProperties;
     const collapsedPathsChanged = collapsedPathsString !== JSON.stringify(collapsedPathsRef.current);
@@ -112,11 +109,10 @@ export const useDiagramNodes = (
     // Force update on initial render to make sure root node is always shown
     const forceUpdate = isInitialRender;
     
-    if (schemaChanged || groupSettingChanged || maxDepthChanged || collapsedPathsChanged || forceUpdate) {
+    if (schemaChanged || groupSettingChanged || collapsedPathsChanged || forceUpdate) {
       console.log('Schema or settings changed, generating new diagram', {
         schemaChanged,
         groupSettingChanged,
-        maxDepthChanged,
         collapsedPathsChanged,
         forceUpdate,
         rootCollapsed: collapsedPaths.root === true
@@ -125,7 +121,6 @@ export const useDiagramNodes = (
       // Update refs with current values
       schemaStringRef.current = schemaString;
       collapsedPathsRef.current = {...collapsedPaths};
-      previousMaxDepthRef.current = maxDepth;
       lastUpdateTimeRef.current = Date.now();
       
       // Mark that we're processing an update
@@ -139,12 +134,12 @@ export const useDiagramNodes = (
       // Use simple counter for schema key
       setSchemaKey(prev => prev + 1);
       
-      // Generate diagram elements
-      console.log(`Generating nodes and edges with maxDepth: ${maxDepth}`);
+      // Generate diagram elements with fixed depth (diagram should show full structure)
+      console.log(`Generating nodes and edges with fixed maxDepth: 10`);
       const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(
         schema, 
         groupProperties, 
-        maxDepth, 
+        10, // Fixed depth for diagram - always show full structure
         collapsedPaths
       );
       
@@ -172,7 +167,6 @@ export const useDiagramNodes = (
     schemaString, 
     error, 
     groupProperties, 
-    maxDepth, 
     collapsedPaths,
     collapsedPathsString, 
     setNodes, 
