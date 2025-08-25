@@ -134,12 +134,12 @@ export const useDiagramNodes = (
       // Use simple counter for schema key
       setSchemaKey(prev => prev + 1);
       
-      // Generate diagram elements with fixed depth (diagram should show full structure)
-      console.log(`Generating nodes and edges with fixed maxDepth: 10`);
+      // Generate diagram elements with unlimited depth - let collapsed paths control visibility
+      console.log(`Generating nodes and edges with unlimited depth`);
       const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(
         schema, 
         groupProperties, 
-        10, // Fixed depth for diagram - always show full structure
+        999, // Very high limit - effectively unlimited for practical schemas
         collapsedPaths
       );
       
