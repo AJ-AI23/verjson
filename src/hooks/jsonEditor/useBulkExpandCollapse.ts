@@ -20,7 +20,10 @@ export const useBulkExpandCollapse = ({
   ): string[] => {
     const paths: string[] = [];
     
+    console.log(`[BULK] Getting nested paths for basePath: ${basePath}, currentDepth: ${currentDepth}, maxRelativeDepth: ${maxRelativeDepth}`);
+    
     if (!schema || currentDepth >= maxRelativeDepth) {
+      console.log(`[BULK] Stopping - no schema or max depth reached`);
       return paths;
     }
     
@@ -28,14 +31,16 @@ export const useBulkExpandCollapse = ({
     if (schema.type === 'object' && schema.properties) {
       const propertiesPath = `${basePath}.properties`;
       paths.push(propertiesPath);
+      console.log(`[BULK] Added properties path: ${propertiesPath}`);
       
       // Recursively get paths for each property
       Object.entries(schema.properties).forEach(([propName, propSchema]: [string, any]) => {
         if (propSchema) {
           const propPath = `${propertiesPath}.${propName}`;
           paths.push(propPath);
+          console.log(`[BULK] Added property path: ${propPath}`);
           
-          // Get nested paths for this property
+          // Get nested paths for this property (increment depth here)
           const nestedPaths = getAllNestedPaths(
             propSchema, 
             propPath, 
@@ -43,6 +48,7 @@ export const useBulkExpandCollapse = ({
             maxRelativeDepth
           );
           paths.push(...nestedPaths);
+          console.log(`[BULK] Added ${nestedPaths.length} nested paths for ${propPath}`);
         }
       });
     }
@@ -51,8 +57,9 @@ export const useBulkExpandCollapse = ({
     if (schema.type === 'array' && schema.items) {
       const itemsPath = `${basePath}.items`;
       paths.push(itemsPath);
+      console.log(`[BULK] Added items path: ${itemsPath}`);
       
-      // Get nested paths for array items
+      // Get nested paths for array items (increment depth here)
       const itemPaths = getAllNestedPaths(
         schema.items, 
         itemsPath, 
@@ -60,8 +67,10 @@ export const useBulkExpandCollapse = ({
         maxRelativeDepth
       );
       paths.push(...itemPaths);
+      console.log(`[BULK] Added ${itemPaths.length} item paths for ${itemsPath}`);
     }
     
+    console.log(`[BULK] Returning ${paths.length} paths for ${basePath}:`, paths);
     return paths;
   }, [maxDepth]);
   
