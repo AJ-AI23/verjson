@@ -19,7 +19,16 @@ export const generateNodesAndEdges = (
 
   console.log('generateNodesAndEdges called with:');
   console.log('- Schema:', schema ? 
-    { type: schema.type, hasProperties: !!schema.properties, title: schema.title } : 'null or undefined');
+    { 
+      type: schema.type, 
+      hasProperties: !!schema.properties, 
+      title: schema.title,
+      hasOpenapi: !!schema.openapi,
+      hasSwagger: !!schema.swagger,
+      hasInfo: !!schema.info,
+      hasPaths: !!schema.paths,
+      schemaKeys: Object.keys(schema)
+    } : 'null or undefined');
   console.log('- Group properties:', groupProperties);
   console.log('- Max depth:', maxDepth);
   console.log('- Collapsed paths count:', Object.keys(collapsedPaths).length);
