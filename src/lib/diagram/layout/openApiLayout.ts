@@ -564,8 +564,94 @@ function processOpenApiPaths(
         }
       }
       
-      // Add reference detection for request/response schemas
-      detectAndCreateReferences(methodEntry.methodData, methodNode.id, result, methodX, yPos + 150);
+      // Create reference edges for responses that have $ref but no expanded schema
+      if (methodEntry.methodData.responses) {
+        const responsesPath = `${methodEntry.basePath}.responses`;
+        const responsesExpanded = collapsedPaths[responsesPath] === false;
+        
+        if (responsesExpanded) {
+          // Check each response for references when schema is not expanded
+          Object.entries(methodEntry.methodData.responses).forEach(([statusCode, responseData]: [string, any]) => {
+            if (responseData?.content?.['application/json']?.schema?.$ref) {
+              const schemaPath = `${methodEntry.basePath}.responses.${statusCode}.content.application/json.schema`;
+              const schemaExpanded = collapsedPaths[schemaPath] === false;
+              
+              // If schema is not expanded, create reference edge from response node
+              if (!schemaExpanded) {
+                const responseNodeId = `response-${methodEntry.path.replace(/[^\w]/g, '-')}-${methodEntry.method}-${statusCode}`;
+                const refPath = responseData.content['application/json'].schema.$ref.replace('#/components/schemas/', '');
+                const componentNodeId = `components_schemas_${refPath}`;
+                
+                const existingComponentNode = result.nodes.find(node => node.id === componentNodeId);
+                const existingResponseNode = result.nodes.find(node => node.id === responseNodeId);
+                
+                if (existingComponentNode && existingResponseNode) {
+                  const refEdge = createEdge(
+                    responseNodeId,
+                    componentNodeId,
+                    undefined,
+                    false,
+                    { strokeDasharray: '5,5' },
+                    'default'
+                  );
+                  result.edges.push(refEdge);
+                  console.log(`[OPENAPI LAYOUT] Created dotted reference edge from response ${responseNodeId} to ${componentNodeId}`);
+                }
+              }
+            }
+          });
+        } else {
+          // If responses are not expanded, create reference edge from method node for any response with $ref
+          Object.entries(methodEntry.methodData.responses).forEach(([statusCode, responseData]: [string, any]) => {
+            if (responseData?.content?.['application/json']?.schema?.$ref) {
+              const refPath = responseData.content['application/json'].schema.$ref.replace('#/components/schemas/', '');
+              const componentNodeId = `components_schemas_${refPath}`;
+              
+              const existingComponentNode = result.nodes.find(node => node.id === componentNodeId);
+              
+              if (existingComponentNode) {
+                const refEdge = createEdge(
+                  methodNode.id,
+                  componentNodeId,
+                  undefined,
+                  false,
+                  { strokeDasharray: '5,5' },
+                  'default'
+                );
+                result.edges.push(refEdge);
+                console.log(`[OPENAPI LAYOUT] Created dotted reference edge from method ${methodNode.id} to ${componentNodeId}`);
+              }
+            }
+          });
+        }
+      }
+      
+      // Handle request body references similarly
+      if (methodEntry.methodData.requestBody?.content?.['application/json']?.schema?.$ref) {
+        const requestBodyPath = `${methodEntry.basePath}.requestBody`;
+        const requestBodyExpanded = collapsedPaths[requestBodyPath] === false;
+        
+        if (!requestBodyExpanded) {
+          // Create reference edge from method node
+          const refPath = methodEntry.methodData.requestBody.content['application/json'].schema.$ref.replace('#/components/schemas/', '');
+          const componentNodeId = `components_schemas_${refPath}`;
+          
+          const existingComponentNode = result.nodes.find(node => node.id === componentNodeId);
+          
+          if (existingComponentNode) {
+            const refEdge = createEdge(
+              methodNode.id,
+              componentNodeId,
+              undefined,
+              false,
+              { strokeDasharray: '5,5' },
+              'default'
+            );
+            result.edges.push(refEdge);
+            console.log(`[OPENAPI LAYOUT] Created dotted reference edge from method ${methodNode.id} to ${componentNodeId} for request body`);
+          }
+        }
+      }
     } else {
       console.log(`[OPENAPI LAYOUT] Skipped collapsed method: ${methodEntry.fullLabel}`);
     }
