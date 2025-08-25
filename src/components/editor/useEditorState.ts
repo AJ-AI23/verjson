@@ -39,10 +39,13 @@ export const useEditorState = (defaultSchema: string) => {
   }, []);
 
   // Clean up collapsed paths when maxDepth changes
-  useEffect(() => {
-    console.log(`[DEBUG] MaxDepth changed to ${maxDepth}, cleaning up collapsed paths`);
-    setCollapsedPaths(prev => cleanupCollapsedPaths(prev, maxDepth));
-  }, [maxDepth, cleanupCollapsedPaths]);
+  // Note: We don't actually clean up paths automatically as this would cause 
+  // unwanted diagram updates. Instead, we let the editor handle path validation
+  // when expand/collapse operations happen.
+  // useEffect(() => {
+  //   console.log(`[DEBUG] MaxDepth changed to ${maxDepth}, cleaning up collapsed paths`);
+  //   setCollapsedPaths(prev => cleanupCollapsedPaths(prev, maxDepth));
+  // }, [maxDepth, cleanupCollapsedPaths]);
 
   // Use our custom versioning hook
   const {
