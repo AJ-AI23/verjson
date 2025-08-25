@@ -73,7 +73,9 @@ export const useJsonEditorEvents = ({
       const path = node.path.length > 0 ? node.path.join('.') : 'root';
       const normalizedPath = normalizePath(path);
       
-      console.log(`onExpand called for path: ${normalizedPath}`);
+      console.log(`[DEBUG] onExpand called for path: ${normalizedPath}`);
+      console.log(`[DEBUG] Current maxDepth: ${maxDepth}`);
+      console.log(`[DEBUG] rootSchema available:`, !!rootSchema);
       
       // Get the current state (default to true/collapsed if not set)
       const currentlyCollapsed = getPathState(normalizedPath);
@@ -83,7 +85,7 @@ export const useJsonEditorEvents = ({
       // If current state is false (expanded), new state is true (collapsed)
       const newCollapsedState = !currentlyCollapsed;
       
-      console.log(`Path ${normalizedPath}: currently ${currentlyCollapsed ? 'collapsed' : 'expanded'}, 
+      console.log(`[DEBUG] Path ${normalizedPath}: currently ${currentlyCollapsed ? 'collapsed' : 'expanded'}, 
                   toggling to ${newCollapsedState ? 'collapsed' : 'expanded'}`);
       
       if (onToggleCollapse) {
@@ -91,12 +93,14 @@ export const useJsonEditorEvents = ({
         
         // If we're expanding a node and have rootSchema, perform bulk expand
         if (!newCollapsedState && rootSchema) {
-          console.log(`Performing bulk expand for path: ${normalizedPath} with maxDepth: ${maxDepth}`);
-          console.log(`Root schema available:`, !!rootSchema);
-          console.log(`Editor ref available:`, !!editorRef?.current);
+          console.log(`[DEBUG] Triggering bulk expand for path: ${normalizedPath} with maxDepth: ${maxDepth}`);
+          console.log(`[DEBUG] Root schema available:`, !!rootSchema);
+          console.log(`[DEBUG] Editor ref available:`, !!editorRef?.current);
           
           // Remove setTimeout and call immediately
           bulkExpand(normalizedPath, rootSchema, true, editorRef);
+        } else {
+          console.log(`[DEBUG] Not triggering bulk expand - newCollapsedState: ${newCollapsedState}, rootSchema: ${!!rootSchema}`);
         }
       }
       
