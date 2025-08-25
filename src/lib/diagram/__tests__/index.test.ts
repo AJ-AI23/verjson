@@ -2,17 +2,24 @@
 import { generateNodesAndEdges } from '../index';
 
 // Mock layout generators
-jest.mock('../groupedPropertiesLayout', () => ({
+jest.mock('../layout/groupedPropertiesLayout', () => ({
   generateGroupedLayout: jest.fn().mockReturnValue({
     nodes: [{ id: 'group-node', type: 'schemaType' }],
     edges: [{ id: 'group-edge', source: 'root', target: 'group-node' }]
   })
 }));
 
-jest.mock('../expandedPropertiesLayout', () => ({
+jest.mock('../layout/expandedPropertiesLayout', () => ({
   generateExpandedLayout: jest.fn().mockReturnValue({
     nodes: [{ id: 'prop-node', type: 'schemaType' }],
     edges: [{ id: 'prop-edge', source: 'root', target: 'prop-node' }]
+  })
+}));
+
+jest.mock('../layout/openApiLayout', () => ({
+  generateOpenApiLayout: jest.fn().mockReturnValue({
+    nodes: [{ id: 'openapi-node', type: 'schemaType' }],
+    edges: [{ id: 'openapi-edge', source: 'root', target: 'openapi-node' }]
   })
 }));
 
@@ -45,7 +52,7 @@ describe('generateNodesAndEdges', () => {
   });
   
   it('should call generateGroupedLayout when groupProperties is true', () => {
-    const { generateGroupedLayout } = require('../groupedPropertiesLayout');
+    const { generateGroupedLayout } = require('../layout/groupedPropertiesLayout');
     
     const schema = {
       type: 'object',
@@ -60,7 +67,7 @@ describe('generateNodesAndEdges', () => {
   });
   
   it('should call generateExpandedLayout when groupProperties is false', () => {
-    const { generateExpandedLayout } = require('../expandedPropertiesLayout');
+    const { generateExpandedLayout } = require('../layout/expandedPropertiesLayout');
     
     const schema = {
       type: 'object',
@@ -74,9 +81,32 @@ describe('generateNodesAndEdges', () => {
     expect(result.edges.length).toBe(1); // Prop edge
   });
   
+  it('should use OpenAPI layout for OpenAPI schemas', () => {
+    const { generateOpenApiLayout } = require('../layout/openApiLayout');
+    const { generateGroupedLayout } = require('../layout/groupedPropertiesLayout');
+    const { generateExpandedLayout } = require('../layout/expandedPropertiesLayout');
+    
+    const openApiSchema = { 
+      openapi: '3.1.0', 
+      info: { title: 'Test API', version: '1.0.0' },
+      paths: {}
+    };
+    
+    const result = generateNodesAndEdges(openApiSchema, false, 5, {});
+    
+    // For OpenAPI schemas, OpenAPI layout should be called
+    expect(generateOpenApiLayout).toHaveBeenCalledWith(openApiSchema, 5, {});
+    // Neither grouped nor expanded layout should be called
+    expect(generateGroupedLayout).not.toHaveBeenCalled();
+    expect(generateExpandedLayout).not.toHaveBeenCalled();
+    
+    expect(result.nodes.length).toBe(2); // Root node + openapi node
+    expect(result.edges.length).toBe(1); // OpenAPI edge
+  });
+  
   it('should pass maxDepth parameter to layout generators', () => {
-    const { generateExpandedLayout } = require('../expandedPropertiesLayout');
-    const { generateGroupedLayout } = require('../groupedPropertiesLayout');
+    const { generateExpandedLayout } = require('../layout/expandedPropertiesLayout');
+    const { generateGroupedLayout } = require('../layout/groupedPropertiesLayout');
     
     const schema = {
       type: 'object',
@@ -85,12 +115,12 @@ describe('generateNodesAndEdges', () => {
     
     // Test with expanded layout
     generateNodesAndEdges(schema, false, 5);
-    expect(generateExpandedLayout).toHaveBeenCalledWith(schema, 5);
+    expect(generateExpandedLayout).toHaveBeenCalledWith(schema, 5, undefined);
     
     jest.clearAllMocks();
     
     // Test with grouped layout
     generateNodesAndEdges(schema, true, 4);
-    expect(generateGroupedLayout).toHaveBeenCalledWith(schema, 4);
+    expect(generateGroupedLayout).toHaveBeenCalledWith(schema, 4, undefined);
   });
 });

@@ -3,6 +3,33 @@ import { Node } from '@xyflow/react';
 import { PropertyDetails } from './types';
 
 export const createRootNode = (schema: any): Node => {
+  // Handle OpenAPI schemas differently
+  const isOpenApiSchema = schema && 
+                          typeof schema === 'object' && 
+                          (schema.openapi || schema.swagger) &&
+                          (schema.info || schema.paths);
+  
+  if (isOpenApiSchema) {
+    const version = schema.openapi || schema.swagger;
+    const title = schema.info?.title || 'OpenAPI Specification';
+    const description = schema.info?.description || `OpenAPI ${version} specification`;
+    
+    return {
+      id: 'root',
+      type: 'schemaType',
+      position: { x: 0, y: 0 },
+      data: {
+        label: title,
+        type: 'openapi',
+        description: description,
+        isRoot: true,
+        properties: Object.keys(schema).length,
+        version: version
+      }
+    };
+  }
+  
+  // Handle regular JSON schemas
   return {
     id: 'root',
     type: 'schemaType',

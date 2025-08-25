@@ -4,6 +4,7 @@ import { DiagramElements, CollapsedState } from './types';
 import { createRootNode } from './nodeGenerator';
 import { generateGroupedLayout } from './layout/groupedPropertiesLayout';
 import { generateExpandedLayout } from './layout/expandedPropertiesLayout';
+import { generateOpenApiLayout } from './layout/openApiLayout';
 
 export const generateNodesAndEdges = (
   schema: any, 
@@ -24,7 +25,19 @@ export const generateNodesAndEdges = (
   console.log('- Collapsed paths count:', Object.keys(collapsedPaths).length);
   console.log('- Root collapsed?', collapsedPaths['root'] === true);
   
-  if (!schema || !schema.type) {
+  if (!schema) {
+    console.error('No valid schema provided to generateNodesAndEdges');
+    return result;
+  }
+
+  // Check if this is an OpenAPI schema first
+  const isOpenApiSchema = schema && 
+                          typeof schema === 'object' && 
+                          (schema.openapi || schema.swagger) &&
+                          (schema.info || schema.paths);
+
+  // For regular JSON schemas, require a type property
+  if (!isOpenApiSchema && !schema.type) {
     console.error('No valid schema provided to generateNodesAndEdges');
     return result;
   }
@@ -46,8 +59,13 @@ export const generateNodesAndEdges = (
     result.nodes.push(rootNode);
     console.log('Root node created:', rootNode);
 
-    // Process properties (let layout functions handle collapsed state)
-    if (schema.type === 'object' && schema.properties) {
+    if (isOpenApiSchema) {
+      console.log('Detected OpenAPI schema, using OpenAPI layout');
+      const openApiLayout = generateOpenApiLayout(schema, maxDepth, collapsedPaths);
+      console.log(`OpenAPI layout generated ${openApiLayout.nodes.length} nodes and ${openApiLayout.edges.length} edges`);
+      result.nodes.push(...openApiLayout.nodes);
+      result.edges.push(...openApiLayout.edges);
+    } else if (schema.type === 'object' && schema.properties) {
       console.log(`Schema has ${Object.keys(schema.properties).length} properties`);
       console.log(`Root collapsed: ${rootCollapsed}`);
       

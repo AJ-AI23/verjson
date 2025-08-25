@@ -20,6 +20,7 @@ export const SchemaTypeBadge = memo(({ type, format, isSmall = false }: SchemaTy
     type === 'array' && 'bg-amber-100 text-amber-800 border-amber-200',
     type === 'object' && 'bg-slate-100 text-slate-800 border-slate-200',
     type === 'reference' && 'bg-pink-100 text-pink-800 border-pink-200',
+    type === 'openapi' && 'bg-indigo-100 text-indigo-800 border-indigo-200',
   );
 
   return (
