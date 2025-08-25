@@ -113,15 +113,8 @@ export const useBulkExpandCollapse = ({
         });
       }
 
-      if (currentSchema.type === 'array' && currentSchema.items) {
-        const itemsPath = currentPath === 'root' ? 'root.items' : `${currentPath}.items`;
-        const itemsDepth = itemsPath.split('.').length - 1;
-        
-        if (itemsDepth <= baseDepth + maxDepth) {
-          pathsToExpand.push(itemsPath);
-          generatePaths(currentSchema.items, itemsPath);
-        }
-      }
+      // Don't automatically expand 'items' - it's a schema construct, not a structural level
+      // Arrays will be expanded through their actual content, not through the items schema
     };
 
     // Get the schema for the clicked path and generate expansion paths
