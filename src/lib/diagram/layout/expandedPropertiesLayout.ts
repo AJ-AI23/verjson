@@ -13,12 +13,16 @@ export const generateExpandedLayout = (
   maxDepth: number = 3,
   collapsedPaths: CollapsedState = {}
 ): DiagramElements => {
+  console.log(`[EXPANDED LAYOUT] Starting with maxDepth: ${maxDepth}`);
+  console.log(`[EXPANDED LAYOUT] CollapsedPaths:`, collapsedPaths);
+  
   const result: DiagramElements = {
     nodes: [],
     edges: []
   };
 
   if (!schema || !schema.type || schema.type !== 'object' || !schema.properties) {
+    console.log(`[EXPANDED LAYOUT] Early return - invalid schema`);
     return result;
   }
 
@@ -48,11 +52,11 @@ export const generateExpandedLayout = (
   const rootPropertiesPath = 'root.properties';
   const rootPropertiesExpanded = collapsedPaths[rootPropertiesPath] === false;
   
-  console.log(`Root properties path: ${rootPropertiesPath}, expanded: ${rootPropertiesExpanded}`);
+  console.log(`[EXPANDED LAYOUT] Root properties path: ${rootPropertiesPath}, expanded: ${rootPropertiesExpanded}`);
   
   // Only process first level properties if root.properties is explicitly expanded
   if (rootPropertiesExpanded) {
-    console.log('Root properties are explicitly expanded, processing first level properties');
+    console.log('[EXPANDED LAYOUT] Root properties are explicitly expanded, processing first level properties');
     // Process the first level of properties (depth 1)
     processProperties(
       properties, 
@@ -68,8 +72,10 @@ export const generateExpandedLayout = (
       'root'
     );
   } else {
-    console.log('Root properties are not explicitly expanded, skipping first level properties');
+    console.log('[EXPANDED LAYOUT] Root properties are not explicitly expanded, skipping first level properties');
   }
+  
+  console.log(`[EXPANDED LAYOUT] Finished - generated ${result.nodes.length} nodes, ${result.edges.length} edges`);
   
   return result;
 };
