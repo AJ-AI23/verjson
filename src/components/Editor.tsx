@@ -4,7 +4,6 @@ import { defaultSchema } from '@/lib/defaultSchema';
 import { EditorToolbar } from './schema/EditorToolbar';
 import { EditorContent } from './schema/EditorContent';
 import { useEditorState } from './editor/useEditorState';
-import { EditorDebugControls } from './editor/EditorDebugControls';
 import { EditorVersionDialog } from './editor/EditorVersionDialog';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 
@@ -48,13 +47,7 @@ export const Editor = () => {
         setSavedSchema={setSavedSchema}
       />
       
-      {/* Debug controls */}
-      <EditorDebugControls 
-        collapsedPaths={collapsedPaths}
-        setCollapsedPaths={setCollapsedPaths}
-      />
-      
-      <EditorContent 
+      <EditorContent
         schema={schema}
         parsedSchema={parsedSchema}
         error={error}
