@@ -54,7 +54,7 @@ export const useBulkExpandCollapse = ({
     // Before expanding new paths, collapse any existing paths that are deeper than maxDepth
     if (collapsedPathsRef?.current) {
       const baseDepth = basePath === 'root' ? 0 : basePath.split('.').length - 1;
-      const maxAllowedDepth = baseDepth + maxDepth;
+      const maxAllowedDepth = baseDepth + (maxDepth - 1);
       
       Object.entries(collapsedPathsRef.current).forEach(([path, isCollapsed]) => {
         if (!isCollapsed && path.startsWith(basePath) && path !== basePath) {
@@ -71,18 +71,25 @@ export const useBulkExpandCollapse = ({
     const pathsToExpand: string[] = [];
     const baseDepth = basePath === 'root' ? 0 : basePath.split('.').length - 1;
 
+    // If maxDepth is 1, don't bulk expand any children - just let JSONEditor handle the natural expansion
+    if (maxDepth <= 1) {
+      console.log(`[BULK-DIRECT] maxDepth is ${maxDepth}, skipping bulk expansion`);
+      return;
+    }
+
     // Recursively generate all possible paths from the schema
     const generatePaths = (currentSchema: any, currentPath: string) => {
       const currentDepth = currentPath === 'root' ? 0 : currentPath.split('.').length - 1;
       
-      if (currentDepth >= baseDepth + maxDepth || !currentSchema || typeof currentSchema !== 'object') return;
+      // For maxDepth > 1, expand up to baseDepth + (maxDepth - 1) levels
+      if (currentDepth >= baseDepth + (maxDepth - 1) || !currentSchema || typeof currentSchema !== 'object') return;
 
       // For any object, iterate through all its keys as potential expandable paths
       Object.keys(currentSchema).forEach(propName => {
         const propPath = currentPath === 'root' ? `root.${propName}` : `${currentPath}.${propName}`;
         const propDepth = propPath.split('.').length - 1;
         
-        if (propDepth <= baseDepth + maxDepth) {
+        if (propDepth <= baseDepth + (maxDepth - 1)) {
           pathsToExpand.push(propPath);
           generatePaths(currentSchema[propName], propPath);
         }
@@ -99,7 +106,7 @@ export const useBulkExpandCollapse = ({
       console.log(`[BULK-DIRECT] No schema found at path: ${basePath}`);
     }
 
-    console.log(`[BULK-DIRECT] Generated ${pathsToExpand.length} paths for baseDepth ${baseDepth} + maxDepth ${maxDepth}:`, pathsToExpand);
+    console.log(`[BULK-DIRECT] Generated ${pathsToExpand.length} paths for baseDepth ${baseDepth} + (maxDepth-1) ${maxDepth-1}:`, pathsToExpand);
     
     // Process each path using JSONEditor API directly
     pathsToExpand.forEach((path, index) => {
