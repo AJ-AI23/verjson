@@ -72,7 +72,8 @@ export const createPropertyNode = (
   propSchema: any,
   requiredProps: string[],
   xPos: number,
-  yOffset: number
+  yOffset: number,
+  isCollapsed?: boolean
 ): Node => {
   const nodeId = `prop-${propName}`;
   
@@ -91,7 +92,8 @@ export const createPropertyNode = (
   console.log(`Creating node for ${propName}:`, {
     propSchema: Object.keys(propSchema),
     additionalProps,
-    additionalPropsCount: additionalProps.length
+    additionalPropsCount: additionalProps.length,
+    isCollapsed
   });
 
   return {
@@ -106,6 +108,7 @@ export const createPropertyNode = (
       format: propSchema.format,
       additionalProperties: additionalProps,
       additionalPropsCount: additionalProps.length,
+      isCollapsed: isCollapsed,
       hasCollapsibleContent: (propSchema.type === 'object' && propSchema.properties) || 
                             (propSchema.type === 'array' && propSchema.items)
     }

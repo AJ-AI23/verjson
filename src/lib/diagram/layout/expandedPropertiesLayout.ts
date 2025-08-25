@@ -185,11 +185,8 @@ function processProperties(
     let propNode: Node;
     try {
       // Create node for property
-      propNode = createPropertyNode(propName, propSchema, requiredProps, xPos, yOffset);
+      propNode = createPropertyNode(propName, propSchema, requiredProps, xPos, yOffset, isPathExplicitlyCollapsed);
 
-      // Set collapsed state on node for UI representation
-      propNode.data.isCollapsed = isPathExplicitlyCollapsed;
-      
       console.log(`Successfully created node for ${propName}:`, propNode.id);
       
       // Add edge from parent to property
