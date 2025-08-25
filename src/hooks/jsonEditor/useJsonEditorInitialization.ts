@@ -1,5 +1,5 @@
 
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import JSONEditor from 'jsoneditor';
 import { toast } from '@/components/ui/use-toast';
 
@@ -14,6 +14,20 @@ export const useJsonEditorInitialization = ({
   createEditorEventHandlers,
   editorRef
 }: UseJsonEditorInitializationProps) => {
+  
+  // Update event handlers when they change (e.g., when maxDepth changes)
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    
+    console.log('[DEBUG] Updating JSONEditor event handlers with new maxDepth');
+    
+    // Update the event handlers on the existing editor
+    const newEventHandlers = createEditorEventHandlers();
+    if (editor.options) {
+      editor.options.onExpand = newEventHandlers.onExpand;
+    }
+  }, [createEditorEventHandlers, editorRef]);
   
   // Initialize the editor
   const initializeEditor = useCallback((container: HTMLDivElement) => {
