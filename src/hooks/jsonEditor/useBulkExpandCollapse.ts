@@ -145,6 +145,10 @@ export const useBulkExpandCollapse = ({
     const nestedPaths = getAllNestedPaths(schemaAtPath, basePath, 0, maxDepth);
     console.log(`[BULK-START] getAllNestedPaths returned ${nestedPaths.length} paths:`, nestedPaths);
     
+    console.log(`[BULK-START] About to start forEach loop with ${nestedPaths.length} paths`);
+    console.log(`[BULK-START] nestedPaths is array:`, Array.isArray(nestedPaths));
+    console.log(`[BULK-START] First path:`, nestedPaths[0]);
+    
     // Apply the expand/collapse action to all paths
     console.log(`[BULK-START] Processing ${nestedPaths.length} paths...`);
     nestedPaths.forEach((path, index) => {
