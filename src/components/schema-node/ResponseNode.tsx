@@ -15,7 +15,7 @@ interface ResponseNodeProps {
 }
 
 export const ResponseNode = memo(({ data, isConnectable }: ResponseNodeProps) => {
-  const { statusCode, description, label } = data;
+  const { statusCode, description } = data;
 
   const getStatusColor = (code: string) => {
     const statusNum = parseInt(code);
@@ -44,12 +44,15 @@ export const ResponseNode = memo(({ data, isConnectable }: ResponseNodeProps) =>
       />
       
       <div className="flex flex-col gap-2">
-        <Badge 
-          variant="outline" 
-          className={cn('text-xs px-2 w-fit', getStatusColor(statusCode))}
-        >
-          {statusCode}
-        </Badge>
+        <div className="flex flex-col gap-1">
+          <Badge 
+            variant="outline" 
+            className={cn('text-xs px-2 w-fit', getStatusColor(statusCode))}
+          >
+            {statusCode}
+          </Badge>
+          <span className="text-xs font-medium text-slate-700">Response</span>
+        </div>
         
         {description && (
           <div className="text-xs text-slate-600 line-clamp-2" title={description}>
