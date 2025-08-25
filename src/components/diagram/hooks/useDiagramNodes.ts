@@ -9,7 +9,7 @@ export const useDiagramNodes = (
   schema: any, 
   error: boolean, 
   groupProperties: boolean,
-  maxDepth: number = 3,
+  maxDepth: number = 1,
   collapsedPaths: CollapsedState = {}
 ) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);

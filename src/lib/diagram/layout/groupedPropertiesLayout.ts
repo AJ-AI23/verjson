@@ -7,7 +7,7 @@ import { getGroupPositions } from './gridPositionUtils';
 
 export const generateGroupedLayout = (
   schema: any, 
-  maxDepth: number = 3,
+  maxDepth: number = 1,
   collapsedPaths: CollapsedState = {}
 ): DiagramElements => {
   const result: DiagramElements = {

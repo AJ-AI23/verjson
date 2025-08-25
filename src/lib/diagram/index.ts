@@ -8,7 +8,7 @@ import { generateExpandedLayout } from './layout/expandedPropertiesLayout';
 export const generateNodesAndEdges = (
   schema: any, 
   groupProperties: boolean = false, 
-  maxDepth: number = 3,
+  maxDepth: number = 1,
   collapsedPaths: CollapsedState = {}
 ): DiagramElements => {
   const result: DiagramElements = {

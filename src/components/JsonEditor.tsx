@@ -18,7 +18,7 @@ export const JsonEditor = ({
   error, 
   collapsedPaths = {},
   onToggleCollapse,
-  maxDepth = 3
+  maxDepth = 1
 }: JsonEditorProps) => {
   return (
     <JsonEditorWrapper

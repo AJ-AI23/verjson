@@ -16,7 +16,7 @@ export const useJsonEditorSetup = ({
   onToggleCollapse,
   collapsedPaths,
   expandFirstLevel,
-  maxDepth = 3
+  maxDepth = 1
 }: UseJsonEditorSetupProps) => {
   // Track collapsedPaths in a ref for debugging
   const collapsedPathsRef = useRef<Record<string, boolean>>(collapsedPaths);

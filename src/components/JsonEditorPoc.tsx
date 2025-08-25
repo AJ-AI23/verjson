@@ -20,7 +20,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   error,
   collapsedPaths = {},
   onToggleCollapse,
-  maxDepth = 3
+  maxDepth = 1
 }) => {
   // Create a ref to the editor container DOM element
   const containerRef = useRef<HTMLDivElement>(null);

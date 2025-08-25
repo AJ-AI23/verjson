@@ -18,7 +18,7 @@ export const JsonEditorWrapper: React.FC<JsonEditorWrapperProps> = ({
   error,
   collapsedPaths,
   onToggleCollapse,
-  maxDepth = 3
+  maxDepth = 1
 }) => {
   return (
     <JsonEditorPoc

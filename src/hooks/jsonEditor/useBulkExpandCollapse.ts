@@ -8,7 +8,7 @@ interface UseBulkExpandCollapseProps {
 
 export const useBulkExpandCollapse = ({
   onToggleCollapse,
-  maxDepth = 3
+  maxDepth = 1
 }: UseBulkExpandCollapseProps) => {
   
   // Function to get all nested paths from a given schema object
@@ -145,53 +145,54 @@ export const useBulkExpandCollapse = ({
     const pathsToExpand: string[] = [];
     
     // Helper function to recursively generate expansion paths
+    // Clicked node is considered level 1, we expand relative to it
     const generateExpansionPaths = (
       currentSchema: any, 
       currentPath: string, 
-      currentDepth: number
+      currentLevel: number
     ) => {
-      if (currentDepth >= maxDepth || !currentSchema) return;
+      if (currentLevel > maxDepth || !currentSchema) return;
       
       if (currentSchema.type === 'object' && currentSchema.properties) {
-        // Add properties container (this uses up one depth level)
+        // Level N+1: Add properties container
         const propertiesPath = `${currentPath}.properties`;
-        const propertiesDepth = currentDepth + 1;
+        const propertiesLevel = currentLevel + 1;
         
-        if (propertiesDepth <= maxDepth) {
+        if (propertiesLevel <= maxDepth) {
           pathsToExpand.push(propertiesPath);
           
-          // Add each property (this uses up another depth level)
+          // Level N+2: Add each property
           Object.keys(currentSchema.properties).forEach(propName => {
             const propPath = `${propertiesPath}.${propName}`;
-            const propDepth = propertiesDepth + 1;
+            const propLevel = propertiesLevel + 1;
             
-            if (propDepth <= maxDepth) {
+            if (propLevel <= maxDepth) {
               pathsToExpand.push(propPath);
               
-              // Recursively expand nested content from this property
+              // Continue recursively from this property
               const propSchema = currentSchema.properties[propName];
-              generateExpansionPaths(propSchema, propPath, propDepth);
+              generateExpansionPaths(propSchema, propPath, propLevel);
             }
           });
         }
       }
       
       if (currentSchema.type === 'array' && currentSchema.items) {
-        // Add items container (this uses up one depth level)
+        // Level N+1: Add items container
         const itemsPath = `${currentPath}.items`;
-        const itemsDepth = currentDepth + 1;
+        const itemsLevel = currentLevel + 1;
         
-        if (itemsDepth <= maxDepth) {
+        if (itemsLevel <= maxDepth) {
           pathsToExpand.push(itemsPath);
           
-          // Recursively expand array items content
-          generateExpansionPaths(currentSchema.items, itemsPath, itemsDepth);
+          // Continue recursively from array items
+          generateExpansionPaths(currentSchema.items, itemsPath, itemsLevel);
         }
       }
     };
     
-    // Start recursive expansion from depth 1 (clicked node is depth 0)
-    generateExpansionPaths(schemaAtPath, actualBasePath, 0);
+    // Start expansion: clicked node is level 1, expand from level 2 onwards
+    generateExpansionPaths(schemaAtPath, actualBasePath, 1);
     
     console.log(`[BULK-DIRECT] Generated ${pathsToExpand.length} paths:`, pathsToExpand);
     

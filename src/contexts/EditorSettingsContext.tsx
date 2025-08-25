@@ -19,7 +19,7 @@ interface EditorSettingsProviderProps {
 
 export const EditorSettingsProvider: React.FC<EditorSettingsProviderProps> = ({ children }) => {
   const [settings, setSettings] = useState<EditorSettings>({
-    maxDepth: 3,
+    maxDepth: 1,
     groupProperties: false
   });
 

@@ -18,7 +18,7 @@ export const useJsonEditorEvents = ({
   setFoldingDebug,
   collapsedPaths = {},
   editorRef,
-  maxDepth = 3,
+  maxDepth = 1,
   rootSchema
 }: UseJsonEditorEventsProps) => {
   // Keep a reference to the latest collapsedPaths
