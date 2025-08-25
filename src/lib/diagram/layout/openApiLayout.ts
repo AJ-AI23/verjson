@@ -54,53 +54,79 @@ export const generateOpenApiLayout = (
     let yOffset = 150;
     const nodeSpacing = 400;
     
-    // Create special nodes for info, paths, and components
+    // Create special nodes for info, paths, and components based on collapsed state
     const specialNodes = [];
     
-    // Create Info node if info exists
+    // Create Info node if info exists and is not collapsed
     if (schema.info) {
-      const infoNode = createInfoNode(schema.info, -400, yOffset);
-      const infoEdge = createEdge('root', infoNode.id, 'info', false, {}, 'structure');
-      result.nodes.push(infoNode);
-      result.edges.push(infoEdge);
-      specialNodes.push('info');
-    }
-    
-    // Create Components node if components.schemas exists
-    if (schema.components?.schemas) {
-      const componentsNode = createComponentsNode(schema.components.schemas, 0, yOffset);
-      const componentsEdge = createEdge('root', componentsNode.id, 'components', false, {}, 'structure');
-      result.nodes.push(componentsNode);
-      result.edges.push(componentsEdge);
-      specialNodes.push('components');
+      const infoPath = 'root.properties.info';
+      const infoCollapsed = collapsedPaths[infoPath] === true;
       
-      // Create individual schema nodes connected to components
-      processComponentsSchemas(
-        schema.components.schemas,
-        componentsNode.id,
-        0,
-        yOffset + 200,
-        200,
-        result,
-        maxDepth,
-        collapsedPaths,
-        'root.properties.components'
-      );
+      if (!infoCollapsed) {
+        const infoNode = createInfoNode(schema.info, -400, yOffset);
+        const infoEdge = createEdge('root', infoNode.id, 'info', false, {}, 'structure');
+        result.nodes.push(infoNode);
+        result.edges.push(infoEdge);
+        specialNodes.push('info');
+      }
     }
     
-    // Create Paths structure if paths exist
+    // Create Components node if components.schemas exists and is not collapsed
+    if (schema.components?.schemas) {
+      const componentsPath = 'root.properties.components';
+      const componentsCollapsed = collapsedPaths[componentsPath] === true;
+      
+      if (!componentsCollapsed) {
+        const componentsNode = createComponentsNode(schema.components.schemas, 0, yOffset);
+        const componentsEdge = createEdge('root', componentsNode.id, 'components', false, {}, 'structure');
+        result.nodes.push(componentsNode);
+        result.edges.push(componentsEdge);
+        specialNodes.push('components');
+        
+        // Create individual schema nodes connected to components if components.properties is expanded
+        const componentsPropertiesPath = 'root.properties.components.properties';
+        const componentsPropertiesExpanded = collapsedPaths[componentsPropertiesPath] === false;
+        
+        if (componentsPropertiesExpanded) {
+          processComponentsSchemas(
+            schema.components.schemas,
+            componentsNode.id,
+            0,
+            yOffset + 200,
+            200,
+            result,
+            maxDepth,
+            collapsedPaths,
+            'root.properties.components'
+          );
+        }
+      }
+    }
+    
+    // Create Paths structure if paths exist and is not collapsed
     if (schema.paths) {
-      processOpenApiPaths(
-        schema.paths,
-        'root',
-        400,
-        yOffset,
-        200,
-        result,
-        maxDepth,
-        collapsedPaths,
-        'root.properties.paths'
-      );
+      const pathsPath = 'root.properties.paths';
+      const pathsCollapsed = collapsedPaths[pathsPath] === true;
+      
+      if (!pathsCollapsed) {
+        // Check if paths.properties is expanded to show individual endpoints
+        const pathsPropertiesPath = 'root.properties.paths.properties';
+        const pathsPropertiesExpanded = collapsedPaths[pathsPropertiesPath] === false;
+        
+        if (pathsPropertiesExpanded) {
+          processOpenApiPaths(
+            schema.paths,
+            'root',
+            400,
+            yOffset,
+            200,
+            result,
+            maxDepth,
+            collapsedPaths,
+            'root.properties.paths'
+          );
+        }
+      }
     }
     
     // Process any other top-level properties that aren't special
@@ -178,57 +204,52 @@ function processComponentsSchemas(
   collapsedPaths: CollapsedState,
   parentPath: string
 ) {
-  const schemasPropertiesPath = `${parentPath}.properties`;
-  const schemasPropertiesExpanded = collapsedPaths[schemasPropertiesPath] === false;
-  
-  if (!schemasPropertiesExpanded) {
-    console.log('Components.schemas properties not expanded, skipping');
-    return;
-  }
-  
   const schemaNames = Object.keys(schemas);
   const startX = xPos - (schemaNames.length * xSpacing) / 2 + xSpacing / 2;
   
   schemaNames.forEach((schemaName, index) => {
     const schemaValue = schemas[schemaName];
     const schemaX = startX + index * xSpacing;
-    const schemaPath = `${parentPath}.properties.${schemaName}`;
+    const schemaPath = `${parentPath}.properties.schemas.properties.${schemaName}`;
     
     const isSchemaCollapsed = collapsedPaths[schemaPath] === true;
     
-    // Treat this as a regular JSON schema
-    const schemaNode = createPropertyNode(
-      schemaName,
-      schemaValue,
-      [],
-      schemaX,
-      yPos,
-      isSchemaCollapsed
-    );
-    
-    const edge = createEdge(parentNodeId, schemaNode.id);
-    
-    result.nodes.push(schemaNode);
-    result.edges.push(edge);
-    
-    // If the schema has properties and is not collapsed, process them as regular JSON schema
-    if (!isSchemaCollapsed && schemaValue?.type === 'object' && schemaValue?.properties && maxDepth > 1) {
-      const schemaPropertiesPath = `${schemaPath}.properties`;
-      const schemaPropertiesExpanded = collapsedPaths[schemaPropertiesPath] === false;
+    // Only create schema node if it's not collapsed
+    if (!isSchemaCollapsed) {
+      // Treat this as a regular JSON schema
+      const schemaNode = createPropertyNode(
+        schemaName,
+        schemaValue,
+        [],
+        schemaX,
+        yPos,
+        false // Don't mark as collapsed since we're already checking
+      );
       
-      if (schemaPropertiesExpanded) {
-        processJsonSchemaProperties(
-          schemaValue.properties,
-          schemaValue.required || [],
-          schemaNode.id,
-          schemaX,
-          yPos + 150,
-          xSpacing * 0.8,
-          result,
-          maxDepth - 1,
-          collapsedPaths,
-          schemaPath
-        );
+      const edge = createEdge(parentNodeId, schemaNode.id, undefined, false, {}, 'structure');
+      
+      result.nodes.push(schemaNode);
+      result.edges.push(edge);
+      
+      // If the schema has properties and properties are expanded, process them as regular JSON schema
+      if (schemaValue?.type === 'object' && schemaValue?.properties && maxDepth > 1) {
+        const schemaPropertiesPath = `${schemaPath}.properties`;
+        const schemaPropertiesExpanded = collapsedPaths[schemaPropertiesPath] === false;
+        
+        if (schemaPropertiesExpanded) {
+          processJsonSchemaProperties(
+            schemaValue.properties,
+            schemaValue.required || [],
+            schemaNode.id,
+            schemaX,
+            yPos + 150,
+            xSpacing * 0.8,
+            result,
+            maxDepth - 1,
+            collapsedPaths,
+            schemaPath
+          );
+        }
       }
     }
   });
@@ -314,16 +335,23 @@ function processOpenApiPaths(
   pathNames.forEach((pathName, index) => {
     const pathValue = paths[pathName];
     const pathX = startX + index * xSpacing;
+    const pathPath = `${parentPath}.properties.${pathName}`;
     
-    // Create endpoint node instead of generic property node
-    const endpointNode = createEndpointNode(pathName, pathValue, pathX, yPos);
-    const edge = createEdge(parentNodeId, endpointNode.id, undefined, false, {}, 'structure');
+    // Check if this specific path is collapsed
+    const isPathCollapsed = collapsedPaths[pathPath] === true;
     
-    result.nodes.push(endpointNode);
-    result.edges.push(edge);
-    
-    // TODO: Add reference detection for request/response schemas
-    detectAndCreateReferences(pathValue, endpointNode.id, result, pathX, yPos + 150);
+    // Only create endpoint node if it's not collapsed
+    if (!isPathCollapsed) {
+      // Create endpoint node instead of generic property node
+      const endpointNode = createEndpointNode(pathName, pathValue, pathX, yPos);
+      const edge = createEdge(parentNodeId, endpointNode.id, undefined, false, {}, 'structure');
+      
+      result.nodes.push(endpointNode);
+      result.edges.push(edge);
+      
+      // Add reference detection for request/response schemas
+      detectAndCreateReferences(pathValue, endpointNode.id, result, pathX, yPos + 150);
+    }
   });
 }
 
@@ -346,21 +374,25 @@ function processOtherOpenApiProperties(
     const propPath = `root.properties.${propName}`;
     
     const isPropCollapsed = collapsedPaths[propPath] === true;
-    const propSchema = createOpenApiPropertySchema(propName, propValue);
     
-    const propNode = createPropertyNode(
-      propName,
-      propSchema,
-      [],
-      propX,
-      yPos,
-      isPropCollapsed
-    );
-    
-    const edge = createEdge('root', propNode.id);
-    
-    result.nodes.push(propNode);
-    result.edges.push(edge);
+    // Only create node if it's not collapsed
+    if (!isPropCollapsed) {
+      const propSchema = createOpenApiPropertySchema(propName, propValue);
+      
+      const propNode = createPropertyNode(
+        propName,
+        propSchema,
+        [],
+        propX,
+        yPos,
+        false // Don't mark as collapsed since we're already checking
+      );
+      
+      const edge = createEdge('root', propNode.id, undefined, false, {}, 'structure');
+      
+      result.nodes.push(propNode);
+      result.edges.push(edge);
+    }
   });
 }
 
