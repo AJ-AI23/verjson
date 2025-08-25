@@ -137,7 +137,16 @@ function processProperties(
       `${currentPath}.${propName}`;
     
     // Check if this specific path is explicitly expanded (default to collapsed)
-    const isPathExplicitlyExpanded = collapsedPaths[diagramPath] === false || collapsedPaths[jsonEditorPath] === false;
+    // Handle both boolean values and complex objects (like MaxDepthReached)
+    const diagramPathValue = collapsedPaths[diagramPath];
+    const jsonEditorPathValue = collapsedPaths[jsonEditorPath];
+    
+    const isDiagramPathExpanded = diagramPathValue === false || 
+      (typeof diagramPathValue === 'object' && diagramPathValue !== null);
+    const isJsonEditorPathExpanded = jsonEditorPathValue === false || 
+      (typeof jsonEditorPathValue === 'object' && jsonEditorPathValue !== null);
+    
+    const isPathExplicitlyExpanded = isDiagramPathExpanded || isJsonEditorPathExpanded;
     const isPathExplicitlyCollapsed = !isPathExplicitlyExpanded;
     
     // Check if any ancestor path is collapsed (this would hide this node)
