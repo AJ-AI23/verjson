@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import 'jsoneditor/dist/jsoneditor.css';
 import { CollapsedState } from '@/lib/diagram/types';
 import { useJsonEditor } from '@/hooks/useJsonEditor';
@@ -25,16 +25,12 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   // Create a ref to the editor container DOM element
   const containerRef = useRef<HTMLDivElement>(null);
   
-  // Debug state for component props
-  const [lastToggleEvent, setLastToggleEvent] = useState<{path: string, isCollapsed: boolean} | null>(null);
-  
   // Track if the component has been mounted
   const isMountedRef = useRef<boolean>(false);
   
-  // Wrap onToggleCollapse to track the last event
+  // Wrap onToggleCollapse to prevent initial setup events
   const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
     console.log(`JsonEditorPoc: Toggle collapse for path=${path}, isCollapsed=${isCollapsed}`);
-    setLastToggleEvent({path, isCollapsed});
     
     // Only call the callback after initial mount to prevent initial setup events
     if (isMountedRef.current && onToggleCollapse) {
@@ -54,7 +50,6 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     destroyEditor,
     expandAll,
     collapseAll,
-    foldingDebug,
     pathExceedsMaxDepth
   } = useJsonEditor({
     value,
@@ -112,25 +107,6 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
           {error}
         </div>
       )}
-      
-      {/* Debug info */}
-      <div className="p-1 bg-blue-50 border-t border-blue-200 text-blue-700 text-xs flex flex-col gap-1">
-        <div>Last toggle event: {lastToggleEvent ? 
-          `${lastToggleEvent.path} - ${lastToggleEvent.isCollapsed ? 'collapsed' : 'expanded'}` : 
-          'none'}</div>
-        {foldingDebug && (
-          <div>Last {foldingDebug.lastOperation}: {foldingDebug.path} at {new Date(foldingDebug.timestamp).toLocaleTimeString()}</div>
-        )}
-        <div>
-          <span>Collapsed paths: </span>
-          {Object.keys(collapsedPaths).length > 0 ? 
-            Object.entries(collapsedPaths)
-              .filter(([_, isCollapsed]) => isCollapsed)
-              .map(([path]) => path)
-              .join(', ') 
-            : 'None'}
-        </div>
-      </div>
     </div>
   );
 };
