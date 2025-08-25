@@ -46,16 +46,10 @@ export const generateNodesAndEdges = (
     result.nodes.push(rootNode);
     console.log('Root node created:', rootNode);
 
-    // Process properties if root isn't collapsed
+    // Process properties (let layout functions handle collapsed state)
     if (schema.type === 'object' && schema.properties) {
       console.log(`Schema has ${Object.keys(schema.properties).length} properties`);
       console.log(`Root collapsed: ${rootCollapsed}`);
-      
-      // If root is collapsed, skip generating child nodes
-      if (rootCollapsed) {
-        console.log('Root is collapsed, skipping property nodes generation');
-        return result;
-      }
       
       // Generate layout based on mode
       if (groupProperties) {
