@@ -375,6 +375,8 @@ function processOpenApiPaths(
   collapsedPaths: CollapsedState,
   parentPath: string
 ) {
+  console.log(`[OPENAPI LAYOUT] Processing paths:`, Object.keys(paths));
+  
   // Collect all individual methods from all paths
   const allMethods: Array<{
     path: string;
@@ -384,19 +386,31 @@ function processOpenApiPaths(
   }> = [];
   
   Object.entries(paths).forEach(([pathName, pathValue]) => {
+    console.log(`[OPENAPI LAYOUT] Processing path "${pathName}":`, Object.keys(pathValue || {}));
+    
     if (typeof pathValue === 'object' && pathValue !== null) {
       Object.entries(pathValue).forEach(([method, methodData]) => {
+        console.log(`[OPENAPI LAYOUT] Found method "${method}" for path "${pathName}"`);
+        
         if (['get', 'post', 'put', 'patch', 'delete', 'head', 'options'].includes(method.toLowerCase())) {
-          allMethods.push({
+          const methodEntry = {
             path: pathName,
             method: method.toLowerCase(),
             methodData,
             fullLabel: `${method.toUpperCase()} ${pathName}`
-          });
+          };
+          allMethods.push(methodEntry);
+          console.log(`[OPENAPI LAYOUT] Added method entry:`, methodEntry.fullLabel);
+        } else {
+          console.log(`[OPENAPI LAYOUT] Skipping non-HTTP method "${method}"`);
         }
       });
+    } else {
+      console.log(`[OPENAPI LAYOUT] Path "${pathName}" is not a valid object:`, pathValue);
     }
   });
+  
+  console.log(`[OPENAPI LAYOUT] Total methods found:`, allMethods.length, allMethods.map(m => m.fullLabel));
   
   const startX = xPos - (allMethods.length * xSpacing) / 2 + xSpacing / 2;
   
@@ -425,10 +439,12 @@ function processOpenApiPaths(
       result.nodes.push(methodNode);
       result.edges.push(edge);
       
-      console.log(`[OPENAPI LAYOUT] Created method node for ${methodEntry.fullLabel}`);
+      console.log(`[OPENAPI LAYOUT] Created method node for ${methodEntry.fullLabel} with ID: ${methodNode.id}`);
       
       // Add reference detection for request/response schemas
       detectAndCreateReferences(methodEntry.methodData, methodNode.id, result, methodX, yPos + 150);
+    } else {
+      console.log(`[OPENAPI LAYOUT] Skipped collapsed method: ${methodEntry.fullLabel}`);
     }
   });
 }
