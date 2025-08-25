@@ -233,8 +233,8 @@ export const useBulkExpandCollapse = ({
           recursive: false
         });
         
-        // Also update the collapsed state for consistency
-        onToggleCollapse?.(path, false);
+        // Don't call onToggleCollapse for bulk-expanded paths to avoid triggering
+        // additional expansion events - we're already handling the expansion directly
         
       } catch (error) {
         console.error(`[BULK-DIRECT] Error expanding path ${path}:`, error);
