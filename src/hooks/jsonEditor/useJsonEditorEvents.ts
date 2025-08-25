@@ -64,15 +64,21 @@ export const useJsonEditorEvents = ({
   // Create event handlers for JSONEditor
   const createEditorEventHandlers = useCallback(() => {
     console.log('Creating JSONEditor event handlers with toggle logic');
+    console.log('[HANDLER-DEBUG] Creating onExpand handler function');
     
     // Handle expand event from JSONEditor - we use this to toggle the collapsed state
     const onExpand = (node: any) => {
+      console.log(`[EXPAND-DEBUG] onExpand called!`);
+      console.log(`[EXPAND-DEBUG] node:`, node);
+      console.log(`[EXPAND-DEBUG] node.path:`, node?.path);
+      
       const path = node.path.length > 0 ? node.path.join('.') : 'root';
       const normalizedPath = normalizePath(path);
       
-      console.log(`[DEBUG] onExpand called for path: ${normalizedPath}`);
-      console.log(`[DEBUG] Current maxDepth: ${maxDepth}`);
-      console.log(`[DEBUG] rootSchema available:`, !!rootSchema);
+      console.log(`[EXPAND-DEBUG] raw path: ${path}`);
+      console.log(`[EXPAND-DEBUG] normalized path: ${normalizedPath}`);
+      console.log(`[EXPAND-DEBUG] Current maxDepth: ${maxDepth}`);
+      console.log(`[EXPAND-DEBUG] rootSchema available:`, !!rootSchema);
       
       // The ref is already up to date due to the useEffect above
       // Force update the ref to latest state before reading - actually this is redundant
@@ -133,6 +139,9 @@ export const useJsonEditorEvents = ({
         }
       }
     };
+    
+    console.log('[HANDLER-DEBUG] onExpand handler created:', !!onExpand);
+    console.log('[HANDLER-DEBUG] Returning event handlers object');
     
     return { 
       onExpand
