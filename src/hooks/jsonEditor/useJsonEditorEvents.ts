@@ -90,7 +90,7 @@ export const useJsonEditorEvents = ({
         onToggleCollapse(normalizedPath, newCollapsedState);
         
         // If we're expanding a node and have rootSchema, perform bulk expand
-        if (!newCollapsedState && rootSchema && maxDepth > 1) {
+        if (!newCollapsedState && rootSchema) {
           console.log(`Performing bulk expand for path: ${normalizedPath} with maxDepth: ${maxDepth}`);
           console.log(`Root schema available:`, !!rootSchema);
           console.log(`Editor ref available:`, !!editorRef?.current);
