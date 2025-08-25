@@ -2,19 +2,24 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { CollapsedState } from '@/lib/diagram/types';
 import { FoldingDebugInfo } from './types';
+import { useBulkExpandCollapse } from './useBulkExpandCollapse';
 
 interface UseJsonEditorEventsProps {
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
   setFoldingDebug?: (info: FoldingDebugInfo | null) => void;
   collapsedPaths: CollapsedState;
   editorRef?: React.MutableRefObject<any>;
+  maxDepth?: number;
+  rootSchema?: any; // Schema for bulk expand operations
 }
 
 export const useJsonEditorEvents = ({
   onToggleCollapse,
   setFoldingDebug,
   collapsedPaths = {},
-  editorRef
+  editorRef,
+  maxDepth = 3,
+  rootSchema
 }: UseJsonEditorEventsProps) => {
   // Keep a reference to the latest collapsedPaths
   const collapsedPathsRef = useRef<Record<string, boolean>>(collapsedPaths);
@@ -53,6 +58,12 @@ export const useJsonEditorEvents = ({
     return currentState;
   }, [normalizePath, collapsedPathsRef]);
 
+  // Initialize bulk expand/collapse functionality
+  const { bulkExpand } = useBulkExpandCollapse({
+    onToggleCollapse,
+    maxDepth
+  });
+
   // Create event handlers for JSONEditor
   const createEditorEventHandlers = useCallback(() => {
     console.log('Creating JSONEditor event handlers with toggle logic');
@@ -77,6 +88,15 @@ export const useJsonEditorEvents = ({
       
       if (onToggleCollapse) {
         onToggleCollapse(normalizedPath, newCollapsedState);
+        
+        // If we're expanding a node and have rootSchema, perform bulk expand
+        if (!newCollapsedState && rootSchema && maxDepth > 1) {
+          console.log(`Performing bulk expand for path: ${normalizedPath} with maxDepth: ${maxDepth}`);
+          // Use setTimeout to ensure the first toggle is processed before bulk expand
+          setTimeout(() => {
+            bulkExpand(normalizedPath, rootSchema, true);
+          }, 10);
+        }
       }
       
       // Update debug state if needed
@@ -84,7 +104,7 @@ export const useJsonEditorEvents = ({
         setFoldingDebug({
           timestamp: Date.now(),
           path: normalizedPath,
-          lastOperation: 'toggle',
+          lastOperation: newCollapsedState ? 'collapse' : 'expand',
           isCollapsed: newCollapsedState,
           previousState: currentlyCollapsed
         });
@@ -122,7 +142,7 @@ export const useJsonEditorEvents = ({
     return { 
       onExpand
     };
-  }, [getPathState, normalizePath, onToggleCollapse, setFoldingDebug, editorRef]);
+  }, [getPathState, normalizePath, onToggleCollapse, setFoldingDebug, editorRef, bulkExpand, rootSchema, maxDepth]);
 
   return {
     createEditorEventHandlers,

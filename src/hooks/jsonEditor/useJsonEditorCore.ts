@@ -1,5 +1,5 @@
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { UseJsonEditorProps, FoldingDebugInfo, JsonEditorResult } from './types';
 import { useJsonEditorSync } from './useJsonEditorSync';
 import { useJsonEditorFolding } from './useJsonEditorFolding';
@@ -15,6 +15,15 @@ export const useJsonEditor = ({
   onToggleCollapse,
   maxDepth = 3
 }: UseJsonEditorProps): JsonEditorResult => {
+  // Parse the schema from the value for bulk expand operations
+  const parsedSchema = useMemo(() => {
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      console.warn('Failed to parse schema for bulk expand operations:', e);
+      return null;
+    }
+  }, [value]);
   // Keep track of whether we're programmatically changing the editor
   // to avoid infinite loops when syncing state
   const isInternalChange = useRef<boolean>(false);
@@ -47,7 +56,9 @@ export const useJsonEditor = ({
     onToggleCollapse,
     setFoldingDebug,
     collapsedPaths,
-    editorRef
+    editorRef,
+    maxDepth,
+    rootSchema: parsedSchema
   });
 
   // Use our initialization hook

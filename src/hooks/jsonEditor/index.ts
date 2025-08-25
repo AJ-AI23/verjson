@@ -7,4 +7,5 @@ export * from './useJsonEditorEvents';
 export * from './useJsonEditorInitialization';
 export * from './useJsonEditorSetup';
 export * from './useJsonEditorCollapse';
+export * from './useBulkExpandCollapse';
 export * from './types';
