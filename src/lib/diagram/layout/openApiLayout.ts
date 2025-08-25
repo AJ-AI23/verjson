@@ -6,7 +6,8 @@ import {
   createArrayItemNode,
   createInfoNode,
   createEndpointNode,
-  createComponentsNode
+  createComponentsNode,
+  createMethodNode
 } from '../nodeGenerator';
 import { createEdge } from '../edgeGenerator';
 
@@ -362,7 +363,7 @@ function processJsonSchemaProperties(
   });
 }
 
-// Process OpenAPI paths structure - creates endpoint nodes
+// Process OpenAPI paths structure - creates individual method nodes
 function processOpenApiPaths(
   paths: Record<string, any>,
   parentNodeId: string,
@@ -374,32 +375,60 @@ function processOpenApiPaths(
   collapsedPaths: CollapsedState,
   parentPath: string
 ) {
-  const pathNames = Object.keys(paths);
-  const startX = xPos - (pathNames.length * xSpacing) / 2 + xSpacing / 2;
+  // Collect all individual methods from all paths
+  const allMethods: Array<{
+    path: string;
+    method: string;
+    methodData: any;
+    fullLabel: string;
+  }> = [];
   
-  pathNames.forEach((pathName, index) => {
-    const pathValue = paths[pathName];
-    const pathX = startX + index * xSpacing;
-    const pathPath = `${parentPath}.${pathName}`;
+  Object.entries(paths).forEach(([pathName, pathValue]) => {
+    if (typeof pathValue === 'object' && pathValue !== null) {
+      Object.entries(pathValue).forEach(([method, methodData]) => {
+        if (['get', 'post', 'put', 'patch', 'delete', 'head', 'options'].includes(method.toLowerCase())) {
+          allMethods.push({
+            path: pathName,
+            method: method.toLowerCase(),
+            methodData,
+            fullLabel: `${method.toUpperCase()} ${pathName}`
+          });
+        }
+      });
+    }
+  });
+  
+  const startX = xPos - (allMethods.length * xSpacing) / 2 + xSpacing / 2;
+  
+  allMethods.forEach((methodEntry, index) => {
+    const methodX = startX + index * xSpacing;
+    const methodPath = `${parentPath}.${methodEntry.path}.${methodEntry.method}`;
     
-    // Check if this specific path is collapsed
-    const isPathCollapsed = collapsedPaths[pathPath] === true;
+    // Check if this specific method is collapsed
+    const isMethodCollapsed = collapsedPaths[methodPath] === true;
     
-    console.log(`[OPENAPI LAYOUT] Processing path ${pathName}, path: ${pathPath}, collapsed: ${isPathCollapsed}`);
+    console.log(`[OPENAPI LAYOUT] Processing method ${methodEntry.fullLabel}, path: ${methodPath}, collapsed: ${isMethodCollapsed}`);
     
-    // Only create endpoint node if it's not collapsed
-    if (!isPathCollapsed) {
-      // Create endpoint node instead of generic property node
-      const endpointNode = createEndpointNode(pathName, pathValue, pathX, yPos);
-      const edge = createEdge(parentNodeId, endpointNode.id, undefined, false, {}, 'structure');
+    // Only create method node if it's not collapsed
+    if (!isMethodCollapsed) {
+      // Create individual method node
+      const methodNode = createMethodNode(
+        methodEntry.path,
+        methodEntry.method,
+        methodEntry.methodData,
+        methodX,
+        yPos
+      );
       
-      result.nodes.push(endpointNode);
+      const edge = createEdge(parentNodeId, methodNode.id, undefined, false, {}, 'default');
+      
+      result.nodes.push(methodNode);
       result.edges.push(edge);
       
-      console.log(`[OPENAPI LAYOUT] Created endpoint node for ${pathName}`);
+      console.log(`[OPENAPI LAYOUT] Created method node for ${methodEntry.fullLabel}`);
       
       // Add reference detection for request/response schemas
-      detectAndCreateReferences(pathValue, endpointNode.id, result, pathX, yPos + 150);
+      detectAndCreateReferences(methodEntry.methodData, methodNode.id, result, methodX, yPos + 150);
     }
   });
 }

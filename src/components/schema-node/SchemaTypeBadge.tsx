@@ -23,6 +23,7 @@ export const SchemaTypeBadge = memo(({ type, format, isSmall = false }: SchemaTy
     type === 'openapi' && 'bg-indigo-100 text-indigo-800 border-indigo-200',
     type === 'info' && 'bg-blue-100 text-blue-800 border-blue-200',
     type === 'endpoint' && 'bg-indigo-100 text-indigo-800 border-indigo-200',
+    type === 'method' && 'bg-violet-100 text-violet-800 border-violet-200',
     type === 'components' && 'bg-emerald-100 text-emerald-800 border-emerald-200',
   );
 

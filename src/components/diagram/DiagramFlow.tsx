@@ -5,6 +5,7 @@ import { SchemaTypeNode } from '@/components/SchemaTypeNode';
 import { InfoNode } from '@/components/schema-node/InfoNode';
 import { EndpointNode } from '@/components/schema-node/EndpointNode';
 import { ComponentsNode } from '@/components/schema-node/ComponentsNode';
+import { MethodNode } from '@/components/schema-node/MethodNode';
 
 interface DiagramFlowProps {
   nodes: Node[];
@@ -20,6 +21,7 @@ const nodeTypes = {
   info: InfoNode,
   endpoint: EndpointNode,
   components: ComponentsNode,
+  method: MethodNode,
 };
 
 export const DiagramFlow = memo(({

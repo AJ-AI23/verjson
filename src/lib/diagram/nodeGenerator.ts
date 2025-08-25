@@ -208,6 +208,31 @@ export const createEndpointNode = (
   };
 };
 
+export const createMethodNode = (
+  path: string,
+  method: string,
+  methodData: any,
+  xPos: number,
+  yOffset: number
+): Node => {
+  const methodLabel = `${method.toUpperCase()} ${path}`;
+  
+  return {
+    id: `method-${method}-${path.replace(/[^\w]/g, '-')}`,
+    type: 'method',
+    position: { x: xPos, y: yOffset },
+    data: {
+      path,
+      method: method.toLowerCase(),
+      summary: methodData.summary,
+      description: methodData.description,
+      requestBody: methodData.requestBody,
+      responses: methodData.responses,
+      label: methodLabel
+    }
+  };
+};
+
 export const createComponentsNode = (
   schemasData: Record<string, any>,
   xPos: number,
