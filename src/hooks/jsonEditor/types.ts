@@ -7,20 +7,15 @@ export interface UseJsonEditorProps {
   onChange: (value: string) => void;
   collapsedPaths?: CollapsedState;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
-  maxDepth: number;
+  maxDepth: number; // Add maxDepth parameter
 }
 
 export interface FoldingDebugInfo {
   lastOperation: string;
   path: string;
   timestamp: number;
-  isCollapsed?: boolean;
-  previousState?: boolean;
-}
-
-export interface EditorEventHandlers {
-  onExpand: (event: any) => void;
-  onChange: () => void;
+  isCollapsed?: boolean;  // Add this property
+  previousState?: boolean; // Add this property
 }
 
 export interface JsonEditorResult {
@@ -32,5 +27,5 @@ export interface JsonEditorResult {
   expandFirstLevel: () => void;
   foldingDebug: FoldingDebugInfo | null;
   collapsedPaths?: CollapsedState;
-  pathExceedsMaxDepth?: (path: string) => boolean;
+  pathExceedsMaxDepth?: (path: string) => boolean; // Add helper function to result
 }

@@ -32,6 +32,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   
   // Wrap onToggleCollapse to track the last event
   const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
+    console.log(`JsonEditorPoc: Toggle collapse for path=${path}, isCollapsed=${isCollapsed}`);
     setLastToggleEvent({path, isCollapsed});
     
     // Only call the callback after initial mount to prevent initial setup events
@@ -77,17 +78,59 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   }, []);
 
   return (
-    <div className="h-full flex flex-col bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/50 rounded-lg border border-border">      
+    <div className="h-full flex flex-col">
+      <div className="p-2 border-b bg-slate-50 flex justify-between items-center">
+        <h2 className="font-semibold text-slate-700">JSON Editor</h2>
+        <div className="flex gap-2">
+          <button
+            onClick={expandAll}
+            className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
+          >
+            Expand All
+          </button>
+          <button
+            onClick={collapseAll}
+            className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
+          >
+            Collapse All
+          </button>
+          <button
+            onClick={expandFirstLevel}
+            className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
+          >
+            Expand First Level
+          </button>
+        </div>
+      </div>
+      
       {/* The container for the JSONEditor instance */}
       <div className="flex-1 editor-container" ref={containerRef}></div>
       
       {/* Error display */}
       {error && (
-        <div className="p-3 bg-destructive/10 border-t border-destructive/20 text-destructive text-sm rounded-b-lg">
-          <div className="font-medium">Validation Error</div>
-          <div className="text-xs mt-1 opacity-90">{error}</div>
+        <div className="p-2 bg-red-50 border-t border-red-200 text-red-600 text-sm">
+          {error}
         </div>
       )}
+      
+      {/* Debug info */}
+      <div className="p-1 bg-blue-50 border-t border-blue-200 text-blue-700 text-xs flex flex-col gap-1">
+        <div>Last toggle event: {lastToggleEvent ? 
+          `${lastToggleEvent.path} - ${lastToggleEvent.isCollapsed ? 'collapsed' : 'expanded'}` : 
+          'none'}</div>
+        {foldingDebug && (
+          <div>Last {foldingDebug.lastOperation}: {foldingDebug.path} at {new Date(foldingDebug.timestamp).toLocaleTimeString()}</div>
+        )}
+        <div>
+          <span>Collapsed paths: </span>
+          {Object.keys(collapsedPaths).length > 0 ? 
+            Object.entries(collapsedPaths)
+              .filter(([_, isCollapsed]) => isCollapsed)
+              .map(([path]) => path)
+              .join(', ') 
+            : 'None'}
+        </div>
+      </div>
     </div>
   );
 };

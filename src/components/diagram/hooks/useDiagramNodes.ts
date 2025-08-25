@@ -48,6 +48,8 @@ export const useDiagramNodes = (
   // Log changes to collapsedPaths for debugging
   useEffect(() => {
     const pathsCount = Object.keys(collapsedPaths).length;
+    console.log(`useDiagramNodes: collapsedPaths updated with ${pathsCount} entries`);
+    console.log('Collapsed paths:', collapsedPaths);
     
     // Force schemaKey increment to trigger redraw when collapsedPaths changes
     if (!initialRenderRef.current) {

@@ -20,10 +20,10 @@ export const useJsonEditor = ({
     try {
       return JSON.parse(value);
     } catch (e) {
+      console.warn('Failed to parse schema for bulk expand operations:', e);
       return null;
     }
   }, [value]);
-  
   // Keep track of whether we're programmatically changing the editor
   // to avoid infinite loops when syncing state
   const isInternalChange = useRef<boolean>(false);
@@ -43,17 +43,22 @@ export const useJsonEditor = ({
   // Update master ref whenever collapsedPaths props changes
   useEffect(() => {
     masterCollapsedPathsRef.current = { ...collapsedPaths };
+    console.log('Master collapsedPathsRef updated in useJsonEditor:', masterCollapsedPathsRef.current);
   }, [collapsedPaths]);
 
-  const {
-    createEditorEventHandlers,
-    collapsedPathsRef
-  } = useJsonEditorEvents({
+  console.log('useJsonEditor hook running with:');
+  console.log('- collapsedPaths:', collapsedPaths);
+  console.log('- maxDepth:', maxDepth);
+  console.log('- onToggleCollapse handler present:', !!onToggleCollapse);
+
+  // Use our event handlers hook with the improved toggle logic
+  const { createEditorEventHandlers, getPathState, collapsedPathsRef: eventsPathsRef } = useJsonEditorEvents({
     onToggleCollapse,
+    setFoldingDebug,
     collapsedPaths,
+    editorRef,
     maxDepth,
-    rootSchema: parsedSchema,
-    editorRef
+    rootSchema: parsedSchema
   });
 
   // Use our initialization hook
@@ -101,6 +106,7 @@ export const useJsonEditor = ({
   // Force update of editor fold state when collapsedPaths changes
   useEffect(() => {
     if (editorRef.current && initialSetupDone.current) {
+      console.log('Forcing update of editor fold state due to collapsedPaths change');
       forceUpdateEditorFoldState();
     }
   }, [collapsedPaths, forceUpdateEditorFoldState]);
@@ -130,7 +136,7 @@ export const useJsonEditor = ({
           onChange(nextValue);
         }
       } catch (err) {
-        // Silently handle errors
+        console.error('Error reading change from JSONEditor:', err);
       }
     };
 
@@ -144,7 +150,7 @@ export const useJsonEditor = ({
         return () => clearInterval(interval);
       }
     } catch (e) {
-      // Fallback: poll very lightly if events API not present
+      console.warn('JSONEditor event binding failed, using fallback:', e);
       const interval = setInterval(handleChange, 500);
       return () => clearInterval(interval);
     }

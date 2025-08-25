@@ -1,73 +1,86 @@
+
 import { useCallback, useEffect } from 'react';
 import JSONEditor from 'jsoneditor';
 
 interface UseJsonEditorInitializationProps {
   value: string;
-  editorRef: React.MutableRefObject<any>;
   createEditorEventHandlers: () => any;
+  editorRef: React.MutableRefObject<JSONEditor | null>;
 }
 
 export const useJsonEditorInitialization = ({
   value,
-  editorRef,
-  createEditorEventHandlers
+  createEditorEventHandlers,
+  editorRef
 }: UseJsonEditorInitializationProps) => {
   
-  const initializeEditor = useCallback((container: HTMLElement) => {
+  // Update event handlers when they change (e.g., when maxDepth changes)
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    
+    console.log('[DEBUG] Updating JSONEditor event handlers with new maxDepth');
+    
+    // Update the event handlers on the existing editor
+    const newEventHandlers = createEditorEventHandlers();
+    if (editor.options) {
+      editor.options.onExpand = newEventHandlers.onExpand;
+    }
+  }, [createEditorEventHandlers, editorRef]);
+  
+  // Initialize the editor
+  const initializeEditor = useCallback((container: HTMLDivElement) => {
+    if (!container) return null;
+
     try {
-      // Parse the initial value
-      let initialJson;
-      try {
-        initialJson = JSON.parse(value);
-      } catch (parseError) {
-        initialJson = {};
-      }
-
-      // Create event handlers
+      // Get event handlers from our events hook
       const eventHandlers = createEditorEventHandlers();
-
-      // Create editor options
+      
+      console.log('Initializing JSONEditor with event handlers', eventHandlers);
+      
+      // JSONEditor options
       const options = {
-        mode: 'tree' as const,
-        modes: ['tree', 'view', 'form', 'code', 'text'] as const,
-        indentation: 2,
-        onChange: eventHandlers.onChange,
-        onExpand: eventHandlers.onExpand,
-        onError: (error: Error) => {
-          // Silently handle editor errors
-        },
-        search: true,
-        history: true,
+        mode: 'tree',
+        mainMenuBar: false,
         navigationBar: true,
         statusBar: true,
-        sortObjectKeys: false,
         limitDragging: false,
+        maxVisibleChilds: 1000, // Increase the limit for visible children
+        onEditable: function() { return true; },
+        onExpand: eventHandlers.onExpand
+        // Note: We don't use onCollapse anymore, as we rely on toggling with onExpand
       };
 
-      // Initialize the JSONEditor
+      // Create the editor
       const editor = new JSONEditor(container, options);
-      editor.set(initialJson);
+      
+      // Set initial content
+      try {
+        editor.set(JSON.parse(value));
+      } catch (e) {
+        // If parsing fails, just show the raw text
+        editor.setText(value);
+        console.error('Failed to parse initial JSON:', e);
+      }
 
       // Store the editor instance in the ref
       editorRef.current = editor;
+      console.log('JSONEditor initialized with toggle event handler');
       
       return editor;
     } catch (err) {
+      console.error('Error initializing JSONEditor:', err);
       return null;
     }
   }, [value, createEditorEventHandlers, editorRef]);
 
   // Cleanup function
-  const destroyEditor = useCallback(() => {
+  const destroyEditor = () => {
     if (editorRef.current) {
-      try {
-        editorRef.current.destroy();
-      } catch (error) {
-        // Silently handle cleanup errors
-      }
+      editorRef.current.destroy();
       editorRef.current = null;
     }
-  }, [editorRef]);
+  };
 
   return {
     initializeEditor,
