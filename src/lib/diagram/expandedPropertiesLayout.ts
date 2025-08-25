@@ -10,7 +10,7 @@ import { createEdge } from './edgeGenerator';
 
 export const generateExpandedLayout = (
   schema: any, 
-  maxDepth: number = 1,
+  maxDepth: number,
   collapsedPaths: CollapsedState = {}
 ): DiagramElements => {
   const result: DiagramElements = {

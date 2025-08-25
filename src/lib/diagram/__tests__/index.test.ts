@@ -32,14 +32,14 @@ describe('generateNodesAndEdges', () => {
   });
   
   it('should return empty result for invalid schema', () => {
-    const result = generateNodesAndEdges(null);
+    const result = generateNodesAndEdges(null, false, 1);
     expect(result).toEqual({ nodes: [], edges: [] });
   });
   
   it('should call createRootNode for valid schema', () => {
     const { createRootNode } = require('../nodeGenerator');
     
-    generateNodesAndEdges({ type: 'object' });
+    generateNodesAndEdges({ type: 'object' }, false, 1);
     
     expect(createRootNode).toHaveBeenCalled();
   });
@@ -52,7 +52,7 @@ describe('generateNodesAndEdges', () => {
       properties: {}
     };
     
-    const result = generateNodesAndEdges(schema, true);
+    const result = generateNodesAndEdges(schema, true, 1);
     
     expect(generateGroupedLayout).toHaveBeenCalled();
     expect(result.nodes.length).toBe(2); // Root node + group node
@@ -67,7 +67,7 @@ describe('generateNodesAndEdges', () => {
       properties: {}
     };
     
-    const result = generateNodesAndEdges(schema, false);
+    const result = generateNodesAndEdges(schema, false, 1);
     
     expect(generateExpandedLayout).toHaveBeenCalled();
     expect(result.nodes.length).toBe(2); // Root node + prop node

@@ -36,7 +36,7 @@ describe('useDiagramNodes', () => {
 
   it('should initialize with empty nodes and edges when schema is null', () => {
     const { result } = renderHook(() => 
-      useDiagramNodes(null, false, false)
+      useDiagramNodes(null, false, false, 1)
     );
     
     expect(result.current.nodes).toEqual([]);
@@ -45,14 +45,14 @@ describe('useDiagramNodes', () => {
   
   it('should increment schemaKey when schema changes', () => {
     const { result, rerender } = renderHook(
-      (props: any) => useDiagramNodes(props.schema, props.error, props.groupProperties),
-      { initialProps: { schema: null, error: false, groupProperties: false } }
+      (props: any) => useDiagramNodes(props.schema, props.error, props.groupProperties, props.maxDepth),
+      { initialProps: { schema: null, error: false, groupProperties: false, maxDepth: 1 } }
     );
     
     const initialSchemaKey = result.current.schemaKey;
     
     // Change the schema
-    rerender({ schema: { type: 'object' }, error: false, groupProperties: false });
+    rerender({ schema: { type: 'object' }, error: false, groupProperties: false, maxDepth: 1 });
     
     // Check that schemaKey incremented
     expect(result.current.schemaKey).toBe(initialSchemaKey + 1);

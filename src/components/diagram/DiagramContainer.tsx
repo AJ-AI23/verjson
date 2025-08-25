@@ -22,7 +22,7 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   collapsedPaths = {},
   maxDepth
 }) => {
-  const [localMaxDepth, setLocalMaxDepth] = useState(maxDepth || 1);
+  const [localMaxDepth, setLocalMaxDepth] = useState(maxDepth);
 
   // Update local maxDepth when prop changes
   useEffect(() => {

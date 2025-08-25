@@ -9,7 +9,7 @@ interface UseJsonEditorEventsProps {
   setFoldingDebug?: (info: FoldingDebugInfo | null) => void;
   collapsedPaths: CollapsedState;
   editorRef?: React.MutableRefObject<any>;
-  maxDepth?: number;
+  maxDepth: number,
   rootSchema?: any; // Schema for bulk expand operations
 }
 
@@ -18,7 +18,7 @@ export const useJsonEditorEvents = ({
   setFoldingDebug,
   collapsedPaths = {},
   editorRef,
-  maxDepth = 1,
+  maxDepth,
   rootSchema
 }: UseJsonEditorEventsProps) => {
   // Keep a reference to the latest collapsedPaths

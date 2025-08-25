@@ -7,7 +7,7 @@ export interface UseJsonEditorProps {
   onChange: (value: string) => void;
   collapsedPaths?: CollapsedState;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
-  maxDepth?: number; // Add maxDepth parameter
+  maxDepth: number; // Add maxDepth parameter
 }
 
 export interface FoldingDebugInfo {

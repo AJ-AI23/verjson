@@ -13,7 +13,7 @@ export const useJsonEditor = ({
   onChange,
   collapsedPaths = {},
   onToggleCollapse,
-  maxDepth = 1
+  maxDepth
 }: UseJsonEditorProps): JsonEditorResult => {
   // Parse the schema from the value for bulk expand operations
   const parsedSchema = useMemo(() => {

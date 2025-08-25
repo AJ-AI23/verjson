@@ -51,10 +51,10 @@ describe('Layout Generators', () => {
   
   describe('generateGroupedLayout', () => {
     it('should return empty result for invalid schema', () => {
-      const result = generateGroupedLayout(null);
+      const result = generateGroupedLayout(null, 1);
       expect(result).toEqual({ nodes: [], edges: [] });
       
-      const nonObjectResult = generateGroupedLayout({ type: 'string' });
+      const nonObjectResult = generateGroupedLayout({ type: 'string' }, 1);
       expect(nonObjectResult).toEqual({ nodes: [], edges: [] });
     });
     
@@ -68,7 +68,7 @@ describe('Layout Generators', () => {
         required: ['name']
       };
       
-      const result = generateGroupedLayout(schema);
+      const result = generateGroupedLayout(schema, 1);
       
       // Should have at least one node (the group node) and one edge
       expect(result.nodes.length).toBeGreaterThan(0);
@@ -78,10 +78,10 @@ describe('Layout Generators', () => {
   
   describe('generateExpandedLayout', () => {
     it('should return empty result for invalid schema', () => {
-      const result = generateExpandedLayout(null);
+      const result = generateExpandedLayout(null, 1);
       expect(result).toEqual({ nodes: [], edges: [] });
       
-      const nonObjectResult = generateExpandedLayout({ type: 'string' });
+      const nonObjectResult = generateExpandedLayout({ type: 'string' }, 1);
       expect(nonObjectResult).toEqual({ nodes: [], edges: [] });
     });
     
@@ -95,7 +95,7 @@ describe('Layout Generators', () => {
         required: ['name']
       };
       
-      const result = generateExpandedLayout(schema);
+      const result = generateExpandedLayout(schema, 1);
       
       // Should have two nodes (one for each property) and two edges
       expect(result.nodes.length).toBe(2);

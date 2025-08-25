@@ -5,8 +5,10 @@ import { parseJsonSchema } from '@/lib/schemaUtils';
 import { CollapsedState } from '@/lib/diagram/types';
 import { defaultSchema } from '@/lib/defaultSchema';
 import { toast } from '@/components/ui/use-toast';
+import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 
 const JsonEditorPocPage = () => {
+  const { settings } = useEditorSettings();
   const [schema, setSchema] = useState(defaultSchema);
   const [error, setError] = useState<string | null>(null);
   const [collapsedPaths, setCollapsedPaths] = useState<CollapsedState>({});
@@ -86,6 +88,7 @@ const JsonEditorPocPage = () => {
             error={error}
             collapsedPaths={collapsedPaths}
             onToggleCollapse={handleToggleCollapse}
+            maxDepth={settings.maxDepth}
           />
         </div>
         

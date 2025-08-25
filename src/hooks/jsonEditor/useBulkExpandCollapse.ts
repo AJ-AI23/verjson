@@ -3,12 +3,12 @@ import { CollapsedState } from '@/lib/diagram/types';
 
 interface UseBulkExpandCollapseProps {
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
-  maxDepth?: number;
+  maxDepth: number;
 }
 
 export const useBulkExpandCollapse = ({
   onToggleCollapse,
-  maxDepth = 1
+  maxDepth
 }: UseBulkExpandCollapseProps) => {
   
   // Function to get all nested paths from a given schema object
