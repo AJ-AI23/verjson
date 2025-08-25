@@ -130,18 +130,38 @@ export const generateOpenApiLayout = (
       console.log(`[OPENAPI LAYOUT] Paths path: ${pathsPath}, collapsed: ${pathsCollapsed}`);
       
       if (!pathsCollapsed) {
-        processOpenApiPaths(
-          schema.paths,
-          'root',
+        // Create a Paths container node first
+        const pathsContainerNode = createPropertyNode(
+          'Paths',
+          { 
+            type: 'object', 
+            description: `API endpoints (${Object.keys(schema.paths).length} endpoints)`,
+            properties: schema.paths
+          },
+          [],
           400,
           yOffset,
+          false
+        );
+        
+        const pathsContainerEdge = createEdge('root', pathsContainerNode.id, 'paths', false, {}, 'structure');
+        result.nodes.push(pathsContainerNode);
+        result.edges.push(pathsContainerEdge);
+        console.log(`[OPENAPI LAYOUT] Created paths container node`);
+        
+        // Then create individual endpoint nodes connected to the paths container
+        processOpenApiPaths(
+          schema.paths,
+          pathsContainerNode.id, // Connect to paths container instead of root
+          400,
+          yOffset + 200, // Position below the paths container
           200,
           result,
           maxDepth,
           collapsedPaths,
           'root.paths'
         );
-        console.log(`[OPENAPI LAYOUT] Processed paths`);
+        console.log(`[OPENAPI LAYOUT] Processed individual paths`);
       }
     }
     

@@ -15,13 +15,14 @@ interface EndpointNodeProps {
   data: {
     path: string;
     methods: EndpointMethod[];
+    label?: string;
   };
   id: string;
   isConnectable: boolean;
 }
 
 export const EndpointNode = memo(({ data, isConnectable }: EndpointNodeProps) => {
-  const { path, methods } = data;
+  const { path, methods, label } = data;
 
   const getMethodColor = (method: string) => {
     const colors = {
@@ -50,7 +51,9 @@ export const EndpointNode = memo(({ data, isConnectable }: EndpointNodeProps) =>
       
       <div className="flex flex-col gap-2">
         <div className="flex flex-col gap-1">
-          <div className="text-sm font-semibold text-slate-900">{path}</div>
+          <div className="text-sm font-semibold text-slate-900">
+            {label || path}
+          </div>
           <div className="text-xs text-slate-600">API Endpoint</div>
         </div>
         

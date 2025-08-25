@@ -192,13 +192,18 @@ export const createEndpointNode = (
       responses: methodData.responses
     }));
 
+  // Create a label that shows the main method and path
+  const primaryMethod = methods.length > 0 ? methods[0].method.toUpperCase() : '';
+  const nodeLabel = primaryMethod ? `${primaryMethod} ${path}` : path;
+
   return {
     id: `endpoint-${path.replace(/[^\w]/g, '-')}`,
     type: 'endpoint',
     position: { x: xPos, y: yOffset },
     data: {
       path,
-      methods
+      methods,
+      label: nodeLabel // Add explicit label for the endpoint
     }
   };
 };
