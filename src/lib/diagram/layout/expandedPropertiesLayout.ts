@@ -136,8 +136,9 @@ function processProperties(
       `root.properties.${propName}` : 
       `${currentPath}.${propName}`;
     
-    // Check if this specific path is explicitly collapsed
-    const isPathExplicitlyCollapsed = collapsedPaths[diagramPath] === true || collapsedPaths[jsonEditorPath] === true;
+    // Check if this specific path is explicitly expanded (default to collapsed)
+    const isPathExplicitlyExpanded = collapsedPaths[diagramPath] === false || collapsedPaths[jsonEditorPath] === false;
+    const isPathExplicitlyCollapsed = !isPathExplicitlyExpanded;
     
     // Check if any ancestor path is collapsed (this would hide this node)
     const hasCollapsedAncestor = isAnyAncestorCollapsed(jsonEditorPath);
