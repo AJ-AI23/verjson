@@ -20,7 +20,6 @@ export const useJsonEditor = ({
     try {
       return JSON.parse(value);
     } catch (e) {
-      console.warn('Failed to parse schema for bulk expand operations:', e);
       return null;
     }
   }, [value]);
@@ -43,22 +42,17 @@ export const useJsonEditor = ({
   // Update master ref whenever collapsedPaths props changes
   useEffect(() => {
     masterCollapsedPathsRef.current = { ...collapsedPaths };
-    console.log('Master collapsedPathsRef updated in useJsonEditor:', masterCollapsedPathsRef.current);
   }, [collapsedPaths]);
 
-  console.log('useJsonEditor hook running with:');
-  console.log('- collapsedPaths:', collapsedPaths);
-  console.log('- maxDepth:', maxDepth);
-  console.log('- onToggleCollapse handler present:', !!onToggleCollapse);
-
-  // Use our event handlers hook with the improved toggle logic
-  const { createEditorEventHandlers, getPathState, collapsedPathsRef: eventsPathsRef } = useJsonEditorEvents({
+  const {
+    createEditorEventHandlers,
+    collapsedPathsRef
+  } = useJsonEditorEvents({
     onToggleCollapse,
-    setFoldingDebug,
     collapsedPaths,
-    editorRef,
     maxDepth,
-    rootSchema: parsedSchema
+    rootSchema: parsedSchema,
+    editorRef
   });
 
   // Use our initialization hook
@@ -106,7 +100,6 @@ export const useJsonEditor = ({
   // Force update of editor fold state when collapsedPaths changes
   useEffect(() => {
     if (editorRef.current && initialSetupDone.current) {
-      console.log('Forcing update of editor fold state due to collapsedPaths change');
       forceUpdateEditorFoldState();
     }
   }, [collapsedPaths, forceUpdateEditorFoldState]);
@@ -136,7 +129,7 @@ export const useJsonEditor = ({
           onChange(nextValue);
         }
       } catch (err) {
-        console.error('Error reading change from JSONEditor:', err);
+        // Silently handle errors
       }
     };
 
@@ -150,7 +143,7 @@ export const useJsonEditor = ({
         return () => clearInterval(interval);
       }
     } catch (e) {
-      console.warn('JSONEditor event binding failed, using fallback:', e);
+      // Fallback: poll very lightly if events API not present
       const interval = setInterval(handleChange, 500);
       return () => clearInterval(interval);
     }

@@ -24,7 +24,6 @@ export const EditorSettingsProvider: React.FC<EditorSettingsProviderProps> = ({ 
   });
 
   const updateMaxDepth = (depth: number) => {
-    console.log('[DEBUG] EditorSettingsContext updating maxDepth to:', depth);
     setSettings(prev => ({ ...prev, maxDepth: depth }));
   };
 

@@ -37,7 +37,6 @@ export const DiagramFlow = memo(({
 
   // Store reference to ReactFlow instance
   const onInit = useCallback((instance: ReactFlowInstance) => {
-    console.log('ReactFlow initialized');
     reactFlowInstanceRef.current = instance;
     
     // If we have a stored viewport and shouldn't fit view, set it immediately
@@ -54,12 +53,9 @@ export const DiagramFlow = memo(({
 
   // Force fit view when needed
   useEffect(() => {
-    console.log(`DiagramFlow rendering with ${nodes.length} nodes and ${edges.length} edges`);
-    
     if (reactFlowInstanceRef.current && shouldFitView && nodes.length > 0) {
       const timeout = setTimeout(() => {
         if (reactFlowInstanceRef.current) {
-          console.log('Fitting view to diagram content');
           reactFlowInstanceRef.current.fitView({ 
             padding: 0.2,
             includeHiddenNodes: false
@@ -74,7 +70,6 @@ export const DiagramFlow = memo(({
   // Ensure root node is centered if it's the only node
   useEffect(() => {
     if (nodes.length === 1 && nodes[0].id === 'root' && reactFlowInstanceRef.current) {
-      console.log('Only root node present, ensuring it is centered');
       const timeout = setTimeout(() => {
         if (reactFlowInstanceRef.current) {
           reactFlowInstanceRef.current.fitView({ 

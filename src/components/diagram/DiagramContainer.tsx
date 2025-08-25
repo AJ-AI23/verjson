@@ -35,26 +35,6 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   const memoizedSchema = useMemo(() => schema, [JSON.stringify(schema)]);
   const memoizedCollapsedPaths = useMemo(() => collapsedPaths, [JSON.stringify(collapsedPaths)]);
 
-  // Debug logs - let's check the actual structure rather than console.log truncation
-  useEffect(() => {
-    console.log('DiagramContainer received schema - checking actual structure:');
-    console.log('Schema type:', typeof schema);
-    console.log('Schema is null:', schema === null);
-    if (schema && schema.properties && schema.properties.exampleObject) {
-      console.log('exampleObject type:', schema.properties.exampleObject.type);
-      console.log('exampleObject has properties:', !!schema.properties.exampleObject.properties);
-      if (schema.properties.exampleObject.properties) {
-        console.log('exampleObject.properties keys:', Object.keys(schema.properties.exampleObject.properties));
-        if (schema.properties.exampleObject.properties.nestedField) {
-          console.log('nestedField exists:', true);
-          console.log('nestedField type:', schema.properties.exampleObject.properties.nestedField.type);
-          console.log('nestedField type is string:', typeof schema.properties.exampleObject.properties.nestedField.type === 'string');
-        }
-      }
-    }
-    console.log('Error state:', error);
-    console.log('Root collapsed:', collapsedPaths?.root === true);
-  }, [schema, error, collapsedPaths]);
 
   const {
     nodes,
@@ -70,13 +50,6 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     memoizedCollapsedPaths
   );
 
-  // Debug logs for nodes and edges
-  useEffect(() => {
-    console.log(`DiagramContainer has ${nodes?.length || 0} nodes and ${edges?.length || 0} edges`);
-    if (nodes && nodes.length > 0) {
-      console.log('First node:', nodes[0]);
-    }
-  }, [nodes, edges]);
 
   // Check if there are any stored node positions
   const hasStoredPositions = Object.keys(nodePositionsRef.current).length > 0;
@@ -87,12 +60,10 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   };
 
   if (error) {
-    console.log('DiagramContainer: Rendering DiagramEmpty due to error');
     return <DiagramEmpty error={true} />;
   }
 
   if (!schema) {
-    console.log('DiagramContainer: Rendering DiagramEmpty due to no schema');
     return <DiagramEmpty noSchema={true} />;
   }
   
