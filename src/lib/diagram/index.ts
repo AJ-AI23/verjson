@@ -69,9 +69,10 @@ export const generateNodesAndEdges = (
     console.log('Root node created:', rootNode);
 
     if (isOpenApiSchema) {
-      console.log('Detected OpenAPI schema, using OpenAPI layout');
+      console.log('🚀 Detected OpenAPI schema, using OpenAPI layout');
+      console.log('🚀 About to call generateOpenApiLayout with schema:', schema);
       const openApiLayout = generateOpenApiLayout(schema, maxDepth, collapsedPaths);
-      console.log(`OpenAPI layout generated ${openApiLayout.nodes.length} nodes and ${openApiLayout.edges.length} edges`);
+      console.log(`🚀 OpenAPI layout generated ${openApiLayout.nodes.length} nodes and ${openApiLayout.edges.length} edges`);
       result.nodes.push(...openApiLayout.nodes);
       result.edges.push(...openApiLayout.edges);
     } else if (schema.type === 'object' && schema.properties) {

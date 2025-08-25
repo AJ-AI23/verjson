@@ -22,10 +22,10 @@ export const generateOpenApiLayout = (
   maxDepth: number,
   collapsedPaths: CollapsedState = {}
 ): DiagramElements => {
-  console.log(`[OPENAPI LAYOUT] Starting with maxDepth: ${maxDepth}`);
-  console.log(`[OPENAPI LAYOUT] CollapsedPaths:`, collapsedPaths);
-  console.log(`[OPENAPI LAYOUT] Schema keys:`, Object.keys(schema));
-  console.log(`[OPENAPI LAYOUT] Schema paths:`, schema.paths ? Object.keys(schema.paths) : 'none');
+  console.log(`🔥 [OPENAPI LAYOUT] Starting with maxDepth: ${maxDepth}`);
+  console.log(`🔥 [OPENAPI LAYOUT] CollapsedPaths:`, collapsedPaths);
+  console.log(`🔥 [OPENAPI LAYOUT] Schema keys:`, Object.keys(schema));
+  console.log(`🔥 [OPENAPI LAYOUT] Schema paths:`, schema.paths ? Object.keys(schema.paths) : 'none');
   
   const result: DiagramElements = {
     nodes: [],
