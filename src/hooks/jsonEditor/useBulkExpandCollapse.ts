@@ -26,17 +26,8 @@ export const useBulkExpandCollapse = ({
     let current = schema;
     
     for (const part of parts) {
-      if (part === 'properties') {
-        // .properties refers to the properties object of the current schema
-        if (current?.type === 'object' && current?.properties) {
-          current = current.properties;
-        } else {
-          return null;
-        }
-      } else if (current?.properties?.[part]) {
-        current = current.properties[part];
-      } else if (current?.items && part === 'items') {
-        current = current.items;
+      if (current && typeof current === 'object' && current.hasOwnProperty(part)) {
+        current = current[part];
       } else {
         return null;
       }
@@ -84,37 +75,18 @@ export const useBulkExpandCollapse = ({
     const generatePaths = (currentSchema: any, currentPath: string) => {
       const currentDepth = currentPath === 'root' ? 0 : currentPath.split('.').length - 1;
       
-      if (currentDepth >= baseDepth + maxDepth || !currentSchema) return;
+      if (currentDepth >= baseDepth + maxDepth || !currentSchema || typeof currentSchema !== 'object') return;
 
-      // Handle properties object directly (when currentSchema is a properties object)
-      if (currentSchema && typeof currentSchema === 'object' && !currentSchema.type) {
-        // This is likely a properties object, iterate through its keys
-        Object.keys(currentSchema).forEach(propName => {
-          const propPath = currentPath === 'root' ? `root.${propName}` : `${currentPath}.${propName}`;
-          const propDepth = propPath.split('.').length - 1;
-          
-          if (propDepth <= baseDepth + maxDepth) {
-            pathsToExpand.push(propPath);
-            generatePaths(currentSchema[propName], propPath);
-          }
-        });
-        return;
-      }
-
-      if (currentSchema.type === 'object' && currentSchema.properties) {
-        Object.keys(currentSchema.properties).forEach(propName => {
-          const propPath = currentPath === 'root' ? `root.${propName}` : `${currentPath}.${propName}`;
-          const propDepth = propPath.split('.').length - 1;
-          
-          if (propDepth <= baseDepth + maxDepth) {
-            pathsToExpand.push(propPath);
-            generatePaths(currentSchema.properties[propName], propPath);
-          }
-        });
-      }
-
-      // Don't automatically expand 'items' - it's a schema construct, not a structural level
-      // Arrays will be expanded through their actual content, not through the items schema
+      // For any object, iterate through all its keys as potential expandable paths
+      Object.keys(currentSchema).forEach(propName => {
+        const propPath = currentPath === 'root' ? `root.${propName}` : `${currentPath}.${propName}`;
+        const propDepth = propPath.split('.').length - 1;
+        
+        if (propDepth <= baseDepth + maxDepth) {
+          pathsToExpand.push(propPath);
+          generatePaths(currentSchema[propName], propPath);
+        }
+      });
     };
 
     // Get the schema for the clicked path and generate expansion paths
