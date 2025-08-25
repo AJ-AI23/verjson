@@ -324,6 +324,22 @@ function processProperties(
           (propSchema.type === 'array' && propSchema.items && 
            propSchema.items.type === 'object' && propSchema.items.properties)) {
         propNode.data.hasMoreLevels = true;
+        
+        // Even at max depth, respect the collapsed state from the editor
+        const maxDepthPathValue = collapsedPaths[jsonEditorPath];
+        if (typeof maxDepthPathValue === 'object' && maxDepthPathValue !== null) {
+          // For MaxDepthReached objects, treat as expanded (show the indicator)
+          propNode.data.isCollapsed = false;
+          console.log(`Max depth node ${propName} treated as expanded due to MaxDepthReached object`);
+        } else if (maxDepthPathValue === true) {
+          // Explicitly collapsed
+          propNode.data.isCollapsed = true;
+          console.log(`Max depth node ${propName} explicitly collapsed`);
+        } else {
+          // Default collapsed for max depth nodes
+          propNode.data.isCollapsed = true;
+          console.log(`Max depth node ${propName} defaulted to collapsed`);
+        }
       }
     }
   });
