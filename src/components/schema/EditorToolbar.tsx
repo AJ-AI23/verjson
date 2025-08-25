@@ -64,7 +64,10 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             max={10}
             step={1}
             value={[maxDepth]}
-            onValueChange={([value]) => updateMaxDepth(value)}
+            onValueChange={([value]) => {
+              console.log('[DEBUG] Slider changed to:', value);
+              updateMaxDepth(value);
+            }}
             className="w-24"
           />
         </div>

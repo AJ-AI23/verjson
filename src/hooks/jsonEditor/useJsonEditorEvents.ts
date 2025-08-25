@@ -63,6 +63,7 @@ export const useJsonEditorEvents = ({
     onToggleCollapse,
     maxDepth
   });
+  console.log('[DEBUG] useJsonEditorEvents received maxDepth:', maxDepth);
 
   // Create event handlers for JSONEditor
   const createEditorEventHandlers = useCallback(() => {
