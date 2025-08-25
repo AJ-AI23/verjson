@@ -22,6 +22,8 @@ export const generateOpenApiLayout = (
 ): DiagramElements => {
   console.log(`[OPENAPI LAYOUT] Starting with maxDepth: ${maxDepth}`);
   console.log(`[OPENAPI LAYOUT] CollapsedPaths:`, collapsedPaths);
+  console.log(`[OPENAPI LAYOUT] Schema keys:`, Object.keys(schema));
+  console.log(`[OPENAPI LAYOUT] Schema paths:`, schema.paths ? Object.keys(schema.paths) : 'none');
   
   const result: DiagramElements = {
     nodes: [],
@@ -58,6 +60,11 @@ export const generateOpenApiLayout = (
   );
   
   console.log(`[OPENAPI LAYOUT] Has expanded OpenAPI properties: ${hasExpandedOpenApiProps}`);
+  console.log(`[OPENAPI LAYOUT] Expanded OpenAPI paths:`, 
+    Object.keys(collapsedPaths)
+      .filter(path => path.startsWith('root.') && !path.startsWith('root.properties') && path !== 'root')
+      .map(path => ({ path, expanded: collapsedPaths[path] === false }))
+  );
   
   // Process OpenAPI properties if we have any expanded ones
   if (hasExpandedOpenApiProps) {
