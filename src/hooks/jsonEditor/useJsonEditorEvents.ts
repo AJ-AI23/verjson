@@ -51,9 +51,13 @@ export const useJsonEditorEvents = ({
   // Helper to get the current state of a path
   const getPathState = useCallback((path: string): boolean => {
     const normalizedPath = normalizePath(path);
-    const currentState = collapsedPathsRef.current[normalizedPath] !== undefined ? 
-      collapsedPathsRef.current[normalizedPath] : 
-      true; // Default to collapsed if not specified
+    const valueInRef = collapsedPathsRef.current[normalizedPath];
+    const currentState = valueInRef !== undefined ? valueInRef : true; // Default to collapsed if not specified
+    
+    console.log(`[DEBUG] getPathState for ${normalizedPath}:`);
+    console.log(`  - Value in ref: ${valueInRef}`);
+    console.log(`  - Current state: ${currentState}`);
+    console.log(`  - Full ref:`, collapsedPathsRef.current);
     
     return currentState;
   }, [normalizePath, collapsedPathsRef]);
