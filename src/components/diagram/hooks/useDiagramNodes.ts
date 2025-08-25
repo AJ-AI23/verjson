@@ -59,11 +59,13 @@ export const useDiagramNodes = (
     }
   }, [collapsedPathsString]);
 
-  // Throttle updates to prevent excessive rendering
-  const throttleUpdates = useCallback(() => {
+  // Throttle updates to prevent excessive rendering, but be more permissive for schema changes
+  const throttleUpdates = useCallback((schemaChanged: boolean) => {
     const now = Date.now();
-    // Only process updates if more than 300ms has passed since last update
-    return (now - lastUpdateTimeRef.current) < 300;
+    // For schema changes, use shorter throttle time (100ms)
+    // For other changes, use longer throttle time (300ms)
+    const throttleTime = schemaChanged ? 100 : 300;
+    return (now - lastUpdateTimeRef.current) < throttleTime;
   }, []);
 
   // Generate nodes and edges when dependencies change
@@ -79,12 +81,6 @@ export const useDiagramNodes = (
 
     // Skip if we're already processing an update  
     if (processingUpdateRef.current) {
-      return;
-    }
-    
-    // For initial render, skip throttling to ensure diagram appears
-    const shouldThrottle = !isInitialRender && throttleUpdates();
-    if (shouldThrottle) {
       return;
     }
     
@@ -106,7 +102,7 @@ export const useDiagramNodes = (
       }
       return;
     }
-
+    
     // Only update if something important has changed
     const maxDepthChanged = previousMaxDepthRef.current !== maxDepth;
     const schemaChanged = schemaString !== schemaStringRef.current;
@@ -182,10 +178,7 @@ export const useDiagramNodes = (
     setNodes, 
     setEdges, 
     applyStoredPositions,
-    prevGroupSetting,
-    throttleUpdates,
-    nodes.length,
-    edges.length
+    prevGroupSetting
   ]);
 
   return {
