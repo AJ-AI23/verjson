@@ -118,11 +118,14 @@ function processProperties(
   console.log(`Properties entries count:`, Object.entries(properties).length);
   
   Object.entries(properties).forEach(([propName, propSchema]: [string, any], index) => {
-    console.log(`Processing property ${index}: ${propName}`, propSchema ? 'has schema' : 'NO SCHEMA');
+    console.log(`[DEBUG] Processing property ${index}: ${propName}`);
+    console.log(`[DEBUG] Schema type: ${propSchema?.type}`);
+    console.log(`[DEBUG] Current path: ${currentPath}`);
+    console.log(`[DEBUG] Current depth: ${currentDepth}, Max depth: ${maxDepth}`);
     
     // Skip if propSchema is null or undefined
     if (!propSchema) {
-      console.log(`Skipping ${propName} - no schema`);
+      console.log(`[DEBUG] Skipping ${propName} - no schema`);
       return;
     }
     
