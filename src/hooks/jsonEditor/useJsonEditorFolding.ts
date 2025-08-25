@@ -71,38 +71,6 @@ export const useJsonEditorFolding = ({
       console.error('Error collapsing all nodes:', err);
     }
   }, [editorRef, onToggleCollapse]);
-
-  // Expand only the first level nodes
-  const expandFirstLevel = useCallback(() => {
-    if (!editorRef.current) {
-      return;
-    }
-    
-    try {
-      // First collapse all
-      editorRef.current.expand({
-        path: [],
-        isExpand: false,
-        recursive: true
-      });
-      
-      // Then expand root node only (without recursion)
-      editorRef.current.expand({
-        path: [],
-        isExpand: true,
-        recursive: false
-      });
-      
-      // Notify about root expansion
-      if (onToggleCollapse) {
-        onToggleCollapse('root', false);
-      }
-      
-      console.log('Expanded first level nodes using targeted expand() calls');
-    } catch (err) {
-      console.error('Error expanding first level:', err);
-    }
-  }, [editorRef, onToggleCollapse]);
   
   // Force update the editor's collapsed state based on our collapsedPaths
   const forceUpdateEditorFoldState = useCallback(() => {
@@ -129,7 +97,6 @@ export const useJsonEditorFolding = ({
   return {
     expandAll,
     collapseAll,
-    expandFirstLevel,
     forceUpdateEditorFoldState,
     collapsedPathsRef
   };

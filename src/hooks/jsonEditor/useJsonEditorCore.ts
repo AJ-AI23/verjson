@@ -72,7 +72,6 @@ export const useJsonEditor = ({
   const { 
     expandAll, 
     collapseAll, 
-    expandFirstLevel, 
     forceUpdateEditorFoldState,
     collapsedPathsRef: foldingRef 
   } = useJsonEditorFolding({ 
@@ -86,7 +85,6 @@ export const useJsonEditor = ({
     editorRef,
     onToggleCollapse,
     collapsedPaths,
-    expandFirstLevel,
     maxDepth
   });
 
@@ -171,7 +169,6 @@ export const useJsonEditor = ({
     destroyEditor,
     expandAll,
     collapseAll,
-    expandFirstLevel,
     foldingDebug,
     collapsedPaths: masterCollapsedPathsRef.current,
     pathExceedsMaxDepth

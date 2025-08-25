@@ -24,7 +24,6 @@ export interface JsonEditorResult {
   destroyEditor: () => void;
   expandAll: () => void;
   collapseAll: () => void;
-  expandFirstLevel: () => void;
   foldingDebug: FoldingDebugInfo | null;
   collapsedPaths?: CollapsedState;
   pathExceedsMaxDepth?: (path: string) => boolean; // Add helper function to result

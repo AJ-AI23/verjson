@@ -54,7 +54,6 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     destroyEditor,
     expandAll,
     collapseAll,
-    expandFirstLevel,
     foldingDebug,
     pathExceedsMaxDepth
   } = useJsonEditor({
@@ -100,12 +99,6 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
             className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
           >
             Collapse All
-          </button>
-          <button
-            onClick={expandFirstLevel}
-            className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
-          >
-            Expand First Level
           </button>
         </div>
       </div>
