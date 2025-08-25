@@ -3,7 +3,6 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import 'jsoneditor/dist/jsoneditor.css';
 import { CollapsedState } from '@/lib/diagram/types';
 import { useJsonEditor } from '@/hooks/useJsonEditor';
-import { toast } from '@/components/ui/use-toast';
 
 interface JsonEditorPocProps {
   value: string;
@@ -39,12 +38,6 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     // Only call the callback after initial mount to prevent initial setup events
     if (isMountedRef.current && onToggleCollapse) {
       onToggleCollapse(path, isCollapsed);
-      
-      // Show toast notification
-      toast({
-        title: isCollapsed ? "Collapsed" : "Expanded",
-        description: path
-      });
     }
   }, [onToggleCollapse]);
   

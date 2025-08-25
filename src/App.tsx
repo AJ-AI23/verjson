@@ -1,7 +1,5 @@
 
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { Toaster } from '@/components/ui/toaster';
-import { Toaster as SonnerToaster } from 'sonner';
 import { EditorSettingsProvider } from '@/contexts/EditorSettingsContext';
 import Index from '@/pages/Index';
 import NotFound from '@/pages/NotFound';
@@ -17,8 +15,6 @@ function App() {
           </Routes>
         </Router>
       </EditorSettingsProvider>
-      <Toaster />
-      <SonnerToaster position="bottom-right" />
     </>
   );
 }

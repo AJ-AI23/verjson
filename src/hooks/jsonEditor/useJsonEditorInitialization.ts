@@ -1,7 +1,6 @@
 
 import { useCallback, useEffect } from 'react';
 import JSONEditor from 'jsoneditor';
-import { toast } from '@/components/ui/use-toast';
 
 interface UseJsonEditorInitializationProps {
   value: string;
@@ -71,11 +70,6 @@ export const useJsonEditorInitialization = ({
       return editor;
     } catch (err) {
       console.error('Error initializing JSONEditor:', err);
-      toast({
-        variant: "destructive",
-        title: "Failed to initialize JSON editor",
-        description: err instanceof Error ? err.message : String(err)
-      });
       return null;
     }
   }, [value, createEditorEventHandlers, editorRef]);
