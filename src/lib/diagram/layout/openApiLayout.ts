@@ -566,14 +566,23 @@ function processOpenApiPaths(
         }
       }
       
-      
       // Handle reference edges - start from the most specific expanded level and work backwards
+      console.log(`[OPENAPI LAYOUT] Checking reference edges for method: ${methodEntry.fullLabel}`);
+      console.log(`[OPENAPI LAYOUT] Method data responses:`, Object.keys(methodEntry.methodData.responses || {}));
+      
       if (methodEntry.methodData.responses) {
         Object.entries(methodEntry.methodData.responses).forEach(([statusCode, responseData]: [string, any]) => {
+          console.log(`[OPENAPI LAYOUT] Checking response ${statusCode}:`, responseData?.content?.['application/json']?.schema);
+          
           if (responseData?.content?.['application/json']?.schema?.$ref) {
             const refPath = responseData.content['application/json'].schema.$ref.replace('#/components/schemas/', '');
             const componentNodeId = `components_schemas_${refPath}`;
             const existingComponentNode = result.nodes.find(node => node.id === componentNodeId);
+            
+            console.log(`[OPENAPI LAYOUT] Found $ref: ${responseData.content['application/json'].schema.$ref}`);
+            console.log(`[OPENAPI LAYOUT] Component node ID: ${componentNodeId}`);
+            console.log(`[OPENAPI LAYOUT] Component node exists:`, !!existingComponentNode);
+            console.log(`[OPENAPI LAYOUT] All node IDs:`, result.nodes.map(n => n.id));
             
             if (existingComponentNode) {
               const responsesPath = `${methodEntry.basePath}.responses`;
