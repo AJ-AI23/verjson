@@ -109,7 +109,14 @@ export const useBulkExpandCollapse = ({
     isExpanding: boolean = true,
     editorRef?: React.MutableRefObject<any>
   ) => {
-    if (!onToggleCollapse || !rootSchema) return;
+    console.log(`[BULK-START] Function called with basePath: ${basePath}, isExpanding: ${isExpanding}`);
+    console.log(`[BULK-START] onToggleCollapse available:`, !!onToggleCollapse);
+    console.log(`[BULK-START] rootSchema available:`, !!rootSchema);
+    
+    if (!onToggleCollapse || !rootSchema) {
+      console.log(`[BULK-START] Early exit - missing dependencies`);
+      return;
+    }
     
     console.log(`Bulk ${isExpanding ? 'expand' : 'collapse'} starting from path: ${basePath}`);
     console.log(`Max relative depth: ${maxDepth}`);
