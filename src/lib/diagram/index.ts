@@ -70,7 +70,8 @@ export const generateNodesAndEdges = (
 
     if (isOpenApiSchema) {
       console.log('🚀 Detected OpenAPI schema, using OpenAPI layout');
-      console.log('🚀 About to call generateOpenApiLayout with schema:', schema);
+      console.log('🚀 About to call generateOpenApiLayout with schema keys:', Object.keys(schema));
+      console.log('🚀 CollapsedPaths passed to layout:', Object.keys(collapsedPaths).length, 'paths');
       const openApiLayout = generateOpenApiLayout(schema, maxDepth, collapsedPaths);
       console.log(`🚀 OpenAPI layout generated ${openApiLayout.nodes.length} nodes and ${openApiLayout.edges.length} edges`);
       result.nodes.push(...openApiLayout.nodes);
