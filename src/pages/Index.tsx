@@ -48,29 +48,29 @@ const Index = () => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen bg-background flex flex-col w-full">
-        <header className="bg-card border-b py-3 px-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <SidebarTrigger className="animate-fade-in" />
-              <h1 className="text-xl font-bold text-primary">JSON Schema Visual Blueprint</h1>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-muted-foreground">
-                Edit and visualize JSON Schema and OpenAPI 3.1 schemas in real-time
-              </div>
-              <AuthButton />
-            </div>
-          </div>
-        </header>
+      <div className="min-h-screen bg-background flex w-full">
+        <WorkspaceSidebar 
+          onDocumentSelect={handleDocumentSelect}
+          selectedDocument={selectedDocument}
+        />
         
-        <div className="flex flex-1 w-full">
-          <WorkspaceSidebar 
-            onDocumentSelect={handleDocumentSelect}
-            selectedDocument={selectedDocument}
-          />
+        <div className="flex flex-col flex-1 min-w-0">
+          <header className="bg-card border-b py-3 px-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <SidebarTrigger className="animate-fade-in" />
+                <h1 className="text-xl font-bold text-primary">JSON Schema Visual Blueprint</h1>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-muted-foreground">
+                  Edit and visualize JSON Schema and OpenAPI 3.1 schemas in real-time
+                </div>
+                <AuthButton />
+              </div>
+            </div>
+          </header>
           
-          <main className="flex-1 p-4">
+          <main className="flex-1 p-4 min-h-0">
             <div className="h-full animate-fade-in">
               <Editor 
                 initialSchema={selectedDocument?.content}

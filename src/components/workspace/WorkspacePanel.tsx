@@ -132,51 +132,52 @@ export function WorkspacePanel({ onDocumentSelect, selectedDocument, isCollapsed
   }
 
   return (
-    <Card className="h-full flex flex-col border-0 shadow-none">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Workspaces</CardTitle>
-          <Dialog open={showWorkspaceDialog} onOpenChange={setShowWorkspaceDialog}>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="animate-fade-in">
-                <FolderPlus className="h-4 w-4 mr-2" />
-                New
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create New Workspace</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="workspace-name">Name</Label>
-                  <Input
-                    id="workspace-name"
-                    value={newWorkspaceName}
-                    onChange={(e) => setNewWorkspaceName(e.target.value)}
-                    placeholder="My Workspace"
-                  />
+    <div className="h-full p-4">
+      <Card className="h-full flex flex-col border-0 shadow-none">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">Workspaces</CardTitle>
+            <Dialog open={showWorkspaceDialog} onOpenChange={setShowWorkspaceDialog}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline" className="animate-fade-in">
+                  <FolderPlus className="h-4 w-4 mr-2" />
+                  New
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New Workspace</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="workspace-name">Name</Label>
+                    <Input
+                      id="workspace-name"
+                      value={newWorkspaceName}
+                      onChange={(e) => setNewWorkspaceName(e.target.value)}
+                      placeholder="My Workspace"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="workspace-desc">Description (optional)</Label>
+                    <Textarea
+                      id="workspace-desc"
+                      value={newWorkspaceDesc}
+                      onChange={(e) => setNewWorkspaceDesc(e.target.value)}
+                      placeholder="Workspace description..."
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setShowWorkspaceDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleCreateWorkspace}>Create</Button>
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="workspace-desc">Description (optional)</Label>
-                  <Textarea
-                    id="workspace-desc"
-                    value={newWorkspaceDesc}
-                    onChange={(e) => setNewWorkspaceDesc(e.target.value)}
-                    placeholder="Workspace description..."
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setShowWorkspaceDialog(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleCreateWorkspace}>Create</Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </CardHeader>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
       
       <CardContent className="flex-1 flex flex-col gap-4">
         {/* Workspace Selection */}
@@ -324,7 +325,8 @@ export function WorkspacePanel({ onDocumentSelect, selectedDocument, isCollapsed
             </div>
           </>
         )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

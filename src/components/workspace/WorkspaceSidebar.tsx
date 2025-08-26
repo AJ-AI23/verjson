@@ -18,15 +18,11 @@ export function WorkspaceSidebar({ onDocumentSelect, selectedDocument }: Workspa
 
   return (
     <Sidebar
-      className={`transition-all duration-300 ${isCollapsed ? 'w-14' : 'w-80'}`}
+      className="transition-all duration-300"
       collapsible="icon"
     >
-      <div className="p-2">
-        <SidebarTrigger className="mb-2" />
-      </div>
-      
-      <SidebarContent>
-        <div className={`transition-all duration-300 ${isCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+      <SidebarContent className="flex flex-col h-full">
+        <div className={`transition-all duration-300 ${isCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'} flex-1`}>
           <WorkspacePanel 
             onDocumentSelect={onDocumentSelect}
             selectedDocument={selectedDocument}
@@ -34,11 +30,11 @@ export function WorkspaceSidebar({ onDocumentSelect, selectedDocument }: Workspa
           />
         </div>
         
-        {/* Mini state - just show icons */}
+        {/* Mini state - just show workspace icon */}
         {isCollapsed && (
-          <div className="flex flex-col items-center p-2 space-y-4">
-            <div className="w-8 h-8 rounded bg-muted flex items-center justify-center">
-              <span className="text-xs font-semibold">W</span>
+          <div className="flex flex-col items-center justify-center flex-1 p-4">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <span className="text-sm font-bold text-primary">W</span>
             </div>
           </div>
         )}
