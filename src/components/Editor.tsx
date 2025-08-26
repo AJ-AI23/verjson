@@ -36,7 +36,7 @@ export const Editor = () => {
   
   return (
     <div className="json-schema-editor">
-      <EditorToolbar 
+      <EditorToolbar
         schema={schema}
         schemaType={schemaType}
         groupProperties={settings.groupProperties}
@@ -47,6 +47,7 @@ export const Editor = () => {
         toggleVersionHistory={toggleVersionHistory}
         setSchema={setSchema}
         setSavedSchema={setSavedSchema}
+        onAddNotation={handleAddNotation}
       />
       
       <EditorContent
