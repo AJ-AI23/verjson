@@ -8,7 +8,7 @@ import { SchemaPatch } from '@/lib/versionUtils'; // Added import for SchemaPatc
 interface EditorVersionDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  patches: SchemaPatch[];
+  documentId: string;
   onToggleSelection: (patchId: string) => void;
   onMarkAsReleased: (patchId: string) => void;
   onDeleteVersion: (patchId: string) => void;
@@ -17,23 +17,12 @@ interface EditorVersionDialogProps {
 export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({
   isOpen,
   onOpenChange,
-  patches,
+  documentId,
   onToggleSelection,
   onMarkAsReleased,
   onDeleteVersion
 }) => {
-  console.log('🔍 EditorVersionDialog: Rendering with props:', {
-    isOpen,
-    patchCount: patches?.length || 0,
-    patches: patches?.map(p => ({
-      id: p.id,
-      description: p.description,
-      version: `${p.version.major}.${p.version.minor}.${p.version.patch}`,
-      isSelected: p.isSelected,
-      isReleased: p.isReleased,
-      hasFullDocument: !!p.fullDocument
-    })) || 'NO PATCHES'
-  });
+  console.log('🔍 EditorVersionDialog: Rendering with documentId:', documentId);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -42,7 +31,7 @@ export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({
           <DialogTitle>Version History</DialogTitle>
         </DialogHeader>
         <VersionHistory 
-          patches={patches} 
+          documentId={documentId}
           onToggleSelection={onToggleSelection}
           onMarkAsReleased={onMarkAsReleased}
           onDeleteVersion={onDeleteVersion}

@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { SchemaPatch, formatVersion, applySelectedPatches } from '@/lib/versionUtils';
+import { useDocumentVersions } from '@/hooks/useDocumentVersions';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -24,56 +25,41 @@ import {
 import { Package, Tag, Trash2, Eye } from 'lucide-react';
 
 interface VersionHistoryProps {
-  patches: SchemaPatch[];
+  documentId: string;
   onToggleSelection?: (patchId: string) => void;
   onMarkAsReleased?: (patchId: string) => void;
   onDeleteVersion?: (patchId: string) => void;
 }
 
-export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggleSelection, onMarkAsReleased, onDeleteVersion }) => {
-  console.log('🔍 VersionHistory: Component rendering NOW!');
+export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onToggleSelection, onMarkAsReleased, onDeleteVersion }) => {
+  console.log('🔍 VersionHistory: Component rendering with documentId:', documentId);
   
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewPatches, setPreviewPatches] = useState<SchemaPatch[]>([]);
   
-  // Add detailed patch analysis
-  React.useEffect(() => {
-    console.log('🔍 VersionHistory: Patches received in useEffect:', {
-      patchCount: patches?.length || 0,
-      patches: patches?.map(p => ({
-        id: p.id,
-        description: p.description,
-        isSelected: p.isSelected,
-        isReleased: p.isReleased,
-        version: `${p.version.major}.${p.version.minor}.${p.version.patch}`,
-        hasFullDocument: !!p.fullDocument,
-        hasPatches: !!p.patches,
-        fullDocumentKeys: p.fullDocument ? Object.keys(p.fullDocument) : 'NO FULL DOCUMENT'
-      })) || 'NO PATCHES'
-    });
-    
-    // Force test applySelectedPatches
-    if (patches && patches.length > 0) {
-      console.log('🔍 VersionHistory: Testing applySelectedPatches directly...');
-      try {
-        const testResult = applySelectedPatches(patches);
-        console.log('🔍 VersionHistory: Direct applySelectedPatches result:', {
-          resultKeys: Object.keys(testResult || {}),
-          hasContent: testResult && Object.keys(testResult).length > 0,
-          result: testResult
-        });
-      } catch (err) {
-        console.error('🚨 VersionHistory: applySelectedPatches failed:', err);
-      }
-    }
-  }, [patches]);
+  // Fetch document versions directly from database
+  const { getSchemaPatches } = useDocumentVersions(documentId);
+  const patches = getSchemaPatches();
   
-  // Calculate current schema based on selected patches
+  console.log('🔍 VersionHistory: Fetched patches from database:', {
+    documentId,
+    patchCount: patches?.length || 0,
+    patches: patches?.map(p => ({
+      id: p.id,
+      description: p.description,
+      isSelected: p.isSelected,
+      isReleased: p.isReleased,
+      version: `${p.version.major}.${p.version.minor}.${p.version.patch}`,
+      hasFullDocument: !!p.fullDocument,
+      hasPatches: !!p.patches,
+      fullDocumentKeys: p.fullDocument ? Object.keys(p.fullDocument) : 'NO FULL DOCUMENT'
+    })) || 'NO PATCHES'
+  });
+  
+  // Calculate current schema based on selected patches from database
   const currentSchema = useMemo(() => {
-    console.log('🔍 VersionHistory: Starting currentSchema calculation');
-    console.log('🔍 VersionHistory: patches received:', {
+    console.log('🔍 VersionHistory: Calculating currentSchema with patches:', {
       count: patches.length,
-      patchIds: patches.map(p => p.id),
       selectedPatches: patches.filter(p => p.isSelected).length,
       patchDetails: patches.map(p => ({
         id: p.id,
@@ -103,7 +89,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggl
   
   // Handle preview of what schema would look like with different selections
   const handlePreview = (patchId: string, wouldBeSelected: boolean) => {
-    console.log('handlePreview called:', { patchId, wouldBeSelected, originalPatchesCount: patches.length });
+    console.log('🔍 VersionHistory: handlePreview called:', { patchId, wouldBeSelected, originalPatchesCount: patches.length });
     
     const updatedPatches = patches.map(p => {
       const newPatch = p.id === patchId ? { ...p, isSelected: wouldBeSelected } : p;
@@ -111,7 +97,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggl
       return newPatch;
     });
     
-    console.log('Preview patches created:', updatedPatches.map(p => ({ 
+    console.log('🔍 VersionHistory: Preview patches created:', updatedPatches.map(p => ({ 
       id: p.id, 
       description: p.description, 
       isSelected: p.isSelected,
@@ -123,12 +109,18 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggl
     setPreviewOpen(true);
   };
   
-  // Calculate preview schema
+  // Calculate preview schema - fetch directly from database
   const previewSchema = useMemo(() => {
     if (previewPatches.length === 0) return {};
+    
     try {
+      console.log('🔍 VersionHistory: Calculating preview schema with patches:', {
+        previewPatchesCount: previewPatches.length,
+        selectedPreviewPatches: previewPatches.filter(p => p.isSelected).length
+      });
+      
       const result = applySelectedPatches(previewPatches);
-      console.log('Preview schema calculation result:', {
+      console.log('🔍 VersionHistory: Preview schema calculation result:', {
         previewPatchesCount: previewPatches.length,
         resultKeys: Object.keys(result || {}),
         resultPreview: result ? JSON.stringify(result).substring(0, 200) : 'null/undefined',
@@ -136,7 +128,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggl
       });
       return result;
     } catch (err) {
-      console.error('Error calculating preview schema:', err);
+      console.error('🚨 VersionHistory: Error calculating preview schema:', err);
       return {};
     }
   }, [previewPatches]);

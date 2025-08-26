@@ -118,7 +118,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument }
       <EditorVersionDialog 
         isOpen={isVersionHistoryOpen}
         onOpenChange={toggleVersionHistory}
-        patches={patches}
+        documentId={selectedDocument?.id || ''}
         onToggleSelection={handleToggleSelection}
         onMarkAsReleased={handleMarkAsReleased}
         onDeleteVersion={handleDeleteVersion}
