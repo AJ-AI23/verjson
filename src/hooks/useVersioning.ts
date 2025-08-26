@@ -195,27 +195,38 @@ export const useVersioning = ({
 
   const handleToggleSelection = async (patchId: string) => {
     try {
-      console.log('Toggling selection for patch:', patchId);
+      console.log('🔄 handleToggleSelection called for patch:', patchId);
+      console.log('🔄 Current patches:', patches.map(p => ({ id: p.id, isSelected: p.isSelected, description: p.description })));
+      
       const updatedPatches = togglePatchSelection(patches, patchId);
       
       // Only proceed if the patches actually changed (selection was allowed)
       if (updatedPatches === patches) {
-        console.log('Selection toggle was prevented');
+        console.log('🚫 Selection toggle was prevented by togglePatchSelection');
         return;
       }
+      
+      console.log('✅ Selection toggle allowed, proceeding with database update');
       
       // Find the patch to update
       const patchToUpdate = updatedPatches.find(p => p.id === patchId);
       if (patchToUpdate) {
-        await updateVersion(patchId, { is_selected: patchToUpdate.isSelected });
+        console.log('📝 Updating database for patch:', { id: patchId, newSelection: patchToUpdate.isSelected });
+        const result = await updateVersion(patchId, { is_selected: patchToUpdate.isSelected });
+        console.log('📝 Database update result:', result ? 'SUCCESS' : 'FAILED');
+        
+        if (!result) {
+          toast.error('Failed to update version selection');
+          return;
+        }
       }
       
       // Apply selected patches to get new schema
-      console.log('Recalculating schema from selected patches...');
+      console.log('🔍 Recalculating schema from selected patches...');
       const newSchema = applySelectedPatches(updatedPatches);
       const newSchemaString = JSON.stringify(newSchema, null, 2);
-      console.log('New schema calculated, length:', newSchemaString.length);
-      console.log('Setting editor content to:', newSchemaString.substring(0, 200) + '...');
+      console.log('🔍 New schema calculated, length:', newSchemaString.length);
+      console.log('🎯 Setting editor content to:', newSchemaString.substring(0, 200) + '...');
       
       setSchema(newSchemaString);
       setSavedSchema(newSchemaString);
