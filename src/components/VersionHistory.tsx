@@ -53,9 +53,22 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggl
   
   // Handle preview of what schema would look like with different selections
   const handlePreview = (patchId: string, wouldBeSelected: boolean) => {
-    const updatedPatches = patches.map(p => 
-      p.id === patchId ? { ...p, isSelected: wouldBeSelected } : p
-    );
+    console.log('handlePreview called:', { patchId, wouldBeSelected, originalPatchesCount: patches.length });
+    
+    const updatedPatches = patches.map(p => {
+      const newPatch = p.id === patchId ? { ...p, isSelected: wouldBeSelected } : p;
+      console.log(`Patch ${p.id} (${p.description}): selected ${p.isSelected} -> ${newPatch.isSelected}`);
+      return newPatch;
+    });
+    
+    console.log('Preview patches created:', updatedPatches.map(p => ({ 
+      id: p.id, 
+      description: p.description, 
+      isSelected: p.isSelected,
+      hasFullDocument: !!p.fullDocument,
+      hasPatches: !!p.patches
+    })));
+    
     setPreviewPatches(updatedPatches);
     setPreviewOpen(true);
   };
