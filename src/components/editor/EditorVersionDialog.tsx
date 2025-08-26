@@ -22,6 +22,19 @@ export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({
   onMarkAsReleased,
   onDeleteVersion
 }) => {
+  console.log('🔍 EditorVersionDialog: Rendering with props:', {
+    isOpen,
+    patchCount: patches?.length || 0,
+    patches: patches?.map(p => ({
+      id: p.id,
+      description: p.description,
+      version: `${p.version.major}.${p.version.minor}.${p.version.patch}`,
+      isSelected: p.isSelected,
+      isReleased: p.isReleased,
+      hasFullDocument: !!p.fullDocument
+    })) || 'NO PATCHES'
+  });
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh]">
