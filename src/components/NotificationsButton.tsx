@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Bell } from 'lucide-react';
 import { NotificationsDialog } from './NotificationsDialog';
+import { DebugToggle } from '@/components/DebugToggle';
 import { useNotifications } from '@/hooks/useNotifications';
 
 export const NotificationsButton: React.FC = () => {
@@ -10,7 +11,11 @@ export const NotificationsButton: React.FC = () => {
   const { unreadCount } = useNotifications();
 
   return (
-    <>
+    <div className="flex items-center gap-2">
+      {/* Debug Toggle */}
+      <DebugToggle />
+      
+      {/* Notifications Button */}
       <Button
         variant="ghost"
         size="sm"
@@ -28,10 +33,10 @@ export const NotificationsButton: React.FC = () => {
         )}
       </Button>
 
-      <NotificationsDialog
-        open={isOpen}
-        onOpenChange={setIsOpen}
+      <NotificationsDialog 
+        open={isOpen} 
+        onOpenChange={setIsOpen} 
       />
-    </>
+    </div>
   );
 };
