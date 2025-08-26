@@ -31,6 +31,19 @@ interface VersionHistoryProps {
 }
 
 export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggleSelection, onMarkAsReleased, onDeleteVersion }) => {
+  console.log('🔍 VersionHistory: Component rendered with patches:', {
+    patchCount: patches?.length || 0,
+    patches: patches?.map(p => ({
+      id: p.id,
+      description: p.description,
+      isSelected: p.isSelected,
+      isReleased: p.isReleased,
+      version: `${p.version.major}.${p.version.minor}.${p.version.patch}`,
+      hasFullDocument: !!p.fullDocument,
+      hasPatches: !!p.patches
+    })) || 'NO PATCHES'
+  });
+  
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewPatches, setPreviewPatches] = useState<SchemaPatch[]>([]);
   
