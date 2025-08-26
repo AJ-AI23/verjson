@@ -141,7 +141,7 @@ export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProp
 
                   {/* Collaborators */}
                   {permissions.map((permission) => (
-                    <div key={permission.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div key={permission.id} className="flex items-start justify-between p-3 border rounded-lg gap-3">
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div className="flex items-center gap-2 min-w-0">
                           {getRoleIcon(permission.role)}
@@ -158,33 +158,35 @@ export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProp
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Badge className={getRoleColor(permission.role)}>
-                          {permission.role}
-                        </Badge>
-                        
-                        {isOwner && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleChangeAccess(permission)}>
-                                <Settings className="h-4 w-4 mr-2" />
-                                Change Access
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleRemoveCollaborator(permission)}
-                                className="text-red-600"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Remove Access
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
+                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                        <div className="flex items-center gap-2">
+                          <Badge className={getRoleColor(permission.role)}>
+                            {permission.role}
+                          </Badge>
+                          
+                          {isOwner && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleChangeAccess(permission)}>
+                                  <Settings className="h-4 w-4 mr-2" />
+                                  Change Access
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => handleRemoveCollaborator(permission)}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Remove Access
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
