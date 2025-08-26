@@ -152,15 +152,22 @@ export const revertToVersion = (
   patches: SchemaPatch[], 
   targetPatch: SchemaPatch
 ): any => {
+  console.log('revertToVersion called');
+  console.log('Target patch:', targetPatch);
+  console.log('Available patches:', patches.length);
+  
   // Sort patches by timestamp, newest first
   const sortedPatches = [...patches].sort((a, b) => b.timestamp - a.timestamp);
+  console.log('Sorted patches:', sortedPatches.map(p => ({ version: p.version, timestamp: p.timestamp })));
   
   // Find all patches that are newer than the target patch
   const patchesToRevert = sortedPatches.filter(
     patch => patch.timestamp > targetPatch.timestamp
   );
+  console.log('Patches to revert:', patchesToRevert.length);
   
   if (patchesToRevert.length === 0) {
+    console.log('No patches to revert - already at requested version');
     toast.info('Already at the requested version');
     return currentSchema;
   }

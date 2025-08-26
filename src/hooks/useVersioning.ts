@@ -77,19 +77,25 @@ export const useVersioning = ({
   };
 
   const handleRevertToVersion = (targetPatch: SchemaPatch) => { // Accept SchemaPatch directly
+    console.log('handleRevertToVersion called with patch:', targetPatch);
     try {
       // Parse the current schema
       const parsedCurrentSchema = JSON.parse(schema);
+      console.log('Current schema parsed successfully');
       
       // Apply the reverse patches to get back to the target version
       const revertedSchema = revertToVersion(parsedCurrentSchema, patches, targetPatch);
+      console.log('Reverted schema calculated:', revertedSchema);
       
       // Update the schema with the reverted one
-      setSchema(JSON.stringify(revertedSchema, null, 2));
-      setSavedSchema(JSON.stringify(revertedSchema, null, 2));
+      const revertedSchemaString = JSON.stringify(revertedSchema, null, 2);
+      setSchema(revertedSchemaString);
+      setSavedSchema(revertedSchemaString);
+      console.log('Schema and savedSchema updated');
       
       toast.success(`Reverted to version ${formatVersion(targetPatch.version)}`);
     } catch (err) {
+      console.error('Error in handleRevertToVersion:', err);
       toast.error('Failed to revert version', {
         description: (err as Error).message,
       });

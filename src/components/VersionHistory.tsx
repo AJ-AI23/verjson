@@ -62,7 +62,10 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onRever
                     size="sm"
                     variant="outline"
                     className="text-xs gap-1"
-                    onClick={() => onRevert(patch)} // Changed from index to patch
+                    onClick={() => {
+                      console.log('Revert button clicked for patch:', patch);
+                      onRevert(patch);
+                    }}
                     title={`Revert to version ${formatVersion(patch.version)}`}
                   >
                     <Undo size={12} />
