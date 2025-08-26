@@ -71,12 +71,13 @@ export const useVersioning = ({
     setPatches(schemaPatches);
   }, [versions, getSchemaPatches]);
 
-  // Update database version when document changes or when patches are applied
+  // Update database version only on initial document load, not during version navigation
   useEffect(() => {
-    if (documentId && savedSchema) {
+    if (documentId && savedSchema && !databaseVersion) {
+      // Only set initial database version if not already set
       setDatabaseVersion(savedSchema);
     }
-  }, [documentId, savedSchema]);
+  }, [documentId, savedSchema, databaseVersion]);
 
   // Create initial version when document is loaded (only once per document)
   useEffect(() => {
