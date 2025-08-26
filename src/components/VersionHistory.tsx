@@ -31,21 +31,27 @@ interface VersionHistoryProps {
 }
 
 export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggleSelection, onMarkAsReleased, onDeleteVersion }) => {
-  console.log('🔍 VersionHistory: Component rendered with patches:', {
-    patchCount: patches?.length || 0,
-    patches: patches?.map(p => ({
-      id: p.id,
-      description: p.description,
-      isSelected: p.isSelected,
-      isReleased: p.isReleased,
-      version: `${p.version.major}.${p.version.minor}.${p.version.patch}`,
-      hasFullDocument: !!p.fullDocument,
-      hasPatches: !!p.patches
-    })) || 'NO PATCHES'
-  });
+  console.log('🔍 VersionHistory: Component rendering NOW!');
   
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewPatches, setPreviewPatches] = useState<SchemaPatch[]>([]);
+  
+  // Add detailed patch analysis
+  React.useEffect(() => {
+    console.log('🔍 VersionHistory: Patches received in useEffect:', {
+      patchCount: patches?.length || 0,
+      patches: patches?.map(p => ({
+        id: p.id,
+        description: p.description,
+        isSelected: p.isSelected,
+        isReleased: p.isReleased,
+        version: `${p.version.major}.${p.version.minor}.${p.version.patch}`,
+        hasFullDocument: !!p.fullDocument,
+        hasPatches: !!p.patches,
+        fullDocumentKeys: p.fullDocument ? Object.keys(p.fullDocument) : 'NO FULL DOCUMENT'
+      })) || 'NO PATCHES'
+    });
+  }, [patches]);
   
   // Calculate current schema based on selected patches
   const currentSchema = useMemo(() => {
