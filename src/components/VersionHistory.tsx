@@ -317,8 +317,8 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
                       size="sm"
                       variant="ghost"
                       className="h-6 w-6 p-0 text-slate-500 hover:text-slate-700"
-                      onClick={() => handlePreview(patch.id, !patch.isSelected)}
-                      title="Preview resulting schema"
+                      onClick={() => handlePreview(patch.id, patch.isSelected)}
+                      title="Preview schema with current version selections"
                     >
                       <Eye size={12} />
                     </Button>
