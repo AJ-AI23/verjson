@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      document_permissions: {
+        Row: {
+          created_at: string
+          document_id: string
+          granted_by: string
+          id: string
+          role: Database["public"]["Enums"]["permission_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          granted_by: string
+          id?: string
+          role?: Database["public"]["Enums"]["permission_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          granted_by?: string
+          id?: string
+          role?: Database["public"]["Enums"]["permission_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       document_versions: {
         Row: {
           created_at: string
@@ -144,6 +174,36 @@ export type Database = {
         }
         Relationships: []
       }
+      workspace_permissions: {
+        Row: {
+          created_at: string
+          granted_by: string
+          id: string
+          role: Database["public"]["Enums"]["permission_role"]
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          granted_by: string
+          id?: string
+          role?: Database["public"]["Enums"]["permission_role"]
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          granted_by?: string
+          id?: string
+          role?: Database["public"]["Enums"]["permission_role"]
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       workspaces: {
         Row: {
           created_at: string
@@ -179,7 +239,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      permission_role: "owner" | "editor" | "viewer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -306,6 +366,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      permission_role: ["owner", "editor", "viewer"],
+    },
   },
 } as const
