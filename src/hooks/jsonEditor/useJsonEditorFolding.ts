@@ -25,40 +25,48 @@ export const useJsonEditorFolding = ({
   }, [collapsedPaths]);
 
   
-  // Helper function to get all possible paths from the schema
-  const getAllSchemaPaths = useCallback((schema: any, currentPath = 'root'): string[] => {
+  // Helper function to get diagram-relevant paths from the schema
+  const getDiagramPaths = useCallback((schema: any, currentPath = 'root'): string[] => {
     const paths: string[] = [currentPath];
     
     if (!schema || typeof schema !== 'object') {
       return paths;
     }
 
-    // For objects with properties
+    // For JSON schema properties - these become the actual diagram nodes
     if (schema.properties && typeof schema.properties === 'object') {
       Object.keys(schema.properties).forEach(propName => {
         const propPath = currentPath === 'root' ? `root.${propName}` : `${currentPath}.${propName}`;
-        const subPaths = getAllSchemaPaths(schema.properties[propName], propPath);
-        paths.push(...subPaths);
+        paths.push(propPath);
+        
+        // Recursively process nested properties
+        const propSchema = schema.properties[propName];
+        if (propSchema.properties) {
+          const subPaths = getDiagramPaths(propSchema, propPath);
+          paths.push(...subPaths.slice(1)); // Skip the current path as we already added it
+        }
+        
+        // Handle array items
+        if (propSchema.items) {
+          const itemPath = `${propPath}.items`;
+          paths.push(itemPath);
+          if (propSchema.items.properties) {
+            const itemPaths = getDiagramPaths(propSchema.items, itemPath);
+            paths.push(...itemPaths.slice(1));
+          }
+        }
       });
     }
 
-    // For arrays with items
-    if (schema.items) {
-      const itemPath = currentPath === 'root' ? 'root.items' : `${currentPath}.items`;
-      const subPaths = getAllSchemaPaths(schema.items, itemPath);
-      paths.push(...subPaths);
-    }
-
-    // For allOf, anyOf, oneOf
-    ['allOf', 'anyOf', 'oneOf'].forEach(keyword => {
-      if (Array.isArray(schema[keyword])) {
-        schema[keyword].forEach((subSchema: any, index: number) => {
-          const subPath = currentPath === 'root' ? `root.${keyword}.${index}` : `${currentPath}.${keyword}.${index}`;
-          const subPaths = getAllSchemaPaths(subSchema, subPath);
-          paths.push(...subPaths);
-        });
+    // For arrays with items at root level
+    if (schema.items && currentPath === 'root') {
+      const itemPath = 'root.items';
+      paths.push(itemPath);
+      if (schema.items.properties) {
+        const itemPaths = getDiagramPaths(schema.items, itemPath);
+        paths.push(...itemPaths.slice(1));
       }
-    });
+    }
 
     return paths;
   }, []);
@@ -84,7 +92,7 @@ export const useJsonEditorFolding = ({
       // Get all possible paths from the schema
       let allPaths: string[] = [];
       if (parsedSchema) {
-        allPaths = getAllSchemaPaths(parsedSchema);
+        allPaths = getDiagramPaths(parsedSchema);
         console.log('Found schema paths for expansion:', allPaths);
         
         // Update all paths to expanded state
@@ -109,7 +117,7 @@ export const useJsonEditorFolding = ({
     } catch (err) {
       console.error('Error expanding all nodes:', err);
     }
-  }, [editorRef, onToggleCollapse, parsedSchema, getAllSchemaPaths]);
+  }, [editorRef, onToggleCollapse, parsedSchema, getDiagramPaths]);
 
   // Collapse all nodes in the editor and update diagram state
   const collapseAll = useCallback(() => {
@@ -132,7 +140,7 @@ export const useJsonEditorFolding = ({
       // Get all possible paths from the schema
       let allPaths: string[] = [];
       if (parsedSchema) {
-        allPaths = getAllSchemaPaths(parsedSchema);
+        allPaths = getDiagramPaths(parsedSchema);
         console.log('Found schema paths for collapse:', allPaths);
         
         // Update all paths to collapsed state (except root, which should be expanded to show the collapsed children)
@@ -162,7 +170,7 @@ export const useJsonEditorFolding = ({
     } catch (err) {
       console.error('Error collapsing all nodes:', err);
     }
-  }, [editorRef, onToggleCollapse, parsedSchema, getAllSchemaPaths]);
+  }, [editorRef, onToggleCollapse, parsedSchema, getDiagramPaths]);
 
   // Expand only the first level nodes
   const expandFirstLevel = useCallback(() => {
