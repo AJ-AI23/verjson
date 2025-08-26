@@ -165,11 +165,18 @@ export const applySelectedPatches = (patches: SchemaPatch[]): any => {
   // Look through patches in reverse order to find the latest selected released version
   for (let i = sortedPatches.length - 1; i >= 0; i--) {
     const patch = sortedPatches[i];
-    if (patch.isReleased && patch.isSelected && patch.fullDocument) {
-      baseSchema = JSON.parse(JSON.stringify(patch.fullDocument)); // Deep clone
-      startIndex = i + 1;
-      console.log(`Using released version ${formatVersion(patch.version)} as base`);
-      break;
+    if (patch.isReleased && patch.isSelected) {
+      if (patch.fullDocument) {
+        baseSchema = JSON.parse(JSON.stringify(patch.fullDocument)); // Deep clone
+        startIndex = i + 1;
+        console.log(`Using released version ${formatVersion(patch.version)} as base with fullDocument`);
+        break;
+      } else {
+        // For initial version without fullDocument, apply all patches from beginning
+        console.log(`Using released version ${formatVersion(patch.version)} as base, applying all patches`);
+        startIndex = 0;
+        break;
+      }
     }
   }
   
