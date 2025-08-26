@@ -32,7 +32,7 @@ export const SchemaTypeSelector: React.FC<SchemaSelectorProps> = ({
     if (value === 'json-schema') {
       setSchema(defaultSchema);
       setSavedSchema(defaultSchema);
-    } else if (value === 'oas-3.1') {
+    } else if (value === 'openapi') {
       setSchema(defaultOasSchema);
       setSavedSchema(defaultOasSchema);
     }
@@ -54,7 +54,7 @@ export const SchemaTypeSelector: React.FC<SchemaSelectorProps> = ({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="json-schema">JSON Schema</SelectItem>
-          <SelectItem value="oas-3.1">OpenAPI 3.1</SelectItem>
+          <SelectItem value="openapi">OpenAPI 3.1</SelectItem>
         </SelectContent>
       </Select>
       <span className="text-sm text-slate-500">

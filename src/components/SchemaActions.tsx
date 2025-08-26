@@ -39,7 +39,7 @@ export const SchemaActions: React.FC<SchemaActionsProps> = ({
         // Detect schema type
         let detectedType: SchemaType | undefined = undefined;
         if (parsedSchema.openapi) {
-          detectedType = 'oas-3.1';
+          detectedType = 'openapi';
         } else if (parsedSchema.type) {
           detectedType = 'json-schema';
         }

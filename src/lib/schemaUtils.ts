@@ -11,7 +11,7 @@ if (!ajv.getSchema(metaSchema.$id)) {
   ajv.addMetaSchema(metaSchema);
 }
 
-export type SchemaType = 'json-schema' | 'oas-3.1';
+export type SchemaType = 'json-schema' | 'openapi';
 
 export const validateJsonSchema = (jsonString: string, schemaType: SchemaType = 'json-schema'): any => {
   try {
@@ -25,7 +25,7 @@ export const validateJsonSchema = (jsonString: string, schemaType: SchemaType = 
         console.warn('Schema is missing "type" property');
         throw new Error('Schema is missing "type" property');
       }
-    } else if (schemaType === 'oas-3.1') {
+    } else if (schemaType === 'openapi') {
       // Check if it has the basic structure of an OAS 3.1 document
       if (!parsedSchema.openapi) {
         console.warn('Schema is missing "openapi" property');
@@ -77,6 +77,25 @@ export const formatJsonSchema = (schema: any): string => {
   }
 };
 
+export const detectSchemaType = (schema: any): SchemaType => {
+  if (!schema || typeof schema !== 'object') {
+    return 'json-schema'; // Default fallback
+  }
+  
+  // Check for OpenAPI indicators
+  if (schema.openapi || schema.swagger) {
+    return 'openapi';
+  }
+  
+  // Check for typical OpenAPI structure
+  if (schema.info && (schema.paths || schema.components)) {
+    return 'openapi';
+  }
+  
+  // Default to JSON Schema if no OpenAPI indicators
+  return 'json-schema';
+};
+
 export const extractSchemaComponents = (schema: any, schemaType: SchemaType = 'json-schema'): any => {
   console.log('Extracting schema components for type:', schemaType);
   
@@ -89,7 +108,7 @@ export const extractSchemaComponents = (schema: any, schemaType: SchemaType = 'j
     // For JSON Schema, return the schema directly
     console.log('Returning JSON schema directly');
     return schema;
-  } else if (schemaType === 'oas-3.1') {
+  } else if (schemaType === 'openapi') {
     // For OpenAPI schemas, return the full schema to preserve OpenAPI structure
     console.log('Returning full OpenAPI schema for diagram visualization');
     return schema;

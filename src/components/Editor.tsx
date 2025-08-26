@@ -5,6 +5,7 @@ import { EditorToolbar } from './schema/EditorToolbar';
 import { EditorContent } from './schema/EditorContent';
 import { useEditorState } from './editor/useEditorState';
 import { EditorVersionDialog } from './editor/EditorVersionDialog';
+import { detectSchemaType } from '@/lib/schemaUtils';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 
 interface EditorProps {
@@ -49,12 +50,20 @@ export const Editor = ({ initialSchema, onSave, documentName }: EditorProps) => 
     if (initialSchema && typeof initialSchema === 'object' && initialSchema !== lastLoadedSchemaRef.current) {
       const schemaString = JSON.stringify(initialSchema, null, 2);
       console.log('Loading new document content into editor:', schemaString.substring(0, 100));
+      
+      // Detect the schema type and update it
+      const detectedType = detectSchemaType(initialSchema);
+      console.log('Detected schema type:', detectedType);
+      if (detectedType !== schemaType) {
+        handleSchemaTypeChange(detectedType);
+      }
+      
       setSchema(schemaString);
       setSavedSchema(schemaString);
       setCollapsedPaths({ root: true });
       lastLoadedSchemaRef.current = initialSchema;
     }
-  }, [initialSchema, setSchema, setSavedSchema, setCollapsedPaths]);
+  }, [initialSchema, setSchema, setSavedSchema, setCollapsedPaths, schemaType, handleSchemaTypeChange]);
 
   // Track if this is the initial load to prevent auto-save on document load
   const [hasUserMadeChanges, setHasUserMadeChanges] = React.useState(false);
