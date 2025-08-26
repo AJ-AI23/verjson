@@ -154,6 +154,12 @@ export const applySelectedPatches = (patches: SchemaPatch[]): any => {
     hasPatches: !!p.patches
   })));
   
+  // Validate that we have patches to work with
+  if (!patches || patches.length === 0) {
+    console.error('No patches provided to applySelectedPatches');
+    throw new Error('No version history available. The document may not have been properly saved.');
+  }
+  
   // Sort patches by timestamp, oldest first
   const sortedPatches = [...patches].sort((a, b) => a.timestamp - b.timestamp);
   
@@ -191,6 +197,13 @@ export const applySelectedPatches = (patches: SchemaPatch[]): any => {
   // If we only have the base schema and no more patches to apply, return it
   if (startIndex >= sortedPatches.length) {
     console.log('No additional patches to apply, returning base schema with keys:', Object.keys(baseSchema));
+    
+    // Validate that the base schema is not empty
+    if (Object.keys(baseSchema).length === 0) {
+      console.error('Base schema is empty, this indicates a problem with document loading');
+      throw new Error('Document content is empty. This may indicate a problem with the import process or version history.');
+    }
+    
     return baseSchema;
   }
   
@@ -212,6 +225,13 @@ export const applySelectedPatches = (patches: SchemaPatch[]): any => {
   }
   
   console.log('Final schema has keys:', Object.keys(schema));
+  
+  // Final validation - ensure the resulting schema is not empty
+  if (!schema || (typeof schema === 'object' && Object.keys(schema).length === 0)) {
+    console.error('Final schema is empty after applying patches');
+    throw new Error('Resulting document is empty after applying version patches. This indicates a problem with the version history or patch application.');
+  }
+  
   return schema;
 };
 
