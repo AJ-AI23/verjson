@@ -95,7 +95,7 @@ const Index = () => {
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={true}>
       <div className="min-h-screen bg-background flex w-full">
         <WorkspaceSidebar 
           onDocumentSelect={handleDocumentSelect}
