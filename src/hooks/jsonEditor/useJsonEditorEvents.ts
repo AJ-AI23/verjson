@@ -73,9 +73,11 @@ export const useJsonEditorEvents = ({
       const path = node.path.length > 0 ? node.path.join('.') : 'root';
       const normalizedPath = normalizePath(path);
       
-      console.log(`[DEBUG] onExpand called for path: ${normalizedPath}`);
-      console.log(`[DEBUG] Current maxDepth: ${maxDepth}`);
-      console.log(`[DEBUG] rootSchema available:`, !!rootSchema);
+      console.log(`🟡 [DEBUG] onExpand called for path: ${normalizedPath}`);
+      console.log(`🟡 [DEBUG] Raw node.path:`, node.path);
+      console.log(`🟡 [DEBUG] Raw path before normalization:`, path);
+      console.log(`🟡 [DEBUG] Current maxDepth: ${maxDepth}`);
+      console.log(`🟡 [DEBUG] rootSchema available:`, !!rootSchema);
       
       // Force update the ref to latest state before reading
       collapsedPathsRef.current = { ...collapsedPaths };
@@ -95,16 +97,20 @@ export const useJsonEditorEvents = ({
         onToggleCollapse(normalizedPath, newCollapsedState);
         
         // If we're expanding a node and have rootSchema, perform bulk expand
-        // But only if it's not the root level (to prevent expanding all top-level properties)
-        if (!newCollapsedState && rootSchema && normalizedPath !== 'root') {
-          console.log(`[DEBUG] Triggering bulk expand for path: ${normalizedPath} with maxDepth: ${maxDepth}`);
-          console.log(`[DEBUG] Root schema available:`, !!rootSchema);
-          console.log(`[DEBUG] Editor ref available:`, !!editorRef?.current);
+        // Only allow bulk expansion for specific paths, not root or very shallow paths
+        const shouldBulkExpand = !newCollapsedState && rootSchema && 
+          normalizedPath !== 'root' && 
+          (normalizedPath.includes('.') && normalizedPath.split('.').length >= 2);
+          
+        if (shouldBulkExpand) {
+          console.log(`🟡 [DEBUG] Triggering bulk expand for path: ${normalizedPath} with maxDepth: ${maxDepth}`);
+          console.log(`🟡 [DEBUG] Root schema available:`, !!rootSchema);
+          console.log(`🟡 [DEBUG] Editor ref available:`, !!editorRef?.current);
           
           // Remove setTimeout and call immediately
           bulkExpand(normalizedPath, rootSchema, true, editorRef, collapsedPathsRef);
         } else {
-          console.log(`[DEBUG] Not triggering bulk expand - newCollapsedState: ${newCollapsedState}, rootSchema: ${!!rootSchema}, path: ${normalizedPath}`);
+          console.log(`🟡 [DEBUG] Not triggering bulk expand - newCollapsedState: ${newCollapsedState}, rootSchema: ${!!rootSchema}, path: ${normalizedPath}, shouldBulkExpand: ${shouldBulkExpand}`);
         }
       }
       
