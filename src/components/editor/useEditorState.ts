@@ -75,10 +75,23 @@ export const useEditorState = (defaultSchema: string) => {
     console.log(`Editor: Toggle collapse event for ${path}, isCollapsed: ${isCollapsed}`);
     
     setCollapsedPaths(prev => {
-      const updated = {
-        ...prev,
-        [path]: isCollapsed
-      };
+      const updated = { ...prev };
+      
+      // Set the current path's state
+      updated[path] = isCollapsed;
+      
+      // If collapsing an ancestor, clear all descendant collapsed states
+      // since they should inherit the collapsed state from their ancestor
+      if (isCollapsed) {
+        const pathPrefix = path + '.';
+        Object.keys(updated).forEach(existingPath => {
+          if (existingPath.startsWith(pathPrefix)) {
+            console.log(`Clearing descendant path state: ${existingPath}`);
+            delete updated[existingPath];
+          }
+        });
+      }
+      
       console.log('Updated collapsedPaths:', updated);
       return updated;
     });
