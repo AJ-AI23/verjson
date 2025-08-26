@@ -42,6 +42,17 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggl
     return sortedPatches.slice(patchIndex + 1).some(p => p.isReleased && p.description !== 'Initial version');
   };
   
+  // Check if this is the initial version
+  const isInitialVersion = (patch: SchemaPatch) => {
+    return patch.description === 'Initial version' && patch.isReleased;
+  };
+  
+  // Check if a patch can be deselected
+  const canDeselect = (patch: SchemaPatch) => {
+    if (isInitialVersion(patch)) return false; // Cannot deselect initial version
+    return !(isBeforeReleased(patch) && patch.isSelected);
+  };
+  
   // Check if a version can be deleted
   const canDelete = (patch: SchemaPatch) => {
     if (isInitialVersion(patch)) return false;
@@ -51,9 +62,6 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggl
     const hasLaterVersions = sortedPatches.slice(patchIndex + 1).length > 0;
     
     return !(patch.isReleased && hasLaterVersions);
-  };
-  const isInitialVersion = (patch: SchemaPatch) => {
-    return patch.description === 'Initial version' && patch.isReleased;
   };
   
   return (
@@ -76,16 +84,18 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggl
           {sortedPatches.map((patch, index) => {
             const beforeReleased = isBeforeReleased(patch);
             const isInitial = isInitialVersion(patch);
+            const canDeselectPatch = canDeselect(patch);
             return (
               <tr key={patch.id} className={`hover:bg-slate-50 ${patch.isSelected ? 'bg-blue-50' : ''} ${isInitial ? 'border-l-4 border-l-blue-500' : ''}`}>
                 <td className="px-3 py-2">
                   <Checkbox
                     checked={patch.isSelected}
-                    disabled={beforeReleased && patch.isSelected}
+                    disabled={!canDeselectPatch && patch.isSelected}
                     onCheckedChange={() => onToggleSelection?.(patch.id)}
                     title={
-                      isInitial ? 'Initial version - base document' :
-                      beforeReleased && patch.isSelected ? 'Cannot deselect versions before a released version' : ''
+                      isInitial ? 'Initial version - foundation document (cannot be deselected)' :
+                      beforeReleased && patch.isSelected ? 'Cannot deselect versions before a released version' : 
+                      'Toggle version selection'
                     }
                   />
                 </td>

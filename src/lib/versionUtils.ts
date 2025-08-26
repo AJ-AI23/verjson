@@ -201,6 +201,12 @@ export const togglePatchSelection = (
   
   const targetPatch = sortedPatches[targetIndex];
   
+  // Prevent deselecting the initial version
+  if (targetPatch.description === 'Initial version' && targetPatch.isSelected) {
+    toast.error('Cannot deselect initial version - it serves as the foundation document');
+    return patches;
+  }
+  
   // Check if this is before a released version (cannot be deselected)
   const isBeforeReleased = sortedPatches.slice(targetIndex + 1).some(p => p.isReleased);
   if (isBeforeReleased && targetPatch.isSelected) {
