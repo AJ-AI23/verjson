@@ -36,17 +36,33 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggl
   
   // Calculate current schema based on selected patches
   const currentSchema = useMemo(() => {
+    console.log('🔍 VersionHistory: Starting currentSchema calculation');
+    console.log('🔍 VersionHistory: patches received:', {
+      count: patches.length,
+      patchIds: patches.map(p => p.id),
+      selectedPatches: patches.filter(p => p.isSelected).length,
+      patchDetails: patches.map(p => ({
+        id: p.id,
+        description: p.description,
+        isSelected: p.isSelected,
+        hasFullDocument: !!p.fullDocument,
+        hasPatches: !!p.patches,
+        timestamp: p.timestamp
+      }))
+    });
+    
     try {
       const result = applySelectedPatches(patches);
-      console.log('Current schema calculation result:', {
+      console.log('🔍 VersionHistory: Current schema calculation result:', {
         patchesCount: patches.length,
         resultKeys: Object.keys(result || {}),
         resultPreview: result ? JSON.stringify(result).substring(0, 200) : 'null/undefined',
-        hasContent: result && Object.keys(result).length > 0
+        hasContent: result && Object.keys(result).length > 0,
+        fullResult: result
       });
       return result;
     } catch (err) {
-      console.error('Error calculating current schema:', err);
+      console.error('🚨 VersionHistory: Error calculating current schema:', err);
       return {};
     }
   }, [patches]);
