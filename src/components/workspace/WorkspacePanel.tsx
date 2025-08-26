@@ -154,33 +154,72 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
     console.log('🔽 Document name:', document?.name);
     console.log('🔽 Document ID:', document?.id);
     
-    if (!document || !document.content) {
-      console.error('❌ Export failed: Document or content is missing');
-      toast.error('Cannot export - document data is missing');
+    if (!document) {
+      console.error('❌ Export failed: Document is null/undefined');
+      toast.error('Cannot export - document is missing');
+      return;
+    }
+    
+    if (!document.content) {
+      console.error('❌ Export failed: Document content is missing');
+      toast.error('Cannot export - document content is missing');
+      return;
+    }
+    
+    if (!document.name) {
+      console.error('❌ Export failed: Document name is missing');
+      toast.error('Cannot export - document name is missing');
+      return;
+    }
+    
+    if (!document.id) {
+      console.error('❌ Export failed: Document ID is missing');
+      toast.error('Cannot export - document ID is missing');
       return;
     }
     
     try {
+      console.log('🔽 Starting JSON stringify...');
       const dataStr = JSON.stringify(document.content, null, 2);
+      console.log('🔽 JSON stringify completed, length:', dataStr.length);
+      
+      console.log('🔽 Creating blob...');
       const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      console.log('🔽 Blob created, size:', dataBlob.size);
+      
+      console.log('🔽 Creating object URL...');
       const url = URL.createObjectURL(dataBlob);
+      console.log('🔽 Object URL created:', url);
+      
+      console.log('🔽 Creating download link...');
       const link = document.createElement('a');
       link.href = url;
       link.download = `${document.name}_${document.id}.json`;
+      link.style.display = 'none'; // Hide the link
       
-      console.log('🔽 Creating download link:', link.download);
+      console.log('🔽 Download filename:', link.download);
+      console.log('🔽 Download href:', link.href);
       
       // Append to body to ensure it works in all browsers
       document.body.appendChild(link);
+      console.log('🔽 Link appended to body');
+      
+      console.log('🔽 Triggering click...');
       link.click();
+      console.log('🔽 Click triggered');
+      
+      console.log('🔽 Cleaning up...');
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+      console.log('🔽 Cleanup completed');
       
       console.log('✅ Export completed successfully');
       toast.success(`Document exported: ${document.name}_${document.id}.json`);
     } catch (error) {
-      console.error('❌ Export error:', error);
-      toast.error('Failed to export document');
+      console.error('❌ Export error details:', error);
+      console.error('❌ Error message:', error?.message);
+      console.error('❌ Error stack:', error?.stack);
+      toast.error(`Failed to export document: ${error?.message || 'Unknown error'}`);
     }
   };
 
