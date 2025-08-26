@@ -50,9 +50,9 @@ export const InfoNode = memo(({ data, isConnectable }: InfoNodeProps) => {
             <div className="text-xs font-medium mb-1">Info Properties:</div>
             <div className="grid gap-1">
               {properties.slice(0, 4).map((prop, index) => (
-                <div key={index} className="flex items-start gap-1 text-xs">
-                  <span className="font-medium text-slate-600 min-w-0 flex-shrink-0">{prop.name}:</span>
-                  <span className="text-slate-500 truncate" title={prop.value}>
+                <div key={index} className="flex flex-col gap-0.5 text-xs">
+                  <span className="font-medium text-slate-600">{prop.name}:</span>
+                  <span className="text-slate-500 break-words leading-tight" title={prop.value}>
                     {prop.value}
                   </span>
                 </div>
