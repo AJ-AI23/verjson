@@ -30,7 +30,8 @@ export const Editor = () => {
     isVersionHistoryOpen,
     toggleVersionHistory,
     handleRevertToVersion,
-    handleAddNotation
+    handleAddNotation,
+    expandedNotationPaths
   } = useEditorState(defaultSchema);
   
   return (
@@ -61,6 +62,7 @@ export const Editor = () => {
         onVersionBump={handleVersionBump}
         onToggleCollapse={handleToggleCollapse}
         onAddNotation={handleAddNotation}
+        expandedNotationPaths={expandedNotationPaths}
       />
       
       {/* Version History Dialog */}

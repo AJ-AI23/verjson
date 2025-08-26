@@ -1,5 +1,5 @@
 
-import React, { memo, useMemo, useState } from 'react';
+import React, { memo, useMemo, useState, useEffect } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { NodeHeader } from './NodeHeader';
@@ -50,9 +50,10 @@ interface SchemaTypeNodeProps {
   id: string;
   isConnectable: boolean;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
+  expandedNotationPaths?: Set<string>;
 }
 
-export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation }: SchemaTypeNodeProps) => {
+export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, expandedNotationPaths }: SchemaTypeNodeProps) => {
   const {
     label,
     type,
@@ -77,6 +78,17 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation }: 
   } = data;
 
   const [isNotationsExpanded, setIsNotationsExpanded] = useState(false);
+
+  // Check if this node's notations should be expanded based on JSON editor state
+  const nodePath = id.startsWith('prop-') ? id.substring(5) : id;
+  const shouldExpandFromEditor = expandedNotationPaths?.has(nodePath) || expandedNotationPaths?.has(id);
+  
+  // Update local state when external state changes
+  useEffect(() => {
+    if (shouldExpandFromEditor !== undefined) {
+      setIsNotationsExpanded(shouldExpandFromEditor);
+    }
+  }, [shouldExpandFromEditor]);
 
   const handleAddNotation = (user: string, message: string) => {
     if (onAddNotation) {

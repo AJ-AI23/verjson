@@ -11,16 +11,17 @@ interface DiagramFlowProps {
   schemaKey: number;
   shouldFitView: boolean;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
+  expandedNotationPaths?: Set<string>;
 }
 
 const nodeTypes = {
-  schemaType: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} />,
-  info: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} />,
-  endpoint: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} />,
-  components: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} />,
-  method: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} />,
-  response: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} />,
-  requestBody: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} />,
+  schemaType: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} />,
+  info: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} />,
+  endpoint: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} />,
+  components: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} />,
+  method: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} />,
+  response: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} />,
+  requestBody: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} />,
 };
 
 export const DiagramFlow = memo(({
@@ -30,7 +31,8 @@ export const DiagramFlow = memo(({
   onEdgesChange,
   schemaKey,
   shouldFitView,
-  onAddNotation
+  onAddNotation,
+  expandedNotationPaths
 }: DiagramFlowProps) => {
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const viewportRef = useRef<{ x: number; y: number; zoom: number }>({ x: 0, y: 0, zoom: 1 });
@@ -96,12 +98,13 @@ export const DiagramFlow = memo(({
     }
   }, [nodes]);
 
-  // Add onAddNotation to all nodes
+  // Add onAddNotation and expandedNotationPaths to all nodes
   const nodesWithNotationCallback = nodes.map(node => ({
     ...node,
     data: {
       ...node.data,
-      onAddNotation
+      onAddNotation,
+      expandedNotationPaths
     }
   }));
 

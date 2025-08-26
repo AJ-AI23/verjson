@@ -21,6 +21,9 @@ export const useEditorState = (defaultSchema: string) => {
   // Set default collapsed state - initially collapsed
   const [collapsedPaths, setCollapsedPaths] = useState<CollapsedState>({ root: true });
   
+  // Track which notation panels should be expanded based on JSON editor
+  const [expandedNotationPaths, setExpandedNotationPaths] = useState<Set<string>>(new Set());
+  
   // Function to clean up collapsed paths based on maxDepth
   const cleanupCollapsedPaths = useCallback((paths: CollapsedState, maxDepth: number): CollapsedState => {
     const cleaned: CollapsedState = {};
@@ -74,6 +77,26 @@ export const useEditorState = (defaultSchema: string) => {
   // Function to handle toggling collapsed state of a path
   const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
     console.log(`Editor: Toggle collapse event for ${path}, isCollapsed: ${isCollapsed}`);
+    
+    // Check if this is a $notations path expansion/collapse
+    if (path.includes('.$notations') && !path.includes('.$notations.')) {
+      // This is expanding/collapsing a $notations array itself
+      const basePath = path.replace('.$notations', '');
+      const actualNodePath = basePath === 'root' ? 'root' : basePath;
+      
+      console.log(`Notation path ${path} ${isCollapsed ? 'collapsed' : 'expanded'} for node ${actualNodePath}`);
+      
+      setExpandedNotationPaths(prev => {
+        const newSet = new Set(prev);
+        if (isCollapsed) {
+          newSet.delete(actualNodePath);
+        } else {
+          newSet.add(actualNodePath);
+        }
+        console.log('Updated expanded notation paths:', Array.from(newSet));
+        return newSet;
+      });
+    }
     
     setCollapsedPaths(prev => {
       const updated = { ...prev };
@@ -219,6 +242,7 @@ export const useEditorState = (defaultSchema: string) => {
     isVersionHistoryOpen,
     toggleVersionHistory,
     handleRevertToVersion,
-    handleAddNotation
+    handleAddNotation,
+    expandedNotationPaths
   };
 };
