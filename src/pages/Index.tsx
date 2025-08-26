@@ -59,7 +59,11 @@ const Index = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <SidebarTrigger className="animate-fade-in" />
-                <h1 className="text-xl font-bold text-primary">JSON Schema Visual Blueprint</h1>
+                <img 
+                  src="/lovable-uploads/ddcae931-0504-44bb-96aa-260e6650c307.png" 
+                  alt="VerJSON" 
+                  className="h-8"
+                />
               </div>
               <div className="flex items-center gap-4">
                 <div className="text-sm text-muted-foreground">
