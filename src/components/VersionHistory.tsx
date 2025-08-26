@@ -368,10 +368,12 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
                           hasOnToggleSelection: !!onToggleSelection
                         });
                         
-                        // Test alert to make sure the event is firing
-                        alert(`Clicked checkbox for ${patch.description}. Check console for details.`);
-                        
-                        onToggleSelection?.(patch.id);
+                         if (onToggleSelection) {
+                           console.log('🔘 Calling onToggleSelection with patch ID:', patch.id);
+                           onToggleSelection(patch.id);
+                         } else {
+                           console.log('🚨 onToggleSelection is not available!');
+                         }
                       }}
                       title={
                         isInitial ? 'Initial version - foundation document (cannot be deselected)' :

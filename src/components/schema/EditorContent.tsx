@@ -22,6 +22,7 @@ interface EditorContentProps {
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
   expandedNotationPaths?: Set<string>;
   documentId?: string;
+  patches?: any[];
 }
 
 export const EditorContent: React.FC<EditorContentProps> = ({
@@ -39,6 +40,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
   onAddNotation,
   expandedNotationPaths,
   documentId,
+  patches,
 }) => {
   return (
     <SplitPane>
@@ -56,6 +58,8 @@ export const EditorContent: React.FC<EditorContentProps> = ({
           version={currentVersion} 
           onVersionBump={onVersionBump}
           isModified={isModified}
+          schema={schema}
+          patches={patches}
         />
       </div>
       <SchemaDiagram 

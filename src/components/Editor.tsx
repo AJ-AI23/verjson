@@ -132,6 +132,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         onAddNotation={handleAddNotation}
         expandedNotationPaths={expandedNotationPaths}
         documentId={selectedDocument?.id}
+        patches={patches}
       />
       
       {/* Version History Dialog */}

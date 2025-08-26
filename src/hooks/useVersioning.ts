@@ -66,18 +66,28 @@ export const useVersioning = ({
   // Get the current version based on patches
   const currentVersion = calculateLatestVersion(patches);
 
-  // Update patches when database versions change
+  // Update patches when database versions change and set database version on load
   useEffect(() => {
     const schemaPatches = getSchemaPatches();
     setPatches(schemaPatches);
-  }, [versions, getSchemaPatches]);
-
-  // Only set database version after successful commits, not on initial load
+    
+    // Set database version from the current merged state of selected versions when versions load
+    if (schemaPatches.length > 0 && !loading) {
+      try {
+        const currentMergedSchema = applySelectedPatches(schemaPatches);
+        const mergedSchemaString = JSON.stringify(currentMergedSchema, null, 2);
+        setDatabaseVersion(mergedSchemaString);
+        console.log('Database version set from selected patches:', mergedSchemaString.substring(0, 100));
+      } catch (err) {
+        console.error('Failed to calculate database version from patches:', err);
+      }
+    }
+  }, [versions, getSchemaPatches, loading]);
 
   // Create initial version when document is loaded (only once per document)
   useEffect(() => {
-    // Use current schema instead of savedSchema for initial version creation
-    const currentSchemaToUse = schema || savedSchema;
+    // Use saved schema for initial version creation (the one loaded from document)
+    const currentSchemaToUse = savedSchema;
     
     // Early returns to prevent unnecessary processing
     if (!documentId || !currentSchemaToUse || currentSchemaToUse.trim() === '{}' || currentSchemaToUse.trim() === '') {
@@ -146,7 +156,7 @@ export const useVersioning = ({
     };
     
     createInitialVersion();
-  }, [documentId, loading, versions.length]); // Remove schema dependencies to prevent loops
+  }, [documentId, loading, versions.length, savedSchema]); // Use savedSchema for initial version
 
   // Reset tracking when document changes
   useEffect(() => {
@@ -167,9 +177,11 @@ export const useVersioning = ({
     try {
       // Ensure the current schema is valid
       const parsedCurrentSchema = JSON.parse(schema);
-      const parsedPreviousSchema = JSON.parse(savedSchema);
       
-      // Generate patch
+      // Use database version as the baseline for patches (the merged state of selected versions)
+      const parsedPreviousSchema = databaseVersion ? JSON.parse(databaseVersion) : {};
+      
+      // Generate patch from database version to current schema
       const patch = generatePatch(
         parsedPreviousSchema, 
         parsedCurrentSchema, 
@@ -182,7 +194,7 @@ export const useVersioning = ({
       // Save to database
       await createVersion(patch);
       
-      // Update both saved schema and database version
+      // Update saved schema and database version to current schema
       setSavedSchema(schema);
       setDatabaseVersion(schema);
       
@@ -221,7 +233,7 @@ export const useVersioning = ({
         }
       }
       
-      // Apply selected patches to get new schema
+      // Apply selected patches to get new schema and update both editor and database version
       console.log('🔍 Recalculating schema from selected patches...');
       const newSchema = applySelectedPatches(updatedPatches);
       const newSchemaString = JSON.stringify(newSchema, null, 2);
@@ -230,7 +242,8 @@ export const useVersioning = ({
       
       setSchema(newSchemaString);
       setSavedSchema(newSchemaString);
-      // Don't update databaseVersion here - it should only reflect actually committed versions
+      // Update database version to reflect the current selected state
+      setDatabaseVersion(newSchemaString);
       
       console.log('Schema updated successfully');
     } catch (err) {
@@ -281,13 +294,16 @@ export const useVersioning = ({
       }
       
       // Recalculate schema after deletion
-      const newSchema = applySelectedPatches(result.updatedPatches);
-      const newSchemaString = JSON.stringify(newSchema, null, 2);
-      setSchema(newSchemaString);
-      setSavedSchema(newSchemaString);
-      
-      // If no versions remain, reset database version to allow new commits
-      if (result.updatedPatches.length === 0) {
+      if (result.updatedPatches.length > 0) {
+        const newSchema = applySelectedPatches(result.updatedPatches);
+        const newSchemaString = JSON.stringify(newSchema, null, 2);
+        setSchema(newSchemaString);
+        setSavedSchema(newSchemaString);
+        setDatabaseVersion(newSchemaString);
+      } else {
+        // If no versions remain, reset to empty state
+        setSchema('{}');
+        setSavedSchema('{}');
         setDatabaseVersion('');
       }
       
