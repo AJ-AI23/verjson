@@ -177,8 +177,12 @@ export const createInfoNode = (
   xPos: number,
   yOffset: number
 ): Node => {
+  // Extract notations from info data
+  const notations = extractNotations(infoData);
+  const notationCount = getNotationCount(infoData);
+  
   const properties = Object.entries(infoData)
-    .filter(([key]) => !['title', 'version'].includes(key))
+    .filter(([key]) => !['title', 'version', '$notations'].includes(key))
     .map(([key, value]) => ({
       name: key,
       value: typeof value === 'object' ? JSON.stringify(value) : String(value),
@@ -193,7 +197,10 @@ export const createInfoNode = (
       title: infoData.title || 'API',
       version: infoData.version || '1.0.0',
       description: infoData.description,
-      properties
+      properties,
+      notations: notations,
+      notationCount: notationCount,
+      hasNotations: notationCount > 0
     }
   };
 };
@@ -204,6 +211,10 @@ export const createEndpointNode = (
   xPos: number,
   yOffset: number
 ): Node => {
+  // Extract notations from pathData
+  const notations = extractNotations(pathData);
+  const notationCount = getNotationCount(pathData);
+  
   const methods = Object.entries(pathData)
     .filter(([method]) => ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'].includes(method.toLowerCase()))
     .map(([method, methodData]: [string, any]) => ({
@@ -225,7 +236,10 @@ export const createEndpointNode = (
     data: {
       path,
       methods,
-      label: nodeLabel // Add explicit label for the endpoint
+      label: nodeLabel, // Add explicit label for the endpoint
+      notations: notations,
+      notationCount: notationCount,
+      hasNotations: notationCount > 0
     }
   };
 };
@@ -237,8 +251,12 @@ export const createMethodNode = (
   xPos: number,
   yOffset: number
 ): Node => {
-  const methodLabel = `${method.toUpperCase()} ${path}`;
+  // Extract notations from methodData
+  const notations = extractNotations(methodData);
+  const notationCount = getNotationCount(methodData);
   
+  const methodLabel = `${method.toUpperCase()} ${path}`;
+
   return {
     id: `method-${method}-${path.replace(/[^\w]/g, '-')}`,
     type: 'method',
@@ -250,7 +268,10 @@ export const createMethodNode = (
       description: methodData.description,
       requestBody: methodData.requestBody,
       responses: methodData.responses,
-      label: methodLabel
+      label: methodLabel,
+      notations: notations,
+      notationCount: notationCount,
+      hasNotations: notationCount > 0
     }
   };
 };
@@ -260,12 +281,18 @@ export const createComponentsNode = (
   xPos: number,
   yOffset: number
 ): Node => {
-  const schemas = Object.entries(schemasData).map(([name, schema]) => ({
-    name,
-    type: schema?.type || 'object',
-    description: schema?.description,
-    propertiesCount: schema?.properties ? Object.keys(schema.properties).length : 0
-  }));
+  // Extract notations from the components section itself (if any)
+  const notations = extractNotations(schemasData);
+  const notationCount = getNotationCount(schemasData);
+  
+  const schemas = Object.entries(schemasData)
+    .filter(([key]) => key !== '$notations') // Exclude $notations from schema list
+    .map(([name, schema]: [string, any]) => ({
+      name,
+      type: schema?.type || 'object',
+      description: schema?.description,
+      propertiesCount: schema?.properties ? Object.keys(schema.properties).length : 0
+    }));
 
   return {
     id: 'components-node',
@@ -273,7 +300,10 @@ export const createComponentsNode = (
     position: { x: xPos, y: yOffset },
     data: {
       schemasCount: schemas.length,
-      schemas
+      schemas,
+      notations: notations,
+      notationCount: notationCount,
+      hasNotations: notationCount > 0
     }
   };
 };
@@ -330,6 +360,10 @@ export const createResponseNode = (
   x: number,
   y: number
 ): Node => {
+  // Extract notations from responseData
+  const notations = extractNotations(responseData);
+  const notationCount = getNotationCount(responseData);
+  
   const nodeId = `response-${statusCode}-${Math.random().toString(36).substr(2, 9)}`;
   
   return {
@@ -340,7 +374,10 @@ export const createResponseNode = (
       statusCode,
       description: responseData?.description,
       schema: responseData?.content?.['application/json']?.schema,
-      label: `Response ${statusCode}`
+      label: `Response ${statusCode}`,
+      notations: notations,
+      notationCount: notationCount,
+      hasNotations: notationCount > 0
     }
   };
 };
@@ -350,8 +387,12 @@ export const createConsolidatedResponseNode = (
   x: number,
   y: number
 ): Node => {
+  // Extract notations from the responses object itself (if any)
+  const notations = extractNotations(responses);
+  const notationCount = getNotationCount(responses);
+  
   const statusCodes = Object.keys(responses).filter(code => 
-    responses[code]?.content?.['application/json']
+    code !== '$notations' && responses[code]?.content?.['application/json']
   );
   
   const nodeId = `responses-consolidated-${Math.random().toString(36).substr(2, 9)}`;
@@ -364,7 +405,10 @@ export const createConsolidatedResponseNode = (
       statusCodes,
       responses,
       isConsolidated: true,
-      label: `${statusCodes.length} Response${statusCodes.length !== 1 ? 's' : ''}`
+      label: `${statusCodes.length} Response${statusCodes.length !== 1 ? 's' : ''}`,
+      notations: notations,
+      notationCount: notationCount,
+      hasNotations: notationCount > 0
     }
   };
 };
@@ -374,6 +418,10 @@ export const createRequestBodyNode = (
   x: number,
   y: number
 ): Node => {
+  // Extract notations from requestBodyData
+  const notations = extractNotations(requestBodyData);
+  const notationCount = getNotationCount(requestBodyData);
+  
   const nodeId = `request-body-${Math.random().toString(36).substr(2, 9)}`;
   
   return {
@@ -384,7 +432,10 @@ export const createRequestBodyNode = (
       description: requestBodyData?.description,
       required: requestBodyData?.required,
       schema: requestBodyData?.content?.['application/json']?.schema,
-      label: 'Request Body'
+      label: 'Request Body',
+      notations: notations,
+      notationCount: notationCount,
+      hasNotations: notationCount > 0
     }
   };
 };
