@@ -135,13 +135,14 @@ export function WorkspacePanel({ onDocumentSelect, selectedDocument, isCollapsed
     <div className="h-full p-4">
       <Card className="h-full flex flex-col border-0 shadow-none">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3">
             <CardTitle className="text-lg">Workspaces</CardTitle>
+            
             <Dialog open={showWorkspaceDialog} onOpenChange={setShowWorkspaceDialog}>
               <DialogTrigger asChild>
-                <Button size="sm" variant="outline" className="animate-fade-in">
+                <Button size="sm" variant="outline" className="animate-fade-in w-full">
                   <FolderPlus className="h-4 w-4 mr-2" />
-                  New
+                  New Workspace
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -205,14 +206,14 @@ export function WorkspacePanel({ onDocumentSelect, selectedDocument, isCollapsed
             <Separator />
             
             {/* Document Actions */}
-            <div className="flex gap-2">
-                <Dialog open={showDocumentDialog} onOpenChange={setShowDocumentDialog}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" className="flex-1 animate-scale-in">
-                      <Plus className="h-4 w-4 mr-2" />
-                      New Document
-                    </Button>
-                  </DialogTrigger>
+            <div className="flex flex-col gap-2">
+              <Dialog open={showDocumentDialog} onOpenChange={setShowDocumentDialog}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="w-full animate-scale-in">
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Document
+                  </Button>
+                </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Create New Document</DialogTitle>
@@ -249,18 +250,35 @@ export function WorkspacePanel({ onDocumentSelect, selectedDocument, isCollapsed
                 </DialogContent>
               </Dialog>
 
-              <Button size="sm" variant="outline" asChild>
-                <label className="cursor-pointer">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Import
-                  <input
-                    type="file"
-                    accept=".json,.yaml,.yml"
-                    onChange={handleFileImport}
-                    className="hidden"
-                  />
-                </label>
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="flex-1" asChild>
+                  <label className="cursor-pointer">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import JSON
+                    <input
+                      type="file"
+                      accept=".json,.yaml,.yml"
+                      onChange={handleFileImport}
+                      className="hidden"
+                    />
+                  </label>
+                </Button>
+
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => {
+                    if (selectedDocument) {
+                      handleDocumentExport(selectedDocument);
+                    }
+                  }}
+                  disabled={!selectedDocument}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export JSON
+                </Button>
+              </div>
             </div>
 
             {/* Document List */}

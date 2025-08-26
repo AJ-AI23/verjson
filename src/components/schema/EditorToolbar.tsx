@@ -70,13 +70,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         setSavedSchema={setSavedSchema}
       />
       
-      {/* Add Import/Export actions */}
-      <SchemaActions 
-        currentSchema={schema} 
-        schemaType={schemaType}
-        onImport={onImport}
-      />
-      
       <div className="flex items-center space-x-2">
         {/* Hierarchy Depth Control */}
         <div className="flex items-center gap-2">
