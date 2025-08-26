@@ -3,9 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
-export interface DocumentPermission {
+export interface WorkspacePermission {
   id: string;
-  document_id: string;
+  workspace_id: string;
   user_id: string;
   role: 'owner' | 'editor' | 'viewer';
   granted_by: string;
@@ -15,14 +15,14 @@ export interface DocumentPermission {
   user_name?: string;
 }
 
-export function useDocumentPermissions(documentId?: string) {
+export function useWorkspacePermissions(workspaceId?: string) {
   const { user } = useAuth();
-  const [permissions, setPermissions] = useState<DocumentPermission[]>([]);
+  const [permissions, setPermissions] = useState<WorkspacePermission[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchPermissions = async () => {
-    if (!user || !documentId) return;
+    if (!user || !workspaceId) return;
     
     try {
       setLoading(true);
@@ -30,9 +30,9 @@ export function useDocumentPermissions(documentId?: string) {
       
       // First get permissions
       const { data: permissionsData, error } = await supabase
-        .from('document_permissions')
+        .from('workspace_permissions')
         .select('*')
-        .eq('document_id', documentId)
+        .eq('workspace_id', workspaceId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -57,33 +57,59 @@ export function useDocumentPermissions(documentId?: string) {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch permissions';
       setError(message);
-      console.error('Error fetching permissions:', err);
+      console.error('Error fetching workspace permissions:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const inviteCollaborator = async (email: string, documentName: string, role: 'editor' | 'viewer' = 'editor') => {
-    if (!user || !documentId) return false;
+  const inviteToWorkspace = async (email: string, workspaceName: string, role: 'editor' | 'viewer' = 'editor') => {
+    if (!user || !workspaceId) return false;
 
     try {
       const { data, error } = await supabase.functions.invoke('invite-collaborator', {
         body: {
           email,
-          invitationType: 'document',
-          resourceId: documentId,
-          resourceName: documentName,
+          invitationType: 'workspace',
+          resourceId: workspaceId,
+          resourceName: workspaceName,
           role
         }
       });
 
       if (error) throw error;
 
-      toast.success(data.message || 'Invitation sent successfully');
+      toast.success(data.message || 'Workspace invitation sent successfully');
       await fetchPermissions(); // Refresh permissions
       return true;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to send invitation';
+      const message = err instanceof Error ? err.message : 'Failed to send workspace invitation';
+      setError(message);
+      toast.error(message);
+      return false;
+    }
+  };
+
+  const inviteBulkDocuments = async (email: string, documentIds: string[], role: 'editor' | 'viewer' = 'editor') => {
+    if (!user || !documentIds.length) return false;
+
+    try {
+      const { data, error } = await supabase.functions.invoke('invite-collaborator', {
+        body: {
+          email,
+          invitationType: 'bulk-documents',
+          resourceIds: documentIds,
+          resourceName: `${documentIds.length} documents`,
+          role
+        }
+      });
+
+      if (error) throw error;
+
+      toast.success(data.message || 'Bulk document invitation sent successfully');
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to send bulk document invitation';
       setError(message);
       toast.error(message);
       return false;
@@ -93,7 +119,7 @@ export function useDocumentPermissions(documentId?: string) {
   const updatePermission = async (permissionId: string, role: 'editor' | 'viewer') => {
     try {
       const { error } = await supabase
-        .from('document_permissions')
+        .from('workspace_permissions')
         .update({ role })
         .eq('id', permissionId);
 
@@ -113,7 +139,7 @@ export function useDocumentPermissions(documentId?: string) {
   const removePermission = async (permissionId: string) => {
     try {
       const { error } = await supabase
-        .from('document_permissions')
+        .from('workspace_permissions')
         .delete()
         .eq('id', permissionId);
 
@@ -130,13 +156,14 @@ export function useDocumentPermissions(documentId?: string) {
 
   useEffect(() => {
     fetchPermissions();
-  }, [user, documentId]);
+  }, [user, workspaceId]);
 
   return {
     permissions,
     loading,
     error,
-    inviteCollaborator,
+    inviteToWorkspace,
+    inviteBulkDocuments,
     updatePermission,
     removePermission,
     refetch: fetchPermissions,

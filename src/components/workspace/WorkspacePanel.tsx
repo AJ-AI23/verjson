@@ -14,6 +14,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { DeleteConfirmationDialog } from './DeleteConfirmationDialog';
 import { CollaboratorsPanel } from './CollaboratorsPanel';
+import { BulkInviteDialog } from './BulkInviteDialog';
+import { WorkspaceInviteDialog } from './WorkspaceInviteDialog';
+import { useWorkspacePermissions } from '@/hooks/useWorkspacePermissions';
 import { 
   Plus, 
   FolderPlus, 
@@ -23,7 +26,9 @@ import {
   Trash2,
   Edit,
   Folder,
-  File
+  File,
+  Users,
+  UserPlus
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -39,6 +44,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   const { workspaces, createWorkspace, deleteWorkspace } = useWorkspaces();
   const [selectedWorkspace, setSelectedWorkspace] = useState<string>('');
   const { documents, createDocument, deleteDocument } = useDocuments(selectedWorkspace);
+  const { inviteToWorkspace, inviteBulkDocuments } = useWorkspacePermissions(selectedWorkspace);
   
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [newWorkspaceDesc, setNewWorkspaceDesc] = useState('');
@@ -50,6 +56,10 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   const [newDocumentType, setNewDocumentType] = useState<'json-schema' | 'openapi'>('json-schema');
   const [showWorkspaceDialog, setShowWorkspaceDialog] = useState(false);
   const [showDocumentDialog, setShowDocumentDialog] = useState(false);
+  
+  // New invitation dialog states
+  const [showWorkspaceInviteDialog, setShowWorkspaceInviteDialog] = useState(false);
+  const [showBulkInviteDialog, setShowBulkInviteDialog] = useState(false);
 
   const handleCreateWorkspace = async () => {
     if (!newWorkspaceName.trim()) return;
@@ -144,6 +154,17 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   };
 
   const isDocumentOwner = selectedDocument && user ? selectedDocument.user_id === user.id : false;
+  const isWorkspaceOwner = selectedWorkspace && workspaces.find(w => w.id === selectedWorkspace)?.user_id === user?.id;
+
+  const handleWorkspaceInvite = async (email: string, role: 'editor' | 'viewer') => {
+    const workspace = workspaces.find(w => w.id === selectedWorkspace);
+    if (!workspace) return false;
+    return await inviteToWorkspace(email, workspace.name, role);
+  };
+
+  const handleBulkDocumentInvite = async (email: string, documentIds: string[], role: 'editor' | 'viewer') => {
+    return await inviteBulkDocuments(email, documentIds, role);
+  };
 
   // Don't render content if collapsed
   if (isCollapsed) {
@@ -223,6 +244,31 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
         {selectedWorkspace && (
           <>
             <Separator />
+            
+            {/* Workspace Actions */}
+            {isWorkspaceOwner && (
+              <div className="flex gap-2 mb-4">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => setShowWorkspaceInviteDialog(true)}
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Invite to Workspace
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => setShowBulkInviteDialog(true)}
+                  disabled={documents.length === 0}
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  Bulk Invite
+                </Button>
+              </div>
+            )}
             
             {/* Document Actions */}
             <div className="flex flex-col gap-2">
@@ -376,6 +422,20 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
         onOpenChange={setDeleteDialogOpen}
         onConfirmDelete={handleConfirmDelete}
         documentName={documentToDelete?.name || ''}
+      />
+
+      <WorkspaceInviteDialog
+        open={showWorkspaceInviteDialog}
+        onOpenChange={setShowWorkspaceInviteDialog}
+        onInvite={handleWorkspaceInvite}
+        workspaceName={workspaces.find(w => w.id === selectedWorkspace)?.name || ''}
+      />
+
+      <BulkInviteDialog
+        open={showBulkInviteDialog}
+        onOpenChange={setShowBulkInviteDialog}
+        onInvite={handleBulkDocumentInvite}
+        documents={documents}
       />
     </div>
   );
