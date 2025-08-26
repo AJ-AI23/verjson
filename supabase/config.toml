@@ -15,3 +15,6 @@ additional_redirect_urls = ["https://127.0.0.1:3000"]
 
 [functions.invite-collaborator]
 verify_jwt = true
+
+[functions.public-document]
+verify_jwt = false

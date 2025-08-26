@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Save, MessageCircle, FileText, Calendar, Clock, Copy, X } from 'lucide-react';
+import { Save, MessageCircle, FileText, Calendar, Clock, Copy, X, Share } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -69,6 +69,16 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       toast.error('Failed to copy ID');
     }
   };
+
+  const handleCopyPublicUrl = async (id: string) => {
+    try {
+      const publicUrl = `https://swghcmyqracwifpdfyap.supabase.co/functions/v1/public-document?id=${id}`;
+      await navigator.clipboard.writeText(publicUrl);
+      toast.success('Public URL copied to clipboard');
+    } catch (err) {
+      toast.error('Failed to copy public URL');
+    }
+  };
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -121,6 +131,24 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                           <p>{selectedDocument.id}</p>
                         </TooltipContent>
                       </Tooltip>
+                      
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 px-1 gap-1 text-xs text-muted-foreground hover:text-foreground"
+                            onClick={() => handleCopyPublicUrl(selectedDocument.id)}
+                          >
+                            <Share className="h-3 w-3" />
+                            URL
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Copy public JSON URL</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      
                       <Badge variant="secondary" className="text-xs">
                         {getFileTypeLabel(selectedDocument.file_type)}
                       </Badge>
