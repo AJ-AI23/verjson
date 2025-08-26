@@ -22,6 +22,14 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
   console.log('Editor: selectedDocument.id:', selectedDocument?.id);
   console.log('Editor: typeof selectedDocument.id:', typeof selectedDocument?.id);
   
+  // Convert initialSchema to string if it's an object to prevent crashes in versioning hooks
+  const schemaAsString = React.useMemo(() => {
+    if (initialSchema && typeof initialSchema === 'object') {
+      return JSON.stringify(initialSchema, null, 2);
+    }
+    return initialSchema || defaultSchema;
+  }, [initialSchema]);
+  
   const { settings, updateGroupProperties } = useEditorSettings();
   const {
     schema,
@@ -48,7 +56,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     handleAddNotation,
     expandedNotationPaths,
     clearEditorState
-  } = useEditorState(initialSchema || defaultSchema, selectedDocument?.id);
+  } = useEditorState(schemaAsString, selectedDocument?.id);
 
   // Clear editor state when onClearRequest is triggered
   React.useEffect(() => {
