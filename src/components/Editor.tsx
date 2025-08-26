@@ -59,25 +59,41 @@ export const Editor = ({ initialSchema, onSave, documentName }: EditorProps) => 
   // Track if this is the initial load to prevent auto-save on document load
   const [hasUserMadeChanges, setHasUserMadeChanges] = React.useState(false);
   const initialSchemaRef = React.useRef(initialSchema);
+  const isLoadingDocumentRef = React.useRef(false);
   
   // Reset tracking when a new document is loaded
   React.useEffect(() => {
     if (initialSchema !== initialSchemaRef.current) {
+      console.log('New document selected, resetting change tracking');
       setHasUserMadeChanges(false);
+      isLoadingDocumentRef.current = true;
       initialSchemaRef.current = initialSchema;
+      
+      // Clear the loading flag after a short delay to allow schema parsing to complete
+      setTimeout(() => {
+        isLoadingDocumentRef.current = false;
+        console.log('Document loading complete, change tracking re-enabled');
+      }, 500);
     }
   }, [initialSchema]);
   
-  // Track when user makes changes (not initial load)
+  // Track when user makes changes (not during document loading)
   React.useEffect(() => {
-    if (parsedSchema && initialSchema && JSON.stringify(parsedSchema) !== JSON.stringify(initialSchema)) {
-      setHasUserMadeChanges(true);
+    if (!isLoadingDocumentRef.current && parsedSchema && initialSchema) {
+      const currentSchemaString = JSON.stringify(parsedSchema, null, 2);
+      const initialSchemaString = JSON.stringify(initialSchema, null, 2);
+      
+      if (currentSchemaString !== initialSchemaString && !hasUserMadeChanges) {
+        console.log('User made changes detected');
+        setHasUserMadeChanges(true);
+      }
     }
-  }, [parsedSchema, initialSchema]);
+  }, [parsedSchema, initialSchema, hasUserMadeChanges]);
 
   // Save document when schema changes (only after user makes changes)
   React.useEffect(() => {
-    if (onSave && parsedSchema && initialSchema && hasUserMadeChanges) {
+    if (onSave && parsedSchema && initialSchema && hasUserMadeChanges && !isLoadingDocumentRef.current) {
+      console.log('Auto-saving document due to user changes');
       const timeoutId = setTimeout(() => {
         onSave(parsedSchema);
       }, 1000); // Auto-save after 1 second of no changes
