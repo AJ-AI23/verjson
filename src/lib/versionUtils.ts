@@ -158,25 +158,34 @@ export const applySelectedPatches = (patches: SchemaPatch[]): any => {
   // Sort patches by timestamp, oldest first
   const sortedPatches = [...patches].sort((a, b) => a.timestamp - b.timestamp);
   
-  // Find the latest released version as our base
+  // Find the latest selected released version as our base
   let baseSchema = {};
   let startIndex = 0;
   
+  // Look through patches in reverse order to find the latest selected released version
   for (let i = sortedPatches.length - 1; i >= 0; i--) {
-    if (sortedPatches[i].isReleased && sortedPatches[i].isSelected) {
-      baseSchema = sortedPatches[i].fullDocument;
+    const patch = sortedPatches[i];
+    if (patch.isReleased && patch.isSelected && patch.fullDocument) {
+      baseSchema = JSON.parse(JSON.stringify(patch.fullDocument)); // Deep clone
       startIndex = i + 1;
+      console.log(`Using released version ${formatVersion(patch.version)} as base`);
       break;
     }
   }
   
-  // Apply all selected patches after the base
-  let schema = { ...baseSchema };
+  // If no released version found, start with empty object
+  if (startIndex === 0 && Object.keys(baseSchema).length === 0) {
+    console.log('No released version found, starting with empty schema');
+  }
+  
+  // Apply all selected patches after the base in chronological order
+  let schema = baseSchema;
   
   for (let i = startIndex; i < sortedPatches.length; i++) {
     const patch = sortedPatches[i];
-    if (patch.isSelected && patch.patches) {
+    if (patch.isSelected && patch.patches && patch.patches.length > 0) {
       try {
+        console.log(`Applying patch ${formatVersion(patch.version)}:`, patch.description);
         schema = applyPatch(schema, patch.patches).newDocument;
       } catch (err) {
         console.error('Failed to apply patch:', patch, err);

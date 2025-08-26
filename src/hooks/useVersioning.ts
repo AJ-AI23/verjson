@@ -114,17 +114,30 @@ export const useVersioning = ({
 
   const handleToggleSelection = (patchId: string) => {
     try {
+      console.log('Toggling selection for patch:', patchId);
       const updatedPatches = togglePatchSelection(patches, patchId);
+      
+      // Only proceed if the patches actually changed (selection was allowed)
+      if (updatedPatches === patches) {
+        console.log('Selection toggle was prevented');
+        return;
+      }
+      
       setPatches(updatedPatches);
       savePatches(updatedPatches);
       
       // Apply selected patches to get new schema
+      console.log('Recalculating schema from selected patches...');
       const newSchema = applySelectedPatches(updatedPatches);
       const newSchemaString = JSON.stringify(newSchema, null, 2);
+      console.log('New schema calculated:', newSchema);
+      
       setSchema(newSchemaString);
       setSavedSchema(newSchemaString);
       
+      console.log('Schema updated successfully');
     } catch (err) {
+      console.error('Error in handleToggleSelection:', err);
       toast.error('Failed to toggle version selection', {
         description: (err as Error).message,
       });
