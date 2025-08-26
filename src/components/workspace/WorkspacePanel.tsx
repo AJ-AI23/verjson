@@ -26,11 +26,12 @@ import { toast } from 'sonner';
 
 interface WorkspacePanelProps {
   onDocumentSelect: (document: any) => void;
+  onDocumentDeleted: (deletedDocumentId: string) => void;
   selectedDocument?: any;
   isCollapsed?: boolean;
 }
 
-export function WorkspacePanel({ onDocumentSelect, selectedDocument, isCollapsed }: WorkspacePanelProps) {
+export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDocument, isCollapsed }: WorkspacePanelProps) {
   const { workspaces, createWorkspace, deleteWorkspace } = useWorkspaces();
   const [selectedWorkspace, setSelectedWorkspace] = useState<string>('');
   const { documents, createDocument, deleteDocument } = useDocuments(selectedWorkspace);
@@ -324,6 +325,7 @@ export function WorkspacePanel({ onDocumentSelect, selectedDocument, isCollapsed
                           onClick={(e) => {
                             e.stopPropagation();
                             deleteDocument(document.id);
+                            onDocumentDeleted(document.id);
                           }}
                         >
                           <Trash2 className="h-3 w-3" />

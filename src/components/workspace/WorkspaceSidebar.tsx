@@ -9,10 +9,11 @@ import {
 
 interface WorkspaceSidebarProps {
   onDocumentSelect: (document: any) => void;
+  onDocumentDeleted: (deletedDocumentId: string) => void;
   selectedDocument?: any;
 }
 
-export function WorkspaceSidebar({ onDocumentSelect, selectedDocument }: WorkspaceSidebarProps) {
+export function WorkspaceSidebar({ onDocumentSelect, onDocumentDeleted, selectedDocument }: WorkspaceSidebarProps) {
   const { state } = useSidebar();
   const isCollapsed = state === 'collapsed';
 
