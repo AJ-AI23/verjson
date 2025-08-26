@@ -42,6 +42,20 @@ export const Editor = ({ initialSchema, onSave, documentName }: EditorProps) => 
     expandedNotationPaths
   } = useEditorState(initialSchema || defaultSchema);
 
+  // Update editor state when initialSchema changes (document selection)
+  React.useEffect(() => {
+    if (initialSchema && typeof initialSchema === 'object') {
+      const schemaString = JSON.stringify(initialSchema, null, 2);
+      if (schemaString !== schema) {
+        console.log('Loading new document content into editor');
+        setSchema(schemaString);
+        setSavedSchema(schemaString);
+        // Reset collapsed paths when loading a new document
+        setCollapsedPaths({ root: true });
+      }
+    }
+  }, [initialSchema, schema, setSchema, setSavedSchema, setCollapsedPaths]);
+
   // Track if this is the initial load to prevent auto-save on document load
   const [hasUserMadeChanges, setHasUserMadeChanges] = React.useState(false);
   const initialSchemaRef = React.useRef(initialSchema);
