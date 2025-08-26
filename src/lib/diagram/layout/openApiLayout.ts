@@ -268,48 +268,46 @@ function processComponentsSchemas(
     
     const isSchemaCollapsed = collapsedPaths[schemaPath] === true;
     
-    console.log(`[OPENAPI LAYOUT] Processing schema ${schemaName}, path: ${schemaPath}, collapsed: ${isSchemaCollapsed}`);
+    console.log(`🔥 [OPENAPI LAYOUT] Processing schema ${schemaName}, path: ${schemaPath}, collapsed: ${isSchemaCollapsed}`);
     
-    // Only create schema node if it's not collapsed
-    if (!isSchemaCollapsed) {
-      // Treat this as a regular JSON schema
-      const schemaNode = createPropertyNode(
-        schemaName,
-        schemaValue,
-        [],
-        schemaX,
-        yPos,
-        false // Don't mark as collapsed since we're already checking
-      );
+    // Always create schema node when showing components.schemas structure (regardless of individual collapse state)
+    // Treat this as a regular JSON schema
+    const schemaNode = createPropertyNode(
+      schemaName,
+      schemaValue,
+      [],
+      schemaX,
+      yPos,
+      false // Don't mark as collapsed since we're already checking
+    );
+    
+    const edge = createEdge(parentNodeId, schemaNode.id, undefined, false, {}, 'structure');
+    
+    result.nodes.push(schemaNode);
+    result.edges.push(edge);
+    
+    console.log(`🔥 [OPENAPI LAYOUT] Created schema node for ${schemaName}`);
+    
+    // Only process schema properties if the schema is explicitly expanded
+    if (!isSchemaCollapsed && schemaValue?.type === 'object' && schemaValue?.properties && maxDepth > 1) {
+      const schemaPropertiesPath = `${schemaPath}.properties`;
+      const schemaPropertiesExpanded = collapsedPaths[schemaPropertiesPath] === false;
       
-      const edge = createEdge(parentNodeId, schemaNode.id, undefined, false, {}, 'structure');
+      console.log(`🔥 [OPENAPI LAYOUT] Schema ${schemaName} properties path: ${schemaPropertiesPath}, expanded: ${schemaPropertiesExpanded}`);
       
-      result.nodes.push(schemaNode);
-      result.edges.push(edge);
-      
-      console.log(`[OPENAPI LAYOUT] Created schema node for ${schemaName}`);
-      
-      // If the schema has properties and properties are expanded, process them as regular JSON schema
-      if (schemaValue?.type === 'object' && schemaValue?.properties && maxDepth > 1) {
-        const schemaPropertiesPath = `${schemaPath}.properties`;
-        const schemaPropertiesExpanded = collapsedPaths[schemaPropertiesPath] === false;
-        
-        console.log(`[OPENAPI LAYOUT] Schema ${schemaName} properties path: ${schemaPropertiesPath}, expanded: ${schemaPropertiesExpanded}`);
-        
-        if (schemaPropertiesExpanded) {
-          processJsonSchemaProperties(
-            schemaValue.properties,
-            schemaValue.required || [],
-            schemaNode.id,
-            schemaX,
-            yPos + 150,
-            xSpacing * 0.8,
-            result,
-            maxDepth - 1,
-            collapsedPaths,
-            schemaPath
-          );
-        }
+      if (schemaPropertiesExpanded) {
+        processJsonSchemaProperties(
+          schemaValue.properties,
+          schemaValue.required || [],
+          schemaNode.id,
+          schemaX,
+          yPos + 150,
+          xSpacing * 0.8,
+          result,
+          maxDepth - 1,
+          collapsedPaths,
+          schemaPath
+        );
       }
     }
   });
