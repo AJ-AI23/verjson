@@ -52,6 +52,16 @@ export const useVersioning = ({
   // Calculate if the schema has been modified since last database commit
   const isModified = schema !== databaseVersion;
   
+  // Debug logging for isModified calculation
+  console.log('Version Debug:', {
+    isModified,
+    schemaLength: schema?.length,
+    databaseVersionLength: databaseVersion?.length,
+    documentId,
+    schemaHash: schema?.substring(0, 100),
+    databaseVersionHash: databaseVersion?.substring(0, 100)
+  });
+  
   // Get the current version based on patches
   const currentVersion = calculateLatestVersion(patches);
 
