@@ -33,6 +33,9 @@ export const useVersioning = ({
   const [patches, setPatches] = useState<SchemaPatch[]>([]);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   
+  // Track the true database version separately from savedSchema
+  const [databaseVersion, setDatabaseVersion] = useState<string>(savedSchema);
+  
   // Track if we've already attempted to create initial version for this document
   const initialVersionAttempted = useRef<string | null>(null);
   
@@ -46,8 +49,8 @@ export const useVersioning = ({
     getSchemaPatches
   } = useDocumentVersions(documentId);
 
-  // Calculate if the schema has been modified since last save
-  const isModified = schema !== savedSchema;
+  // Calculate if the schema has been modified since last database commit
+  const isModified = schema !== databaseVersion;
   
   // Get the current version based on patches
   const currentVersion = calculateLatestVersion(patches);
@@ -57,6 +60,13 @@ export const useVersioning = ({
     const schemaPatches = getSchemaPatches();
     setPatches(schemaPatches);
   }, [versions, getSchemaPatches]);
+
+  // Update database version when document changes or when patches are applied
+  useEffect(() => {
+    if (documentId && savedSchema) {
+      setDatabaseVersion(savedSchema);
+    }
+  }, [documentId, savedSchema]);
 
   // Create initial version when document is loaded (only once per document)
   useEffect(() => {
@@ -135,8 +145,9 @@ export const useVersioning = ({
       // Save to database
       await createVersion(patch);
       
-      // Update saved schema
+      // Update both saved schema and database version
       setSavedSchema(schema);
+      setDatabaseVersion(schema);
       
     } catch (err) {
       toast.error('Failed to create version', {
@@ -170,6 +181,7 @@ export const useVersioning = ({
       
       setSchema(newSchemaString);
       setSavedSchema(newSchemaString);
+      // Don't update databaseVersion here - this is just history navigation
       
       console.log('Schema updated successfully');
     } catch (err) {
@@ -224,6 +236,7 @@ export const useVersioning = ({
       const newSchemaString = JSON.stringify(newSchema, null, 2);
       setSchema(newSchemaString);
       setSavedSchema(newSchemaString);
+      // Don't update databaseVersion here - this is just history navigation
       
       toast.success('Version deleted successfully');
     } catch (err) {
