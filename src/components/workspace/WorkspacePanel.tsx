@@ -154,7 +154,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${document.name}.json`;
+    link.download = `${document.name}_${document.id}.json`;
     link.click();
     URL.revokeObjectURL(url);
   };
