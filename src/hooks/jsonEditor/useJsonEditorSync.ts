@@ -18,34 +18,32 @@ export const useJsonEditorSync = ({
   onChange
 }: UseJsonEditorSyncProps) => {
   // Update editor content when the value prop changes
-  const syncEditorWithProps = () => {
-    useEffect(() => {
-      if (!editorRef.current || value === previousValueRef.current) return;
+  useEffect(() => {
+    if (!editorRef.current || value === previousValueRef.current) return;
 
+    try {
+      // Set flag to prevent onChange from triggering
+      isInternalChange.current = true;
+      
+      // Update editor content
       try {
-        // Set flag to prevent onChange from triggering
-        isInternalChange.current = true;
-        
-        // Update editor content
-        try {
-          editorRef.current.update(JSON.parse(value));
-        } catch (e) {
-          // If parsing fails, just show the raw text
-          editorRef.current.setText(value);
-        }
-        
-        // Update previous value
-        previousValueRef.current = value;
-      } catch (err) {
-        console.error('Error updating JSONEditor:', err);
-      } finally {
-        // Clear flag after a short delay
-        setTimeout(() => {
-          isInternalChange.current = false;
-        }, 0);
+        editorRef.current.update(JSON.parse(value));
+      } catch (e) {
+        // If parsing fails, just show the raw text
+        editorRef.current.setText(value);
       }
-    }, [value]);
-  };
+      
+      // Update previous value
+      previousValueRef.current = value;
+    } catch (err) {
+      console.error('Error updating JSONEditor:', err);
+    } finally {
+      // Clear flag after a short delay
+      setTimeout(() => {
+        isInternalChange.current = false;
+      }, 0);
+    }
+  }, [value]);
 
-  return { syncEditorWithProps };
+  return {};
 };

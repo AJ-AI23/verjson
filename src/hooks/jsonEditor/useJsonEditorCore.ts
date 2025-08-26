@@ -100,7 +100,7 @@ export const useJsonEditor = ({
   });
 
   // Use our sync hook
-  const { syncEditorWithProps } = useJsonEditorSync({ 
+  useJsonEditorSync({ 
     editorRef, isInternalChange, previousValueRef, value, onChange 
   });
 
@@ -111,9 +111,6 @@ export const useJsonEditor = ({
       forceUpdateEditorFoldState();
     }
   }, [collapsedPaths, forceUpdateEditorFoldState]);
-
-  // Sync editor with props
-  syncEditorWithProps();
 
   // Bind editor -> props changes
   useEffect(() => {
