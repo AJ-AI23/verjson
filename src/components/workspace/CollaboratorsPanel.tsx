@@ -106,7 +106,7 @@ export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProp
       <Accordion type="single" collapsible className="w-full" defaultValue="collaborators">
         <AccordionItem value="collaborators" className="border rounded-lg">
           <AccordionTrigger className="px-4 py-3 hover:no-underline">
-            <div className="flex items-center justify-between w-full">
+            <div className="flex items-center justify-between w-full mr-4">
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
                 Collaborators
@@ -117,14 +117,13 @@ export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProp
               {isOwner && (
                 <Button 
                   size="sm" 
-                  variant="ghost"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowInviteDialog(true);
                   }}
-                  className="flex items-center gap-1 h-7 px-2 text-xs mr-2"
+                  className="flex items-center gap-2"
                 >
-                  <UserPlus className="h-3 w-3" />
+                  <UserPlus className="h-4 w-4" />
                   Invite
                 </Button>
               )}
