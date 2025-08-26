@@ -78,9 +78,13 @@ const Auth = () => {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-primary">
-            JSON Schema Visual Blueprint
-          </CardTitle>
+          <div className="flex justify-center mb-2">
+            <img 
+              src="/lovable-uploads/ddcae931-0504-44bb-96aa-260e6650c307.png" 
+              alt="JSON Schema Visual Blueprint Logo" 
+              className="h-12 w-auto"
+            />
+          </div>
           <CardDescription>
             Sign in to your account or create a new one
           </CardDescription>
