@@ -308,7 +308,17 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
                     <Checkbox
                       checked={patch.isSelected}
                       disabled={!canDeselectPatch && patch.isSelected}
-                      onCheckedChange={() => onToggleSelection?.(patch.id)}
+                      onCheckedChange={(checked) => {
+                        console.log('🔘 Checkbox clicked:', { 
+                          patchId: patch.id, 
+                          description: patch.description,
+                          currentSelection: patch.isSelected, 
+                          newSelection: checked,
+                          canDeselect: canDeselectPatch,
+                          hasOnToggleSelection: !!onToggleSelection
+                        });
+                        onToggleSelection?.(patch.id);
+                      }}
                       title={
                         isInitial ? 'Initial version - foundation document (cannot be deselected)' :
                         beforeReleased && patch.isSelected ? 'Cannot deselect versions before a released version' : 
