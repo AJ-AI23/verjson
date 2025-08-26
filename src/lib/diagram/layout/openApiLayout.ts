@@ -346,7 +346,8 @@ function processComponentsSchemas(
         result,
         maxDepth - 1,
         collapsedPaths,
-        schema.path
+        schema.path,
+        schemas // Pass all schemas for reference detection
       );
     }
   });
@@ -363,7 +364,8 @@ function processJsonSchemaProperties(
   result: DiagramElements,
   maxDepth: number,
   collapsedPaths: CollapsedState,
-  parentPath: string
+  parentPath: string,
+  allSchemas?: Record<string, any> // Pass all schemas to detect references
 ) {
   const propNames = Object.keys(properties);
   const startX = xPos - (propNames.length * xSpacing) / 2 + xSpacing / 2;
@@ -389,6 +391,28 @@ function processJsonSchemaProperties(
     result.nodes.push(propNode);
     result.edges.push(edge);
     
+    // Check for schema references and create dotted edges
+    if (allSchemas) {
+      const referencedSchemaName = extractSchemaReference(propSchema);
+      if (referencedSchemaName && allSchemas[referencedSchemaName]) {
+        // Find the target schema node using the correct ID format
+        const targetSchemaNodeId = `prop-${referencedSchemaName}`;
+        
+        // Create dotted reference edge
+        const referenceEdge = createEdge(
+          propNode.id, 
+          targetSchemaNodeId, 
+          'references',
+          false,
+          {},
+          'reference'
+        );
+        
+        result.edges.push(referenceEdge);
+        console.log(`🔗 [REFERENCE] Created reference edge: ${propName} -> ${referencedSchemaName}`);
+      }
+    }
+    
     // Recursively process nested properties if not collapsed and within depth
     if (!isPropCollapsed && maxDepth > 0) {
       if (propSchema?.type === 'object' && propSchema?.properties) {
@@ -406,7 +430,8 @@ function processJsonSchemaProperties(
             result,
             maxDepth - 1,
             collapsedPaths,
-            propPath
+            propPath,
+            allSchemas // Pass through allSchemas for nested properties
           );
         }
       }
@@ -841,49 +866,35 @@ function processOpenApiInfo(
   });
 }
 
-// Process generic OpenAPI objects
-function processGenericOpenApiObject(
-  obj: Record<string, any>,
-  parentNodeId: string,
-  xPos: number,
-  yPos: number,
-  xSpacing: number,
-  result: DiagramElements,
-  maxDepth: number,
-  collapsedPaths: CollapsedState,
-  parentPath: string
-) {
-  const objPropertiesPath = `${parentPath}.properties`;
-  const objPropertiesExpanded = collapsedPaths[objPropertiesPath] === false;
-  
-  if (!objPropertiesExpanded) {
-    return;
+// Helper function to extract schema reference from a JSON schema property
+function extractSchemaReference(propSchema: any): string | null {
+  // Direct $ref
+  if (propSchema?.$ref) {
+    const match = propSchema.$ref.match(/#\/components\/schemas\/(.+)$/);
+    return match ? match[1] : null;
   }
   
-  const objProps = Object.keys(obj);
-  const startX = xPos - (objProps.length * xSpacing) / 2 + xSpacing / 2;
+  // $ref in items (for arrays)
+  if (propSchema?.items?.$ref) {
+    const match = propSchema.items.$ref.match(/#\/components\/schemas\/(.+)$/);
+    return match ? match[1] : null;
+  }
   
-  objProps.forEach((propName, index) => {
-    const propValue = obj[propName];
-    const propX = startX + index * xSpacing;
-    const propPath = `${parentPath}.properties.${propName}`;
-    
-    const isPropCollapsed = collapsedPaths[propPath] === true;
-    
-    const propSchema = createOpenApiPropertySchema(propName, propValue);
-    
-    const propNode = createPropertyNode(
-      propName,
-      propSchema,
-      [],
-      propX,
-      yPos,
-      isPropCollapsed
-    );
-    
-    const edge = createEdge(parentNodeId, propNode.id);
-    
-    result.nodes.push(propNode);
-    result.edges.push(edge);
-  });
+  // $ref in allOf, anyOf, oneOf
+  if (propSchema?.allOf?.[0]?.$ref) {
+    const match = propSchema.allOf[0].$ref.match(/#\/components\/schemas\/(.+)$/);
+    return match ? match[1] : null;
+  }
+  
+  if (propSchema?.anyOf?.[0]?.$ref) {
+    const match = propSchema.anyOf[0].$ref.match(/#\/components\/schemas\/(.+)$/);
+    return match ? match[1] : null;
+  }
+  
+  if (propSchema?.oneOf?.[0]?.$ref) {
+    const match = propSchema.oneOf[0].$ref.match(/#\/components\/schemas\/(.+)$/);
+    return match ? match[1] : null;
+  }
+  
+  return null;
 }
