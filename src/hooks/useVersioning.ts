@@ -181,8 +181,8 @@ export const useVersioning = ({
       console.log('New schema calculated:', newSchema);
       
       setSchema(newSchemaString);
-      setSavedSchema(newSchemaString);
-      // Don't update databaseVersion here - this is just history navigation
+      // Don't update savedSchema or databaseVersion during history navigation
+      // setSavedSchema(newSchemaString); - Removed this line
       
       console.log('Schema updated successfully');
     } catch (err) {
@@ -236,8 +236,7 @@ export const useVersioning = ({
       const newSchema = applySelectedPatches(result.updatedPatches);
       const newSchemaString = JSON.stringify(newSchema, null, 2);
       setSchema(newSchemaString);
-      setSavedSchema(newSchemaString);
-      // Don't update databaseVersion here - this is just history navigation
+      // Don't update savedSchema or databaseVersion during history navigation
       
       toast.success('Version deleted successfully');
     } catch (err) {
