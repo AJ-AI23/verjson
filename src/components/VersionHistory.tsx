@@ -360,11 +360,91 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
       
       {/* Preview Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto">
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
           <DialogHeader>
             <DialogTitle>Schema Preview</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Debug Information Panel */}
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h4 className="font-medium text-blue-800 mb-3">Preview Generation Details</h4>
+              <div className="space-y-2 text-sm">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <strong className="text-blue-700">Document ID:</strong>
+                    <div className="font-mono text-xs bg-white p-1 rounded border">{documentId}</div>
+                  </div>
+                  <div>
+                    <strong className="text-blue-700">Total Versions Available:</strong>
+                    <div className="font-mono">{previewPatches.length}</div>
+                  </div>
+                </div>
+                
+                <div>
+                  <strong className="text-blue-700">Versions Applied (in chronological order):</strong>
+                  <div className="mt-1 space-y-1">
+                    {previewPatches
+                      .sort((a, b) => a.timestamp - b.timestamp)
+                      .map((patch, index) => (
+                        <div key={patch.id} className="flex items-center gap-2 p-2 bg-white rounded border text-xs">
+                          <span className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-700">
+                            {index + 1}
+                          </span>
+                          <div className="flex-1">
+                            <div className="font-semibold">v{formatVersion(patch.version)} - {patch.description}</div>
+                            <div className="text-gray-600">
+                              Selected: {patch.isSelected ? '✅' : '❌'} | 
+                              Released: {patch.isReleased ? '✅' : '❌'} | 
+                              Has Full Document: {patch.fullDocument ? '✅' : '❌'} | 
+                              Has Patches: {patch.patches ? '✅' : '❌'}
+                            </div>
+                            {patch.fullDocument && (
+                              <div className="text-green-600">
+                                Full Document Keys: {Object.keys(patch.fullDocument).join(', ')}
+                              </div>
+                            )}
+                            {patch.patches && (
+                              <div className="text-orange-600">
+                                Patches Count: {patch.patches.length}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {new Date(patch.timestamp).toLocaleString()}
+                          </div>
+                        </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <strong className="text-blue-700">Selected Versions Only:</strong>
+                  <div className="font-mono text-xs">
+                    {previewPatches.filter(p => p.isSelected).map(p => `v${formatVersion(p.version)}`).join(' → ') || 'None selected'}
+                  </div>
+                </div>
+                
+                <div>
+                  <strong className="text-blue-700">Base Version (Latest Released & Selected):</strong>
+                  <div className="font-mono text-xs">
+                    {(() => {
+                      const baseVersion = [...previewPatches]
+                        .sort((a, b) => b.timestamp - a.timestamp)
+                        .find(p => p.isReleased && p.isSelected);
+                      return baseVersion ? `v${formatVersion(baseVersion.version)} (${baseVersion.description})` : 'No base version found';
+                    })()}
+                  </div>
+                </div>
+                
+                <div>
+                  <strong className="text-blue-700">Final Schema Keys:</strong>
+                  <div className="font-mono text-xs bg-white p-1 rounded border">
+                    {Object.keys(previewSchema || {}).length > 0 ? Object.keys(previewSchema).join(', ') : 'EMPTY - No keys found'}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
             <div className="p-3 bg-slate-50 rounded">
               <h4 className="font-medium text-slate-700 mb-2">Summary</h4>
               <p className="text-sm text-slate-600">{getSchemaSummary(previewSchema)}</p>
