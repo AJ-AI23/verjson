@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { SchemaPatch, formatVersion, applySelectedPatches } from '@/lib/versionUtils';
 import { useDocumentVersions } from '@/hooks/useDocumentVersions';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +41,34 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
   // Fetch document versions directly from database
   const { getSchemaPatches } = useDocumentVersions(documentId);
   const patches = getSchemaPatches();
+  
+  // Fetch document information
+  const [documentInfo, setDocumentInfo] = useState<any>(null);
+  
+  React.useEffect(() => {
+    const fetchDocumentInfo = async () => {
+      if (!documentId) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('documents')
+          .select('*')
+          .eq('id', documentId)
+          .single();
+          
+        if (error) {
+          console.error('Failed to fetch document info:', error);
+        } else {
+          console.log('🔍 VersionHistory: Document info fetched:', data);
+          setDocumentInfo(data);
+        }
+      } catch (err) {
+        console.error('Error fetching document info:', err);
+      }
+    };
+    
+    fetchDocumentInfo();
+  }, [documentId]);
   
   console.log('🔍 VersionHistory: Fetched patches from database:', {
     documentId,
@@ -204,6 +233,53 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
   
   return (
     <div className="version-history overflow-auto max-h-[400px]">
+      {/* Document Information Panel */}
+      {documentInfo && (
+        <div className="mb-4 p-4 bg-green-50 rounded-lg border border-green-200">
+          <h4 className="font-medium text-green-800 mb-3">Document Information</h4>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <strong className="text-green-700">Document ID:</strong>
+              <div className="font-mono text-xs bg-white p-2 rounded border break-all">{documentInfo.id}</div>
+            </div>
+            <div>
+              <strong className="text-green-700">File Name:</strong>
+              <div className="font-medium">{documentInfo.name}</div>
+            </div>
+            <div>
+              <strong className="text-green-700">File Type:</strong>
+              <div>
+                <Badge variant="outline" className="text-xs">
+                  {documentInfo.file_type}
+                </Badge>
+              </div>
+            </div>
+            <div>
+              <strong className="text-green-700">Workspace ID:</strong>
+              <div className="font-mono text-xs bg-white p-1 rounded border break-all">{documentInfo.workspace_id}</div>
+            </div>
+            <div>
+              <strong className="text-green-700">Created:</strong>
+              <div className="text-xs">{new Date(documentInfo.created_at).toLocaleString()}</div>
+            </div>
+            <div>
+              <strong className="text-green-700">Last Updated:</strong>
+              <div className="text-xs">{new Date(documentInfo.updated_at).toLocaleString()}</div>
+            </div>
+            <div>
+              <strong className="text-green-700">Content Keys:</strong>
+              <div className="font-mono text-xs">
+                {documentInfo.content ? Object.keys(documentInfo.content).join(', ') : 'No content'}
+              </div>
+            </div>
+            <div>
+              <strong className="text-green-700">User ID:</strong>
+              <div className="font-mono text-xs bg-white p-1 rounded border break-all">{documentInfo.user_id}</div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <table className="min-w-full divide-y divide-slate-200 text-sm">
         <thead>
           <tr className="bg-slate-50">
