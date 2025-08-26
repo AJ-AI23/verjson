@@ -106,27 +106,12 @@ export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProp
       <Accordion type="single" collapsible className="w-full" defaultValue="collaborators">
         <AccordionItem value="collaborators" className="border rounded-lg">
           <AccordionTrigger className="px-4 py-3 hover:no-underline">
-            <div className="flex items-center justify-between w-full mr-4">
-              <div className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Collaborators
-                <Badge variant="secondary" className="ml-2">
-                  {permissions.length + 1}
-                </Badge>
-              </div>
-              {isOwner && (
-                <Button 
-                  size="sm" 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowInviteDialog(true);
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  Invite
-                </Button>
-              )}
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Collaborators
+              <Badge variant="secondary" className="ml-2">
+                {permissions.length + 1}
+              </Badge>
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4">
@@ -218,6 +203,19 @@ export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProp
                     </p>
                   )}
                 </>
+              )}
+              
+              {isOwner && (
+                <div className="pt-3 border-t">
+                  <Button 
+                    size="sm" 
+                    onClick={() => setShowInviteDialog(true)}
+                    className="flex items-center gap-2 w-full"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Invite Collaborator
+                  </Button>
+                </div>
               )}
             </div>
           </AccordionContent>
