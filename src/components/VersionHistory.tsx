@@ -343,7 +343,15 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
                   </span>
                 </td>
                 <td className="px-3 py-2 text-slate-500 text-xs">
-                  {new Date(patch.timestamp).toLocaleDateString()}
+                  {new Date(patch.timestamp).toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'short', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                  })}
                 </td>
                 <td className="px-3 py-2">
                   <Badge variant={
