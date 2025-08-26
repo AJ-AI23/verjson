@@ -75,15 +75,20 @@ export const useVersioning = ({
 
   // Create initial version when document is loaded (only once per document)
   useEffect(() => {
+    // Use current schema instead of savedSchema for initial version creation
+    const currentSchemaToUse = schema || savedSchema;
+    
     console.log('Initial version effect triggered:', { 
       documentId, 
-      hasSchema: !!savedSchema && savedSchema.trim() !== '{}' && savedSchema.trim() !== '', 
+      hasCurrentSchema: !!currentSchemaToUse && currentSchemaToUse.trim() !== '{}' && currentSchemaToUse.trim() !== '', 
       loading, 
       hasVersions: versions.length > 0,
-      attemptedFor: initialVersionAttempted.current 
+      attemptedFor: initialVersionAttempted.current,
+      schemaSource: schema ? 'current' : 'saved',
+      schemaLength: currentSchemaToUse?.length || 0
     });
     
-    if (!documentId || !savedSchema || savedSchema.trim() === '{}' || savedSchema.trim() === '') {
+    if (!documentId || !currentSchemaToUse || currentSchemaToUse.trim() === '{}' || currentSchemaToUse.trim() === '') {
       return;
     }
 
@@ -104,10 +109,10 @@ export const useVersioning = ({
     
     if (!hasInitialVersion) {
       try {
-        const parsedSchema = JSON.parse(savedSchema);
+        const parsedSchema = JSON.parse(currentSchemaToUse);
         // Only create initial version if the schema has actual content
         if (Object.keys(parsedSchema).length > 0) {
-          console.log('Creating initial version for document:', documentId);
+          console.log('Creating initial version for document:', documentId, 'with schema keys:', Object.keys(parsedSchema));
           const initialPatch = generatePatch(
             {}, // Empty previous schema
             parsedSchema,
@@ -120,6 +125,8 @@ export const useVersioning = ({
           // Mark that we've attempted creation for this document
           initialVersionAttempted.current = documentId;
           createVersion(initialPatch);
+          // Also update database version to match the schema we just committed
+          setDatabaseVersion(currentSchemaToUse);
           console.log('Initial version created successfully');
         }
       } catch (err) {
@@ -131,7 +138,7 @@ export const useVersioning = ({
       console.log('Initial version already exists, marking as attempted');
       initialVersionAttempted.current = documentId;
     }
-  }, [documentId, savedSchema, loading, versions, createVersion]);
+  }, [documentId, schema, savedSchema, loading, versions, createVersion]);
 
   // Reset tracking when document changes
   useEffect(() => {
