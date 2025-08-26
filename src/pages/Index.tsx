@@ -123,7 +123,7 @@ const Index = () => {
               <div className="flex items-center gap-4">
                 <SidebarTrigger className="animate-fade-in" />
                 <img 
-                  src="/lovable-uploads/ddcae931-0504-44bb-96aa-260e6650c307.png" 
+                  src="/lovable-uploads/7294f82f-d904-40c7-afc7-fdf654d21170.png" 
                   alt="VerJSON" 
                   className="h-8"
                 />

@@ -80,8 +80,8 @@ const Auth = () => {
         <CardHeader className="text-center">
           <div className="flex justify-center mb-2">
             <img 
-              src="/lovable-uploads/ddcae931-0504-44bb-96aa-260e6650c307.png" 
-              alt="JSON Schema Visual Blueprint Logo" 
+              src="/lovable-uploads/7294f82f-d904-40c7-afc7-fdf654d21170.png" 
+              alt="VerJSON Logo" 
               className="h-12 w-auto"
             />
           </div>
