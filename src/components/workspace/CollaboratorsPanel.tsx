@@ -2,13 +2,6 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { 
   UserPlus, 
   Users, 
@@ -16,7 +9,8 @@ import {
   Edit3, 
   Eye, 
   MoreHorizontal,
-  Trash2 
+  Trash2,
+  Settings
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -26,6 +20,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useDocumentPermissions, DocumentPermission } from '@/hooks/useDocumentPermissions';
 import { InviteCollaboratorDialog } from './InviteCollaboratorDialog';
+import { ChangeAccessDialog } from './ChangeAccessDialog';
 import { Document } from '@/types/workspace';
 
 interface CollaboratorsPanelProps {
@@ -35,6 +30,8 @@ interface CollaboratorsPanelProps {
 
 export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProps) {
   const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [showChangeAccessDialog, setShowChangeAccessDialog] = useState(false);
+  const [selectedPermission, setSelectedPermission] = useState<DocumentPermission | null>(null);
   const { 
     permissions, 
     loading, 
@@ -93,8 +90,15 @@ export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProp
     return await inviteCollaborator(email, document.name, role);
   };
 
-  const handleRoleChange = async (permission: DocumentPermission, newRole: 'editor' | 'viewer') => {
-    await updatePermission(permission.id, newRole);
+  const handleChangeAccess = (permission: DocumentPermission) => {
+    setSelectedPermission(permission);
+    setShowChangeAccessDialog(true);
+  };
+
+  const handleUpdateRole = async (newRole: 'editor' | 'viewer') => {
+    if (selectedPermission) {
+      await updatePermission(selectedPermission.id, newRole);
+    }
   };
 
   const handleRemoveCollaborator = async (permission: DocumentPermission) => {
@@ -154,44 +158,31 @@ export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProp
                       </div>
                       
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        {isOwner ? (
-                          <>
-                            <Select
-                              value={permission.role}
-                              onValueChange={(value: 'editor' | 'viewer') => 
-                                handleRoleChange(permission, value)
-                              }
-                            >
-                              <SelectTrigger className="w-24">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="editor">Editor</SelectItem>
-                                <SelectItem value="viewer">Viewer</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem 
-                                  onClick={() => handleRemoveCollaborator(permission)}
-                                  className="text-red-600"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Remove Access
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </>
-                        ) : (
-                          <Badge className={getRoleColor(permission.role)}>
-                            {permission.role}
-                          </Badge>
+                        <Badge className={getRoleColor(permission.role)}>
+                          {permission.role}
+                        </Badge>
+                        
+                        {isOwner && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleChangeAccess(permission)}>
+                                <Settings className="h-4 w-4 mr-2" />
+                                Change Access
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleRemoveCollaborator(permission)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Remove Access
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         )}
                       </div>
                     </div>
@@ -227,6 +218,13 @@ export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProp
         onOpenChange={setShowInviteDialog}
         onInvite={handleInvite}
         documentName={document.name}
+      />
+      
+      <ChangeAccessDialog
+        open={showChangeAccessDialog}
+        onOpenChange={setShowChangeAccessDialog}
+        onUpdateRole={handleUpdateRole}
+        permission={selectedPermission}
       />
     </>
   );
