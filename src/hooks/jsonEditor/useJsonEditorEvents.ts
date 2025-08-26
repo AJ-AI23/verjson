@@ -95,7 +95,8 @@ export const useJsonEditorEvents = ({
         onToggleCollapse(normalizedPath, newCollapsedState);
         
         // If we're expanding a node and have rootSchema, perform bulk expand
-        if (!newCollapsedState && rootSchema) {
+        // But only if it's not the root level (to prevent expanding all top-level properties)
+        if (!newCollapsedState && rootSchema && normalizedPath !== 'root') {
           console.log(`[DEBUG] Triggering bulk expand for path: ${normalizedPath} with maxDepth: ${maxDepth}`);
           console.log(`[DEBUG] Root schema available:`, !!rootSchema);
           console.log(`[DEBUG] Editor ref available:`, !!editorRef?.current);
@@ -103,7 +104,7 @@ export const useJsonEditorEvents = ({
           // Remove setTimeout and call immediately
           bulkExpand(normalizedPath, rootSchema, true, editorRef, collapsedPathsRef);
         } else {
-          console.log(`[DEBUG] Not triggering bulk expand - newCollapsedState: ${newCollapsedState}, rootSchema: ${!!rootSchema}`);
+          console.log(`[DEBUG] Not triggering bulk expand - newCollapsedState: ${newCollapsedState}, rootSchema: ${!!rootSchema}, path: ${normalizedPath}`);
         }
       }
       
