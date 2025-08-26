@@ -37,7 +37,14 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggl
   // Calculate current schema based on selected patches
   const currentSchema = useMemo(() => {
     try {
-      return applySelectedPatches(patches);
+      const result = applySelectedPatches(patches);
+      console.log('Current schema calculation result:', {
+        patchesCount: patches.length,
+        resultKeys: Object.keys(result || {}),
+        resultPreview: result ? JSON.stringify(result).substring(0, 200) : 'null/undefined',
+        hasContent: result && Object.keys(result).length > 0
+      });
+      return result;
     } catch (err) {
       console.error('Error calculating current schema:', err);
       return {};
@@ -57,7 +64,14 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggl
   const previewSchema = useMemo(() => {
     if (previewPatches.length === 0) return {};
     try {
-      return applySelectedPatches(previewPatches);
+      const result = applySelectedPatches(previewPatches);
+      console.log('Preview schema calculation result:', {
+        previewPatchesCount: previewPatches.length,
+        resultKeys: Object.keys(result || {}),
+        resultPreview: result ? JSON.stringify(result).substring(0, 200) : 'null/undefined',
+        hasContent: result && Object.keys(result).length > 0
+      });
+      return result;
     } catch (err) {
       console.error('Error calculating preview schema:', err);
       return {};
