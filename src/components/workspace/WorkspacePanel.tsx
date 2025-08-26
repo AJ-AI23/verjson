@@ -16,6 +16,7 @@ import { DeleteConfirmationDialog } from './DeleteConfirmationDialog';
 import { CollaboratorsPanel } from './CollaboratorsPanel';
 import { BulkInviteDialog } from './BulkInviteDialog';
 import { BulkExportDialog } from './BulkExportDialog';
+import { ImportDialog } from './ImportDialog';
 import { WorkspaceInviteDialog } from './WorkspaceInviteDialog';
 import { DocumentPinSetupDialog } from './DocumentPinSetupDialog';
 import { useWorkspacePermissions } from '@/hooks/useWorkspacePermissions';
@@ -69,6 +70,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   const [showWorkspaceInviteDialog, setShowWorkspaceInviteDialog] = useState(false);
   const [showBulkInviteDialog, setShowBulkInviteDialog] = useState(false);
   const [showBulkExportDialog, setShowBulkExportDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   
   // PIN security dialog states
   const [showPinSetupDialog, setShowPinSetupDialog] = useState(false);
@@ -294,6 +296,22 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
     setShowPinSetupDialog(true);
   };
 
+  const handleImportFiles = async (filesToImport: any[]) => {
+    try {
+      for (const file of filesToImport) {
+        await createDocument({
+          workspace_id: selectedWorkspace,
+          name: file.name,
+          content: file.content,
+          file_type: file.fileType,
+        });
+      }
+      toast.success(`Imported ${filesToImport.length} document${filesToImport.length !== 1 ? 's' : ''} successfully`);
+    } catch (error) {
+      toast.error('Failed to import some files');
+    }
+  };
+
   const handlePinStatusChange = async () => {
     if (pinSetupDocument) {
       const status = await checkDocumentPinStatus(pinSetupDocument.id);
@@ -448,16 +466,14 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
               <div className="flex items-center justify-between mb-2">
                 <Label className="text-sm font-medium">Documents</Label>
                 <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" asChild title="Import">
-                    <label className="cursor-pointer">
-                      <Upload className="h-3 w-3" />
-                      <input
-                        type="file"
-                        accept=".json,.yaml,.yml"
-                        onChange={handleFileImport}
-                        className="hidden"
-                      />
-                    </label>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="h-7 w-7 p-0" 
+                    onClick={() => setShowImportDialog(true)}
+                    title="Import Files"
+                  >
+                    <Upload className="h-3 w-3" />
                   </Button>
                   <Button 
                     size="sm" 
@@ -622,6 +638,12 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
         onOpenChange={setShowBulkExportDialog}
         documents={documents}
         onExport={handleBulkExport}
+      />
+
+      <ImportDialog
+        open={showImportDialog}
+        onOpenChange={setShowImportDialog}
+        onImport={handleImportFiles}
       />
     </div>
   );
