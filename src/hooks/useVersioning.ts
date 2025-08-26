@@ -45,28 +45,37 @@ export const useVersioning = ({
     // Check if we need to create an initial released version
     const hasInitialVersion = storedPatches.some(p => p.description === 'Initial version');
     
-    if (!hasInitialVersion && savedSchema) {
+    if (!hasInitialVersion && savedSchema && savedSchema.trim() !== '{}' && savedSchema.trim() !== '') {
       try {
         const parsedSchema = JSON.parse(savedSchema);
-        console.log('Creating initial version with schema:', parsedSchema);
-        const initialPatch = generatePatch(
-          {}, // Empty previous schema
-          parsedSchema,
-          { major: 0, minor: 1, patch: 0 },
-          'minor',
-          'Initial version',
-          true // Mark as released
-        );
-        
-        console.log('Created initial patch:', initialPatch);
-        const updatedPatches = [initialPatch, ...storedPatches];
-        setPatches(updatedPatches);
-        savePatches(updatedPatches);
-        
-        if (storedPatches.length === 0) {
-          toast.info('Created initial version v0.1.0');
+        // Only create initial version if the schema has actual content
+        if (Object.keys(parsedSchema).length > 0) {
+          console.log('Creating initial version with schema:', parsedSchema);
+          const initialPatch = generatePatch(
+            {}, // Empty previous schema
+            parsedSchema,
+            { major: 0, minor: 1, patch: 0 },
+            'minor',
+            'Initial version',
+            true // Mark as released
+          );
+          
+          console.log('Created initial patch:', initialPatch);
+          const updatedPatches = [initialPatch, ...storedPatches];
+          setPatches(updatedPatches);
+          savePatches(updatedPatches);
+          
+          if (storedPatches.length === 0) {
+            toast.info('Created initial version v0.1.0');
+          } else {
+            toast.info(`Loaded ${storedPatches.length} versions + initial version`);
+          }
         } else {
-          toast.info(`Loaded ${storedPatches.length} versions + initial version`);
+          console.log('Skipping initial version creation - schema is empty');
+          if (storedPatches.length > 0) {
+            setPatches(storedPatches);
+            toast.info(`Loaded ${storedPatches.length} version entries`);
+          }
         }
       } catch (err) {
         console.error('Failed to create initial version:', err);
