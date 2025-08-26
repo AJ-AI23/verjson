@@ -29,12 +29,14 @@ export function useDocumentVersions(documentId?: string) {
 
   const fetchVersions = async () => {
     if (!user || !documentId) {
+      console.log('🔔 fetchVersions: No user or documentId, clearing versions');
       setVersions([]);
       setLoading(false);
       return;
     }
 
     try {
+      console.log('🔔 fetchVersions: Fetching versions for document:', documentId);
       setLoading(true);
       const { data, error } = await supabase
         .from('document_versions')
@@ -44,11 +46,22 @@ export function useDocumentVersions(documentId?: string) {
         .order('created_at', { ascending: true });
 
       if (error) throw error;
+      
+      console.log('🔔 fetchVersions: Retrieved versions:', {
+        count: data?.length || 0,
+        versions: data?.map(v => ({ 
+          id: v.id, 
+          description: v.description, 
+          isSelected: v.is_selected,
+          isReleased: v.is_released 
+        })) || []
+      });
+      
       setVersions(data as DocumentVersion[] || []);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch versions';
       setError(message);
-      console.error('Error fetching document versions:', err);
+      console.error('🔔 fetchVersions: Error fetching document versions:', err);
     } finally {
       setLoading(false);
     }
@@ -120,6 +133,7 @@ export function useDocumentVersions(documentId?: string) {
     if (!user) return false;
 
     try {
+      console.log('🗑️ deleteVersion: Attempting to delete version:', versionId);
       const { error } = await supabase
         .from('document_versions')
         .delete()
@@ -128,12 +142,21 @@ export function useDocumentVersions(documentId?: string) {
 
       if (error) throw error;
 
-      setVersions(prev => prev.filter(v => v.id !== versionId));
+      console.log('🗑️ deleteVersion: Successfully deleted from database, updating local state');
+      setVersions(prev => {
+        const updated = prev.filter(v => v.id !== versionId);
+        console.log('🗑️ deleteVersion: Local versions updated:', {
+          before: prev.length,
+          after: updated.length,
+          deletedId: versionId
+        });
+        return updated;
+      });
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete version';
       setError(message);
-      console.error('Error deleting document version:', err);
+      console.error('🗑️ deleteVersion: Error deleting document version:', err);
       toast.error(message);
       return false;
     }
@@ -171,6 +194,7 @@ export function useDocumentVersions(documentId?: string) {
   useEffect(() => {
     if (!user || !documentId) return;
 
+    console.log('🔔 Setting up real-time subscription for document:', documentId);
     fetchVersions();
 
     const channel = supabase
@@ -183,13 +207,22 @@ export function useDocumentVersions(documentId?: string) {
           table: 'document_versions',
           filter: `document_id=eq.${documentId}`,
         },
-        () => {
+        (payload) => {
+          console.log('🔔 Real-time event received:', {
+            eventType: payload.eventType,
+            table: payload.table,
+            documentId: documentId,
+            payload: payload
+          });
           fetchVersions();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('🔔 Subscription status:', status, 'for document:', documentId);
+      });
 
     return () => {
+      console.log('🔔 Cleaning up subscription for document:', documentId);
       supabase.removeChannel(channel);
     };
   }, [user, documentId]);
@@ -203,6 +236,20 @@ export function useDocumentVersions(documentId?: string) {
     deleteVersion,
     refetch: fetchVersions,
     // Helper to get patches in the expected format
-    getSchemaPatches: () => convertToSchemaPatches(versions),
+    getSchemaPatches: () => {
+      const patches = convertToSchemaPatches(versions);
+      console.log('🔔 getSchemaPatches: Converting versions to patches:', {
+        versionsCount: versions.length,
+        patchesCount: patches.length,
+        patches: patches.map(p => ({
+          id: p.id,
+          description: p.description,
+          isSelected: p.isSelected,
+          isReleased: p.isReleased,
+          version: `${p.version.major}.${p.version.minor}.${p.version.patch}`
+        }))
+      });
+      return patches;
+    },
   };
 }
