@@ -78,88 +78,62 @@ export const useVersioning = ({
     // Use current schema instead of savedSchema for initial version creation
     const currentSchemaToUse = schema || savedSchema;
     
-    console.log('Initial version effect triggered:', { 
-      documentId, 
-      hasCurrentSchema: !!currentSchemaToUse && currentSchemaToUse.trim() !== '{}' && currentSchemaToUse.trim() !== '', 
-      loading, 
-      hasVersions: versions.length > 0,
-      attemptedFor: initialVersionAttempted.current,
-      schemaSource: schema ? 'current' : 'saved',
-      schemaLength: currentSchemaToUse?.length || 0
-    });
-    
+    // Early returns to prevent unnecessary processing
     if (!documentId || !currentSchemaToUse || currentSchemaToUse.trim() === '{}' || currentSchemaToUse.trim() === '') {
       return;
     }
 
     // Check if versions have loaded
     if (loading) {
-      console.log('Still loading versions, waiting...');
       return; // Wait for versions to load
     }
 
-    const hasInitialVersion = versions.some(v => v.description === 'Initial version');
-    console.log('Has initial version:', hasInitialVersion, 'Total versions:', versions.length);
-    
-    // Reset attempt tracking if there are no versions (previous attempt must have failed)
-    if (versions.length === 0 && initialVersionAttempted.current === documentId) {
-      console.log('No versions exist but attempt was marked - resetting attempt tracking');
-      initialVersionAttempted.current = null;
+    // Don't create if we've already attempted for this document
+    if (initialVersionAttempted.current === documentId) {
+      return;
     }
-    
-    // Don't create if we've already attempted for this document AND there are versions
-    if (initialVersionAttempted.current === documentId && versions.length > 0) {
-      console.log('Already attempted initial version for this document and versions exist');
+
+    // Check if any version already exists (not just initial version)
+    if (versions.length > 0) {
+      initialVersionAttempted.current = documentId;
       return;
     }
     
-    if (!hasInitialVersion) {
-      const createInitialVersion = async () => {
-        try {
-          const parsedSchema = JSON.parse(currentSchemaToUse);
-          // Only create initial version if the schema has actual content
-          if (Object.keys(parsedSchema).length > 0) {
-            console.log('Creating initial version for document:', documentId, 'with schema keys:', Object.keys(parsedSchema));
-            const initialPatch = generatePatch(
-              {}, // Empty previous schema
-              parsedSchema,
-              { major: 0, minor: 1, patch: 0 },
-              'minor',
-              'Initial version',
-              true // Mark as released
-            );
-            
-            // Log what we're about to save
-            console.log('Initial version patch contains:', {
-              hasPatches: !!initialPatch.patches,
-              hasFullDocument: !!initialPatch.fullDocument,
-              fullDocumentKeys: initialPatch.fullDocument ? Object.keys(initialPatch.fullDocument) : 'none',
-              fullDocumentPreview: initialPatch.fullDocument ? JSON.stringify(initialPatch.fullDocument).substring(0, 200) : 'none'
-            });
-            
-            // Mark that we've attempted creation for this document ONLY after successful creation
-            const result = await createVersion(initialPatch);
-            if (result) {
-              initialVersionAttempted.current = documentId;
-              // Also update database version to match the schema we just committed
-              setDatabaseVersion(currentSchemaToUse);
-              console.log('Initial version created successfully');
-            } else {
-              console.log('Initial version creation failed');
-            }
+    // Only create if no versions exist at all
+    const createInitialVersion = async () => {
+      try {
+        // Mark attempt immediately to prevent concurrent creation
+        initialVersionAttempted.current = documentId;
+        
+        const parsedSchema = JSON.parse(currentSchemaToUse);
+        // Only create initial version if the schema has actual content
+        if (Object.keys(parsedSchema).length > 0) {
+          const initialPatch = generatePatch(
+            {}, // Empty previous schema
+            parsedSchema,
+            { major: 0, minor: 1, patch: 0 },
+            'minor',
+            'Initial version',
+            true // Mark as released
+          );
+          
+          const result = await createVersion(initialPatch);
+          if (result) {
+            setDatabaseVersion(currentSchemaToUse);
+          } else {
+            // Reset attempt tracking if creation failed
+            initialVersionAttempted.current = null;
           }
-        } catch (err) {
-          console.error('Failed to create initial version:', err);
-          // Don't mark as attempted if creation failed
         }
-      };
-      
-      createInitialVersion();
-    } else {
-      console.log('Initial version already exists, marking as attempted');
-      initialVersionAttempted.current = documentId;
-    }
-  }, [documentId, schema, savedSchema, loading, versions, createVersion]);
+      } catch (err) {
+        console.error('Failed to create initial version:', err);
+        // Reset attempt tracking if creation failed
+        initialVersionAttempted.current = null;
+      }
+    };
+    
+    createInitialVersion();
+  }, [documentId, loading, versions.length]); // Remove schema dependencies to prevent loops
 
   // Reset tracking when document changes
   useEffect(() => {
