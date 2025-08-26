@@ -1,6 +1,8 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { cn } from '@/lib/utils';
+import { NodeNotations } from './NodeNotations';
+import { NotationComment } from '@/types/notations';
 
 interface InfoProperty {
   name: string;
@@ -14,18 +16,23 @@ interface InfoNodeProps {
     version: string;
     description?: string;
     properties: InfoProperty[];
+    notations?: NotationComment[];
+    notationCount?: number;
+    hasNotations?: boolean;
   };
   id: string;
   isConnectable: boolean;
+  onAddNotation?: (nodeId: string, user: string, message: string) => void;
 }
 
-export const InfoNode = memo(({ data, isConnectable }: InfoNodeProps) => {
-  const { title, version, description, properties } = data;
+export const InfoNode = memo(({ data, isConnectable, id, onAddNotation }: InfoNodeProps) => {
+  const { title, version, description, properties, notations = [], notationCount = 0, hasNotations = false } = data;
 
   return (
     <div className={cn(
       'px-3 py-2 rounded-md shadow-sm border min-w-[200px] max-w-[280px]',
-      'bg-blue-50 border-blue-200'
+      'bg-blue-50 border-blue-200',
+      hasNotations && 'border-l-2 border-l-amber-400'
     )}>
       <Handle
         type="target"
@@ -36,7 +43,15 @@ export const InfoNode = memo(({ data, isConnectable }: InfoNodeProps) => {
       
       <div className="flex flex-col gap-2">
         <div className="flex flex-col gap-1">
-          <div className="text-sm font-semibold text-slate-900">{title}</div>
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold text-slate-900">{title}</div>
+            <NodeNotations
+              notations={notations}
+              notationCount={notationCount}
+              hasNotations={hasNotations}
+              onAddNotation={onAddNotation ? (user, message) => onAddNotation(id, user, message) : undefined}
+            />
+          </div>
           <div className="text-xs text-blue-600">v{version}</div>
           {description && (
             <div className="text-xs text-slate-600 line-clamp-2" title={description}>

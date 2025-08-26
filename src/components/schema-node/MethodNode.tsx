@@ -2,6 +2,8 @@ import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { NodeNotations } from './NodeNotations';
+import { NotationComment } from '@/types/notations';
 
 interface MethodNodeProps {
   data: {
@@ -12,13 +14,17 @@ interface MethodNodeProps {
     requestBody?: any;
     responses?: Record<string, any>;
     label: string;
+    notations?: NotationComment[];
+    notationCount?: number;
+    hasNotations?: boolean;
   };
   id: string;
   isConnectable: boolean;
+  onAddNotation?: (nodeId: string, user: string, message: string) => void;
 }
 
-export const MethodNode = memo(({ data, isConnectable }: MethodNodeProps) => {
-  const { path, method, summary, description, label } = data;
+export const MethodNode = memo(({ data, isConnectable, id, onAddNotation }: MethodNodeProps) => {
+  const { path, method, summary, description, label, notations = [], notationCount = 0, hasNotations = false } = data;
 
   const getMethodColor = (method: string) => {
     const colors = {
@@ -36,7 +42,8 @@ export const MethodNode = memo(({ data, isConnectable }: MethodNodeProps) => {
   return (
     <div className={cn(
       'px-3 py-2 rounded-md shadow-sm border min-w-[160px] max-w-[240px]',
-      'bg-slate-50 border-slate-200'
+      'bg-slate-50 border-slate-200',
+      hasNotations && 'border-l-2 border-l-amber-400'
     )}>
       <Handle
         type="target"
@@ -47,12 +54,20 @@ export const MethodNode = memo(({ data, isConnectable }: MethodNodeProps) => {
       
       <div className="flex flex-col gap-2">
         <div className="flex flex-col gap-1">
-          <Badge 
-            variant="outline" 
-            className={cn('text-xs px-2 w-fit', getMethodColor(method))}
-          >
-            {method.toUpperCase()}
-          </Badge>
+          <div className="flex items-center justify-between">
+            <Badge 
+              variant="outline" 
+              className={cn('text-xs px-2 w-fit', getMethodColor(method))}
+            >
+              {method.toUpperCase()}
+            </Badge>
+            <NodeNotations
+              notations={notations}
+              notationCount={notationCount}
+              hasNotations={hasNotations}
+              onAddNotation={onAddNotation ? (user, message) => onAddNotation(id, user, message) : undefined}
+            />
+          </div>
           <div className="text-sm font-semibold text-slate-900">
             {path}
           </div>

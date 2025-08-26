@@ -1,6 +1,8 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { cn } from '@/lib/utils';
+import { NodeNotations } from './NodeNotations';
+import { NotationComment } from '@/types/notations';
 
 interface ComponentSchema {
   name: string;
@@ -13,18 +15,23 @@ interface ComponentsNodeProps {
   data: {
     schemasCount: number;
     schemas: ComponentSchema[];
+    notations?: NotationComment[];
+    notationCount?: number;
+    hasNotations?: boolean;
   };
   id: string;
   isConnectable: boolean;
+  onAddNotation?: (nodeId: string, user: string, message: string) => void;
 }
 
-export const ComponentsNode = memo(({ data, isConnectable }: ComponentsNodeProps) => {
-  const { schemasCount, schemas } = data;
+export const ComponentsNode = memo(({ data, isConnectable, id, onAddNotation }: ComponentsNodeProps) => {
+  const { schemasCount, schemas, notations = [], notationCount = 0, hasNotations = false } = data;
 
   return (
     <div className={cn(
       'px-3 py-2 rounded-md shadow-sm border min-w-[200px] max-w-[280px]',
-      'bg-emerald-50 border-emerald-200'
+      'bg-emerald-50 border-emerald-200',
+      hasNotations && 'border-l-2 border-l-amber-400'
     )}>
       <Handle
         type="target"
@@ -35,7 +42,15 @@ export const ComponentsNode = memo(({ data, isConnectable }: ComponentsNodeProps
       
       <div className="flex flex-col gap-2">
         <div className="flex flex-col gap-1">
-          <div className="text-sm font-semibold text-slate-900">Components</div>
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold text-slate-900">Components</div>
+            <NodeNotations
+              notations={notations}
+              notationCount={notationCount}
+              hasNotations={hasNotations}
+              onAddNotation={onAddNotation ? (user, message) => onAddNotation(id, user, message) : undefined}
+            />
+          </div>
           <div className="text-xs text-emerald-600">{schemasCount} schemas</div>
         </div>
         
