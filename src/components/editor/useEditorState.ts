@@ -60,6 +60,7 @@ export const useEditorState = (defaultSchema: string) => {
     handleVersionBump,
     handleToggleSelection,
     handleMarkAsReleased,
+    handleDeleteVersion,
     toggleVersionHistory
   } = useVersioning({
     schema,
@@ -244,6 +245,7 @@ export const useEditorState = (defaultSchema: string) => {
     toggleVersionHistory,
     handleToggleSelection,
     handleMarkAsReleased,
+    handleDeleteVersion,
     handleAddNotation,
     expandedNotationPaths
   };

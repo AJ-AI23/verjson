@@ -233,3 +233,38 @@ export const markAsReleased = (
       : p
   );
 };
+
+// Delete a version from history
+export const deleteVersion = (
+  patches: SchemaPatch[], 
+  patchId: string
+): { success: boolean; updatedPatches: SchemaPatch[]; error?: string } => {
+  const patchToDelete = patches.find(p => p.id === patchId);
+  
+  if (!patchToDelete) {
+    return { success: false, updatedPatches: patches, error: 'Version not found' };
+  }
+  
+  // Don't allow deletion of initial version
+  if (patchToDelete.description === 'Initial version') {
+    return { success: false, updatedPatches: patches, error: 'Cannot delete initial version' };
+  }
+  
+  // Check if this is a released version that other versions depend on
+  const sortedPatches = [...patches].sort((a, b) => a.timestamp - b.timestamp);
+  const patchIndex = sortedPatches.findIndex(p => p.id === patchId);
+  const hasLaterVersions = sortedPatches.slice(patchIndex + 1).length > 0;
+  
+  if (patchToDelete.isReleased && hasLaterVersions) {
+    return { 
+      success: false, 
+      updatedPatches: patches, 
+      error: 'Cannot delete released version with dependent versions' 
+    };
+  }
+  
+  // Remove the patch
+  const updatedPatches = patches.filter(p => p.id !== patchId);
+  
+  return { success: true, updatedPatches };
+};

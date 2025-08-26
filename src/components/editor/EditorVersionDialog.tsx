@@ -11,6 +11,7 @@ interface EditorVersionDialogProps {
   patches: SchemaPatch[];
   onToggleSelection: (patchId: string) => void;
   onMarkAsReleased: (patchId: string) => void;
+  onDeleteVersion: (patchId: string) => void;
 }
 
 export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({
@@ -18,7 +19,8 @@ export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({
   onOpenChange,
   patches,
   onToggleSelection,
-  onMarkAsReleased
+  onMarkAsReleased,
+  onDeleteVersion
 }) => {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -30,6 +32,7 @@ export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({
           patches={patches} 
           onToggleSelection={onToggleSelection}
           onMarkAsReleased={onMarkAsReleased}
+          onDeleteVersion={onDeleteVersion}
         />
       </DialogContent>
     </Dialog>

@@ -12,6 +12,7 @@ import {
   applySelectedPatches,
   togglePatchSelection,
   markAsReleased,
+  deleteVersion,
   formatVersion
 } from '@/lib/versionUtils';
 
@@ -145,6 +146,34 @@ export const useVersioning = ({
     }
   };
 
+  const handleDeleteVersion = (patchId: string) => {
+    try {
+      const result = deleteVersion(patches, patchId);
+      
+      if (!result.success) {
+        toast.error('Cannot delete version', {
+          description: result.error,
+        });
+        return;
+      }
+      
+      setPatches(result.updatedPatches);
+      savePatches(result.updatedPatches);
+      
+      // Recalculate schema after deletion
+      const newSchema = applySelectedPatches(result.updatedPatches);
+      const newSchemaString = JSON.stringify(newSchema, null, 2);
+      setSchema(newSchemaString);
+      setSavedSchema(newSchemaString);
+      
+      toast.success('Version deleted successfully');
+    } catch (err) {
+      toast.error('Failed to delete version', {
+        description: (err as Error).message,
+      });
+    }
+  };
+
   const toggleVersionHistory = (isOpen?: boolean) => {
     setIsVersionHistoryOpen(isOpen !== undefined ? isOpen : !isVersionHistoryOpen);
   };
@@ -157,6 +186,7 @@ export const useVersioning = ({
     handleVersionBump,
     handleToggleSelection,
     handleMarkAsReleased,
+    handleDeleteVersion,
     toggleVersionHistory
   };
 };
