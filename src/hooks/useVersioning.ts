@@ -53,10 +53,23 @@ export const useVersioning = ({
   const isModified = schema !== databaseVersion;
   
   // Debug logging for isModified calculation
+  let schemaOpenapi, databaseOpenapi;
+  try {
+    const schemaParsed = JSON.parse(schema || '{}');
+    const databaseParsed = JSON.parse(databaseVersion || '{}');
+    schemaOpenapi = schemaParsed.openapi;
+    databaseOpenapi = databaseParsed.openapi;
+  } catch (e) {
+    schemaOpenapi = 'parse-error';
+    databaseOpenapi = 'parse-error';
+  }
+  
   console.log('Version Debug:', {
     isModified,
     schemaLength: schema?.length,
     databaseVersionLength: databaseVersion?.length,
+    schemaOpenapi,
+    databaseOpenapi,
     schemaHash: schema?.substring(0, 50) + '...',
     databaseVersionHash: databaseVersion?.substring(0, 50) + '...',
     documentId
