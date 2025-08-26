@@ -9,6 +9,7 @@ import { Document } from '@/types/workspace';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useDocumentPinSecurity } from '@/hooks/useDocumentPinSecurity';
 import { toast } from 'sonner';
+import { FileText } from 'lucide-react';
 const Index = () => {
   const { user, loading } = useAuth();
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
@@ -82,6 +83,13 @@ const Index = () => {
     }
   };
 
+  const handleCloseDocument = () => {
+    setSelectedDocument(null);
+    setClearEditorRequest(true);
+    // Reset the clear request after a short delay
+    setTimeout(() => setClearEditorRequest(false), 100);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -130,15 +138,26 @@ const Index = () => {
           </header>
           
           <main className="flex-1 p-4 min-h-0">
-            <div className="h-full animate-fade-in">
+            {selectedDocument ? (
+              <div className="h-full animate-fade-in">
                 <Editor 
                   initialSchema={selectedDocument?.content}
                   onSave={handleDocumentSave}
                   documentName={selectedDocument?.name}
                   selectedDocument={selectedDocument}
                   onClearRequest={clearEditorRequest}
+                  onClose={handleCloseDocument}
                 />
-            </div>
+              </div>
+            ) : (
+              <div className="h-full flex items-center justify-center bg-muted/30 rounded-lg">
+                <div className="flex flex-col items-center gap-4 text-muted-foreground">
+                  <FileText className="h-16 w-16" />
+                  <div className="text-xl font-medium">Select a document to start...</div>
+                  <div className="text-sm">Choose a document from the workspace panel to begin editing</div>
+                </div>
+              </div>
+            )}
           </main>
         </div>
 

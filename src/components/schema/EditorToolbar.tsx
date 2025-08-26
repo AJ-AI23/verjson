@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Save, MessageCircle, FileText, Calendar, Clock, Copy } from 'lucide-react';
+import { Save, MessageCircle, FileText, Calendar, Clock, Copy, X } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -28,6 +28,7 @@ interface EditorToolbarProps {
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
   documentName?: string;
   selectedDocument?: any;
+  onClose?: () => void;
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
@@ -43,6 +44,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onAddNotation,
   documentName,
   selectedDocument,
+  onClose,
 }) => {
   const { updateMaxDepth } = useEditorSettings();
   const [isNotationsPanelOpen, setIsNotationsPanelOpen] = useState(false);
@@ -180,24 +182,39 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 </Button>
               </div>
 
-              {/* Hierarchy Depth Control */}
               <div className="flex items-center gap-3">
-                <Label htmlFor="max-depth" className="text-xs text-muted-foreground whitespace-nowrap">
-                  Hierarchy Depth: {maxDepth}
-                </Label>
-                <Slider
-                  id="max-depth"
-                  min={1}
-                  max={10}
-                  step={1}
-                  value={[maxDepth]}
-                  onValueChange={([value]) => {
-                    console.log('[DEBUG] Slider changed to:', value);
-                    updateMaxDepth(value);
-                  }}
-                  className="w-28"
-                  disabled={!selectedDocument}
-                />
+                {/* Hierarchy Depth Control */}
+                <div className="flex items-center gap-3">
+                  <Label htmlFor="max-depth" className="text-xs text-muted-foreground whitespace-nowrap">
+                    Hierarchy Depth: {maxDepth}
+                  </Label>
+                  <Slider
+                    id="max-depth"
+                    min={1}
+                    max={10}
+                    step={1}
+                    value={[maxDepth]}
+                    onValueChange={([value]) => {
+                      console.log('[DEBUG] Slider changed to:', value);
+                      updateMaxDepth(value);
+                    }}
+                    className="w-28"
+                    disabled={!selectedDocument}
+                  />
+                </div>
+
+                {/* Close Button */}
+                {selectedDocument && onClose && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={onClose}
+                    className="h-8 px-2"
+                    title="Close document"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>

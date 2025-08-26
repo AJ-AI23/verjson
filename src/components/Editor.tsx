@@ -14,9 +14,10 @@ interface EditorProps {
   documentName?: string;
   selectedDocument?: any;
   onClearRequest?: boolean;
+  onClose?: () => void;
 }
 
-export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, onClearRequest }: EditorProps) => {
+export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, onClearRequest, onClose }: EditorProps) => {
   console.log('Editor: selectedDocument received:', selectedDocument);
   console.log('Editor: selectedDocument.id:', selectedDocument?.id);
   console.log('Editor: typeof selectedDocument.id:', typeof selectedDocument?.id);
@@ -105,6 +106,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         onAddNotation={handleAddNotation}
         documentName={documentName}
         selectedDocument={selectedDocument}
+        onClose={onClose}
       />
       
       <EditorContent
