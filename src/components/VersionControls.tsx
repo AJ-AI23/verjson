@@ -21,10 +21,15 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
   const [editableVersion, setEditableVersion] = useState<Version>({ ...version });
   const [isReleased, setIsReleased] = useState(false);
   
-  // Update editable version when the prop version changes
+  // Update editable version only when the prop version actually changes
   useEffect(() => {
-    setEditableVersion({ ...version });
-  }, [version]);
+    // Only update if the version has actually changed, not just re-rendered
+    if (version.major !== editableVersion.major || 
+        version.minor !== editableVersion.minor || 
+        version.patch !== editableVersion.patch) {
+      setEditableVersion({ ...version });
+    }
+  }, [version, editableVersion.major, editableVersion.minor, editableVersion.patch]);
 
   const handleBumpVersion = () => {
     if (!isModified) {
