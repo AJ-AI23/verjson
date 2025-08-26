@@ -42,16 +42,35 @@ export const Editor = ({ initialSchema, onSave, documentName }: EditorProps) => 
     expandedNotationPaths
   } = useEditorState(initialSchema || defaultSchema);
 
-  // Save document when schema changes
+  // Track if this is the initial load to prevent auto-save on document load
+  const [hasUserMadeChanges, setHasUserMadeChanges] = React.useState(false);
+  const initialSchemaRef = React.useRef(initialSchema);
+  
+  // Reset tracking when a new document is loaded
   React.useEffect(() => {
-    if (onSave && parsedSchema && initialSchema) {
+    if (initialSchema !== initialSchemaRef.current) {
+      setHasUserMadeChanges(false);
+      initialSchemaRef.current = initialSchema;
+    }
+  }, [initialSchema]);
+  
+  // Track when user makes changes (not initial load)
+  React.useEffect(() => {
+    if (parsedSchema && initialSchema && JSON.stringify(parsedSchema) !== JSON.stringify(initialSchema)) {
+      setHasUserMadeChanges(true);
+    }
+  }, [parsedSchema, initialSchema]);
+
+  // Save document when schema changes (only after user makes changes)
+  React.useEffect(() => {
+    if (onSave && parsedSchema && initialSchema && hasUserMadeChanges) {
       const timeoutId = setTimeout(() => {
         onSave(parsedSchema);
       }, 1000); // Auto-save after 1 second of no changes
       
       return () => clearTimeout(timeoutId);
     }
-  }, [parsedSchema, onSave, initialSchema]);
+  }, [parsedSchema, onSave, initialSchema, hasUserMadeChanges]);
   
   return (
     <div className="json-schema-editor">
