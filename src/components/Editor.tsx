@@ -104,6 +104,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         setSavedSchema={setSavedSchema}
         onAddNotation={handleAddNotation}
         documentName={documentName}
+        selectedDocument={selectedDocument}
       />
       
       <EditorContent
