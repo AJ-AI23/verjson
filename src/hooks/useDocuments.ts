@@ -93,7 +93,7 @@ export function useDocuments(workspaceId?: string) {
       if (error) throw error;
       
       setDocuments(prev => prev.filter(d => d.id !== id));
-      toast.success('Document deleted successfully');
+      toast.success('Document and all associated versions deleted successfully');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete document';
       setError(message);
