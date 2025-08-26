@@ -297,20 +297,6 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
           <>
             <Separator />
             
-            {/* Workspace Actions */}
-            {isWorkspaceOwner && (
-              <div className="flex justify-center mb-4">
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => setShowBulkInviteDialog(true)}
-                  disabled={documents.length === 0}
-                >
-                  <Users className="h-4 w-4 mr-2" />
-                  Bulk Invite Documents
-                </Button>
-              </div>
-            )}
             
             {/* Document Actions */}
             <div className="flex flex-col gap-2">
@@ -475,6 +461,21 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
         )}
         </CardContent>
       </Card>
+
+      {/* Workspace Actions */}
+      {isWorkspaceOwner && selectedWorkspace && (
+        <div className="flex justify-center mb-4">
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={() => setShowBulkInviteDialog(true)}
+            disabled={documents.length === 0}
+          >
+            <Users className="h-4 w-4 mr-2" />
+            Bulk Invite Documents
+          </Button>
+        </div>
+      )}
 
       <CollaboratorsPanel 
         document={selectedDocument}
