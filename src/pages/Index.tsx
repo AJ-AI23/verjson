@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 const Index = () => {
   const { user, loading } = useAuth();
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [clearEditorRequest, setClearEditorRequest] = useState(false);
   const { updateDocument } = useDocuments();
 
   // Redirect to auth if not logged in
@@ -25,6 +26,24 @@ const Index = () => {
     console.log('Document ID value:', document?.id);
     console.log('Document structure:', JSON.stringify(document, null, 2));
     setSelectedDocument(document);
+    // Reset clear request when selecting a new document
+    setClearEditorRequest(false);
+  };
+
+  const handleDocumentDeleted = (deletedDocumentId: string) => {
+    console.log('🗑️ Index: Document deleted:', deletedDocumentId);
+    
+    // If the deleted document is currently selected, clear everything
+    if (selectedDocument?.id === deletedDocumentId) {
+      console.log('🧹 Index: Clearing editor state for deleted document');
+      setSelectedDocument(null);
+      setClearEditorRequest(true);
+      
+      // Reset the clear request after a short delay
+      setTimeout(() => setClearEditorRequest(false), 100);
+      
+      toast.success('Document deleted and editor cleared');
+    }
   };
 
   const handleDocumentSave = async (content: any) => {
@@ -55,6 +74,7 @@ const Index = () => {
       <div className="min-h-screen bg-background flex w-full">
         <WorkspaceSidebar 
           onDocumentSelect={handleDocumentSelect}
+          onDocumentDeleted={handleDocumentDeleted}
           selectedDocument={selectedDocument}
         />
         
@@ -85,6 +105,7 @@ const Index = () => {
                   onSave={handleDocumentSave}
                   documentName={selectedDocument?.name}
                   selectedDocument={selectedDocument}
+                  onClearRequest={clearEditorRequest}
                 />
             </div>
           </main>

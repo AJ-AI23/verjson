@@ -13,9 +13,10 @@ interface EditorProps {
   onSave?: (content: any) => void;
   documentName?: string;
   selectedDocument?: any;
+  onClearRequest?: boolean;
 }
 
-export const Editor = ({ initialSchema, onSave, documentName, selectedDocument }: EditorProps) => {
+export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, onClearRequest }: EditorProps) => {
   console.log('Editor: selectedDocument received:', selectedDocument);
   console.log('Editor: selectedDocument.id:', selectedDocument?.id);
   console.log('Editor: typeof selectedDocument.id:', typeof selectedDocument?.id);
@@ -45,8 +46,17 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument }
     handleMarkAsReleased,
     handleDeleteVersion,
     handleAddNotation,
-    expandedNotationPaths
+    expandedNotationPaths,
+    clearEditorState
   } = useEditorState(initialSchema || defaultSchema, selectedDocument?.id);
+
+  // Clear editor state when onClearRequest is triggered
+  React.useEffect(() => {
+    if (onClearRequest) {
+      console.log('🧹 Editor: Clearing all editor state due to clear request');
+      clearEditorState();
+    }
+  }, [onClearRequest, clearEditorState]);
 
   // Update editor state when initialSchema changes (document selection)
   const lastLoadedSchemaRef = React.useRef<any>(null);

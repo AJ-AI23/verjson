@@ -292,6 +292,15 @@ export const useVersioning = ({
     setIsVersionHistoryOpen(isOpen !== undefined ? isOpen : !isVersionHistoryOpen);
   };
 
+  // Clear all version state when document is deleted
+  const clearVersionState = () => {
+    console.log('🧹 Versioning: Clearing all version state');
+    setPatches([]);
+    setDatabaseVersion('');
+    initialVersionAttempted.current = null;
+    setIsVersionHistoryOpen(false);
+  };
+
   return {
     patches,
     isVersionHistoryOpen,
@@ -303,5 +312,6 @@ export const useVersioning = ({
     handleDeleteVersion,
     toggleVersionHistory,
     loading, // Add loading state from database operations
+    clearVersionState,
   };
 };

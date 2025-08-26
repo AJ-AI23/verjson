@@ -25,6 +25,7 @@ export function WorkspaceSidebar({ onDocumentSelect, selectedDocument }: Workspa
         <div className={`transition-all duration-300 ${isCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'} flex-1`}>
           <WorkspacePanel 
             onDocumentSelect={onDocumentSelect}
+            onDocumentDeleted={onDocumentDeleted}
             selectedDocument={selectedDocument}
             isCollapsed={isCollapsed}
           />

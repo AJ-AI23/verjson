@@ -60,7 +60,8 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
     handleToggleSelection,
     handleMarkAsReleased,
     handleDeleteVersion,
-    toggleVersionHistory
+    toggleVersionHistory,
+    clearVersionState
   } = useVersioning({
     schema,
     savedSchema,
@@ -223,6 +224,19 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
     }
   }, [parsedSchema, schema]);
 
+  // Clear all editor state when document is deleted
+  const clearEditorState = useCallback(() => {
+    console.log('🧹 Editor: Clearing all editor and version state');
+    setSchema(defaultSchema);
+    setSavedSchema(defaultSchema);
+    setParsedSchema(null);
+    setError(null);
+    setSchemaType('json-schema');
+    setCollapsedPaths({ root: true });
+    setExpandedNotationPaths(new Set());
+    clearVersionState(); // Also clear version history state
+  }, [defaultSchema, clearVersionState]);
+
   return {
     schema,
     setSchema,
@@ -247,6 +261,7 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
     handleMarkAsReleased,
     handleDeleteVersion,
     handleAddNotation,
-    expandedNotationPaths
+    expandedNotationPaths,
+    clearEditorState
   };
 };
