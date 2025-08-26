@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { toast } from "sonner";
 
 import { NotationsPanel } from '@/components/notations/NotationsPanel';
+import { DebugToggle } from '@/components/DebugToggle';
 import { SchemaType } from '@/lib/schemaUtils';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 import { useNotationsManager } from '@/hooks/useNotationsManager';
