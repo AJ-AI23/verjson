@@ -185,20 +185,6 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
     setCollapsedPaths({ root: true });
   };
 
-  const handleImportSchema = (importedSchema: string, detectedType?: SchemaType) => {
-    console.log('Importing new schema');
-    if (detectedType && detectedType !== schemaType) {
-      // Update schema type if detected
-      console.log('Detected schema type:', detectedType);
-      setSchemaType(detectedType);
-    }
-    
-    setSchema(importedSchema);
-    setSavedSchema(importedSchema);
-    // Reset collapsed paths when importing a new schema
-    setCollapsedPaths({ root: true });
-  };
-
   const handleAddNotation = useCallback((nodeId: string, user: string, message: string) => {
     try {
       const path = getPropertyPathFromNodeId(nodeId);
@@ -250,7 +236,6 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
     handleToggleCollapse,
     handleEditorChange,
     handleSchemaTypeChange,
-    handleImportSchema,
     isModified,
     currentVersion,
     handleVersionBump,

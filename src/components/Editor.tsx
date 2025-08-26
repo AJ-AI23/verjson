@@ -35,7 +35,6 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     handleToggleCollapse,
     handleEditorChange,
     handleSchemaTypeChange,
-    handleImportSchema,
     isModified,
     currentVersion,
     handleVersionBump,
@@ -99,7 +98,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         maxDepth={settings.maxDepth}
         onSchemaTypeChange={handleSchemaTypeChange}
         onGroupPropertiesChange={updateGroupProperties}
-        onImport={handleImportSchema}
+        
         toggleVersionHistory={toggleVersionHistory}
         setSchema={setSchema}
         setSavedSchema={setSavedSchema}

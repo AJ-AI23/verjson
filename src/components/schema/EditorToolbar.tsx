@@ -7,7 +7,7 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { SchemaTypeSelector } from './SchemaTypeSelector';
 import { SchemaViewSettings } from './SchemaViewSettings';
-import { SchemaActions } from '@/components/SchemaActions';
+
 import { NotationsPanel } from '@/components/notations/NotationsPanel';
 import { SchemaType } from '@/lib/schemaUtils';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
@@ -20,7 +20,6 @@ interface EditorToolbarProps {
   maxDepth: number;
   onSchemaTypeChange: (type: SchemaType) => void;
   onGroupPropertiesChange: (checked: boolean) => void;
-  onImport: (importedSchema: string, detectedType?: SchemaType) => void;
   toggleVersionHistory: (isOpen?: boolean) => void;
   setSchema: (schema: string) => void;
   setSavedSchema: (schema: string) => void;
@@ -35,7 +34,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   maxDepth,
   onSchemaTypeChange,
   onGroupPropertiesChange,
-  onImport,
   toggleVersionHistory,
   setSchema,
   setSavedSchema,
