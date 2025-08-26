@@ -144,3 +144,8 @@
 .react-flow__attribution {
   @apply hidden;
 }
+
+/* Interactive Elements */
+.hover-scale {
+  @apply transition-transform duration-200 hover:scale-105;
+}

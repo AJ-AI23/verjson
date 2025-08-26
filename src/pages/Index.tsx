@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Editor } from '@/components/Editor';
 import { AuthButton } from '@/components/AuthButton';
-import { WorkspacePanel } from '@/components/workspace/WorkspacePanel';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { WorkspaceSidebar } from '@/components/workspace/WorkspaceSidebar';
+import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Document } from '@/types/workspace';
 import { useDocuments } from '@/hooks/useDocuments';
 import { toast } from 'sonner';
@@ -47,38 +47,41 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="bg-card border-b py-3 px-6 shadow-sm">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-primary">JSON Schema Visual Blueprint</h1>
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-muted-foreground">
-              Edit and visualize JSON Schema and OpenAPI 3.1 schemas in real-time
+    <SidebarProvider>
+      <div className="min-h-screen bg-background flex flex-col w-full">
+        <header className="bg-card border-b py-3 px-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <SidebarTrigger className="animate-fade-in" />
+              <h1 className="text-xl font-bold text-primary">JSON Schema Visual Blueprint</h1>
             </div>
-            <AuthButton />
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-muted-foreground">
+                Edit and visualize JSON Schema and OpenAPI 3.1 schemas in real-time
+              </div>
+              <AuthButton />
+            </div>
           </div>
+        </header>
+        
+        <div className="flex flex-1 w-full">
+          <WorkspaceSidebar 
+            onDocumentSelect={handleDocumentSelect}
+            selectedDocument={selectedDocument}
+          />
+          
+          <main className="flex-1 p-4">
+            <div className="h-full animate-fade-in">
+              <Editor 
+                initialSchema={selectedDocument?.content}
+                onSave={handleDocumentSave}
+                documentName={selectedDocument?.name}
+              />
+            </div>
+          </main>
         </div>
-      </header>
-      
-      <main className="flex-1 p-4">
-        <ResizablePanelGroup direction="horizontal" className="h-full">
-          <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
-            <WorkspacePanel 
-              onDocumentSelect={handleDocumentSelect}
-              selectedDocument={selectedDocument}
-            />
-          </ResizablePanel>
-          <ResizableHandle />
-          <ResizablePanel defaultSize={75}>
-            <Editor 
-              initialSchema={selectedDocument?.content}
-              onSave={handleDocumentSave}
-              documentName={selectedDocument?.name}
-            />
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </main>
-    </div>
+      </div>
+    </SidebarProvider>
   );
 };
 export default Index;

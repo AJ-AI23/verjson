@@ -27,9 +27,10 @@ import { toast } from 'sonner';
 interface WorkspacePanelProps {
   onDocumentSelect: (document: any) => void;
   selectedDocument?: any;
+  isCollapsed?: boolean;
 }
 
-export function WorkspacePanel({ onDocumentSelect, selectedDocument }: WorkspacePanelProps) {
+export function WorkspacePanel({ onDocumentSelect, selectedDocument, isCollapsed }: WorkspacePanelProps) {
   const { workspaces, createWorkspace, deleteWorkspace } = useWorkspaces();
   const [selectedWorkspace, setSelectedWorkspace] = useState<string>('');
   const { documents, createDocument, deleteDocument } = useDocuments(selectedWorkspace);
@@ -125,14 +126,19 @@ export function WorkspacePanel({ onDocumentSelect, selectedDocument }: Workspace
     URL.revokeObjectURL(url);
   };
 
+  // Don't render content if collapsed
+  if (isCollapsed) {
+    return null;
+  }
+
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="h-full flex flex-col border-0 shadow-none">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">Workspaces</CardTitle>
           <Dialog open={showWorkspaceDialog} onOpenChange={setShowWorkspaceDialog}>
             <DialogTrigger asChild>
-              <Button size="sm" variant="outline">
+              <Button size="sm" variant="outline" className="animate-fade-in">
                 <FolderPlus className="h-4 w-4 mr-2" />
                 New
               </Button>
@@ -199,13 +205,13 @@ export function WorkspacePanel({ onDocumentSelect, selectedDocument }: Workspace
             
             {/* Document Actions */}
             <div className="flex gap-2">
-              <Dialog open={showDocumentDialog} onOpenChange={setShowDocumentDialog}>
-                <DialogTrigger asChild>
-                  <Button size="sm" className="flex-1">
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Document
-                  </Button>
-                </DialogTrigger>
+                <Dialog open={showDocumentDialog} onOpenChange={setShowDocumentDialog}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="flex-1 animate-scale-in">
+                      <Plus className="h-4 w-4 mr-2" />
+                      New Document
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Create New Document</DialogTitle>
@@ -264,8 +270,8 @@ export function WorkspacePanel({ onDocumentSelect, selectedDocument }: Workspace
                   {documents.map((document) => (
                     <div
                       key={document.id}
-                      className={`flex items-center justify-between p-2 rounded-md hover:bg-accent cursor-pointer transition-colors ${
-                        selectedDocument?.id === document.id ? 'bg-accent' : ''
+                      className={`flex items-center justify-between p-2 rounded-md hover:bg-accent cursor-pointer transition-all duration-200 hover-scale ${
+                        selectedDocument?.id === document.id ? 'bg-accent animate-fade-in' : ''
                       }`}
                       onClick={() => onDocumentSelect(document)}
                     >
