@@ -149,14 +149,39 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   };
 
   const handleDocumentExport = (document: any) => {
-    const dataStr = JSON.stringify(document.content, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${document.name}_${document.id}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
+    console.log('🔽 Export button clicked, document:', document);
+    console.log('🔽 Document content:', document?.content);
+    console.log('🔽 Document name:', document?.name);
+    console.log('🔽 Document ID:', document?.id);
+    
+    if (!document || !document.content) {
+      console.error('❌ Export failed: Document or content is missing');
+      toast.error('Cannot export - document data is missing');
+      return;
+    }
+    
+    try {
+      const dataStr = JSON.stringify(document.content, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${document.name}_${document.id}.json`;
+      
+      console.log('🔽 Creating download link:', link.download);
+      
+      // Append to body to ensure it works in all browsers
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      console.log('✅ Export completed successfully');
+      toast.success(`Document exported: ${document.name}_${document.id}.json`);
+    } catch (error) {
+      console.error('❌ Export error:', error);
+      toast.error('Failed to export document');
+    }
   };
 
   const handleConfirmDelete = () => {
