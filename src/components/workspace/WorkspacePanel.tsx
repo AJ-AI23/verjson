@@ -460,47 +460,48 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                           </div>
                         </div>
                       </div>
-                      <div className="flex gap-0.5 flex-shrink-0">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDocumentExport(document);
-                          }}
-                          className="h-6 w-6 p-0"
-                          title="Export"
-                        >
-                          <Download className="h-3 w-3" />
-                        </Button>
-                        {isDocumentOwner && selectedDocument?.id === document.id && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handlePinSetup(document);
-                            }}
-                            className="h-6 w-6 p-0"
-                            title="Security Settings"
-                          >
-                            <Shield className="h-3 w-3" />
-                          </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDocumentToDelete(document);
-                            setDeleteDialogOpen(true);
-                          }}
-                          className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                          title="Delete"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
+                       <div className="flex gap-0.5 flex-shrink-0">
+                         <Button
+                           size="sm"
+                           variant="ghost"
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             console.log('🔽 Export button clicked for document:', document.name);
+                             handleDocumentExport(document);
+                           }}
+                           className="h-6 w-6 p-0 hover:bg-accent-foreground/10 hover:text-accent-foreground transition-colors"
+                           title="Export"
+                         >
+                           <Download className="h-3 w-3" />
+                         </Button>
+                         {isDocumentOwner && selectedDocument?.id === document.id && (
+                           <Button
+                             size="sm"
+                             variant="ghost"
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               handlePinSetup(document);
+                             }}
+                             className="h-6 w-6 p-0 hover:bg-accent-foreground/10 hover:text-accent-foreground transition-colors"
+                             title="Security Settings"
+                           >
+                             <Shield className="h-3 w-3" />
+                           </Button>
+                         )}
+                         <Button
+                           size="sm"
+                           variant="ghost"
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             setDocumentToDelete(document);
+                             setDeleteDialogOpen(true);
+                           }}
+                           className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                           title="Delete"
+                         >
+                           <Trash2 className="h-3 w-3" />
+                         </Button>
+                       </div>
                     </div>
                   ))}
                   {documents.length === 0 && (
