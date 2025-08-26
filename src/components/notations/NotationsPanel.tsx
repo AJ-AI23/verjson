@@ -32,31 +32,21 @@ export const NotationsPanel = memo(({
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyUser, setReplyUser] = useState('');
   const [replyMessage, setReplyMessage] = useState('');
-  const [newNotationPath, setNewNotationPath] = useState<string | null>(null);
-  const [newUser, setNewUser] = useState('');
-  const [newMessage, setNewMessage] = useState('');
 
   const totalNotations = groupedNotations.reduce((sum, group) => sum + group.notations.length, 0);
 
   const handleResolve = (nodeId: string) => {
+    console.log('Resolving notation for nodeId:', nodeId);
     onReplyToNotation(nodeId, 'System', 'Resolved - Closed');
   };
 
   const handleReply = (nodeId: string) => {
     if (replyUser.trim() && replyMessage.trim()) {
+      console.log('Adding reply for nodeId:', nodeId);
       onReplyToNotation(nodeId, replyUser.trim(), replyMessage.trim());
       setReplyingTo(null);
       setReplyUser('');
       setReplyMessage('');
-    }
-  };
-
-  const handleAddNew = (nodeId: string) => {
-    if (newUser.trim() && newMessage.trim()) {
-      onAddNotation(nodeId, newUser.trim(), newMessage.trim());
-      setNewNotationPath(null);
-      setNewUser('');
-      setNewMessage('');
     }
   };
 
@@ -98,25 +88,14 @@ export const NotationsPanel = memo(({
                       <h3 className="font-medium text-slate-900">{group.path}</h3>
                       <Badge variant="outline">{group.notations.length}</Badge>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleResolve(group.nodeId)}
-                        className="flex items-center gap-1 text-green-600 hover:text-green-700"
-                      >
-                        Resolve
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setNewNotationPath(group.nodeId)}
-                        className="flex items-center gap-1"
-                      >
-                        <Plus className="h-3 w-3" />
-                        Add Note
-                      </Button>
-                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleResolve(group.nodeId)}
+                      className="flex items-center gap-1 text-green-600 hover:text-green-700"
+                    >
+                      Resolve
+                    </Button>
                   </div>
 
                   {/* Notations List */}
@@ -179,42 +158,7 @@ export const NotationsPanel = memo(({
                     </div>
                   )}
 
-                  {/* New Notation Form */}
-                  {newNotationPath === group.nodeId && (
-                    <div className="mt-3 p-3 bg-green-50 rounded">
-                      <div className="space-y-2">
-                        <Input
-                          placeholder="Your name"
-                          value={newUser}
-                          onChange={(e) => setNewUser(e.target.value)}
-                          className="text-sm"
-                        />
-                        <Textarea
-                          placeholder="Write your note..."
-                          value={newMessage}
-                          onChange={(e) => setNewMessage(e.target.value)}
-                          className="text-sm"
-                        />
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleAddNew(group.nodeId)}
-                            disabled={!newUser.trim() || !newMessage.trim()}
-                          >
-                            <Plus className="h-3 w-3 mr-1" />
-                            Add Note
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setNewNotationPath(null)}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  {/* New Notation Form - Remove this section */}
 
                   {group !== groupedNotations[groupedNotations.length - 1] && (
                     <Separator className="mt-4" />
