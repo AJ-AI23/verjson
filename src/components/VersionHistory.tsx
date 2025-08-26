@@ -34,6 +34,12 @@ interface VersionHistoryProps {
 
 export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onToggleSelection, onMarkAsReleased, onDeleteVersion }) => {
   console.log('🔍 VersionHistory: Component rendering with documentId:', documentId);
+  console.log('🔍 VersionHistory: Props received:', {
+    documentId,
+    hasOnToggleSelection: !!onToggleSelection,
+    hasOnMarkAsReleased: !!onMarkAsReleased,
+    hasOnDeleteVersion: !!onDeleteVersion
+  });
   
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewPatches, setPreviewPatches] = useState<SchemaPatch[]>([]);

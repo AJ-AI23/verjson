@@ -217,20 +217,14 @@ export const applySelectedPatches = (patches: SchemaPatch[]): any => {
   
   for (let i = startIndex; i < sortedPatches.length; i++) {
     const patch = sortedPatches[i];
-    if (patch.isSelected) {
-      // Handle versions with actual patches to apply
-      if (patch.patches && patch.patches.length > 0) {
-        try {
-          console.log(`Applying patch ${formatVersion(patch.version)}:`, patch.description);
-          schema = applyPatch(schema, patch.patches).newDocument;
-        } catch (err) {
-          console.error('Failed to apply patch:', patch, err);
-          toast.error(`Failed to apply version ${formatVersion(patch.version)}`);
-          throw err;
-        }
-      } else {
-        // Handle versions with no patches (empty versions are still valid selections)
-        console.log(`Version ${formatVersion(patch.version)} selected but has no patches to apply (empty version):`, patch.description);
+    if (patch.isSelected && patch.patches && patch.patches.length > 0) {
+      try {
+        console.log(`Applying patch ${formatVersion(patch.version)}:`, patch.description);
+        schema = applyPatch(schema, patch.patches).newDocument;
+      } catch (err) {
+        console.error('Failed to apply patch:', patch, err);
+        toast.error(`Failed to apply version ${formatVersion(patch.version)}`);
+        throw err;
       }
     }
   }
