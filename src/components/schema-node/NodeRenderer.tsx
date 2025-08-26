@@ -26,17 +26,17 @@ export const NodeRenderer = memo(({ data, id, isConnectable, onAddNotation, expa
 
   switch (nodeType) {
     case 'info':
-      return <InfoNode data={data} id={id} isConnectable={isConnectable} />;
+      return <InfoNode data={data} id={id} isConnectable={isConnectable} onAddNotation={onAddNotation} />;
     case 'endpoint':
-      return <EndpointNode data={data} id={id} isConnectable={isConnectable} />;
+      return <EndpointNode data={data} id={id} isConnectable={isConnectable} onAddNotation={onAddNotation} />;
     case 'components':
-      return <ComponentsNode data={data} id={id} isConnectable={isConnectable} />;
+      return <ComponentsNode data={data} id={id} isConnectable={isConnectable} onAddNotation={onAddNotation} />;
     case 'method':
-      return <MethodNode data={data} id={id} isConnectable={isConnectable} />;
+      return <MethodNode data={data} id={id} isConnectable={isConnectable} onAddNotation={onAddNotation} />;
     case 'response':
-      return <ResponseNode data={data} id={id} isConnectable={isConnectable} />;
+      return <ResponseNode data={data} id={id} isConnectable={isConnectable} onAddNotation={onAddNotation} />;
     case 'requestBody':
-      return <RequestBodyNode data={data} id={id} isConnectable={isConnectable} />;
+      return <RequestBodyNode data={data} id={id} isConnectable={isConnectable} onAddNotation={onAddNotation} />;
     default:
       return <SchemaTypeNode data={data} id={id} isConnectable={isConnectable} onAddNotation={onAddNotation} expandedNotationPaths={expandedNotationPaths} />;
   }
