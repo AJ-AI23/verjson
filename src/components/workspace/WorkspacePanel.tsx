@@ -194,24 +194,11 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   const handleBulkExport = async (selectedDocuments: any[]) => {
     try {
       const zip = new JSZip();
-      const usedFilenames = new Set<string>();
       
-      // Add each document to the ZIP file
+      // Add each document to the ZIP file with document ID appended
       selectedDocuments.forEach(document => {
         const jsonContent = JSON.stringify(document.content, null, 2);
-        let filename = `${document.name}.json`;
-        
-        // Check if filename already exists, if so append document ID
-        if (usedFilenames.has(filename)) {
-          filename = `${document.name}_${document.id}.json`;
-        }
-        
-        // Double check in case even the ID-appended name conflicts
-        if (usedFilenames.has(filename)) {
-          filename = `${document.name}_${document.id}_${Date.now()}.json`;
-        }
-        
-        usedFilenames.add(filename);
+        const filename = `${document.name}_${document.id}.json`;
         zip.file(filename, jsonContent);
       });
       
