@@ -29,7 +29,8 @@ export const Editor = () => {
     patches,
     isVersionHistoryOpen,
     toggleVersionHistory,
-    handleRevertToVersion,
+    handleToggleSelection,
+    handleMarkAsReleased,
     handleAddNotation,
     expandedNotationPaths
   } = useEditorState(defaultSchema);
@@ -71,7 +72,8 @@ export const Editor = () => {
         isOpen={isVersionHistoryOpen}
         onOpenChange={toggleVersionHistory}
         patches={patches}
-        onRevert={handleRevertToVersion}
+        onToggleSelection={handleToggleSelection}
+        onMarkAsReleased={handleMarkAsReleased}
       />
     </div>
   );

@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 
 interface VersionControlsProps {
   version: Version;
-  onVersionBump: (newVersion: Version, tier: VersionTier, description: string) => void;
+  onVersionBump: (newVersion: Version, tier: VersionTier, description: string, isReleased?: boolean) => void;
   isModified: boolean;
 }
 
@@ -19,6 +19,7 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
   const [description, setDescription] = useState('');
   const [selectedTier, setSelectedTier] = useState<VersionTier>('patch');
   const [editableVersion, setEditableVersion] = useState<Version>({ ...version });
+  const [isReleased, setIsReleased] = useState(false);
   
   // Update editable version when the prop version changes
   useEffect(() => {
@@ -36,9 +37,10 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
       return;
     }
     
-    onVersionBump(editableVersion, selectedTier, description);
+    onVersionBump(editableVersion, selectedTier, description, isReleased);
     setDescription('');
-    toast.success(`Version bumped to ${formatVersion(editableVersion)}`);
+    setIsReleased(false);
+    toast.success(`Version ${isReleased ? 'released' : 'created'}: ${formatVersion(editableVersion)}`);
   };
 
   const handleVersionChange = (part: keyof Version, value: string) => {
@@ -109,6 +111,19 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
             placeholder="Describe your changes"
             className="flex-1 text-xs p-1 border border-slate-300 rounded"
           />
+        </div>
+        
+        <div className="flex gap-2 items-center">
+          <span className="text-xs text-slate-500 w-20"></span>
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={isReleased}
+              onChange={(e) => setIsReleased(e.target.checked)}
+              className="w-4 h-4"
+            />
+            Mark as Released (stores full document)
+          </label>
         </div>
         
         <Button 

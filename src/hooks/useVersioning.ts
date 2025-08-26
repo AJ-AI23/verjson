@@ -9,7 +9,9 @@ import {
   loadPatches,
   savePatches,
   calculateLatestVersion,
-  revertToVersion,
+  applySelectedPatches,
+  togglePatchSelection,
+  markAsReleased,
   formatVersion
 } from '@/lib/versionUtils';
 
@@ -44,7 +46,7 @@ export const useVersioning = ({
     }
   }, []);
 
-  const handleVersionBump = (newVersion: Version, tier: VersionTier, description: string) => {
+  const handleVersionBump = (newVersion: Version, tier: VersionTier, description: string, isReleased: boolean = false) => {
     try {
       // Ensure the current schema is valid
       const parsedCurrentSchema = JSON.parse(schema);
@@ -56,7 +58,8 @@ export const useVersioning = ({
         parsedCurrentSchema, 
         newVersion, 
         tier, 
-        description
+        description,
+        isReleased
       );
       
       // Update patches
@@ -76,27 +79,35 @@ export const useVersioning = ({
     }
   };
 
-  const handleRevertToVersion = (targetPatch: SchemaPatch) => { // Accept SchemaPatch directly
-    console.log('handleRevertToVersion called with patch:', targetPatch);
+  const handleToggleSelection = (patchId: string) => {
     try {
-      // Parse the current schema
-      const parsedCurrentSchema = JSON.parse(schema);
-      console.log('Current schema parsed successfully');
+      const updatedPatches = togglePatchSelection(patches, patchId);
+      setPatches(updatedPatches);
+      savePatches(updatedPatches);
       
-      // Apply the reverse patches to get back to the target version
-      const revertedSchema = revertToVersion(parsedCurrentSchema, patches, targetPatch);
-      console.log('Reverted schema calculated:', revertedSchema);
+      // Apply selected patches to get new schema
+      const newSchema = applySelectedPatches(updatedPatches);
+      const newSchemaString = JSON.stringify(newSchema, null, 2);
+      setSchema(newSchemaString);
+      setSavedSchema(newSchemaString);
       
-      // Update the schema with the reverted one
-      const revertedSchemaString = JSON.stringify(revertedSchema, null, 2);
-      setSchema(revertedSchemaString);
-      setSavedSchema(revertedSchemaString);
-      console.log('Schema and savedSchema updated');
-      
-      toast.success(`Reverted to version ${formatVersion(targetPatch.version)}`);
     } catch (err) {
-      console.error('Error in handleRevertToVersion:', err);
-      toast.error('Failed to revert version', {
+      toast.error('Failed to toggle version selection', {
+        description: (err as Error).message,
+      });
+    }
+  };
+
+  const handleMarkAsReleased = (patchId: string) => {
+    try {
+      const parsedCurrentSchema = JSON.parse(schema);
+      const updatedPatches = markAsReleased(patches, patchId, parsedCurrentSchema);
+      setPatches(updatedPatches);
+      savePatches(updatedPatches);
+      
+      toast.success('Version marked as released');
+    } catch (err) {
+      toast.error('Failed to mark version as released', {
         description: (err as Error).message,
       });
     }
@@ -112,7 +123,8 @@ export const useVersioning = ({
     isModified,
     currentVersion,
     handleVersionBump,
-    handleRevertToVersion,
+    handleToggleSelection,
+    handleMarkAsReleased,
     toggleVersionHistory
   };
 };

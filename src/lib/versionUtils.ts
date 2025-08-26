@@ -19,8 +19,11 @@ export interface SchemaPatch {
   timestamp: number;
   version: Version;
   description: string;
-  patches: Operation[];
+  patches?: Operation[]; // Optional for released versions
   tier: VersionTier;
+  isReleased?: boolean; // Whether this version stores full document
+  fullDocument?: any; // Full document for released versions
+  isSelected?: boolean; // Whether this version is currently applied
 }
 
 // Format version as string (e.g., "1.0.0")
@@ -69,9 +72,10 @@ export const generatePatch = (
   currentSchema: any, 
   version: Version,
   tier: VersionTier,
-  description: string = ''
+  description: string = '',
+  isReleased: boolean = false
 ): SchemaPatch => {
-  const patches = compare(previousSchema, currentSchema);
+  const patches = isReleased ? undefined : compare(previousSchema, currentSchema);
   
   return {
     id: crypto.randomUUID(),
@@ -79,7 +83,10 @@ export const generatePatch = (
     version: { ...version },
     description,
     patches,
-    tier
+    tier,
+    isReleased,
+    fullDocument: isReleased ? currentSchema : undefined,
+    isSelected: true // New versions are selected by default
   };
 };
 
@@ -146,51 +153,83 @@ const reverseOperation = (op: Operation): Operation => {
   }
 };
 
-// Apply patches in reverse from current version back to target version
-export const revertToVersion = (
-  currentSchema: any, 
-  patches: SchemaPatch[], 
-  targetPatch: SchemaPatch
-): any => {
-  console.log('revertToVersion called');
-  console.log('Target patch:', targetPatch);
-  console.log('Available patches:', patches.length);
+// Apply selected patches to build the current schema
+export const applySelectedPatches = (patches: SchemaPatch[]): any => {
+  // Sort patches by timestamp, oldest first
+  const sortedPatches = [...patches].sort((a, b) => a.timestamp - b.timestamp);
   
-  // Sort patches by timestamp, newest first
-  const sortedPatches = [...patches].sort((a, b) => b.timestamp - a.timestamp);
-  console.log('Sorted patches:', sortedPatches.map(p => ({ version: p.version, timestamp: p.timestamp })));
+  // Find the latest released version as our base
+  let baseSchema = {};
+  let startIndex = 0;
   
-  // Find all patches that are newer than the target patch
-  const patchesToRevert = sortedPatches.filter(
-    patch => patch.timestamp > targetPatch.timestamp
-  );
-  console.log('Patches to revert:', patchesToRevert.length);
-  
-  if (patchesToRevert.length === 0) {
-    console.log('No patches to revert - already at requested version');
-    toast.info('Already at the requested version');
-    return currentSchema;
+  for (let i = sortedPatches.length - 1; i >= 0; i--) {
+    if (sortedPatches[i].isReleased && sortedPatches[i].isSelected) {
+      baseSchema = sortedPatches[i].fullDocument;
+      startIndex = i + 1;
+      break;
+    }
   }
   
-  let schema = { ...currentSchema };
+  // Apply all selected patches after the base
+  let schema = { ...baseSchema };
   
-  // Apply each patch in reverse
-  for (const patch of patchesToRevert) {
-    try {
-      // Reverse each operation in the patch
-      const reversedOperations = [...patch.patches]
-        .reverse() // Process operations in reverse order
-        .map(reverseOperation);
-      
-      // Apply reversed operations
-      schema = applyPatch(schema, reversedOperations).newDocument;
-      
-    } catch (err) {
-      console.error('Failed to revert patch:', err);
-      toast.error(`Failed to revert to version ${formatVersion(targetPatch.version)}`);
-      throw err;
+  for (let i = startIndex; i < sortedPatches.length; i++) {
+    const patch = sortedPatches[i];
+    if (patch.isSelected && patch.patches) {
+      try {
+        schema = applyPatch(schema, patch.patches).newDocument;
+      } catch (err) {
+        console.error('Failed to apply patch:', patch, err);
+        toast.error(`Failed to apply version ${formatVersion(patch.version)}`);
+        throw err;
+      }
     }
   }
   
   return schema;
+};
+
+// Toggle selection of a patch
+export const togglePatchSelection = (
+  patches: SchemaPatch[], 
+  patchId: string
+): SchemaPatch[] => {
+  const sortedPatches = [...patches].sort((a, b) => a.timestamp - b.timestamp);
+  const targetIndex = sortedPatches.findIndex(p => p.id === patchId);
+  
+  if (targetIndex === -1) return patches;
+  
+  const targetPatch = sortedPatches[targetIndex];
+  
+  // Check if this is before a released version (cannot be deselected)
+  const isBeforeReleased = sortedPatches.slice(targetIndex + 1).some(p => p.isReleased);
+  if (isBeforeReleased && targetPatch.isSelected) {
+    toast.error('Cannot deselect versions before a released version');
+    return patches;
+  }
+  
+  // Toggle the selection
+  return patches.map(p => 
+    p.id === patchId 
+      ? { ...p, isSelected: !p.isSelected }
+      : p
+  );
+};
+
+// Mark a version as released
+export const markAsReleased = (
+  patches: SchemaPatch[], 
+  patchId: string, 
+  currentSchema: any
+): SchemaPatch[] => {
+  return patches.map(p => 
+    p.id === patchId 
+      ? { 
+          ...p, 
+          isReleased: true, 
+          fullDocument: currentSchema,
+          patches: undefined // Remove patches as we now store full document
+        }
+      : p
+  );
 };

@@ -58,7 +58,8 @@ export const useEditorState = (defaultSchema: string) => {
     isModified,
     currentVersion,
     handleVersionBump,
-    handleRevertToVersion,
+    handleToggleSelection,
+    handleMarkAsReleased,
     toggleVersionHistory
   } = useVersioning({
     schema,
@@ -241,7 +242,8 @@ export const useEditorState = (defaultSchema: string) => {
     patches,
     isVersionHistoryOpen,
     toggleVersionHistory,
-    handleRevertToVersion,
+    handleToggleSelection,
+    handleMarkAsReleased,
     handleAddNotation,
     expandedNotationPaths
   };

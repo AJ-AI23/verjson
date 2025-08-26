@@ -8,25 +8,28 @@ import { SchemaPatch } from '@/lib/versionUtils'; // Added import for SchemaPatc
 interface EditorVersionDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  patches: SchemaPatch[]; // Changed from JsonPatch[] to SchemaPatch[]
-  onRevert: (patch: SchemaPatch) => void; // Changed parameter from index: number to patch: SchemaPatch
+  patches: SchemaPatch[];
+  onToggleSelection: (patchId: string) => void;
+  onMarkAsReleased: (patchId: string) => void;
 }
 
 export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({
   isOpen,
   onOpenChange,
   patches,
-  onRevert
+  onToggleSelection,
+  onMarkAsReleased
 }) => {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-4xl max-h-[80vh]">
         <DialogHeader>
           <DialogTitle>Version History</DialogTitle>
         </DialogHeader>
         <VersionHistory 
           patches={patches} 
-          onRevert={onRevert} 
+          onToggleSelection={onToggleSelection}
+          onMarkAsReleased={onMarkAsReleased}
         />
       </DialogContent>
     </Dialog>
