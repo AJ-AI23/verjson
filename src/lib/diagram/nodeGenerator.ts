@@ -323,6 +323,30 @@ export const createResponseNode = (
   };
 };
 
+export const createConsolidatedResponseNode = (
+  responses: Record<string, any>,
+  x: number,
+  y: number
+): Node => {
+  const statusCodes = Object.keys(responses).filter(code => 
+    responses[code]?.content?.['application/json']
+  );
+  
+  const nodeId = `responses-consolidated-${Math.random().toString(36).substr(2, 9)}`;
+  
+  return {
+    id: nodeId,
+    type: 'response',
+    position: { x, y },
+    data: {
+      statusCodes,
+      responses,
+      isConsolidated: true,
+      label: `${statusCodes.length} Response${statusCodes.length !== 1 ? 's' : ''}`
+    }
+  };
+};
+
 export const createRequestBodyNode = (
   requestBodyData: any,
   x: number,

@@ -5,7 +5,10 @@ import { Badge } from '@/components/ui/badge';
 
 interface ResponseNodeProps {
   data: {
-    statusCode: string;
+    statusCode?: string;
+    statusCodes?: string[];
+    responses?: Record<string, any>;
+    isConsolidated?: boolean;
     description?: string;
     schema?: any;
     label: string;
@@ -15,7 +18,7 @@ interface ResponseNodeProps {
 }
 
 export const ResponseNode = memo(({ data, isConnectable }: ResponseNodeProps) => {
-  const { statusCode, description } = data;
+  const { statusCode, statusCodes, responses, isConsolidated, description } = data;
 
   const getStatusColor = (code: string) => {
     const statusNum = parseInt(code);
@@ -44,15 +47,36 @@ export const ResponseNode = memo(({ data, isConnectable }: ResponseNodeProps) =>
       />
       
       <div className="flex flex-col gap-2">
-        <div className="flex flex-col gap-1">
-          <Badge 
-            variant="outline" 
-            className={cn('text-xs px-2 w-fit', getStatusColor(statusCode))}
-          >
-            {statusCode}
-          </Badge>
-          <span className="text-xs font-medium text-slate-700">Response</span>
-        </div>
+        {isConsolidated ? (
+          // Consolidated view showing multiple response codes
+          <div className="flex flex-col gap-1">
+            <div className="flex flex-wrap gap-1">
+              {statusCodes?.map((code) => (
+                <Badge 
+                  key={code}
+                  variant="outline" 
+                  className={cn('text-xs px-2', getStatusColor(code))}
+                >
+                  {code}
+                </Badge>
+              ))}
+            </div>
+            <span className="text-xs font-medium text-slate-700">
+              {statusCodes?.length === 1 ? 'Response' : 'Responses'}
+            </span>
+          </div>
+        ) : (
+          // Individual response view
+          <div className="flex flex-col gap-1">
+            <Badge 
+              variant="outline" 
+              className={cn('text-xs px-2 w-fit', getStatusColor(statusCode!))}
+            >
+              {statusCode}
+            </Badge>
+            <span className="text-xs font-medium text-slate-700">Response</span>
+          </div>
+        )}
         
         {description && (
           <div className="text-xs text-slate-600 line-clamp-2" title={description}>

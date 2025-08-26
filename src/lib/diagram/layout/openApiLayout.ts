@@ -9,7 +9,8 @@ import {
   createComponentsNode,
   createMethodNode,
   createResponseNode,
-  createRequestBodyNode
+  createRequestBodyNode,
+  createConsolidatedResponseNode
 } from '../nodeGenerator';
 import { createEdge } from '../edgeGenerator';
 
@@ -526,13 +527,21 @@ function processMethodDetails(
     
     console.log(`🔥 [OPENAPI LAYOUT] Responses path: ${responsesPath}, expanded: ${responsesExpanded}`);
     
-    if (responsesExpanded) {
-      Object.entries(methodData.responses).forEach(([statusCode, responseData]: [string, any]) => {
-        if (responseData?.content?.['application/json']) {
+    const responseEntries = Object.entries(methodData.responses)
+      .filter(([_, responseData]: [string, any]) => 
+        responseData?.content?.['application/json']
+      );
+    
+    if (responseEntries.length > 0) {
+      if (responsesExpanded) {
+        // EXPANDED MODE: Show individual response boxes
+        console.log(`🔥 [OPENAPI LAYOUT] Creating individual response boxes`);
+        
+        responseEntries.forEach(([statusCode, responseData]: [string, any], responseIndex) => {
           const responseNode = createResponseNode(
             statusCode,
             responseData,
-            methodX + 200,
+            methodX + 200 + (responseIndex * 150),
             yPos + 150 + responseOffset
           );
           
@@ -541,7 +550,7 @@ function processMethodDetails(
           result.nodes.push(responseNode);
           result.edges.push(responseEdge);
           
-          console.log(`🔥 [OPENAPI LAYOUT] Created response node for ${statusCode}`);
+          console.log(`🔥 [OPENAPI LAYOUT] Created individual response node for ${statusCode}`);
           
           // Check if the schema property is expanded for this response
           const schemaPath = `${methodPath}.responses.${statusCode}.content.application/json.schema`;
@@ -557,7 +566,7 @@ function processMethodDetails(
               'Schema',
               responseSchema,
               [],
-              methodX + 400,
+              methodX + 400 + (responseIndex * 150),
               yPos + 150 + responseOffset,
               false
             );
@@ -574,8 +583,32 @@ function processMethodDetails(
           }
           
           responseOffset += 100;
-        }
-      });
+        });
+      } else {
+        // CONSOLIDATED MODE: Show single consolidated response box
+        console.log(`🔥 [OPENAPI LAYOUT] Creating consolidated response box`);
+        
+        const consolidatedResponseNode = createConsolidatedResponseNode(
+          methodData.responses,
+          methodX + 200,
+          yPos + 150
+        );
+        
+        const responseEdge = createEdge(methodNode.id, consolidatedResponseNode.id, undefined, false, {}, 'default');
+        
+        result.nodes.push(consolidatedResponseNode);
+        result.edges.push(responseEdge);
+        
+        console.log(`🔥 [OPENAPI LAYOUT] Created consolidated response node`);
+        
+        // For consolidated view, check if any response has references and create dotted edges
+        responseEntries.forEach(([statusCode, responseData]: [string, any]) => {
+          const responseSchema = responseData.content['application/json'].schema;
+          if (responseSchema) {
+            handleSchemaReferences(responseSchema, consolidatedResponseNode.id, result);
+          }
+        });
+      }
     }
   }
 }
