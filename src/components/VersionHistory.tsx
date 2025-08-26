@@ -21,13 +21,18 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggl
     );
   }
 
-  // Sort patches by timestamp, newest first
-  const sortedPatches = [...patches].sort((a, b) => b.timestamp - a.timestamp);
+  // Sort patches by timestamp, oldest first to show initial version at top
+  const sortedPatches = [...patches].sort((a, b) => a.timestamp - b.timestamp);
   
-  // Check if a patch is before a released version
+  // Check if a patch is before a released version (but allow initial version to be deselected)
   const isBeforeReleased = (patch: SchemaPatch) => {
     const patchIndex = sortedPatches.findIndex(p => p.id === patch.id);
-    return sortedPatches.slice(0, patchIndex).some(p => p.isReleased);
+    return sortedPatches.slice(patchIndex + 1).some(p => p.isReleased && p.description !== 'Initial version');
+  };
+  
+  // Check if this is the initial version
+  const isInitialVersion = (patch: SchemaPatch) => {
+    return patch.description === 'Initial version' && patch.isReleased;
   };
   
   return (
@@ -45,31 +50,35 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggl
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-slate-200">
-          {sortedPatches.map((patch) => {
+          {sortedPatches.map((patch, index) => {
             const beforeReleased = isBeforeReleased(patch);
+            const isInitial = isInitialVersion(patch);
             return (
-              <tr key={patch.id} className={`hover:bg-slate-50 ${patch.isSelected ? 'bg-blue-50' : ''}`}>
+              <tr key={patch.id} className={`hover:bg-slate-50 ${patch.isSelected ? 'bg-blue-50' : ''} ${isInitial ? 'border-l-4 border-l-blue-500' : ''}`}>
                 <td className="px-3 py-2">
                   <Checkbox
                     checked={patch.isSelected}
                     disabled={beforeReleased && patch.isSelected}
                     onCheckedChange={() => onToggleSelection?.(patch.id)}
-                    title={beforeReleased && patch.isSelected ? 'Cannot deselect versions before a released version' : ''}
+                    title={
+                      isInitial ? 'Initial version - base document' :
+                      beforeReleased && patch.isSelected ? 'Cannot deselect versions before a released version' : ''
+                    }
                   />
                 </td>
                 <td className="px-3 py-2 font-mono text-xs">
                   <div className="flex items-center gap-2">
                     {formatVersion(patch.version)}
                     {patch.isReleased && (
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant={isInitial ? "default" : "secondary"} className="text-xs">
                         <Package size={10} className="mr-1" />
-                        Released
+                        {isInitial ? 'Initial' : 'Released'}
                       </Badge>
                     )}
                   </div>
                 </td>
                 <td className="px-3 py-2">
-                  <span title={patch.description}>
+                  <span title={patch.description} className={isInitial ? 'font-medium text-blue-700' : ''}>
                     {patch.description.length > 25 
                       ? `${patch.description.slice(0, 25)}...` 
                       : patch.description}
@@ -102,7 +111,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggl
                 </td>
                 {onMarkAsReleased && (
                   <td className="px-3 py-2">
-                    {!patch.isReleased && patch.isSelected && (
+                    {!patch.isReleased && !isInitial && patch.isSelected && (
                       <Button
                         size="sm"
                         variant="outline"

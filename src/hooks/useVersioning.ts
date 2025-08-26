@@ -40,11 +40,43 @@ export const useVersioning = ({
   // Load patches from localStorage on component mount
   useEffect(() => {
     const storedPatches = loadPatches();
-    if (storedPatches.length > 0) {
+    
+    // Check if we need to create an initial released version
+    const hasInitialVersion = storedPatches.some(p => p.description === 'Initial version');
+    
+    if (!hasInitialVersion && savedSchema) {
+      try {
+        const parsedSchema = JSON.parse(savedSchema);
+        const initialPatch = generatePatch(
+          {}, // Empty previous schema
+          parsedSchema,
+          { major: 0, minor: 1, patch: 0 },
+          'minor',
+          'Initial version',
+          true // Mark as released
+        );
+        
+        const updatedPatches = [initialPatch, ...storedPatches];
+        setPatches(updatedPatches);
+        savePatches(updatedPatches);
+        
+        if (storedPatches.length === 0) {
+          toast.info('Created initial version v0.1.0');
+        } else {
+          toast.info(`Loaded ${storedPatches.length} versions + initial version`);
+        }
+      } catch (err) {
+        console.error('Failed to create initial version:', err);
+        if (storedPatches.length > 0) {
+          setPatches(storedPatches);
+          toast.info(`Loaded ${storedPatches.length} version entries`);
+        }
+      }
+    } else if (storedPatches.length > 0) {
       setPatches(storedPatches);
       toast.info(`Loaded ${storedPatches.length} version entries`);
     }
-  }, []);
+  }, [savedSchema]);
 
   const handleVersionBump = (newVersion: Version, tier: VersionTier, description: string, isReleased: boolean = false) => {
     try {
