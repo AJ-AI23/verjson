@@ -148,31 +148,31 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
     event.target.value = '';
   };
 
-  const handleDocumentExport = (document: any) => {
-    console.log('🔽 Export button clicked, document:', document);
-    console.log('🔽 Document content:', document?.content);
-    console.log('🔽 Document name:', document?.name);
-    console.log('🔽 Document ID:', document?.id);
+  const handleDocumentExport = (doc: any) => {
+    console.log('🔽 Export button clicked, document:', doc);
+    console.log('🔽 Document content:', doc?.content);
+    console.log('🔽 Document name:', doc?.name);
+    console.log('🔽 Document ID:', doc?.id);
     
-    if (!document) {
+    if (!doc) {
       console.error('❌ Export failed: Document is null/undefined');
       toast.error('Cannot export - document is missing');
       return;
     }
     
-    if (!document.content) {
+    if (!doc.content) {
       console.error('❌ Export failed: Document content is missing');
       toast.error('Cannot export - document content is missing');
       return;
     }
     
-    if (!document.name) {
+    if (!doc.name) {
       console.error('❌ Export failed: Document name is missing');
       toast.error('Cannot export - document name is missing');
       return;
     }
     
-    if (!document.id) {
+    if (!doc.id) {
       console.error('❌ Export failed: Document ID is missing');
       toast.error('Cannot export - document ID is missing');
       return;
@@ -180,7 +180,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
     
     try {
       console.log('🔽 Starting JSON stringify...');
-      const dataStr = JSON.stringify(document.content, null, 2);
+      const dataStr = JSON.stringify(doc.content, null, 2);
       console.log('🔽 JSON stringify completed, length:', dataStr.length);
       
       console.log('🔽 Creating blob...');
@@ -194,7 +194,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
       console.log('🔽 Creating download link...');
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${document.name}_${document.id}.json`;
+      link.download = `${doc.name}_${doc.id}.json`;
       link.style.display = 'none'; // Hide the link
       
       console.log('🔽 Download filename:', link.download);
@@ -214,7 +214,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
       console.log('🔽 Cleanup completed');
       
       console.log('✅ Export completed successfully');
-      toast.success(`Document exported: ${document.name}_${document.id}.json`);
+      toast.success(`Document exported: ${doc.name}_${doc.id}.json`);
     } catch (error) {
       console.error('❌ Export error details:', error);
       console.error('❌ Error message:', error?.message);
@@ -473,25 +473,25 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
               </div>
               <ScrollArea className="h-64 border rounded-md">
                 <div className="p-2 space-y-1">
-                  {documents.map((document) => (
+                  {documents.map((doc) => (
                     <div
-                      key={document.id}
+                      key={doc.id}
                       className={`flex items-center justify-between p-2 rounded-md hover:bg-accent cursor-pointer transition-all duration-200 hover-scale ${
-                        selectedDocument?.id === document.id ? 'bg-accent animate-fade-in' : ''
+                        selectedDocument?.id === doc.id ? 'bg-accent animate-fade-in' : ''
                       }`}
-                      onClick={() => onDocumentSelect(document)}
+                      onClick={() => onDocumentSelect(doc)}
                     >
                       <div className="flex items-center flex-1 min-w-0">
                         <File className="h-4 w-4 mr-2 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium truncate">
-                            {document.name}
+                            {doc.name}
                           </div>
                           <div className="flex items-center gap-1">
                             <Badge variant="secondary" className="text-xs">
-                              {document.file_type}
+                              {doc.file_type}
                             </Badge>
-                            {documentPinStatus[document.id] && (
+                            {documentPinStatus[doc.id] && (
                               <div title="PIN Protected">
                                 <Shield className="h-3 w-3 text-amber-600" />
                               </div>
@@ -505,21 +505,21 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                            variant="ghost"
                            onClick={(e) => {
                              e.stopPropagation();
-                             console.log('🔽 Export button clicked for document:', document.name);
-                             handleDocumentExport(document);
+                             console.log('🔽 Export button clicked for document:', doc.name);
+                             handleDocumentExport(doc);
                            }}
                            className="h-6 w-6 p-0 hover:bg-accent-foreground/10 hover:text-accent-foreground transition-colors"
                            title="Export"
                          >
                            <Download className="h-3 w-3" />
                          </Button>
-                         {isDocumentOwner && selectedDocument?.id === document.id && (
+                         {isDocumentOwner && selectedDocument?.id === doc.id && (
                            <Button
                              size="sm"
                              variant="ghost"
                              onClick={(e) => {
                                e.stopPropagation();
-                               handlePinSetup(document);
+                               handlePinSetup(doc);
                              }}
                              className="h-6 w-6 p-0 hover:bg-accent-foreground/10 hover:text-accent-foreground transition-colors"
                              title="Security Settings"
@@ -532,7 +532,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                            variant="ghost"
                            onClick={(e) => {
                              e.stopPropagation();
-                             setDocumentToDelete(document);
+                             setDocumentToDelete(doc);
                              setDeleteDialogOpen(true);
                            }}
                            className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive transition-colors"
