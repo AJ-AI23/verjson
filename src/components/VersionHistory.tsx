@@ -80,6 +80,14 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggl
   
   // Get summary of schema for display
   const getSchemaSummary = (schema: any) => {
+    console.log('getSchemaSummary called with:', {
+      schema: schema,
+      type: typeof schema,
+      keys: schema ? Object.keys(schema) : 'no keys',
+      isObject: schema && typeof schema === 'object',
+      keysLength: schema ? Object.keys(schema).length : 0
+    });
+    
     if (!schema || typeof schema !== 'object') return 'Empty schema';
     
     const keys = Object.keys(schema);
@@ -91,7 +99,14 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggl
     if (schema.paths) summary.push(`Paths: ${Object.keys(schema.paths).length}`);
     if (schema.components?.schemas) summary.push(`Schemas: ${Object.keys(schema.components.schemas).length}`);
     
-    return summary.length > 0 ? summary.join(', ') : `${keys.length} top-level properties`;
+    // For JSON Schema, also check for schema-specific properties
+    if (schema.title) summary.push(`Title: ${schema.title}`);
+    if (schema.properties) summary.push(`Properties: ${Object.keys(schema.properties).length}`);
+    if (schema.type) summary.push(`Type: ${schema.type}`);
+    
+    const result = summary.length > 0 ? summary.join(', ') : `${keys.length} top-level properties`;
+    console.log('getSchemaSummary result:', result);
+    return result;
   };
   if (patches.length === 0) {
     return (
