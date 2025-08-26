@@ -47,14 +47,8 @@ export const generateOpenApiLayout = (
     return result;
   }
   
-  // Check if root.properties is explicitly expanded
-  const rootPropertiesPath = 'root.properties';
-  const rootPropertiesExpanded = collapsedPaths[rootPropertiesPath] === false;
-  
-  console.log(`[OPENAPI LAYOUT] Root properties path: ${rootPropertiesPath}, expanded: ${rootPropertiesExpanded}`);
-  
-  // For OpenAPI schemas, we don't use root.properties path, we use direct paths like root.info, root.paths
-  // Check if we have any expanded OpenAPI properties
+  // For OpenAPI schemas, when root is expanded, we should show the OpenAPI structure
+  // Check if we have any expanded OpenAPI properties OR if root is simply expanded (making properties visible)
   const hasExpandedOpenApiProps = Object.keys(collapsedPaths).some(path => 
     path.startsWith('root.') && 
     !path.startsWith('root.properties') && 
@@ -62,15 +56,20 @@ export const generateOpenApiLayout = (
     collapsedPaths[path] === false
   );
   
-  console.log(`[OPENAPI LAYOUT] Has expanded OpenAPI properties: ${hasExpandedOpenApiProps}`);
-  console.log(`[OPENAPI LAYOUT] Expanded OpenAPI paths:`, 
+  // If root is expanded (not collapsed), we should show OpenAPI structure boxes
+  const shouldShowOpenApiStructure = !rootCollapsed || hasExpandedOpenApiProps;
+  
+  console.log(`🔥 [OPENAPI LAYOUT] Root collapsed: ${rootCollapsed}`);
+  console.log(`🔥 [OPENAPI LAYOUT] Has expanded OpenAPI properties: ${hasExpandedOpenApiProps}`);
+  console.log(`🔥 [OPENAPI LAYOUT] Should show OpenAPI structure: ${shouldShowOpenApiStructure}`);
+  console.log(`🔥 [OPENAPI LAYOUT] Expanded OpenAPI paths:`, 
     Object.keys(collapsedPaths)
       .filter(path => path.startsWith('root.') && !path.startsWith('root.properties') && path !== 'root')
       .map(path => ({ path, expanded: collapsedPaths[path] === false }))
   );
   
-  // Process OpenAPI properties if we have any expanded ones
-  if (hasExpandedOpenApiProps) {
+  // Process OpenAPI properties if root is expanded or if we have specific expanded properties
+  if (shouldShowOpenApiStructure) {
     console.log('[OPENAPI LAYOUT] Root properties are explicitly expanded, processing OpenAPI structure');
     
     let yOffset = 150;
