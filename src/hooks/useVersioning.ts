@@ -34,7 +34,7 @@ export const useVersioning = ({
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   
   // Track the true database version separately from savedSchema
-  const [databaseVersion, setDatabaseVersion] = useState<string>(savedSchema);
+  const [databaseVersion, setDatabaseVersion] = useState<string>('');
   
   // Track if we've already attempted to create initial version for this document
   const initialVersionAttempted = useRef<string | null>(null);
@@ -75,6 +75,7 @@ export const useVersioning = ({
   useEffect(() => {
     if (documentId && savedSchema && !databaseVersion) {
       // Only set initial database version if not already set
+      console.log('Setting initial database version for new document');
       setDatabaseVersion(savedSchema);
     }
   }, [documentId, savedSchema, databaseVersion]);
