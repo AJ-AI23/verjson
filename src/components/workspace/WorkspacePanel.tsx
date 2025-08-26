@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { DeleteConfirmationDialog } from './DeleteConfirmationDialog';
 import { CollaboratorsPanel } from './CollaboratorsPanel';
 import { BulkInviteDialog } from './BulkInviteDialog';
+import { BulkExportDialog } from './BulkExportDialog';
 import { WorkspaceInviteDialog } from './WorkspaceInviteDialog';
 import { DocumentPinSetupDialog } from './DocumentPinSetupDialog';
 import { useWorkspacePermissions } from '@/hooks/useWorkspacePermissions';
@@ -66,6 +67,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   // New invitation dialog states
   const [showWorkspaceInviteDialog, setShowWorkspaceInviteDialog] = useState(false);
   const [showBulkInviteDialog, setShowBulkInviteDialog] = useState(false);
+  const [showBulkExportDialog, setShowBulkExportDialog] = useState(false);
   
   // PIN security dialog states
   const [showPinSetupDialog, setShowPinSetupDialog] = useState(false);
@@ -186,6 +188,13 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
 
   const handleBulkDocumentInvite = async (email: string, documentIds: string[], role: 'editor' | 'viewer') => {
     return await inviteBulkDocuments(email, documentIds, role);
+  };
+
+  const handleBulkExport = (selectedDocuments: any[]) => {
+    selectedDocuments.forEach(document => {
+      handleDocumentExport(document);
+    });
+    toast.success(`Exported ${selectedDocuments.length} document${selectedDocuments.length !== 1 ? 's' : ''}`);
   };
 
   const handlePinSetup = async (document: any) => {
@@ -364,13 +373,9 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                     size="sm" 
                     variant="ghost" 
                     className="h-7 w-7 p-0"
-                    onClick={() => {
-                      if (selectedDocument) {
-                        handleDocumentExport(selectedDocument);
-                      }
-                    }}
-                    disabled={!selectedDocument}
-                    title="Export Selected"
+                    onClick={() => setShowBulkExportDialog(true)}
+                    disabled={documents.length === 0}
+                    title="Export Multiple"
                   >
                     <Download className="h-3 w-3" />
                   </Button>
@@ -519,6 +524,13 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
         documentName={pinSetupDocument?.name || ''}
         currentlyHasPin={pinSetupDocument ? (documentPinStatus[pinSetupDocument.id] || false) : false}
         onPinStatusChange={handlePinStatusChange}
+      />
+
+      <BulkExportDialog
+        open={showBulkExportDialog}
+        onOpenChange={setShowBulkExportDialog}
+        documents={documents}
+        onExport={handleBulkExport}
       />
     </div>
   );
