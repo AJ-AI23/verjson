@@ -14,6 +14,7 @@ import {
   formatVersion
 } from '@/lib/versionUtils';
 import { useDocumentVersions } from '@/hooks/useDocumentVersions';
+import { supabase } from '@/integrations/supabase/client';
 
 interface UseVersioningProps {
   schema: string;
@@ -99,11 +100,23 @@ export const useVersioning = ({
       return;
     }
     
-    // Only create if no versions exist at all
+    // Only create if no versions exist at all - with additional database check
     const createInitialVersion = async () => {
       try {
         // Mark attempt immediately to prevent concurrent creation
         initialVersionAttempted.current = documentId;
+        
+        // Double-check database to ensure no versions exist before creating
+        const { data: existingVersions } = await supabase
+          .from('document_versions')
+          .select('id')
+          .eq('document_id', documentId)
+          .limit(1);
+          
+        if (existingVersions && existingVersions.length > 0) {
+          console.log('Initial version already exists in database, skipping creation');
+          return;
+        }
         
         const parsedSchema = JSON.parse(currentSchemaToUse);
         // Only create initial version if the schema has actual content
