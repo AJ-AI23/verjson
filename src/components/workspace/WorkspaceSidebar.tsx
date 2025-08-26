@@ -21,7 +21,6 @@ export function WorkspaceSidebar({ onDocumentSelect, onDocumentDeleted, selected
     <Sidebar
       className="transition-all duration-300"
       collapsible="icon"
-      style={{ '--sidebar-width': '24rem' } as React.CSSProperties}
     >
       <SidebarContent className="flex flex-col h-full">
         <div className={`transition-all duration-300 ${isCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'} flex-1`}>

@@ -95,7 +95,13 @@ const Index = () => {
   }
 
   return (
-    <SidebarProvider defaultOpen={true}>
+    <SidebarProvider 
+      defaultOpen={true} 
+      style={{ 
+        '--sidebar-width': '24rem',
+        '--sidebar-width-mobile': '24rem' 
+      } as React.CSSProperties}
+    >
       <div className="min-h-screen bg-background flex w-full">
         <WorkspaceSidebar 
           onDocumentSelect={handleDocumentSelect}
