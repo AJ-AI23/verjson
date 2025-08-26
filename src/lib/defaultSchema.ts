@@ -5,12 +5,34 @@ export const defaultSchema = `{
   "title": "GenericObject",
   "description": "A generic schema blueprint for any JSON object.",
   "type": "object",
+  "$notations": [
+    {
+      "id": "note-1",
+      "timestamp": "2024-01-15T10:30:00Z",
+      "user": "alice",
+      "message": "This is the root schema - might need validation updates"
+    }
+  ],
   "properties": {
     "exampleString": {
       "type": "string",
       "description": "A simple string field",
       "customAttribute": "test value",
-      "maxLength": 50
+      "maxLength": 50,
+      "$notations": [
+        {
+          "id": "note-2", 
+          "timestamp": "2024-01-15T11:00:00Z",
+          "user": "bob",
+          "message": "Should we increase the maxLength to 100?"
+        },
+        {
+          "id": "note-3",
+          "timestamp": "2024-01-15T11:15:00Z", 
+          "user": "alice",
+          "message": "Good point, let's discuss this in the next review."
+        }
+      ]
     },
     "exampleNumber": {
       "type": "number",
@@ -34,7 +56,15 @@ export const defaultSchema = `{
       "type": "object",
       "properties": {
         "nestedField": {
-          "type": "integer"
+          "type": "integer",
+          "$notations": [
+            {
+              "id": "note-4",
+              "timestamp": "2024-01-15T12:00:00Z",
+              "user": "charlie", 
+              "message": "This field needs better validation constraints"
+            }
+          ]
         }
       },
       "required": ["nestedField"]

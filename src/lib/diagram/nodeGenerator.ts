@@ -1,6 +1,7 @@
 
 import { Node } from '@xyflow/react';
 import { PropertyDetails } from './types';
+import { extractNotations, getNotationCount, STANDARD_SCHEMA_PROPS } from './notationUtils';
 
 export const createRootNode = (schema: any): Node => {
   // Handle OpenAPI schemas differently
@@ -38,6 +39,17 @@ export const createRootNode = (schema: any): Node => {
   }
   
   // Handle regular JSON schemas
+  // Extract notations for root schema
+  const notations = extractNotations(schema);
+  const notationCount = getNotationCount(schema);
+  
+  console.log('createRootNode - notations:', {
+    notations,
+    notationCount,
+    hasNotations: notationCount > 0,
+    schemaKeys: Object.keys(schema)
+  });
+  
   return {
     id: 'root',
     type: 'schemaType',
@@ -47,7 +59,10 @@ export const createRootNode = (schema: any): Node => {
       type: schema.type,
       description: schema.description,
       isRoot: true,
-      properties: schema.properties ? Object.keys(schema.properties).length : 0
+      properties: schema.properties ? Object.keys(schema.properties).length : 0,
+      notations: notations,
+      notationCount: notationCount,
+      hasNotations: notationCount > 0
     }
   };
 };
@@ -102,7 +117,6 @@ export const createArrayNode = (
   };
 };
 
-import { extractNotations, getNotationCount, STANDARD_SCHEMA_PROPS } from './notationUtils';
 
 export const createPropertyNode = (
   propName: string,
@@ -130,6 +144,9 @@ export const createPropertyNode = (
     propSchema: Object.keys(propSchema),
     additionalProps,
     additionalPropsCount: additionalProps.length,
+    notations,
+    notationCount,
+    hasNotations: notationCount > 0,
     isCollapsed
   });
 
