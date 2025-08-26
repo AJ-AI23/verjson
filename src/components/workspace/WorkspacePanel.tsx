@@ -254,7 +254,7 @@ export function WorkspacePanel({ onDocumentSelect, selectedDocument, isCollapsed
                 <Button size="sm" variant="outline" className="flex-1" asChild>
                   <label className="cursor-pointer">
                     <Upload className="h-4 w-4 mr-2" />
-                    Import JSON
+                    Import
                     <input
                       type="file"
                       accept=".json,.yaml,.yml"
@@ -276,7 +276,7 @@ export function WorkspacePanel({ onDocumentSelect, selectedDocument, isCollapsed
                   disabled={!selectedDocument}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  Export JSON
+                  Export
                 </Button>
               </div>
             </div>
