@@ -129,13 +129,14 @@ export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProp
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-2">
                         <Crown className="h-4 w-4 text-yellow-600" />
-                        <span className="font-medium">Owner</span>
+                        <div className="flex flex-col">
+                          <span className="font-medium">You</span>
+                        </div>
                       </div>
                       <Badge className={getRoleColor('owner')}>
                         Owner
                       </Badge>
                     </div>
-                    <span className="text-sm text-muted-foreground">You</span>
                   </div>
 
                   {/* Collaborators */}
