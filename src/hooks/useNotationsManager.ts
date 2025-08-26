@@ -6,6 +6,7 @@ interface GroupedNotation {
   path: string;
   nodeId: string;
   notations: NotationComment[];
+  isResolved?: boolean;
 }
 
 export const useNotationsManager = (schema: string) => {
@@ -21,10 +22,15 @@ export const useNotationsManager = (schema: string) => {
         if (hasNotations(obj)) {
           const notations = extractNotations(obj);
           if (notations.length > 0) {
+            const isResolved = notations.some(notation => 
+              notation.message === 'Resolved - Closed' && notation.user === 'System'
+            );
+            
             groups.push({
               path,
               nodeId: path,
-              notations
+              notations,
+              isResolved
             });
           }
         }
@@ -52,10 +58,15 @@ export const useNotationsManager = (schema: string) => {
             if (hasNotations(pathValue)) {
               const notations = extractNotations(pathValue);
               if (notations.length > 0) {
+                const isResolved = notations.some(notation => 
+                  notation.message === 'Resolved - Closed' && notation.user === 'System'
+                );
+                
                 groups.push({
                   path: `paths.${pathKey}`,
                   nodeId: `endpoint-${pathKey.replace(/[^a-zA-Z0-9]/g, '-')}`,
-                  notations
+                  notations,
+                  isResolved
                 });
               }
             }
@@ -84,12 +95,19 @@ export const useNotationsManager = (schema: string) => {
       };
 
       traverseSchema(parsed);
-      return groups;
+      
+      // Filter out resolved notations from active count
+      const activeGroups = groups.filter(group => !group.isResolved);
+      return { allGroups: groups, activeGroups };
     } catch (error) {
       console.error('Error extracting notations:', error);
-      return [];
+      return { allGroups: [], activeGroups: [] };
     }
   }, [schema]);
 
-  return { groupedNotations };
+  return { 
+    groupedNotations: groupedNotations.activeGroups,
+    allNotations: groupedNotations.allGroups,
+    activeNotationCount: groupedNotations.activeGroups.reduce((sum, group) => sum + group.notations.length, 0)
+  };
 };

@@ -38,6 +38,10 @@ export const NotationsPanel = memo(({
 
   const totalNotations = groupedNotations.reduce((sum, group) => sum + group.notations.length, 0);
 
+  const handleResolve = (nodeId: string) => {
+    onReplyToNotation(nodeId, 'System', 'Resolved - Closed');
+  };
+
   const handleReply = (nodeId: string) => {
     if (replyUser.trim() && replyMessage.trim()) {
       onReplyToNotation(nodeId, replyUser.trim(), replyMessage.trim());
@@ -94,15 +98,25 @@ export const NotationsPanel = memo(({
                       <h3 className="font-medium text-slate-900">{group.path}</h3>
                       <Badge variant="outline">{group.notations.length}</Badge>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setNewNotationPath(group.nodeId)}
-                      className="flex items-center gap-1"
-                    >
-                      <Plus className="h-3 w-3" />
-                      Add Note
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleResolve(group.nodeId)}
+                        className="flex items-center gap-1 text-green-600 hover:text-green-700"
+                      >
+                        Resolve
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setNewNotationPath(group.nodeId)}
+                        className="flex items-center gap-1"
+                      >
+                        <Plus className="h-3 w-3" />
+                        Add Note
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Notations List */}

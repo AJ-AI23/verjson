@@ -42,10 +42,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
 }) => {
   const { updateMaxDepth } = useEditorSettings();
   const [isNotationsPanelOpen, setIsNotationsPanelOpen] = useState(false);
-  const { groupedNotations } = useNotationsManager(schema);
+  const { groupedNotations, activeNotationCount } = useNotationsManager(schema);
   
-  const totalNotations = groupedNotations.reduce((sum, group) => sum + group.notations.length, 0);
-
   const handleAddNotation = (nodeId: string, user: string, message: string) => {
     if (onAddNotation) {
       onAddNotation(nodeId, user, message);
@@ -110,9 +108,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         >
           <MessageCircle className="h-4 w-4" />
           <span>Notations</span>
-          {totalNotations > 0 && (
+          {activeNotationCount > 0 && (
             <Badge variant="secondary" className="ml-1 h-5 min-w-5 text-xs">
-              {totalNotations}
+              {activeNotationCount}
             </Badge>
           )}
         </Button>
