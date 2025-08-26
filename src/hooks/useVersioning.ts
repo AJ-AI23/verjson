@@ -48,6 +48,7 @@ export const useVersioning = ({
     if (!hasInitialVersion && savedSchema) {
       try {
         const parsedSchema = JSON.parse(savedSchema);
+        console.log('Creating initial version with schema:', parsedSchema);
         const initialPatch = generatePatch(
           {}, // Empty previous schema
           parsedSchema,
@@ -57,6 +58,7 @@ export const useVersioning = ({
           true // Mark as released
         );
         
+        console.log('Created initial patch:', initialPatch);
         const updatedPatches = [initialPatch, ...storedPatches];
         setPatches(updatedPatches);
         savePatches(updatedPatches);
