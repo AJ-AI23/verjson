@@ -56,6 +56,8 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   // Delete confirmation dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<any>(null);
+  const [workspaceDeleteDialogOpen, setWorkspaceDeleteDialogOpen] = useState(false);
+  const [workspaceToDelete, setWorkspaceToDelete] = useState<any>(null);
   const [newDocumentName, setNewDocumentName] = useState('');
   const [newDocumentType, setNewDocumentType] = useState<'json-schema' | 'openapi'>('json-schema');
   const [showWorkspaceDialog, setShowWorkspaceDialog] = useState(false);
@@ -162,6 +164,17 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
     }
   };
 
+  const handleConfirmWorkspaceDelete = async () => {
+    if (workspaceToDelete) {
+      await deleteWorkspace(workspaceToDelete.id);
+      setWorkspaceToDelete(null);
+      // Clear selected workspace if it was the deleted one
+      if (selectedWorkspace === workspaceToDelete.id) {
+        setSelectedWorkspace('');
+      }
+    }
+  };
+
   const isDocumentOwner = selectedDocument && user ? selectedDocument.user_id === user.id : false;
   const isWorkspaceOwner = selectedWorkspace && workspaces.find(w => w.id === selectedWorkspace)?.user_id === user?.id;
 
@@ -254,9 +267,25 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
             <SelectContent>
               {workspaces.map((workspace) => (
                 <SelectItem key={workspace.id} value={workspace.id}>
-                  <div className="flex items-center">
-                    <Folder className="h-4 w-4 mr-2" />
-                    {workspace.name}
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center">
+                      <Folder className="h-4 w-4 mr-2" />
+                      {workspace.name}
+                    </div>
+                    {workspace.user_id === user?.id && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setWorkspaceToDelete(workspace);
+                          setWorkspaceDeleteDialogOpen(true);
+                        }}
+                        className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
                   </div>
                 </SelectItem>
               ))}
@@ -463,6 +492,15 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
         onOpenChange={setDeleteDialogOpen}
         onConfirmDelete={handleConfirmDelete}
         documentName={documentToDelete?.name || ''}
+      />
+
+      <DeleteConfirmationDialog
+        open={workspaceDeleteDialogOpen}
+        onOpenChange={setWorkspaceDeleteDialogOpen}
+        onConfirmDelete={handleConfirmWorkspaceDelete}
+        documentName={workspaceToDelete?.name || ''}
+        title="Delete Workspace"
+        description={`Are you sure you want to delete workspace "${workspaceToDelete?.name}"? This will also delete all documents within this workspace. This action cannot be undone.`}
       />
 
       <WorkspaceInviteDialog

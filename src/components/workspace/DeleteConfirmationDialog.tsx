@@ -16,6 +16,8 @@ interface DeleteConfirmationDialogProps {
   onOpenChange: (open: boolean) => void;
   onConfirmDelete: () => void;
   documentName: string;
+  title?: string;
+  description?: string;
 }
 
 export function DeleteConfirmationDialog({
@@ -23,6 +25,8 @@ export function DeleteConfirmationDialog({
   onOpenChange,
   onConfirmDelete,
   documentName,
+  title = "Confirm Document Deletion",
+  description = "You are about to permanently delete the document:",
 }: DeleteConfirmationDialogProps) {
   const [pin, setPin] = useState('');
   const [enteredPin, setEnteredPin] = useState('');
@@ -60,13 +64,13 @@ export function DeleteConfirmationDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-destructive">
             <AlertTriangle className="h-5 w-5" />
-            Confirm Document Deletion
+            {title}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            You are about to permanently delete the document:
+            {description}
           </p>
           
           <div className="p-3 bg-muted rounded-md">
@@ -114,7 +118,7 @@ export function DeleteConfirmationDialog({
           </div>
 
           <p className="text-xs text-muted-foreground">
-            This action cannot be undone. The document and all its data will be permanently deleted.
+            This action cannot be undone. {title.includes('Workspace') ? 'The workspace and all its documents will be permanently deleted.' : 'The document and all its data will be permanently deleted.'}
           </p>
         </div>
 
@@ -127,7 +131,7 @@ export function DeleteConfirmationDialog({
             onClick={handleConfirm}
             disabled={enteredPin.length !== 6}
           >
-            Delete Document
+            {title.includes('Workspace') ? 'Delete Workspace' : 'Delete Document'}
           </Button>
         </DialogFooter>
       </DialogContent>
