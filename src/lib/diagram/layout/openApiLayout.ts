@@ -261,23 +261,67 @@ function processComponentsSchemas(
   const schemaNames = Object.keys(schemas);
   const startX = xPos - (schemaNames.length * xSpacing) / 2 + xSpacing / 2;
   
-  schemaNames.forEach((schemaName, index) => {
+  // First pass: Calculate which schemas have expanded properties and their heights
+  const schemaLayoutInfo = schemaNames.map((schemaName, index) => {
     const schemaValue = schemas[schemaName];
-    const schemaX = startX + index * xSpacing;
     const schemaPath = `${parentPath}.${schemaName}`;
-    
     const isSchemaCollapsed = collapsedPaths[schemaPath] === true;
     
-    console.log(`🔥 [OPENAPI LAYOUT] Processing schema ${schemaName}, path: ${schemaPath}, collapsed: ${isSchemaCollapsed}`);
+    let hasExpandedProperties = false;
+    let propertiesCount = 0;
+    
+    if (!isSchemaCollapsed && schemaValue?.type === 'object' && schemaValue?.properties && maxDepth > 1) {
+      const schemaPropertiesPath = `${schemaPath}.properties`;
+      const schemaPropertiesExpanded = collapsedPaths[schemaPropertiesPath] === false;
+      
+      if (schemaPropertiesExpanded) {
+        hasExpandedProperties = true;
+        propertiesCount = Object.keys(schemaValue.properties).length;
+      }
+    }
+    
+    return {
+      name: schemaName,
+      value: schemaValue,
+      path: schemaPath,
+      index,
+      isCollapsed: isSchemaCollapsed,
+      hasExpandedProperties,
+      propertiesCount,
+      // Calculate estimated height needed for this schema if properties are expanded
+      estimatedHeight: hasExpandedProperties ? Math.max(150, propertiesCount * 80) : 0
+    };
+  });
+  
+  // Second pass: Calculate cumulative Y positions to avoid overlaps
+  let currentYOffset = 0;
+  const schemaPositions = schemaLayoutInfo.map((schema, index) => {
+    const schemaX = startX + index * xSpacing;
+    const schemaY = yPos + currentYOffset;
+    
+    // If this schema has expanded properties, we need to add extra space for the next schema
+    if (schema.hasExpandedProperties) {
+      currentYOffset += schema.estimatedHeight + 50; // Add some padding between schemas
+    }
+    
+    return {
+      ...schema,
+      x: schemaX,
+      y: schemaY
+    };
+  });
+  
+  // Third pass: Create nodes and edges with calculated positions
+  schemaPositions.forEach((schema) => {
+    console.log(`🔥 [OPENAPI LAYOUT] Processing schema ${schema.name}, path: ${schema.path}, collapsed: ${schema.isCollapsed}, hasExpandedProps: ${schema.hasExpandedProperties}`);
     
     // Always create schema node when showing components.schemas structure (regardless of individual collapse state)
-    // Treat this as a regular JSON schema
     const schemaNode = createPropertyNode(
-      schemaName,
-      schemaValue,
+      schema.name,
+      schema.value,
       [],
-      schemaX,
-      yPos,
+      schema.x,
+      schema.y,
       false // Don't mark as collapsed since we're already checking
     );
     
@@ -286,29 +330,24 @@ function processComponentsSchemas(
     result.nodes.push(schemaNode);
     result.edges.push(edge);
     
-    console.log(`🔥 [OPENAPI LAYOUT] Created schema node for ${schemaName}`);
+    console.log(`🔥 [OPENAPI LAYOUT] Created schema node for ${schema.name} at position (${schema.x}, ${schema.y})`);
     
     // Only process schema properties if the schema is explicitly expanded
-    if (!isSchemaCollapsed && schemaValue?.type === 'object' && schemaValue?.properties && maxDepth > 1) {
-      const schemaPropertiesPath = `${schemaPath}.properties`;
-      const schemaPropertiesExpanded = collapsedPaths[schemaPropertiesPath] === false;
+    if (schema.hasExpandedProperties) {
+      console.log(`🔥 [OPENAPI LAYOUT] Creating properties for ${schema.name} with ${schema.propertiesCount} properties`);
       
-      console.log(`🔥 [OPENAPI LAYOUT] Schema ${schemaName} properties path: ${schemaPropertiesPath}, expanded: ${schemaPropertiesExpanded}`);
-      
-      if (schemaPropertiesExpanded) {
-        processJsonSchemaProperties(
-          schemaValue.properties,
-          schemaValue.required || [],
-          schemaNode.id,
-          schemaX,
-          yPos + 150,
-          xSpacing * 0.8,
-          result,
-          maxDepth - 1,
-          collapsedPaths,
-          schemaPath
-        );
-      }
+      processJsonSchemaProperties(
+        schema.value.properties,
+        schema.value.required || [],
+        schemaNode.id,
+        schema.x,
+        schema.y + 150, // Properties positioned below the schema node
+        xSpacing * 0.8,
+        result,
+        maxDepth - 1,
+        collapsedPaths,
+        schema.path
+      );
     }
   });
 }
