@@ -75,62 +75,63 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   };
 
   return (
-    <div className="mb-6">
+    <div className="mb-4">
       <Card className="border-border/50 bg-card/50">
-        <CardContent className="p-4">
+        <CardContent className="p-3">
           {/* Document Information Section */}
           {selectedDocument ? (
-            <div className="mb-4">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  {getFileTypeIcon(selectedDocument.file_type)}
-                  <div>
-                    <h3 className="font-semibold text-foreground truncate max-w-xs">
+            <div className="mb-3">
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-4 min-w-0 flex-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {getFileTypeIcon(selectedDocument.file_type)}
+                    <h3 className="font-semibold text-foreground truncate">
                       {selectedDocument.name}
                     </h3>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
-                      <span className="flex items-center gap-1">
-                        ID: <code className="bg-muted px-1 rounded text-xs">{selectedDocument.id}</code>
-                      </span>
-                      <Badge variant="secondary" className="text-xs">
-                        {getFileTypeLabel(selectedDocument.file_type)}
-                      </Badge>
-                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      ID: <code className="bg-muted px-1 rounded text-xs">{selectedDocument.id}</code>
+                    </span>
+                    <Badge variant="secondary" className="text-xs">
+                      {getFileTypeLabel(selectedDocument.file_type)}
+                    </Badge>
                   </div>
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-3 w-3" />
-                  <span>Created: {formatDate(selectedDocument.created_at)}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="h-3 w-3" />
-                  <span>Updated: {formatDate(selectedDocument.updated_at)}</span>
+                
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    <span>Created: {formatDate(selectedDocument.created_at)}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    <span>Updated: {formatDate(selectedDocument.updated_at)}</span>
+                  </div>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="mb-4">
-              <div className="flex items-center gap-3 mb-2">
+            <div className="mb-3">
+              <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-muted-foreground" />
-                <h3 className="font-semibold text-muted-foreground">No document selected</h3>
+                <h3 className="text-sm font-semibold text-muted-foreground">No document selected</h3>
+                <span className="text-xs text-muted-foreground">— Select a document from the workspace panel</span>
               </div>
-              <p className="text-xs text-muted-foreground">Select a document from the workspace panel to start editing</p>
             </div>
           )}
 
-          <Separator className="my-4" />
+          <Separator className="my-3" />
 
           {/* Controls Section */}
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={() => toggleVersionHistory(true)}
-                className="gap-2"
+                className="gap-2 h-8"
                 disabled={!selectedDocument}
               >
                 <Save className="h-4 w-4" />
@@ -141,13 +142,13 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 variant="outline" 
                 size="sm" 
                 onClick={() => setIsNotationsPanelOpen(true)}
-                className="gap-2 relative"
+                className="gap-2 relative h-8"
                 disabled={!selectedDocument}
               >
                 <MessageCircle className="h-4 w-4" />
                 <span>Notations</span>
                 {activeNotationCount > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-5 min-w-5 text-xs">
+                  <Badge variant="secondary" className="ml-1 h-4 min-w-4 text-xs">
                     {activeNotationCount}
                   </Badge>
                 )}
@@ -169,7 +170,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                   console.log('[DEBUG] Slider changed to:', value);
                   updateMaxDepth(value);
                 }}
-                className="w-32"
+                className="w-28"
                 disabled={!selectedDocument}
               />
             </div>
