@@ -20,6 +20,11 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
   const [selectedTier, setSelectedTier] = useState<VersionTier>('patch');
   const [editableVersion, setEditableVersion] = useState<Version>(() => ({ ...version }));
   const [isReleased, setIsReleased] = useState(false);
+  
+  // Update editable version when the version prop changes (e.g., from history selection)
+  useEffect(() => {
+    setEditableVersion({ ...version });
+  }, [version.major, version.minor, version.patch]);
 
   const handleBumpVersion = () => {
     if (!isModified) {
