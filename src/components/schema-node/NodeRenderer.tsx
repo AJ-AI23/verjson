@@ -11,9 +11,10 @@ interface NodeRendererProps {
   data: any;
   id: string;
   isConnectable: boolean;
+  onAddNotation?: (nodeId: string, user: string, message: string) => void;
 }
 
-export const NodeRenderer = memo(({ data, id, isConnectable }: NodeRendererProps) => {
+export const NodeRenderer = memo(({ data, id, isConnectable, onAddNotation }: NodeRendererProps) => {
   const nodeType = data.nodeType || (id.includes('info') ? 'info' : 
                    id.includes('endpoint') ? 'endpoint' :
                    id.includes('components') ? 'components' :
@@ -36,7 +37,7 @@ export const NodeRenderer = memo(({ data, id, isConnectable }: NodeRendererProps
     case 'requestBody':
       return <RequestBodyNode data={data} id={id} isConnectable={isConnectable} />;
     default:
-      return <SchemaTypeNode data={data} id={id} isConnectable={isConnectable} />;
+      return <SchemaTypeNode data={data} id={id} isConnectable={isConnectable} onAddNotation={onAddNotation} />;
   }
 });
 

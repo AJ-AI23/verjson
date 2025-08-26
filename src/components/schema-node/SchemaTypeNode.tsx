@@ -49,9 +49,10 @@ interface SchemaTypeNodeProps {
   };
   id: string;
   isConnectable: boolean;
+  onAddNotation?: (nodeId: string, user: string, message: string) => void;
 }
 
-export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeProps) => {
+export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation }: SchemaTypeNodeProps) => {
   const {
     label,
     type,
@@ -76,6 +77,12 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
   } = data;
 
   const [isNotationsExpanded, setIsNotationsExpanded] = useState(false);
+
+  const handleAddNotation = (user: string, message: string) => {
+    if (onAddNotation) {
+      onAddNotation(id, user, message);
+    }
+  };
 
   // Memoize the node container classes to prevent recalculation
   const nodeContainerClasses = useMemo(() => {
@@ -112,11 +119,12 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
             format={format}
             reference={reference}
           />
-          {hasNotations && (
+          {(hasNotations || onAddNotation) && (
             <NotationsIndicator
               count={notationCount}
               isExpanded={isNotationsExpanded}
               onClick={() => setIsNotationsExpanded(!isNotationsExpanded)}
+              hasAddFunction={!!onAddNotation}
             />
           )}
         </div>
@@ -133,10 +141,11 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
           <PropertyDetails propertyDetails={propertyDetails} />
         )}
 
-        {hasNotations && (
+        {(hasNotations || onAddNotation) && (
           <NotationsPanel
             notations={notations}
             isExpanded={isNotationsExpanded}
+            onAddNotation={onAddNotation ? handleAddNotation : undefined}
           />
         )}
 

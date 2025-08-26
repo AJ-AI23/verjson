@@ -5,6 +5,7 @@ import { parseJsonSchema, validateJsonSchema, extractSchemaComponents, SchemaTyp
 import { CollapsedState } from '@/lib/diagram/types';
 import { useVersioning } from '@/hooks/useVersioning';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
+import { addNotationToSchema, getPropertyPathFromNodeId } from '@/lib/diagram/schemaNotationUtils';
 
 export const useEditorState = (defaultSchema: string) => {
   const [schema, setSchema] = useState(defaultSchema);
@@ -172,6 +173,31 @@ export const useEditorState = (defaultSchema: string) => {
     setCollapsedPaths({ root: true });
   };
 
+  const handleAddNotation = useCallback((nodeId: string, user: string, message: string) => {
+    try {
+      const path = getPropertyPathFromNodeId(nodeId);
+      const currentParsedSchema = parsedSchema || JSON.parse(schema);
+      
+      const updatedSchema = addNotationToSchema(currentParsedSchema, path, {
+        timestamp: new Date().toISOString(),
+        user,
+        message
+      });
+      
+      const updatedSchemaString = JSON.stringify(updatedSchema, null, 2);
+      setSchema(updatedSchemaString);
+      
+      toast.success('Comment added successfully', {
+        description: `Added comment to ${path === 'root' ? 'root schema' : path}`
+      });
+    } catch (error) {
+      console.error('Failed to add notation:', error);
+      toast.error('Failed to add comment', {
+        description: 'Please try again'
+      });
+    }
+  }, [parsedSchema, schema]);
+
   return {
     schema,
     setSchema,
@@ -192,6 +218,7 @@ export const useEditorState = (defaultSchema: string) => {
     patches,
     isVersionHistoryOpen,
     toggleVersionHistory,
-    handleRevertToVersion
+    handleRevertToVersion,
+    handleAddNotation
   };
 };

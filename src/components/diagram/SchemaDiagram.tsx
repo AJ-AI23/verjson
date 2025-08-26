@@ -10,6 +10,7 @@ interface SchemaDiagramProps {
   groupProperties?: boolean;
   collapsedPaths?: CollapsedState;
   maxDepth?: number;
+  onAddNotation?: (nodeId: string, user: string, message: string) => void;
 }
 
 export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
@@ -17,7 +18,8 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   error,
   groupProperties,
   collapsedPaths,
-  maxDepth
+  maxDepth,
+  onAddNotation
 }) => {
   // Debug output to help diagnose issues
   useEffect(() => {
@@ -63,6 +65,7 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
         groupProperties={groupProperties}
         collapsedPaths={collapsedPaths}
         maxDepth={maxDepth}
+        onAddNotation={onAddNotation}
       />
     </div>
   );

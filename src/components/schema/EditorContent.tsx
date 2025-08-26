@@ -19,6 +19,7 @@ interface EditorContentProps {
   onEditorChange: (value: string) => void;
   onVersionBump: (newVersion: Version, tier: VersionTier, description: string) => void;
   onToggleCollapse: (path: string, isCollapsed: boolean) => void;
+  onAddNotation?: (nodeId: string, user: string, message: string) => void;
 }
 
 export const EditorContent: React.FC<EditorContentProps> = ({
@@ -33,6 +34,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
   onEditorChange,
   onVersionBump,
   onToggleCollapse,
+  onAddNotation,
 }) => {
   return (
     <SplitPane>
@@ -57,6 +59,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
         groupProperties={groupProperties}
         collapsedPaths={collapsedPaths}
         maxDepth={maxDepth}
+        onAddNotation={onAddNotation}
       />
     </SplitPane>
   );

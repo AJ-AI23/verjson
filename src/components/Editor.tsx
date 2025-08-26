@@ -29,7 +29,8 @@ export const Editor = () => {
     patches,
     isVersionHistoryOpen,
     toggleVersionHistory,
-    handleRevertToVersion
+    handleRevertToVersion,
+    handleAddNotation
   } = useEditorState(defaultSchema);
   
   return (
@@ -59,6 +60,7 @@ export const Editor = () => {
         onEditorChange={handleEditorChange}
         onVersionBump={handleVersionBump}
         onToggleCollapse={handleToggleCollapse}
+        onAddNotation={handleAddNotation}
       />
       
       {/* Version History Dialog */}

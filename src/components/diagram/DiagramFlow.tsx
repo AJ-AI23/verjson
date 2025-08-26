@@ -1,13 +1,7 @@
 
 import React, { useCallback, useEffect, useRef, memo } from 'react';
 import { ReactFlow, Background, Controls, Node, Edge, ReactFlowInstance, OnNodesChange, OnEdgesChange } from '@xyflow/react';
-import { SchemaTypeNode } from '@/components/SchemaTypeNode';
-import { InfoNode } from '@/components/schema-node/InfoNode';
-import { EndpointNode } from '@/components/schema-node/EndpointNode';
-import { ComponentsNode } from '@/components/schema-node/ComponentsNode';
-import { MethodNode } from '@/components/schema-node/MethodNode';
-import { ResponseNode } from '@/components/schema-node/ResponseNode';
-import { RequestBodyNode } from '@/components/schema-node/RequestBodyNode';
+import { NodeRenderer } from '@/components/schema-node/NodeRenderer';
 
 interface DiagramFlowProps {
   nodes: Node[];
@@ -16,16 +10,17 @@ interface DiagramFlowProps {
   onEdgesChange: OnEdgesChange;
   schemaKey: number;
   shouldFitView: boolean;
+  onAddNotation?: (nodeId: string, user: string, message: string) => void;
 }
 
 const nodeTypes = {
-  schemaType: SchemaTypeNode,
-  info: InfoNode,
-  endpoint: EndpointNode,
-  components: ComponentsNode,
-  method: MethodNode,
-  response: ResponseNode,
-  requestBody: RequestBodyNode,
+  schemaType: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} />,
+  info: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} />,
+  endpoint: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} />,
+  components: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} />,
+  method: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} />,
+  response: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} />,
+  requestBody: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} />,
 };
 
 export const DiagramFlow = memo(({
@@ -34,7 +29,8 @@ export const DiagramFlow = memo(({
   onNodesChange,
   onEdgesChange,
   schemaKey,
-  shouldFitView
+  shouldFitView,
+  onAddNotation
 }: DiagramFlowProps) => {
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const viewportRef = useRef<{ x: number; y: number; zoom: number }>({ x: 0, y: 0, zoom: 1 });
@@ -100,11 +96,20 @@ export const DiagramFlow = memo(({
     }
   }, [nodes]);
 
+  // Add onAddNotation to all nodes
+  const nodesWithNotationCallback = nodes.map(node => ({
+    ...node,
+    data: {
+      ...node.data,
+      onAddNotation
+    }
+  }));
+
   return (
     <div className="flex-1 min-h-0 diagram-container" data-testid="diagram-flow">
       <ReactFlow
         key={`flow-${schemaKey}`}
-        nodes={nodes}
+        nodes={nodesWithNotationCallback}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
