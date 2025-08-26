@@ -19,7 +19,7 @@ export function WorkspaceSidebar({ onDocumentSelect, onDocumentDeleted, selected
 
   return (
     <Sidebar
-      className="transition-all duration-300"
+      className="transition-all duration-300 w-96"
       collapsible="icon"
     >
       <SidebarContent className="flex flex-col h-full">
