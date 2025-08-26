@@ -43,18 +43,18 @@ export const Editor = ({ initialSchema, onSave, documentName }: EditorProps) => 
   } = useEditorState(initialSchema || defaultSchema);
 
   // Update editor state when initialSchema changes (document selection)
+  const lastLoadedSchemaRef = React.useRef<any>(null);
+  
   React.useEffect(() => {
-    if (initialSchema && typeof initialSchema === 'object') {
+    if (initialSchema && typeof initialSchema === 'object' && initialSchema !== lastLoadedSchemaRef.current) {
       const schemaString = JSON.stringify(initialSchema, null, 2);
-      if (schemaString !== schema) {
-        console.log('Loading new document content into editor');
-        setSchema(schemaString);
-        setSavedSchema(schemaString);
-        // Reset collapsed paths when loading a new document
-        setCollapsedPaths({ root: true });
-      }
+      console.log('Loading new document content into editor:', schemaString.substring(0, 100));
+      setSchema(schemaString);
+      setSavedSchema(schemaString);
+      setCollapsedPaths({ root: true });
+      lastLoadedSchemaRef.current = initialSchema;
     }
-  }, [initialSchema, schema, setSchema, setSavedSchema, setCollapsedPaths]);
+  }, [initialSchema, setSchema, setSavedSchema, setCollapsedPaths]);
 
   // Track if this is the initial load to prevent auto-save on document load
   const [hasUserMadeChanges, setHasUserMadeChanges] = React.useState(false);
