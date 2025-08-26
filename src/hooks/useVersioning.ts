@@ -203,7 +203,7 @@ export const useVersioning = ({
       
       setSchema(newSchemaString);
       setSavedSchema(newSchemaString);
-      setDatabaseVersion(newSchemaString); // Update database version to reflect current patch state
+      // Don't update databaseVersion here - it should only reflect actually committed versions
       
       console.log('Schema updated successfully');
     } catch (err) {
@@ -258,7 +258,11 @@ export const useVersioning = ({
       const newSchemaString = JSON.stringify(newSchema, null, 2);
       setSchema(newSchemaString);
       setSavedSchema(newSchemaString);
-      setDatabaseVersion(newSchemaString); // Update database version to reflect current patch state
+      
+      // If no versions remain, reset database version to allow new commits
+      if (result.updatedPatches.length === 0) {
+        setDatabaseVersion('');
+      }
       
       toast.success('Version deleted successfully');
     } catch (err) {
