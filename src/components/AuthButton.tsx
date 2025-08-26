@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,10 +10,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, LogOut } from 'lucide-react';
+import { User, LogOut, Settings } from 'lucide-react';
+import { UserSettingsDialog } from './UserSettingsDialog';
 
 export function AuthButton() {
   const { user, signOut, loading } = useAuth();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   if (loading) {
     return <div className="w-8 h-8 animate-pulse bg-muted rounded-full" />;
@@ -55,11 +57,19 @@ export function AuthButton() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => setSettingsOpen(true)} className="cursor-pointer">
+          <Settings className="mr-2 h-4 w-4" />
+          <span>Account Settings</span>
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={signOut} className="cursor-pointer">
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
+      <UserSettingsDialog 
+        open={settingsOpen} 
+        onOpenChange={setSettingsOpen} 
+      />
     </DropdownMenu>
   );
 }
