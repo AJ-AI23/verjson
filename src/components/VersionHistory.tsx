@@ -428,12 +428,6 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
         </tbody>
       </table>
       
-      {/* Current Schema Summary */}
-      <div className="mt-4 p-3 bg-blue-50 rounded-lg border">
-        <h4 className="text-sm font-medium text-blue-800 mb-2">Current Schema Summary</h4>
-        <p className="text-sm text-blue-700">{getSchemaSummary(currentSchema)}</p>
-      </div>
-      
       {/* Preview Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
