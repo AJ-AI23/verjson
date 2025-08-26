@@ -78,45 +78,49 @@ export const generateOpenApiLayout = (
     // Create special nodes for info, paths, and components based on collapsed state
     const specialNodes = [];
     
-    // Create Info node if info exists and is not collapsed
+    // Always create Info node when showing OpenAPI structure (regardless of individual collapse state)
     if (schema.info) {
       const infoPath = 'root.info';
-      const infoCollapsed = collapsedPaths[infoPath] === true;
+      const infoExplicitlyExpanded = collapsedPaths[infoPath] === false || 
+        (collapsedPaths[infoPath] && typeof collapsedPaths[infoPath] === 'object');
       
-      console.log(`[OPENAPI LAYOUT] Info path: ${infoPath}, collapsed: ${infoCollapsed}`);
+      console.log(`🔥 [OPENAPI LAYOUT] Info path: ${infoPath}, explicitly expanded: ${infoExplicitlyExpanded}`);
       
-      if (!infoCollapsed) {
-        const infoNode = createInfoNode(schema.info, -400, yOffset);
-        const infoEdge = createEdge('root', infoNode.id, undefined, false, {}, 'default');
-        result.nodes.push(infoNode);
-        result.edges.push(infoEdge);
-        specialNodes.push('info');
-        console.log(`[OPENAPI LAYOUT] Created info node with ID: ${infoNode.id}`);
-        console.log(`[OPENAPI LAYOUT] Created info edge:`, infoEdge);
-      }
+      // Always create info box when showing OpenAPI structure
+      const infoNode = createInfoNode(schema.info, -400, yOffset);
+      const infoEdge = createEdge('root', infoNode.id, undefined, false, {}, 'default');
+      result.nodes.push(infoNode);
+      result.edges.push(infoEdge);
+      specialNodes.push('info');
+      console.log(`🔥 [OPENAPI LAYOUT] Created info node with ID: ${infoNode.id}`);
+      
+      // If info is explicitly expanded, process its internal structure (if any)
+      // Note: Info typically doesn't have expandable children, but keeping this for consistency
     }
     
-    // Create Components node if components.schemas exists and is not collapsed
+    // Always create Components node when showing OpenAPI structure (regardless of individual collapse state)
     if (schema.components?.schemas) {
       const componentsPath = 'root.components';
-      const componentsCollapsed = collapsedPaths[componentsPath] === true;
+      const componentsExplicitlyExpanded = collapsedPaths[componentsPath] === false || 
+        (collapsedPaths[componentsPath] && typeof collapsedPaths[componentsPath] === 'object');
       
-      console.log(`[OPENAPI LAYOUT] Components path: ${componentsPath}, collapsed: ${componentsCollapsed}`);
+      console.log(`🔥 [OPENAPI LAYOUT] Components path: ${componentsPath}, explicitly expanded: ${componentsExplicitlyExpanded}`);
       
-      if (!componentsCollapsed) {
-        const componentsNode = createComponentsNode(schema.components.schemas, 0, yOffset);
-        const componentsEdge = createEdge('root', componentsNode.id, undefined, false, {}, 'default');
-        result.nodes.push(componentsNode);
-        result.edges.push(componentsEdge);
-        specialNodes.push('components');
-        console.log(`[OPENAPI LAYOUT] Created components node with ID: ${componentsNode.id}`);
-        console.log(`[OPENAPI LAYOUT] Created components edge:`, componentsEdge);
-        
+      // Always create components box when showing OpenAPI structure
+      const componentsNode = createComponentsNode(schema.components.schemas, 0, yOffset);
+      const componentsEdge = createEdge('root', componentsNode.id, undefined, false, {}, 'default');
+      result.nodes.push(componentsNode);
+      result.edges.push(componentsEdge);
+      specialNodes.push('components');
+      console.log(`🔥 [OPENAPI LAYOUT] Created components node with ID: ${componentsNode.id}`);
+      
+      // Only create individual schema nodes if components is explicitly expanded
+      if (componentsExplicitlyExpanded) {
         // Create individual schema nodes connected to components if components.schemas is expanded
         const componentsSchemasPath = 'root.components.schemas';
         const componentsSchemasExpanded = collapsedPaths[componentsSchemasPath] === false;
         
-        console.log(`[OPENAPI LAYOUT] Components schemas path: ${componentsSchemasPath}, expanded: ${componentsSchemasExpanded}`);
+        console.log(`🔥 [OPENAPI LAYOUT] Components schemas path: ${componentsSchemasPath}, expanded: ${componentsSchemasExpanded}`);
         
         if (componentsSchemasExpanded) {
           processComponentsSchemas(
