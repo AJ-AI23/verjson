@@ -78,7 +78,8 @@ export const useJsonEditor = ({
   } = useJsonEditorFolding({ 
     editorRef, 
     onToggleCollapse,
-    collapsedPaths
+    collapsedPaths,
+    parsedSchema
   });
 
   // Use our setup hook
