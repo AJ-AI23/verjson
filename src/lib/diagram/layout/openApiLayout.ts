@@ -134,7 +134,7 @@ export const generateOpenApiLayout = (
       }
     }
     
-    // Create Paths container box when showing OpenAPI structure
+    // Always create Paths container box when showing OpenAPI structure
     if (schema.paths) {
       const pathsPath = 'root.paths';
       const pathsExplicitlyExpanded = collapsedPaths[pathsPath] === false || 
@@ -142,40 +142,40 @@ export const generateOpenApiLayout = (
       
       console.log(`🔥 [OPENAPI LAYOUT] Paths path: ${pathsPath}, explicitly expanded: ${pathsExplicitlyExpanded}`);
       
-      if (!pathsExplicitlyExpanded) {
-        // Show Paths container box (when root.paths is NOT explicitly expanded)
-        const pathsContainerNode = createPropertyNode(
-          'Paths',
-          { 
-            type: 'object', 
-            description: `API endpoints (${Object.keys(schema.paths).length} endpoints)`,
-            properties: schema.paths
-          },
-          [],
-          400,
-          yOffset,
-          false
-        );
-        
-        const pathsContainerEdge = createEdge('root', pathsContainerNode.id, undefined, false, {}, 'default');
-        result.nodes.push(pathsContainerNode);
-        result.edges.push(pathsContainerEdge);
-        console.log(`🔥 [OPENAPI LAYOUT] Created paths container node with ID: ${pathsContainerNode.id}`);
-      } else {
-        // Show individual endpoint boxes (when root.paths IS explicitly expanded)
-        console.log(`🔥 [OPENAPI LAYOUT] Creating individual endpoint boxes instead of container`);
+      // Always create the Paths container box
+      const pathsContainerNode = createPropertyNode(
+        'Paths',
+        { 
+          type: 'object', 
+          description: `API endpoints (${Object.keys(schema.paths).length} endpoints)`,
+          properties: schema.paths
+        },
+        [],
+        400,
+        yOffset,
+        false
+      );
+      
+      const pathsContainerEdge = createEdge('root', pathsContainerNode.id, undefined, false, {}, 'default');
+      result.nodes.push(pathsContainerNode);
+      result.edges.push(pathsContainerEdge);
+      console.log(`🔥 [OPENAPI LAYOUT] Created paths container node with ID: ${pathsContainerNode.id}`);
+      
+      // If paths is explicitly expanded, also create individual endpoint boxes connected to the container
+      if (pathsExplicitlyExpanded) {
+        console.log(`🔥 [OPENAPI LAYOUT] Creating individual endpoint boxes connected to paths container`);
         processOpenApiPaths(
           schema.paths,
-          'root', // Connect directly to root instead of paths container
+          pathsContainerNode.id, // Connect to paths container
           400,
-          yOffset, // Same level as other OpenAPI structure boxes
+          yOffset + 200, // Position below the paths container
           200,
           result,
           maxDepth,
           collapsedPaths,
           'root.paths'
         );
-        console.log(`🔥 [OPENAPI LAYOUT] Processed individual paths`);
+        console.log(`🔥 [OPENAPI LAYOUT] Processed individual paths connected to container`);
       }
     }
     
