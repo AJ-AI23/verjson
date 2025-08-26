@@ -12,9 +12,11 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User, LogOut, Settings } from 'lucide-react';
 import { UserSettingsDialog } from './UserSettingsDialog';
+import { useUserProfile } from '@/hooks/useUserProfile';
 
 export function AuthButton() {
   const { user, signOut, loading } = useAuth();
+  const { getDisplayName } = useUserProfile();
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   if (loading) {
@@ -49,7 +51,7 @@ export function AuthButton() {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">
-              {user.user_metadata?.full_name || user.email?.split('@')[0]}
+              {getDisplayName()}
             </p>
             <p className="text-xs leading-none text-muted-foreground">
               {user.email}

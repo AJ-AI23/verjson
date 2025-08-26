@@ -2,8 +2,8 @@ import React, { memo, useState } from 'react';
 import { Plus, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import { NotationComment } from '@/types/notations';
+import { useUserProfile } from '@/hooks/useUserProfile';
 
 interface NotationsPanelProps {
   notations: NotationComment[];
@@ -13,16 +13,16 @@ interface NotationsPanelProps {
 
 export const NotationsPanel = memo(({ notations, isExpanded, onAddNotation }: NotationsPanelProps) => {
   const [isAddingComment, setIsAddingComment] = useState(false);
-  const [newUser, setNewUser] = useState('');
   const [newMessage, setNewMessage] = useState('');
+  const { getNotationUsername } = useUserProfile();
   if (!isExpanded) {
     return null;
   }
 
   const handleAddComment = () => {
-    if (newUser.trim() && newMessage.trim() && onAddNotation) {
-      onAddNotation(newUser.trim(), newMessage.trim());
-      setNewUser('');
+    const username = getNotationUsername();
+    if (username && newMessage.trim() && onAddNotation) {
+      onAddNotation(username, newMessage.trim());
       setNewMessage('');
       setIsAddingComment(false);
     }
@@ -81,12 +81,10 @@ export const NotationsPanel = memo(({ notations, isExpanded, onAddNotation }: No
 
       {isAddingComment && (
         <div className="bg-slate-50 border border-slate-200 rounded p-2 space-y-2">
-          <Input
-            placeholder="Your username"
-            value={newUser}
-            onChange={(e) => setNewUser(e.target.value)}
-            className="h-7 text-xs"
-          />
+          <div className="flex items-center gap-2 text-xs text-slate-600">
+            <span>Posting as:</span>
+            <span className="font-medium">@{getNotationUsername()}</span>
+          </div>
           <Textarea
             placeholder="Add your comment..."
             value={newMessage}
@@ -98,7 +96,7 @@ export const NotationsPanel = memo(({ notations, isExpanded, onAddNotation }: No
             <Button
               size="sm"
               onClick={handleAddComment}
-              disabled={!newUser.trim() || !newMessage.trim()}
+              disabled={!newMessage.trim()}
               className="h-7 px-3 text-xs"
             >
               <Send className="w-3 h-3 mr-1" />
