@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import {
   Version,
@@ -33,6 +33,9 @@ export const useVersioning = ({
   const [patches, setPatches] = useState<SchemaPatch[]>([]);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   
+  // Track if we've already attempted to create initial version for this document
+  const initialVersionAttempted = useRef<string | null>(null);
+  
   // Use database operations for document versions
   const {
     versions,
@@ -55,21 +58,30 @@ export const useVersioning = ({
     setPatches(schemaPatches);
   }, [versions, getSchemaPatches]);
 
-  // Load or create initial version when document is loaded
+  // Create initial version when document is loaded (only once per document)
   useEffect(() => {
     if (!documentId || !savedSchema || savedSchema.trim() === '{}' || savedSchema.trim() === '') {
       return;
     }
 
-    // Check if we need to create an initial version
-    const hasInitialVersion = patches.some(p => p.description === 'Initial version');
+    // Don't create if we've already attempted for this document
+    if (initialVersionAttempted.current === documentId) {
+      return;
+    }
+
+    // Check if versions have loaded and if there's already an initial version
+    if (loading) {
+      return; // Wait for versions to load
+    }
+
+    const hasInitialVersion = versions.some(v => v.description === 'Initial version');
     
     if (!hasInitialVersion) {
       try {
         const parsedSchema = JSON.parse(savedSchema);
         // Only create initial version if the schema has actual content
         if (Object.keys(parsedSchema).length > 0) {
-          console.log('Creating initial version with schema:', parsedSchema);
+          console.log('Creating initial version for document:', documentId);
           const initialPatch = generatePatch(
             {}, // Empty previous schema
             parsedSchema,
@@ -79,17 +91,25 @@ export const useVersioning = ({
             true // Mark as released
           );
           
-          console.log('Created initial patch:', initialPatch);
+          // Mark that we've attempted creation for this document
+          initialVersionAttempted.current = documentId;
           createVersion(initialPatch);
-          toast.info('Created initial version v0.1.0');
+          console.log('Initial version created successfully');
         }
       } catch (err) {
         console.error('Failed to create initial version:', err);
+        // Still mark as attempted to prevent infinite retries
+        initialVersionAttempted.current = documentId;
       }
-    } else if (patches.length > 0) {
-      console.log(`Loaded ${patches.length} version entries from database`);
     }
-  }, [documentId, savedSchema, patches.length, createVersion]);
+  }, [documentId, savedSchema, loading, versions, createVersion]);
+
+  // Reset tracking when document changes
+  useEffect(() => {
+    if (documentId && initialVersionAttempted.current !== documentId) {
+      initialVersionAttempted.current = null;
+    }
+  }, [documentId]);
 
   const handleVersionBump = async (newVersion: Version, tier: VersionTier, description: string, isReleased: boolean = false) => {
     if (!documentId) {
