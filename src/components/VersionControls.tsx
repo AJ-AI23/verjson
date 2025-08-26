@@ -132,6 +132,7 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
           disabled={!isModified || !description.trim()}
           onClick={handleBumpVersion}
           className="ml-auto text-xs"
+          title={!isModified ? "No changes to commit" : !description.trim() ? "Please enter a description" : ""}
         >
           Commit Changes
         </Button>
