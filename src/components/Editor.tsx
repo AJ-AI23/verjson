@@ -16,6 +16,10 @@ interface EditorProps {
 }
 
 export const Editor = ({ initialSchema, onSave, documentName, selectedDocument }: EditorProps) => {
+  console.log('Editor: selectedDocument received:', selectedDocument);
+  console.log('Editor: selectedDocument.id:', selectedDocument?.id);
+  console.log('Editor: typeof selectedDocument.id:', typeof selectedDocument?.id);
+  
   const { settings, updateGroupProperties } = useEditorSettings();
   const {
     schema,

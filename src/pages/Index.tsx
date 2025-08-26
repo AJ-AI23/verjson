@@ -20,6 +20,10 @@ const Index = () => {
   }, [user, loading]);
 
   const handleDocumentSelect = (document: Document) => {
+    console.log('Document selected:', document);
+    console.log('Document ID type:', typeof document?.id);
+    console.log('Document ID value:', document?.id);
+    console.log('Document structure:', JSON.stringify(document, null, 2));
     setSelectedDocument(document);
   };
 
