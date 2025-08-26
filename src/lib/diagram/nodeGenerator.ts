@@ -102,6 +102,8 @@ export const createArrayNode = (
   };
 };
 
+import { extractNotations, getNotationCount, STANDARD_SCHEMA_PROPS } from './notationUtils';
+
 export const createPropertyNode = (
   propName: string,
   propSchema: any,
@@ -112,13 +114,13 @@ export const createPropertyNode = (
 ): Node => {
   const nodeId = `prop-${propName}`;
   
-  // Detect additional properties (excluding standard JSON Schema properties)
-  const standardProps = ['type', 'description', 'properties', 'items', 'required', 'format', 
-                        'minItems', 'maxItems', '$ref', 'enum', 'const', 'examples', 'default',
-                        'minimum', 'maximum', 'pattern', 'minLength', 'maxLength', 'additionalProperties'];
+  // Extract notations
+  const notations = extractNotations(propSchema);
+  const notationCount = getNotationCount(propSchema);
   
+  // Detect additional properties (excluding standard JSON Schema properties and $notations)
   const additionalProps = Object.entries(propSchema)
-    .filter(([key]) => !standardProps.includes(key))
+    .filter(([key]) => !STANDARD_SCHEMA_PROPS.includes(key))
     .map(([key, value]) => ({
       name: key,
       value: typeof value === 'object' ? JSON.stringify(value) : String(value)
@@ -143,6 +145,9 @@ export const createPropertyNode = (
       format: propSchema.format,
       additionalProperties: additionalProps,
       additionalPropsCount: additionalProps.length,
+      notations: notations,
+      notationCount: notationCount,
+      hasNotations: notationCount > 0,
       isCollapsed: isCollapsed,
       hasCollapsibleContent: (propSchema.type === 'object' && propSchema.properties) || 
                             (propSchema.type === 'array' && propSchema.items)

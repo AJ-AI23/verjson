@@ -1,11 +1,14 @@
 
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { NodeHeader } from './NodeHeader';
 import { NodeMetaInfo } from './NodeMetaInfo';
 import { PropertyDetails } from './PropertyDetails';
 import { NodeCollapseIndicator } from './NodeCollapseIndicator';
+import { NotationsIndicator } from './NotationsIndicator';
+import { NotationsPanel } from './NotationsPanel';
+import { NotationComment } from '@/types/notations';
 
 interface PropertyDetail {
   name: string;
@@ -40,6 +43,9 @@ interface SchemaTypeNodeProps {
     hasCollapsibleContent?: boolean;
     additionalProperties?: AdditionalProperty[];
     additionalPropsCount?: number;
+    notations?: NotationComment[];
+    notationCount?: number;
+    hasNotations?: boolean;
   };
   id: string;
   isConnectable: boolean;
@@ -64,7 +70,12 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
     hasCollapsibleContent,
     additionalProperties,
     additionalPropsCount,
+    notations = [],
+    notationCount = 0,
+    hasNotations = false,
   } = data;
+
+  const [isNotationsExpanded, setIsNotationsExpanded] = useState(false);
 
   // Memoize the node container classes to prevent recalculation
   const nodeContainerClasses = useMemo(() => {
@@ -76,9 +87,10 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
       isRoot && 'border-2 border-blue-500 bg-blue-50',
       isGroup && 'border-2 border-slate-300 bg-slate-50',
       isCollapsed && 'border-dashed bg-slate-50',
-      hasMoreLevels && !isCollapsed && 'border-dashed'
+      hasMoreLevels && !isCollapsed && 'border-dashed',
+      hasNotations && 'border-l-2 border-l-amber-400'
     );
-  }, [type, required, isRoot, isGroup, isCollapsed, hasMoreLevels]);
+  }, [type, required, isRoot, isGroup, isCollapsed, hasMoreLevels, hasNotations]);
 
   return (
     <div className={nodeContainerClasses}>
@@ -92,13 +104,22 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
       )}
       
       <div className="flex flex-col gap-1">
-        <NodeHeader 
-          label={label}
-          type={type}
-          description={description}
-          format={format}
-          reference={reference}
-        />
+        <div className="flex items-center justify-between">
+          <NodeHeader 
+            label={label}
+            type={type}
+            description={description}
+            format={format}
+            reference={reference}
+          />
+          {hasNotations && (
+            <NotationsIndicator
+              count={notationCount}
+              isExpanded={isNotationsExpanded}
+              onClick={() => setIsNotationsExpanded(!isNotationsExpanded)}
+            />
+          )}
+        </div>
         
         <NodeMetaInfo
           properties={properties}
@@ -112,6 +133,13 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
           <PropertyDetails propertyDetails={propertyDetails} />
         )}
 
+        {hasNotations && (
+          <NotationsPanel
+            notations={notations}
+            isExpanded={isNotationsExpanded}
+          />
+        )}
+
         {!isCollapsed && additionalProperties && additionalProperties.length > 0 && (
           <div className="mt-2 border-t pt-2">
             <div className="text-xs font-medium mb-1">Additional Properties:</div>
@@ -119,7 +147,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id }: SchemaTypeNodeP
               {additionalProperties.map((prop, index) => (
                 <div key={index} className="flex items-start gap-1 text-xs">
                   <span className="font-medium text-slate-600">{prop.name}:</span>
-                  <span className="text-slate-500 truncate" title={prop.value}>
+                  <span className="text-slate-500 break-words" title={prop.value}>
                     {prop.value}
                   </span>
                 </div>
