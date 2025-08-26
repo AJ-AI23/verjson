@@ -34,7 +34,7 @@ export const PropertyDetails = memo(({ propertyDetails }: PropertyDetailsProps) 
                 )}
               </div>
               {prop.description && (
-                <p className="text-slate-500 text-[10px] truncate" title={prop.description}>
+                <p className="text-slate-500 text-[10px] break-words leading-relaxed" title={prop.description}>
                   {prop.description}
                 </p>
               )}

@@ -122,22 +122,26 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
         />
       )}
       
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center justify-between">
-          <NodeHeader 
-            label={label}
-            type={type}
-            description={description}
-            format={format}
-            reference={reference}
-          />
-          {(hasNotations || onAddNotation) && (
-            <NotationsIndicator
-              count={notationCount}
-              isExpanded={isNotationsExpanded}
-              onClick={() => setIsNotationsExpanded(!isNotationsExpanded)}
-              hasAddFunction={!!onAddNotation}
+      <div className="flex flex-col gap-1 min-w-0">
+        <div className="flex items-start justify-between gap-2 min-w-0">
+          <div className="min-w-0 flex-1">
+            <NodeHeader 
+              label={label}
+              type={type}
+              description={description}
+              format={format}
+              reference={reference}
             />
+          </div>
+          {(hasNotations || onAddNotation) && (
+            <div className="flex-shrink-0">
+              <NotationsIndicator
+                count={notationCount}
+                isExpanded={isNotationsExpanded}
+                onClick={() => setIsNotationsExpanded(!isNotationsExpanded)}
+                hasAddFunction={!!onAddNotation}
+              />
+            </div>
           )}
         </div>
         

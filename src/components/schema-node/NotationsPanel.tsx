@@ -43,14 +43,14 @@ export const NotationsPanel = memo(({ notations, isExpanded, onAddNotation }: No
 
   return (
     <div className="mt-2 border-t pt-2 space-y-2">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="text-xs font-medium text-slate-700">Comments:</div>
         {onAddNotation && (
           <Button
             variant="outline"
             size="sm"
             onClick={() => setIsAddingComment(!isAddingComment)}
-            className="h-6 px-2 text-xs"
+            className="h-6 px-2 text-xs flex-shrink-0"
           >
             <Plus className="w-3 h-3 mr-1" />
             Add
@@ -92,12 +92,12 @@ export const NotationsPanel = memo(({ notations, isExpanded, onAddNotation }: No
             className="min-h-[60px] text-xs"
             rows={3}
           />
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button
               size="sm"
               onClick={handleAddComment}
               disabled={!newMessage.trim()}
-              className="h-7 px-3 text-xs"
+              className="h-7 px-3 text-xs flex-shrink-0"
             >
               <Send className="w-3 h-3 mr-1" />
               Send
@@ -106,7 +106,7 @@ export const NotationsPanel = memo(({ notations, isExpanded, onAddNotation }: No
               variant="outline"
               size="sm"
               onClick={() => setIsAddingComment(false)}
-              className="h-7 px-3 text-xs"
+              className="h-7 px-3 text-xs flex-shrink-0"
             >
               Cancel
             </Button>
