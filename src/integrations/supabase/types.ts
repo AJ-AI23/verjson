@@ -14,6 +14,65 @@ export type Database = {
   }
   public: {
     Tables: {
+      document_versions: {
+        Row: {
+          created_at: string
+          description: string
+          document_id: string
+          full_document: Json | null
+          id: string
+          is_released: boolean
+          is_selected: boolean
+          patches: Json | null
+          tier: string
+          updated_at: string
+          user_id: string
+          version_major: number
+          version_minor: number
+          version_patch: number
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          document_id: string
+          full_document?: Json | null
+          id?: string
+          is_released?: boolean
+          is_selected?: boolean
+          patches?: Json | null
+          tier: string
+          updated_at?: string
+          user_id: string
+          version_major?: number
+          version_minor?: number
+          version_patch?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          document_id?: string
+          full_document?: Json | null
+          id?: string
+          is_released?: boolean
+          is_selected?: boolean
+          patches?: Json | null
+          tier?: string
+          updated_at?: string
+          user_id?: string
+          version_major?: number
+          version_minor?: number
+          version_patch?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_document_versions_document_id"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           content: Json

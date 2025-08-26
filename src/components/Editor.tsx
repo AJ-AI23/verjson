@@ -12,9 +12,10 @@ interface EditorProps {
   initialSchema?: any;
   onSave?: (content: any) => void;
   documentName?: string;
+  selectedDocument?: any;
 }
 
-export const Editor = ({ initialSchema, onSave, documentName }: EditorProps) => {
+export const Editor = ({ initialSchema, onSave, documentName, selectedDocument }: EditorProps) => {
   const { settings, updateGroupProperties } = useEditorSettings();
   const {
     schema,
@@ -41,7 +42,7 @@ export const Editor = ({ initialSchema, onSave, documentName }: EditorProps) => 
     handleDeleteVersion,
     handleAddNotation,
     expandedNotationPaths
-  } = useEditorState(initialSchema || defaultSchema);
+  } = useEditorState(initialSchema || defaultSchema, selectedDocument?.id);
 
   // Update editor state when initialSchema changes (document selection)
   const lastLoadedSchemaRef = React.useRef<any>(null);

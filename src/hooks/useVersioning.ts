@@ -6,8 +6,6 @@ import {
   VersionTier,
   SchemaPatch,
   generatePatch,
-  loadPatches,
-  savePatches,
   calculateLatestVersion,
   applySelectedPatches,
   togglePatchSelection,
@@ -15,22 +13,35 @@ import {
   deleteVersion,
   formatVersion
 } from '@/lib/versionUtils';
+import { useDocumentVersions } from '@/hooks/useDocumentVersions';
 
 interface UseVersioningProps {
   schema: string;
   savedSchema: string;
   setSavedSchema: (schema: string) => void;
   setSchema: (schema: string) => void;
+  documentId?: string;
 }
 
 export const useVersioning = ({ 
   schema, 
   savedSchema, 
   setSavedSchema, 
-  setSchema 
+  setSchema,
+  documentId
 }: UseVersioningProps) => {
   const [patches, setPatches] = useState<SchemaPatch[]>([]);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
+  
+  // Use database operations for document versions
+  const {
+    versions,
+    loading,
+    createVersion,
+    updateVersion,
+    deleteVersion: deleteVersionFromDb,
+    getSchemaPatches
+  } = useDocumentVersions(documentId);
 
   // Calculate if the schema has been modified since last save
   const isModified = schema !== savedSchema;
@@ -38,14 +49,22 @@ export const useVersioning = ({
   // Get the current version based on patches
   const currentVersion = calculateLatestVersion(patches);
 
-  // Load patches from localStorage on component mount
+  // Update patches when database versions change
   useEffect(() => {
-    const storedPatches = loadPatches();
+    const schemaPatches = getSchemaPatches();
+    setPatches(schemaPatches);
+  }, [versions, getSchemaPatches]);
+
+  // Load or create initial version when document is loaded
+  useEffect(() => {
+    if (!documentId || !savedSchema || savedSchema.trim() === '{}' || savedSchema.trim() === '') {
+      return;
+    }
+
+    // Check if we need to create an initial version
+    const hasInitialVersion = patches.some(p => p.description === 'Initial version');
     
-    // Check if we need to create an initial released version
-    const hasInitialVersion = storedPatches.some(p => p.description === 'Initial version');
-    
-    if (!hasInitialVersion && savedSchema && savedSchema.trim() !== '{}' && savedSchema.trim() !== '') {
+    if (!hasInitialVersion) {
       try {
         const parsedSchema = JSON.parse(savedSchema);
         // Only create initial version if the schema has actual content
@@ -61,36 +80,23 @@ export const useVersioning = ({
           );
           
           console.log('Created initial patch:', initialPatch);
-          const updatedPatches = [initialPatch, ...storedPatches];
-          setPatches(updatedPatches);
-          savePatches(updatedPatches);
-          
-          if (storedPatches.length === 0) {
-            toast.info('Created initial version v0.1.0');
-          } else {
-            toast.info(`Loaded ${storedPatches.length} versions + initial version`);
-          }
-        } else {
-          console.log('Skipping initial version creation - schema is empty');
-          if (storedPatches.length > 0) {
-            setPatches(storedPatches);
-            toast.info(`Loaded ${storedPatches.length} version entries`);
-          }
+          createVersion(initialPatch);
+          toast.info('Created initial version v0.1.0');
         }
       } catch (err) {
         console.error('Failed to create initial version:', err);
-        if (storedPatches.length > 0) {
-          setPatches(storedPatches);
-          toast.info(`Loaded ${storedPatches.length} version entries`);
-        }
       }
-    } else if (storedPatches.length > 0) {
-      setPatches(storedPatches);
-      toast.info(`Loaded ${storedPatches.length} version entries`);
+    } else if (patches.length > 0) {
+      console.log(`Loaded ${patches.length} version entries from database`);
     }
-  }, [savedSchema]);
+  }, [documentId, savedSchema, patches.length, createVersion]);
 
-  const handleVersionBump = (newVersion: Version, tier: VersionTier, description: string, isReleased: boolean = false) => {
+  const handleVersionBump = async (newVersion: Version, tier: VersionTier, description: string, isReleased: boolean = false) => {
+    if (!documentId) {
+      toast.error('No document selected for version creation');
+      return;
+    }
+
     try {
       // Ensure the current schema is valid
       const parsedCurrentSchema = JSON.parse(schema);
@@ -106,12 +112,8 @@ export const useVersioning = ({
         isReleased
       );
       
-      // Update patches
-      const updatedPatches = [...patches, patch];
-      setPatches(updatedPatches);
-      
-      // Save patches to localStorage
-      savePatches(updatedPatches);
+      // Save to database
+      await createVersion(patch);
       
       // Update saved schema
       setSavedSchema(schema);
@@ -123,7 +125,7 @@ export const useVersioning = ({
     }
   };
 
-  const handleToggleSelection = (patchId: string) => {
+  const handleToggleSelection = async (patchId: string) => {
     try {
       console.log('Toggling selection for patch:', patchId);
       const updatedPatches = togglePatchSelection(patches, patchId);
@@ -134,8 +136,11 @@ export const useVersioning = ({
         return;
       }
       
-      setPatches(updatedPatches);
-      savePatches(updatedPatches);
+      // Find the patch to update
+      const patchToUpdate = updatedPatches.find(p => p.id === patchId);
+      if (patchToUpdate) {
+        await updateVersion(patchId, { is_selected: patchToUpdate.isSelected });
+      }
       
       // Apply selected patches to get new schema
       console.log('Recalculating schema from selected patches...');
@@ -155,12 +160,19 @@ export const useVersioning = ({
     }
   };
 
-  const handleMarkAsReleased = (patchId: string) => {
+  const handleMarkAsReleased = async (patchId: string) => {
     try {
       const parsedCurrentSchema = JSON.parse(schema);
       const updatedPatches = markAsReleased(patches, patchId, parsedCurrentSchema);
-      setPatches(updatedPatches);
-      savePatches(updatedPatches);
+      const patchToUpdate = updatedPatches.find(p => p.id === patchId);
+      
+      if (patchToUpdate) {
+        await updateVersion(patchId, {
+          is_released: true,
+          full_document: parsedCurrentSchema,
+          patches: null, // Remove patches as we now store full document
+        });
+      }
       
       toast.success('Version marked as released');
     } catch (err) {
@@ -170,7 +182,7 @@ export const useVersioning = ({
     }
   };
 
-  const handleDeleteVersion = (patchId: string) => {
+  const handleDeleteVersion = async (patchId: string) => {
     try {
       const result = deleteVersion(patches, patchId);
       
@@ -181,8 +193,11 @@ export const useVersioning = ({
         return;
       }
       
-      setPatches(result.updatedPatches);
-      savePatches(result.updatedPatches);
+      // Delete from database
+      const success = await deleteVersionFromDb(patchId);
+      if (!success) {
+        return; // Error already handled in useDocumentVersions
+      }
       
       // Recalculate schema after deletion
       const newSchema = applySelectedPatches(result.updatedPatches);
@@ -211,6 +226,7 @@ export const useVersioning = ({
     handleToggleSelection,
     handleMarkAsReleased,
     handleDeleteVersion,
-    toggleVersionHistory
+    toggleVersionHistory,
+    loading, // Add loading state from database operations
   };
 };

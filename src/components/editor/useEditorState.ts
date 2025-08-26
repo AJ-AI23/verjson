@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { parseJsonSchema, validateJsonSchema, extractSchemaComponents, SchemaType } from '@/lib/schemaUtils';
@@ -7,7 +6,7 @@ import { useVersioning } from '@/hooks/useVersioning';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 import { addNotationToSchema, getPropertyPathFromNodeId } from '@/lib/diagram/schemaNotationUtils';
 
-export const useEditorState = (defaultSchema: string) => {
+export const useEditorState = (defaultSchema: string, documentId?: string) => {
   const [schema, setSchema] = useState(defaultSchema);
   const [savedSchema, setSavedSchema] = useState(defaultSchema);
   const [parsedSchema, setParsedSchema] = useState<any>(null);
@@ -66,7 +65,8 @@ export const useEditorState = (defaultSchema: string) => {
     schema,
     savedSchema,
     setSavedSchema,
-    setSchema
+    setSchema,
+    documentId
   });
   
   // Debug collapsedPaths when it changes

@@ -90,28 +90,18 @@ export const generatePatch = (
   };
 };
 
-// Save patches to localStorage (temporary solution)
-export const savePatches = (patches: SchemaPatch[]): void => {
-  try {
-    localStorage.setItem('schema-patches', JSON.stringify(patches));
-    console.log('Patches saved to localStorage');
-  } catch (err) {
-    console.error('Failed to save patches to localStorage:', err);
-    toast.error('Failed to save version history');
-  }
+// Save patches to database instead of localStorage
+export const savePatches = async (patches: SchemaPatch[], documentId?: string): Promise<void> => {
+  // This function is now handled by useDocumentVersions hook
+  // Keeping for backward compatibility but it's a no-op
+  console.log('savePatches called - now handled by database operations');
 };
 
-// Load patches from localStorage
-export const loadPatches = (): SchemaPatch[] => {
-  try {
-    const storedPatches = localStorage.getItem('schema-patches');
-    if (storedPatches) {
-      return JSON.parse(storedPatches);
-    }
-  } catch (err) {
-    console.error('Failed to load patches from localStorage:', err);
-    toast.error('Failed to load version history');
-  }
+// Load patches from database instead of localStorage  
+export const loadPatches = (documentId?: string): SchemaPatch[] => {
+  // This function is now handled by useDocumentVersions hook
+  // Keeping for backward compatibility but returns empty array
+  console.log('loadPatches called - now handled by database operations');
   return [];
 };
 

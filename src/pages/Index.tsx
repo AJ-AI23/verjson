@@ -72,11 +72,12 @@ const Index = () => {
           
           <main className="flex-1 p-4 min-h-0">
             <div className="h-full animate-fade-in">
-              <Editor 
-                initialSchema={selectedDocument?.content}
-                onSave={handleDocumentSave}
-                documentName={selectedDocument?.name}
-              />
+                <Editor 
+                  initialSchema={selectedDocument?.content}
+                  onSave={handleDocumentSave}
+                  documentName={selectedDocument?.name}
+                  selectedDocument={selectedDocument}
+                />
             </div>
           </main>
         </div>
