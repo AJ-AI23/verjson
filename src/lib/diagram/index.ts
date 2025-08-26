@@ -44,6 +44,16 @@ export const generateNodesAndEdges = (
                           typeof schema === 'object' && 
                           (schema.openapi || schema.swagger) &&
                           (schema.info || schema.paths);
+  
+  console.log('🟢 OpenAPI Schema Detection:', {
+    hasSchema: !!schema,
+    isObject: typeof schema === 'object',
+    hasOpenapi: !!schema?.openapi,
+    hasSwagger: !!schema?.swagger,
+    hasInfo: !!schema?.info,
+    hasPaths: !!schema?.paths,
+    finalResult: isOpenApiSchema
+  });
 
   // For regular JSON schemas, require a type property
   if (!isOpenApiSchema && !schema.type) {
