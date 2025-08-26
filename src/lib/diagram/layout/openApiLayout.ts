@@ -134,14 +134,15 @@ export const generateOpenApiLayout = (
       }
     }
     
-    // Create Paths structure if paths exist and is not collapsed
+    // Create Paths structure if paths exist and is explicitly expanded
     if (schema.paths) {
       const pathsPath = 'root.paths';
-      const pathsCollapsed = collapsedPaths[pathsPath] === true;
+      const pathsExplicitlyExpanded = collapsedPaths[pathsPath] === false || 
+        (collapsedPaths[pathsPath] && typeof collapsedPaths[pathsPath] === 'object');
       
-      console.log(`[OPENAPI LAYOUT] Paths path: ${pathsPath}, collapsed: ${pathsCollapsed}`);
+      console.log(`🔥 [OPENAPI LAYOUT] Paths path: ${pathsPath}, explicitly expanded: ${pathsExplicitlyExpanded}`);
       
-      if (!pathsCollapsed) {
+      if (pathsExplicitlyExpanded) {
         // Create a Paths container node first
         const pathsContainerNode = createPropertyNode(
           'Paths',
