@@ -65,24 +65,38 @@ export const useJsonEditorFolding = ({
 
   // Expand all nodes in the editor and update diagram state
   const expandAll = useCallback(() => {
-    if (!editorRef.current || !onToggleCollapse) {
+    console.log('expandAll called - starting operation');
+    
+    if (!editorRef.current) {
+      console.log('expandAll: No editor reference available');
+      return;
+    }
+    
+    if (!onToggleCollapse) {
+      console.log('expandAll: No onToggleCollapse callback available');
       return;
     }
     
     try {
       console.log('Starting bulk expand all operation');
+      console.log('parsedSchema available:', !!parsedSchema);
       
       // Get all possible paths from the schema
       let allPaths: string[] = [];
       if (parsedSchema) {
         allPaths = getAllSchemaPaths(parsedSchema);
         console.log('Found schema paths for expansion:', allPaths);
+        
+        // Update all paths to expanded state
+        allPaths.forEach(path => {
+          console.log(`Setting path ${path} to expanded`);
+          onToggleCollapse(path, false); // false = expanded
+        });
+      } else {
+        console.log('No parsedSchema available, falling back to root only');
+        // Fallback: just expand root
+        onToggleCollapse('root', false);
       }
-      
-      // Update all paths to expanded state
-      allPaths.forEach(path => {
-        onToggleCollapse(path, false); // false = expanded
-      });
       
       // Also expand the editor using its native method
       editorRef.current.expand({
@@ -99,28 +113,43 @@ export const useJsonEditorFolding = ({
 
   // Collapse all nodes in the editor and update diagram state
   const collapseAll = useCallback(() => {
-    if (!editorRef.current || !onToggleCollapse) {
+    console.log('collapseAll called - starting operation');
+    
+    if (!editorRef.current) {
+      console.log('collapseAll: No editor reference available');
+      return;
+    }
+    
+    if (!onToggleCollapse) {
+      console.log('collapseAll: No onToggleCollapse callback available');
       return;
     }
     
     try {
       console.log('Starting bulk collapse all operation');
+      console.log('parsedSchema available:', !!parsedSchema);
       
       // Get all possible paths from the schema
       let allPaths: string[] = [];
       if (parsedSchema) {
         allPaths = getAllSchemaPaths(parsedSchema);
         console.log('Found schema paths for collapse:', allPaths);
+        
+        // Update all paths to collapsed state (except root, which should be expanded to show the collapsed children)
+        allPaths.forEach(path => {
+          if (path === 'root') {
+            console.log(`Setting root to expanded`);
+            onToggleCollapse(path, false); // Keep root expanded so we can see it has children
+          } else {
+            console.log(`Setting path ${path} to collapsed`);
+            onToggleCollapse(path, true); // true = collapsed
+          }
+        });
+      } else {
+        console.log('No parsedSchema available, falling back to root only');
+        // Fallback: just expand root
+        onToggleCollapse('root', false);
       }
-      
-      // Update all paths to collapsed state (except root, which should be expanded to show the collapsed children)
-      allPaths.forEach(path => {
-        if (path === 'root') {
-          onToggleCollapse(path, false); // Keep root expanded so we can see it has children
-        } else {
-          onToggleCollapse(path, true); // true = collapsed
-        }
-      });
       
       // Also collapse the editor using its native method
       editorRef.current.expand({

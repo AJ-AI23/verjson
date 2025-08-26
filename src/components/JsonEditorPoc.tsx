@@ -28,10 +28,12 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   // Track if the component has been mounted
   const isMountedRef = useRef<boolean>(false);
   
-  // Wrap onToggleCollapse to prevent initial setup events
+  // Wrap onToggleCollapse to prevent initial setup events but allow bulk operations
   const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
-    // Only call the callback after initial mount to prevent initial setup events
-    if (isMountedRef.current && onToggleCollapse) {
+    console.log(`JsonEditorPoc: handleToggleCollapse called with path=${path}, isCollapsed=${isCollapsed}, isMounted=${isMountedRef.current}`);
+    
+    // Always allow the callback for better bulk operation support
+    if (onToggleCollapse) {
       onToggleCollapse(path, isCollapsed);
     }
   }, [onToggleCollapse]);
