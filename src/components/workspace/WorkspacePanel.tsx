@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { DeleteConfirmationDialog } from './DeleteConfirmationDialog';
 import { 
   Plus, 
   FolderPlus, 
@@ -38,6 +39,10 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [newWorkspaceDesc, setNewWorkspaceDesc] = useState('');
+  
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<any>(null);
   const [newDocumentName, setNewDocumentName] = useState('');
   const [newDocumentType, setNewDocumentType] = useState<'json-schema' | 'openapi'>('json-schema');
   const [showWorkspaceDialog, setShowWorkspaceDialog] = useState(false);
@@ -125,6 +130,14 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
     link.download = `${document.name}.json`;
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleConfirmDelete = () => {
+    if (documentToDelete) {
+      deleteDocument(documentToDelete.id);
+      onDocumentDeleted(documentToDelete.id);
+      setDocumentToDelete(null);
+    }
   };
 
   // Don't render content if collapsed
@@ -324,8 +337,8 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                           variant="ghost"
                           onClick={(e) => {
                             e.stopPropagation();
-                            deleteDocument(document.id);
-                            onDocumentDeleted(document.id);
+                            setDocumentToDelete(document);
+                            setDeleteDialogOpen(true);
                           }}
                         >
                           <Trash2 className="h-3 w-3" />
@@ -347,6 +360,13 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
         )}
         </CardContent>
       </Card>
+
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirmDelete={handleConfirmDelete}
+        documentName={documentToDelete?.name || ''}
+      />
     </div>
   );
 }
