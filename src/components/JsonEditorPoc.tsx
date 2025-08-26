@@ -32,6 +32,9 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   // Track if the component has been mounted
   const isMountedRef = useRef<boolean>(false);
   
+  // Track if we're currently restoring from history to avoid circular updates
+  const isRestoringFromHistory = useRef<boolean>(false);
+  
   // Initialize editor history
   const {
     addToHistory,
@@ -44,7 +47,15 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     totalEntries
   } = useEditorHistory({
     documentId,
-    onContentChange: onChange,
+    onContentChange: (content) => {
+      // When restoring from history, don't trigger addToHistory again
+      isRestoringFromHistory.current = true;
+      onChange(content);
+      // Reset flag after a small delay to allow the editor to update
+      setTimeout(() => {
+        isRestoringFromHistory.current = false;
+      }, 100);
+    },
     maxHistorySize: 50,
     debounceMs: 1000
   });
@@ -52,7 +63,10 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   // Wrap onChange to add to history
   const handleChange = useCallback((newValue: string) => {
     onChange(newValue);
-    addToHistory(newValue);
+    // Only add to history if we're not restoring from history
+    if (!isRestoringFromHistory.current) {
+      addToHistory(newValue);
+    }
   }, [onChange, addToHistory]);
   
   // Wrap onToggleCollapse to prevent initial setup events but allow bulk operations

@@ -102,14 +102,14 @@ export const useEditorHistory = ({
         // Limit history size
         if (newHistory.length > maxHistorySize) {
           newHistory.shift(); // Remove oldest entry
+          // Adjust currentIndex if we removed an entry
+          setCurrentIndex(prev => Math.max(0, prev - 1));
+        } else {
+          // Set current index to the last entry
+          setCurrentIndex(newHistory.length - 1);
         }
         
         return newHistory;
-      });
-      
-      setCurrentIndex(prev => {
-        const newIndex = Math.min(prev + 1, maxHistorySize - 1);
-        return newIndex;
       });
       
       lastSavedContentRef.current = content;
