@@ -19,29 +19,29 @@ export const NodeHeader = memo(({
 }: NodeHeaderProps) => {
   return (
     <>
-      <div className="flex items-center justify-between">
-        <span className="font-medium text-sm truncate" title={label}>
+      <div className="flex items-start justify-between gap-2">
+        <span className="font-medium text-sm break-words flex-1" title={label}>
           {label}
         </span>
         <SchemaTypeBadge type={type} />
       </div>
       
       {description && (
-        <p className="text-xs text-slate-500 truncate" title={description}>
+        <p className="text-xs text-slate-500 break-words mt-1" title={description}>
           {description}
         </p>
       )}
 
       {format && (
-        <div className="text-xs">
-          <span className="text-slate-500">format:</span> {format}
+        <div className="text-xs mt-1">
+          <span className="text-slate-500">format:</span> <span className="break-words">{format}</span>
         </div>
       )}
 
       {reference && (
-        <div className="text-xs">
+        <div className="text-xs mt-1">
           <span className="text-slate-500">$ref:</span>{' '}
-          <span className="font-mono text-[10px] truncate" title={reference}>
+          <span className="font-mono text-[10px] break-all" title={reference}>
             {reference}
           </span>
         </div>

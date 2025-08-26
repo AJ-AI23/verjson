@@ -99,8 +99,8 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
   // Memoize the node container classes to prevent recalculation
   const nodeContainerClasses = useMemo(() => {
     return cn(
-      'px-3 py-2 rounded-md shadow-sm border min-w-[160px]',
-      isGroup ? 'max-w-[380px]' : 'max-w-[240px]',
+      'px-3 py-2 rounded-md shadow-sm border min-w-[160px] w-fit',
+      isGroup ? 'max-w-[420px]' : 'max-w-[280px]',
       `node-${type}`,
       required && 'node-required',
       isRoot && 'border-2 border-blue-500 bg-blue-50',
