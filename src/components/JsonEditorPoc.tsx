@@ -78,13 +78,19 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
         <h2 className="font-semibold text-slate-700">JSON Editor</h2>
         <div className="flex gap-2">
           <button
-            onClick={expandAll}
+            onClick={() => {
+              console.log('Expand All button clicked!');
+              expandAll();
+            }}
             className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
           >
             Expand All
           </button>
           <button
-            onClick={collapseAll}
+            onClick={() => {
+              console.log('Collapse All button clicked!');
+              collapseAll();
+            }}
             className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
           >
             Collapse All
