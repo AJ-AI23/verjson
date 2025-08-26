@@ -200,13 +200,14 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
     );
   }
 
-  // Sort patches by timestamp, oldest first to show initial version at top
-  const sortedPatches = [...patches].sort((a, b) => a.timestamp - b.timestamp);
+  // Sort patches by timestamp, newest first (descending order)
+  const sortedPatches = [...patches].sort((a, b) => b.timestamp - a.timestamp);
   
   // Check if a patch is before a released version (but allow initial version to be deselected)
   const isBeforeReleased = (patch: SchemaPatch) => {
     const patchIndex = sortedPatches.findIndex(p => p.id === patch.id);
-    return sortedPatches.slice(patchIndex + 1).some(p => p.isReleased && p.description !== 'Initial version');
+    // With newest first order, check earlier indices (which are newer timestamps)
+    return sortedPatches.slice(0, patchIndex).some(p => p.isReleased && p.description !== 'Initial version');
   };
   
   // Check if this is the initial version
@@ -226,7 +227,8 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
     
     // Check if this is a released version with later versions
     const patchIndex = sortedPatches.findIndex(p => p.id === patch.id);
-    const hasLaterVersions = sortedPatches.slice(patchIndex + 1).length > 0;
+    // With newest first order, check earlier indices (which are newer timestamps)
+    const hasLaterVersions = sortedPatches.slice(0, patchIndex).length > 0;
     
     return !(patch.isReleased && hasLaterVersions);
   };
