@@ -268,9 +268,9 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
               {workspaces.map((workspace) => (
                 <SelectItem key={workspace.id} value={workspace.id}>
                   <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center">
-                      <Folder className="h-4 w-4 mr-2" />
-                      {workspace.name}
+                    <div className="flex items-center min-w-0 flex-1">
+                      <Folder className="h-4 w-4 mr-2 flex-shrink-0" />
+                      <span className="truncate">{workspace.name}</span>
                     </div>
                     {workspace.user_id === user?.id && (
                       <Button
@@ -281,7 +281,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                           setWorkspaceToDelete(workspace);
                           setWorkspaceDeleteDialogOpen(true);
                         }}
-                        className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                        className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground flex-shrink-0 ml-2"
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
@@ -299,25 +299,15 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
             
             {/* Workspace Actions */}
             {isWorkspaceOwner && (
-              <div className="flex gap-2 mb-4">
+              <div className="flex justify-center mb-4">
                 <Button 
                   size="sm" 
                   variant="outline" 
-                  className="flex-1"
-                  onClick={() => setShowWorkspaceInviteDialog(true)}
-                >
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Invite to Workspace
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  className="flex-1"
                   onClick={() => setShowBulkInviteDialog(true)}
                   disabled={documents.length === 0}
                 >
                   <Users className="h-4 w-4 mr-2" />
-                  Bulk Invite
+                  Bulk Invite Documents
                 </Button>
               </div>
             )}
@@ -366,42 +356,41 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                   </div>
                 </DialogContent>
               </Dialog>
-
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="flex-1" asChild>
-                  <label className="cursor-pointer">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Import
-                    <input
-                      type="file"
-                      accept=".json,.yaml,.yml"
-                      onChange={handleFileImport}
-                      className="hidden"
-                    />
-                  </label>
-                </Button>
-
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => {
-                    if (selectedDocument) {
-                      handleDocumentExport(selectedDocument);
-                    }
-                  }}
-                  disabled={!selectedDocument}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export
-                </Button>
-              </div>
             </div>
 
             {/* Document List */}
             <div className="flex-1">
-              <Label className="text-sm font-medium">Documents</Label>
-              <ScrollArea className="h-64 mt-2 border rounded-md">
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-sm font-medium">Documents</Label>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" asChild title="Import">
+                    <label className="cursor-pointer">
+                      <Upload className="h-3 w-3" />
+                      <input
+                        type="file"
+                        accept=".json,.yaml,.yml"
+                        onChange={handleFileImport}
+                        className="hidden"
+                      />
+                    </label>
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="h-7 w-7 p-0"
+                    onClick={() => {
+                      if (selectedDocument) {
+                        handleDocumentExport(selectedDocument);
+                      }
+                    }}
+                    disabled={!selectedDocument}
+                    title="Export Selected"
+                  >
+                    <Download className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+              <ScrollArea className="h-64 border rounded-md">
                 <div className="p-2 space-y-1">
                   {documents.map((document) => (
                     <div
@@ -416,20 +405,20 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium truncate">
                             {document.name}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Badge variant="secondary" className="text-xs">
-                            {document.file_type}
-                          </Badge>
-                          {documentPinStatus[document.id] && (
-                            <div title="PIN Protected">
-                              <Shield className="h-3 w-3 text-amber-600" />
-                            </div>
-                          )}
-                        </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Badge variant="secondary" className="text-xs">
+                              {document.file_type}
+                            </Badge>
+                            {documentPinStatus[document.id] && (
+                              <div title="PIN Protected">
+                                <Shield className="h-3 w-3 text-amber-600" />
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div className="flex gap-1">
+                      <div className="flex gap-0.5 flex-shrink-0">
                         <Button
                           size="sm"
                           variant="ghost"
@@ -437,6 +426,8 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                             e.stopPropagation();
                             handleDocumentExport(document);
                           }}
+                          className="h-6 w-6 p-0"
+                          title="Export"
                         >
                           <Download className="h-3 w-3" />
                         </Button>
@@ -448,6 +439,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                               e.stopPropagation();
                               handlePinSetup(document);
                             }}
+                            className="h-6 w-6 p-0"
                             title="Security Settings"
                           >
                             <Shield className="h-3 w-3" />
@@ -461,6 +453,8 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                             setDocumentToDelete(document);
                             setDeleteDialogOpen(true);
                           }}
+                          className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                          title="Delete"
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>

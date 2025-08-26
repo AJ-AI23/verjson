@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import {
   Select,
   SelectContent,
@@ -45,19 +45,21 @@ export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProp
 
   if (!document) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Collaborators
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Select a document to manage collaborators
-          </p>
-        </CardContent>
-      </Card>
+      <Accordion type="single" collapsible className="w-full">
+        <AccordionItem value="collaborators" className="border rounded-lg">
+          <AccordionTrigger className="px-4 py-3 hover:no-underline">
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Collaborators
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-4 pb-4">
+            <p className="text-sm text-muted-foreground">
+              Select a document to manage collaborators
+            </p>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     );
   }
 
@@ -101,116 +103,126 @@ export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProp
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Collaborators
-            </CardTitle>
-            {isOwner && (
-              <Button 
-                size="sm" 
-                onClick={() => setShowInviteDialog(true)}
-                className="flex items-center gap-2"
-              >
-                <UserPlus className="h-4 w-4" />
-                Invite
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Loading collaborators...</p>
-          ) : (
-            <>
-              {/* Owner */}
-              <div className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <Crown className="h-4 w-4 text-yellow-600" />
-                    <span className="font-medium">Owner</span>
-                  </div>
-                  <Badge className={getRoleColor('owner')}>
-                    Owner
-                  </Badge>
-                </div>
-                <span className="text-sm text-muted-foreground">You</span>
+      <Accordion type="single" collapsible className="w-full" defaultValue="collaborators">
+        <AccordionItem value="collaborators" className="border rounded-lg">
+          <AccordionTrigger className="px-4 py-3 hover:no-underline">
+            <div className="flex items-center justify-between w-full mr-4">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Collaborators
+                <Badge variant="secondary" className="ml-2">
+                  {permissions.length + 1}
+                </Badge>
               </div>
+              {isOwner && (
+                <Button 
+                  size="sm" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowInviteDialog(true);
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Invite
+                </Button>
+              )}
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-4 pb-4">
+            <div className="space-y-3">
+              {loading ? (
+                <p className="text-sm text-muted-foreground">Loading collaborators...</p>
+              ) : (
+                <>
+                  {/* Owner */}
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <Crown className="h-4 w-4 text-yellow-600" />
+                        <span className="font-medium">Owner</span>
+                      </div>
+                      <Badge className={getRoleColor('owner')}>
+                        Owner
+                      </Badge>
+                    </div>
+                    <span className="text-sm text-muted-foreground">You</span>
+                  </div>
 
-              {/* Collaborators */}
-              {permissions.map((permission) => (
-                <div key={permission.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                      {getRoleIcon(permission.role)}
-                      <div className="flex flex-col">
-                        <span className="font-medium">
-                          {permission.user_name || permission.user_email}
-                        </span>
-                        {permission.user_name && (
-                          <span className="text-xs text-muted-foreground">
-                            {permission.user_email}
-                          </span>
+                  {/* Collaborators */}
+                  {permissions.map((permission) => (
+                    <div key={permission.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {getRoleIcon(permission.role)}
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-medium truncate">
+                              {permission.user_name || permission.user_email}
+                            </span>
+                            {permission.user_name && (
+                              <span className="text-xs text-muted-foreground truncate">
+                                {permission.user_email}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {isOwner ? (
+                          <>
+                            <Select
+                              value={permission.role}
+                              onValueChange={(value: 'editor' | 'viewer') => 
+                                handleRoleChange(permission, value)
+                              }
+                            >
+                              <SelectTrigger className="w-24">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="editor">Editor</SelectItem>
+                                <SelectItem value="viewer">Viewer</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem 
+                                  onClick={() => handleRemoveCollaborator(permission)}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Remove Access
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </>
+                        ) : (
+                          <Badge className={getRoleColor(permission.role)}>
+                            {permission.role}
+                          </Badge>
                         )}
                       </div>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    {isOwner ? (
-                      <>
-                        <Select
-                          value={permission.role}
-                          onValueChange={(value: 'editor' | 'viewer') => 
-                            handleRoleChange(permission, value)
-                          }
-                        >
-                          <SelectTrigger className="w-24">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="editor">Editor</SelectItem>
-                            <SelectItem value="viewer">Viewer</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem 
-                              onClick={() => handleRemoveCollaborator(permission)}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Remove Access
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </>
-                    ) : (
-                      <Badge className={getRoleColor(permission.role)}>
-                        {permission.role}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              ))}
+                  ))}
 
-              {permissions.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  No collaborators yet. {isOwner ? 'Invite someone to get started!' : ''}
-                </p>
+                  {permissions.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No collaborators yet. {isOwner ? 'Invite someone to get started!' : ''}
+                    </p>
+                  )}
+                </>
               )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       <InviteCollaboratorDialog
         open={showInviteDialog}
