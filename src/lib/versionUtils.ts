@@ -145,14 +145,19 @@ const reverseOperation = (op: Operation): Operation => {
 
 // Apply selected patches to build the current schema
 export const applySelectedPatches = (patches: SchemaPatch[]): any => {
-  console.log('applySelectedPatches called with:', patches.map(p => ({ 
-    id: p.id, 
-    description: p.description, 
-    isSelected: p.isSelected,
-    isReleased: p.isReleased,
-    hasFullDocument: !!p.fullDocument,
-    hasPatches: !!p.patches
-  })));
+  console.log('🔍 applySelectedPatches called with:', {
+    totalPatches: patches.length,
+    patchDetails: patches.map(p => ({ 
+      id: p.id, 
+      description: p.description, 
+      isSelected: p.isSelected,
+      isReleased: p.isReleased,
+      hasFullDocument: !!p.fullDocument,
+      hasPatches: !!p.patches,
+      timestamp: p.timestamp,
+      version: formatVersion(p.version)
+    }))
+  });
   
   // Validate that we have patches to work with
   if (!patches || patches.length === 0) {
