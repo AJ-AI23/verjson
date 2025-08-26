@@ -16,7 +16,9 @@ import { DeleteConfirmationDialog } from './DeleteConfirmationDialog';
 import { CollaboratorsPanel } from './CollaboratorsPanel';
 import { BulkInviteDialog } from './BulkInviteDialog';
 import { WorkspaceInviteDialog } from './WorkspaceInviteDialog';
+import { DocumentPinSetupDialog } from './DocumentPinSetupDialog';
 import { useWorkspacePermissions } from '@/hooks/useWorkspacePermissions';
+import { useDocumentPinSecurity } from '@/hooks/useDocumentPinSecurity';
 import { 
   Plus, 
   FolderPlus, 
@@ -28,7 +30,8 @@ import {
   Folder,
   File,
   Users,
-  UserPlus
+  UserPlus,
+  Shield
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -45,6 +48,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   const [selectedWorkspace, setSelectedWorkspace] = useState<string>('');
   const { documents, createDocument, deleteDocument } = useDocuments(selectedWorkspace);
   const { inviteToWorkspace, inviteBulkDocuments } = useWorkspacePermissions(selectedWorkspace);
+  const { checkDocumentPinStatus } = useDocumentPinSecurity();
   
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [newWorkspaceDesc, setNewWorkspaceDesc] = useState('');
@@ -60,6 +64,11 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   // New invitation dialog states
   const [showWorkspaceInviteDialog, setShowWorkspaceInviteDialog] = useState(false);
   const [showBulkInviteDialog, setShowBulkInviteDialog] = useState(false);
+  
+  // PIN security dialog states
+  const [showPinSetupDialog, setShowPinSetupDialog] = useState(false);
+  const [pinSetupDocument, setPinSetupDocument] = useState<any>(null);
+  const [documentPinStatus, setDocumentPinStatus] = useState<{[key: string]: boolean}>({});
 
   const handleCreateWorkspace = async () => {
     if (!newWorkspaceName.trim()) return;
@@ -164,6 +173,20 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
 
   const handleBulkDocumentInvite = async (email: string, documentIds: string[], role: 'editor' | 'viewer') => {
     return await inviteBulkDocuments(email, documentIds, role);
+  };
+
+  const handlePinSetup = async (document: any) => {
+    const status = await checkDocumentPinStatus(document.id);
+    setDocumentPinStatus(prev => ({ ...prev, [document.id]: status.hasPin }));
+    setPinSetupDocument(document);
+    setShowPinSetupDialog(true);
+  };
+
+  const handlePinStatusChange = async () => {
+    if (pinSetupDocument) {
+      const status = await checkDocumentPinStatus(pinSetupDocument.id);
+      setDocumentPinStatus(prev => ({ ...prev, [pinSetupDocument.id]: status.hasPin }));
+    }
   };
 
   // Don't render content if collapsed
@@ -364,12 +387,17 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium truncate">
                             {document.name}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Badge variant="secondary" className="text-xs">
-                              {document.file_type}
-                            </Badge>
-                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Badge variant="secondary" className="text-xs">
+                            {document.file_type}
+                          </Badge>
+                          {documentPinStatus[document.id] && (
+                            <div title="PIN Protected">
+                              <Shield className="h-3 w-3 text-amber-600" />
+                            </div>
+                          )}
+                        </div>
                         </div>
                       </div>
                       <div className="flex gap-1">
@@ -383,6 +411,19 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                         >
                           <Download className="h-3 w-3" />
                         </Button>
+                        {isDocumentOwner && selectedDocument?.id === document.id && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePinSetup(document);
+                            }}
+                            title="Security Settings"
+                          >
+                            <Shield className="h-3 w-3" />
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="ghost"
@@ -436,6 +477,15 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
         onOpenChange={setShowBulkInviteDialog}
         onInvite={handleBulkDocumentInvite}
         documents={documents}
+      />
+
+      <DocumentPinSetupDialog
+        open={showPinSetupDialog}
+        onOpenChange={setShowPinSetupDialog}
+        documentId={pinSetupDocument?.id || ''}
+        documentName={pinSetupDocument?.name || ''}
+        currentlyHasPin={pinSetupDocument ? (documentPinStatus[pinSetupDocument.id] || false) : false}
+        onPinStatusChange={handlePinStatusChange}
       />
     </div>
   );

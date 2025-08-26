@@ -14,6 +14,8 @@ export interface Document {
   name: string;
   content: any;
   file_type: 'json-schema' | 'openapi';
+  pin_code?: string;
+  pin_enabled: boolean;
   created_at: string;
   updated_at: string;
 }

@@ -3,15 +3,20 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Editor } from '@/components/Editor';
 import { AuthButton } from '@/components/AuthButton';
 import { WorkspaceSidebar } from '@/components/workspace/WorkspaceSidebar';
+import { DocumentPinEntryDialog } from '@/components/workspace/DocumentPinEntryDialog';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Document } from '@/types/workspace';
 import { useDocuments } from '@/hooks/useDocuments';
+import { useDocumentPinSecurity } from '@/hooks/useDocumentPinSecurity';
 import { toast } from 'sonner';
 const Index = () => {
   const { user, loading } = useAuth();
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [clearEditorRequest, setClearEditorRequest] = useState(false);
+  const [showPinDialog, setShowPinDialog] = useState(false);
+  const [pendingDocument, setPendingDocument] = useState<Document | null>(null);
   const { updateDocument } = useDocuments();
+  const { checkDocumentPinStatus } = useDocumentPinSecurity();
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -20,14 +25,34 @@ const Index = () => {
     }
   }, [user, loading]);
 
-  const handleDocumentSelect = (document: Document) => {
+  const handleDocumentSelect = async (document: Document) => {
     console.log('Document selected:', document);
     console.log('Document ID type:', typeof document?.id);
     console.log('Document ID value:', document?.id);
     console.log('Document structure:', JSON.stringify(document, null, 2));
-    setSelectedDocument(document);
-    // Reset clear request when selecting a new document
-    setClearEditorRequest(false);
+    
+    // Check if document requires PIN
+    const pinStatus = await checkDocumentPinStatus(document.id);
+    
+    if (pinStatus.needsPin) {
+      // Document requires PIN verification
+      setPendingDocument(document);
+      setShowPinDialog(true);
+    } else {
+      // Document can be accessed directly
+      setSelectedDocument(document);
+      // Reset clear request when selecting a new document
+      setClearEditorRequest(false);
+    }
+  };
+
+  const handlePinVerified = () => {
+    if (pendingDocument) {
+      setSelectedDocument(pendingDocument);
+      setPendingDocument(null);
+      setClearEditorRequest(false);
+    }
+    setShowPinDialog(false);
   };
 
   const handleDocumentDeleted = (deletedDocumentId: string) => {
@@ -110,6 +135,14 @@ const Index = () => {
             </div>
           </main>
         </div>
+
+        <DocumentPinEntryDialog
+          open={showPinDialog}
+          onOpenChange={setShowPinDialog}
+          documentId={pendingDocument?.id || ''}
+          documentName={pendingDocument?.name || ''}
+          onPinVerified={handlePinVerified}
+        />
       </div>
     </SidebarProvider>
   );

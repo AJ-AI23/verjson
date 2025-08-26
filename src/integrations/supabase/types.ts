@@ -110,6 +110,8 @@ export type Database = {
           file_type: string
           id: string
           name: string
+          pin_code: string | null
+          pin_enabled: boolean
           updated_at: string
           user_id: string
           workspace_id: string
@@ -120,6 +122,8 @@ export type Database = {
           file_type?: string
           id?: string
           name: string
+          pin_code?: string | null
+          pin_enabled?: boolean
           updated_at?: string
           user_id: string
           workspace_id: string
@@ -130,6 +134,8 @@ export type Database = {
           file_type?: string
           id?: string
           name?: string
+          pin_code?: string | null
+          pin_enabled?: boolean
           updated_at?: string
           user_id?: string
           workspace_id?: string
