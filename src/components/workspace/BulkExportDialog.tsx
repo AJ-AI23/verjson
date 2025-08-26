@@ -10,14 +10,15 @@ import {
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Download, FileText } from 'lucide-react';
+import { Download, FileText, Archive } from 'lucide-react';
 import { Document } from '@/types/workspace';
+import JSZip from 'jszip';
 
 interface BulkExportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   documents: Document[];
-  onExport: (selectedDocuments: Document[]) => void;
+  onExport: (selectedDocuments: Document[]) => Promise<void>;
 }
 
 export function BulkExportDialog({
@@ -27,6 +28,7 @@ export function BulkExportDialog({
   onExport,
 }: BulkExportDialogProps) {
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<string>>(new Set());
+  const [isExporting, setIsExporting] = useState(false);
 
   const handleDocumentToggle = (documentId: string) => {
     const newSelection = new Set(selectedDocumentIds);
@@ -46,9 +48,11 @@ export function BulkExportDialog({
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const selectedDocuments = documents.filter(doc => selectedDocumentIds.has(doc.id));
-    onExport(selectedDocuments);
+    setIsExporting(true);
+    await onExport(selectedDocuments);
+    setIsExporting(false);
     setSelectedDocumentIds(new Set());
     onOpenChange(false);
   };
@@ -62,11 +66,11 @@ export function BulkExportDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Download className="h-5 w-5" />
-            Export Documents
+            <Archive className="h-5 w-5" />
+            Export Documents as ZIP
           </DialogTitle>
           <DialogDescription>
-            Select the documents you want to export. They will be downloaded as individual JSON files.
+            Select the documents you want to export. They will be packaged into a single ZIP file.
           </DialogDescription>
         </DialogHeader>
         
@@ -126,14 +130,14 @@ export function BulkExportDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isExporting}>
             Cancel
           </Button>
           <Button 
             onClick={handleExport} 
-            disabled={selectedCount === 0}
+            disabled={selectedCount === 0 || isExporting}
           >
-            Export {selectedCount > 0 ? `${selectedCount} ` : ''}Document{selectedCount !== 1 ? 's' : ''}
+            {isExporting ? 'Creating ZIP...' : `Export ${selectedCount > 0 ? `${selectedCount} ` : ''}Document${selectedCount !== 1 ? 's' : ''} as ZIP`}
           </Button>
         </DialogFooter>
       </DialogContent>

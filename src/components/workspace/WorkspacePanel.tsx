@@ -35,6 +35,7 @@ import {
   Shield
 } from 'lucide-react';
 import { toast } from 'sonner';
+import JSZip from 'jszip';
 
 interface WorkspacePanelProps {
   onDocumentSelect: (document: any) => void;
@@ -190,11 +191,35 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
     return await inviteBulkDocuments(email, documentIds, role);
   };
 
-  const handleBulkExport = (selectedDocuments: any[]) => {
-    selectedDocuments.forEach(document => {
-      handleDocumentExport(document);
-    });
-    toast.success(`Exported ${selectedDocuments.length} document${selectedDocuments.length !== 1 ? 's' : ''}`);
+  const handleBulkExport = async (selectedDocuments: any[]) => {
+    try {
+      const zip = new JSZip();
+      
+      // Add each document to the ZIP file
+      selectedDocuments.forEach(document => {
+        const jsonContent = JSON.stringify(document.content, null, 2);
+        zip.file(`${document.name}.json`, jsonContent);
+      });
+      
+      // Generate the ZIP file
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      
+      // Create download link
+      const url = URL.createObjectURL(zipBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `documents-export-${new Date().toISOString().split('T')[0]}.zip`;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast.success(`Exported ${selectedDocuments.length} document${selectedDocuments.length !== 1 ? 's' : ''} as ZIP file`);
+    } catch (error) {
+      toast.error('Failed to create ZIP file');
+    }
   };
 
   const handlePinSetup = async (document: any) => {
