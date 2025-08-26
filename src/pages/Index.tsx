@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Editor } from '@/components/Editor';
 import { AuthButton } from '@/components/AuthButton';
+import { NotificationsButton } from '@/components/NotificationsButton';
 import { WorkspaceSidebar } from '@/components/workspace/WorkspaceSidebar';
 import { DocumentPinEntryDialog } from '@/components/workspace/DocumentPinEntryDialog';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
@@ -132,6 +133,7 @@ const Index = () => {
                 <div className="text-sm text-muted-foreground">
                   Edit and visualize JSON Schema and OpenAPI 3.1 schemas in real-time
                 </div>
+                <NotificationsButton />
                 <AuthButton />
               </div>
             </div>
