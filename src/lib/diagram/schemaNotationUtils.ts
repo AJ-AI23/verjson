@@ -15,60 +15,64 @@ export const addNotationToSchema = (
   const updatedSchema = JSON.parse(JSON.stringify(schema)); // Deep clone
   console.log('Adding notation to path:', path, 'with notation:', notation);
   
-  // Navigate to the correct property in the schema
-  const pathParts = path.split('.');
-  let current = updatedSchema;
-  
   // Handle root level notations
   if (path === 'root') {
-    if (!current.$notations) {
-      current.$notations = [];
+    if (!updatedSchema.$notations) {
+      updatedSchema.$notations = [];
     }
-    current.$notations.push({
+    updatedSchema.$notations.push({
       ...notation,
       id: `notation-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     });
-    console.log('Added notation to root, result:', current.$notations);
+    console.log('Added notation to root, result:', updatedSchema.$notations);
     return updatedSchema;
   }
   
   // Handle OpenAPI paths
   if (path.startsWith('paths.')) {
-    if (!current.paths) {
-      current.paths = {};
+    if (!updatedSchema.paths) {
+      updatedSchema.paths = {};
     }
-    const pathKey = pathParts[1]; // Get the actual path like '/pets'
-    if (!current.paths[pathKey]) {
-      current.paths[pathKey] = {};
+    const pathKey = path.split('.')[1]; // Get the actual path like '/pets'
+    if (!updatedSchema.paths[pathKey]) {
+      updatedSchema.paths[pathKey] = {};
     }
-    if (!current.paths[pathKey].$notations) {
-      current.paths[pathKey].$notations = [];
+    if (!updatedSchema.paths[pathKey].$notations) {
+      updatedSchema.paths[pathKey].$notations = [];
     }
-    current.paths[pathKey].$notations.push({
+    updatedSchema.paths[pathKey].$notations.push({
       ...notation,
       id: `notation-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     });
-    console.log('Added notation to path:', pathKey, 'result:', current.paths[pathKey].$notations);
+    console.log('Added notation to path:', pathKey, 'result:', updatedSchema.paths[pathKey].$notations);
     return updatedSchema;
   }
   
   // Handle info section
   if (path === 'info') {
-    if (!current.info) {
-      current.info = {};
+    if (!updatedSchema.info) {
+      updatedSchema.info = {};
     }
-    if (!current.info.$notations) {
-      current.info.$notations = [];
+    if (!updatedSchema.info.$notations) {
+      updatedSchema.info.$notations = [];
     }
-    current.info.$notations.push({
+    updatedSchema.info.$notations.push({
       ...notation,
       id: `notation-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     });
-    console.log('Added notation to info, result:', current.info.$notations);
+    console.log('Added notation to info, result:', updatedSchema.info.$notations);
     return updatedSchema;
   }
 
-  // Navigate through the path to find the target property (for JSON Schema properties)
+  // Handle JSON Schema properties that start with 'root.'
+  let pathParts = path.split('.');
+  if (pathParts[0] === 'root') {
+    pathParts = pathParts.slice(1); // Remove 'root' from the beginning
+  }
+  
+  let current = updatedSchema;
+  
+  // Navigate through the path to find the target property
   for (let i = 0; i < pathParts.length; i++) {
     const part = pathParts[i];
     
@@ -83,6 +87,10 @@ export const addNotationToSchema = (
           id: `notation-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
         });
         console.log('Added notation to property:', part, 'result:', current.properties[part].$notations);
+        return updatedSchema;
+      } else {
+        console.warn(`Target property ${part} not found in current object`);
+        return updatedSchema;
       }
     } else {
       // Navigate deeper
@@ -92,7 +100,7 @@ export const addNotationToSchema = (
         current = current.items;
       } else {
         console.warn(`Could not navigate to path part: ${part} in path: ${path}`);
-        break;
+        return updatedSchema;
       }
     }
   }
