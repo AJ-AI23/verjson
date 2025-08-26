@@ -315,6 +315,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
                       checked={patch.isSelected}
                       disabled={!canDeselectPatch && patch.isSelected}
                       onCheckedChange={(checked) => {
+                        console.log('🔘 CHECKBOX CLICKED!!! This should appear in console');
                         console.log('🔘 Checkbox clicked:', { 
                           patchId: patch.id, 
                           description: patch.description,
@@ -323,6 +324,10 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
                           canDeselect: canDeselectPatch,
                           hasOnToggleSelection: !!onToggleSelection
                         });
+                        
+                        // Test alert to make sure the event is firing
+                        alert(`Clicked checkbox for ${patch.description}. Check console for details.`);
+                        
                         onToggleSelection?.(patch.id);
                       }}
                       title={
