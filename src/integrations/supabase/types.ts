@@ -233,7 +233,22 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      user_permissions_summary: {
+        Row: {
+          created_at: string | null
+          granted_by: string | null
+          id: string | null
+          permission_type: string | null
+          resource_id: string | null
+          resource_name: string | null
+          role: Database["public"]["Enums"]["permission_role"] | null
+          updated_at: string | null
+          user_email: string | null
+          user_id: string | null
+          user_name: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
