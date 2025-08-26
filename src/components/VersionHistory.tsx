@@ -51,6 +51,21 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggl
         fullDocumentKeys: p.fullDocument ? Object.keys(p.fullDocument) : 'NO FULL DOCUMENT'
       })) || 'NO PATCHES'
     });
+    
+    // Force test applySelectedPatches
+    if (patches && patches.length > 0) {
+      console.log('🔍 VersionHistory: Testing applySelectedPatches directly...');
+      try {
+        const testResult = applySelectedPatches(patches);
+        console.log('🔍 VersionHistory: Direct applySelectedPatches result:', {
+          resultKeys: Object.keys(testResult || {}),
+          hasContent: testResult && Object.keys(testResult).length > 0,
+          result: testResult
+        });
+      } catch (err) {
+        console.error('🚨 VersionHistory: applySelectedPatches failed:', err);
+      }
+    }
   }, [patches]);
   
   // Calculate current schema based on selected patches
