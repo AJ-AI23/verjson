@@ -3,6 +3,8 @@ import React, { useRef, useEffect, useCallback } from 'react';
 import 'jsoneditor/dist/jsoneditor.css';
 import { CollapsedState } from '@/lib/diagram/types';
 import { useJsonEditor } from '@/hooks/useJsonEditor';
+import { useEditorHistory } from '@/hooks/useEditorHistory';
+import { EditorHistoryControls } from '@/components/editor/EditorHistoryControls';
 
 interface JsonEditorPocProps {
   value: string;
@@ -11,6 +13,7 @@ interface JsonEditorPocProps {
   collapsedPaths?: CollapsedState;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
   maxDepth: number;
+  documentId?: string;
 }
 
 export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
@@ -19,7 +22,8 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   error,
   collapsedPaths = {},
   onToggleCollapse,
-  maxDepth
+  maxDepth,
+  documentId
 }) => {
   // Create a ref to the editor container DOM element
   const containerRef = useRef<HTMLDivElement>(null);
@@ -27,6 +31,29 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   
   // Track if the component has been mounted
   const isMountedRef = useRef<boolean>(false);
+  
+  // Initialize editor history
+  const {
+    addToHistory,
+    undo,
+    redo,
+    clearHistory,
+    canUndo,
+    canRedo,
+    currentIndex,
+    totalEntries
+  } = useEditorHistory({
+    documentId,
+    onContentChange: onChange,
+    maxHistorySize: 50,
+    debounceMs: 1000
+  });
+  
+  // Wrap onChange to add to history
+  const handleChange = useCallback((newValue: string) => {
+    onChange(newValue);
+    addToHistory(newValue);
+  }, [onChange, addToHistory]);
   
   // Wrap onToggleCollapse to prevent initial setup events but allow bulk operations
   const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
@@ -47,7 +74,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     pathExceedsMaxDepth
   } = useJsonEditor({
     value,
-    onChange,
+    onChange: handleChange,
     collapsedPaths,
     onToggleCollapse: handleToggleCollapse,
     maxDepth
@@ -76,25 +103,37 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     <div className="h-full flex flex-col">
       <div className="p-2 border-b bg-slate-50 flex justify-between items-center">
         <h2 className="font-semibold text-slate-700">JSON Editor</h2>
-        <div className="flex gap-2">
-          <button
-            onClick={() => {
-              console.log('Expand All button clicked!');
-              expandAll();
-            }}
-            className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
-          >
-            Expand All
-          </button>
-          <button
-            onClick={() => {
-              console.log('Collapse All button clicked!');
-              collapseAll();
-            }}
-            className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
-          >
-            Collapse All
-          </button>
+        <div className="flex items-center gap-3">
+          <EditorHistoryControls
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onUndo={undo}
+            onRedo={redo}
+            onClearHistory={clearHistory}
+            currentIndex={currentIndex}
+            totalEntries={totalEntries}
+          />
+          <div className="w-px h-4 bg-slate-300" />
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                console.log('Expand All button clicked!');
+                expandAll();
+              }}
+              className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
+            >
+              Expand All
+            </button>
+            <button
+              onClick={() => {
+                console.log('Collapse All button clicked!');
+                collapseAll();
+              }}
+              className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
+            >
+              Collapse All
+            </button>
+          </div>
         </div>
       </div>
       

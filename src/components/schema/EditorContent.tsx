@@ -21,6 +21,7 @@ interface EditorContentProps {
   onToggleCollapse: (path: string, isCollapsed: boolean) => void;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
   expandedNotationPaths?: Set<string>;
+  documentId?: string;
 }
 
 export const EditorContent: React.FC<EditorContentProps> = ({
@@ -37,6 +38,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
   onToggleCollapse,
   onAddNotation,
   expandedNotationPaths,
+  documentId,
 }) => {
   return (
     <SplitPane>
@@ -48,6 +50,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
           collapsedPaths={collapsedPaths}
           onToggleCollapse={onToggleCollapse}
           maxDepth={maxDepth}
+          documentId={documentId}
         />
         <VersionControls 
           version={currentVersion} 

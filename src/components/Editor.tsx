@@ -97,6 +97,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument }
         onToggleCollapse={handleToggleCollapse}
         onAddNotation={handleAddNotation}
         expandedNotationPaths={expandedNotationPaths}
+        documentId={selectedDocument?.id}
       />
       
       {/* Version History Dialog */}
