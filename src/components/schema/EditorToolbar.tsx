@@ -25,6 +25,7 @@ interface EditorToolbarProps {
   setSchema: (schema: string) => void;
   setSavedSchema: (schema: string) => void;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
+  documentName?: string;
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
@@ -39,6 +40,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   setSchema,
   setSavedSchema,
   onAddNotation,
+  documentName,
 }) => {
   const { updateMaxDepth } = useEditorSettings();
   const [isNotationsPanelOpen, setIsNotationsPanelOpen] = useState(false);
@@ -56,6 +58,11 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   };
   return (
     <div className="mb-4 flex flex-wrap items-center gap-4">
+      {documentName && (
+        <Badge variant="outline" className="mr-2">
+          {documentName}
+        </Badge>
+      )}
       <SchemaTypeSelector 
         schemaType={schemaType}
         onSchemaTypeChange={onSchemaTypeChange}

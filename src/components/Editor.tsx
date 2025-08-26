@@ -7,7 +7,13 @@ import { useEditorState } from './editor/useEditorState';
 import { EditorVersionDialog } from './editor/EditorVersionDialog';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 
-export const Editor = () => {
+interface EditorProps {
+  initialSchema?: any;
+  onSave?: (content: any) => void;
+  documentName?: string;
+}
+
+export const Editor = ({ initialSchema, onSave, documentName }: EditorProps) => {
   const { settings, updateGroupProperties } = useEditorSettings();
   const {
     schema,
@@ -34,7 +40,18 @@ export const Editor = () => {
     handleDeleteVersion,
     handleAddNotation,
     expandedNotationPaths
-  } = useEditorState(defaultSchema);
+  } = useEditorState(initialSchema || defaultSchema);
+
+  // Save document when schema changes
+  React.useEffect(() => {
+    if (onSave && parsedSchema && initialSchema) {
+      const timeoutId = setTimeout(() => {
+        onSave(parsedSchema);
+      }, 1000); // Auto-save after 1 second of no changes
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [parsedSchema, onSave, initialSchema]);
   
   return (
     <div className="json-schema-editor">
@@ -50,6 +67,7 @@ export const Editor = () => {
         setSchema={setSchema}
         setSavedSchema={setSavedSchema}
         onAddNotation={handleAddNotation}
+        documentName={documentName}
       />
       
       <EditorContent

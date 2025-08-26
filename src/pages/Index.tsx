@@ -1,9 +1,16 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Editor } from '@/components/Editor';
 import { AuthButton } from '@/components/AuthButton';
+import { WorkspacePanel } from '@/components/workspace/WorkspacePanel';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { Document } from '@/types/workspace';
+import { useDocuments } from '@/hooks/useDocuments';
+import { toast } from 'sonner';
 const Index = () => {
   const { user, loading } = useAuth();
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const { updateDocument } = useDocuments();
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -11,6 +18,21 @@ const Index = () => {
       window.location.href = '/auth';
     }
   }, [user, loading]);
+
+  const handleDocumentSelect = (document: Document) => {
+    setSelectedDocument(document);
+  };
+
+  const handleDocumentSave = async (content: any) => {
+    if (!selectedDocument) return;
+    
+    try {
+      await updateDocument(selectedDocument.id, { content });
+      toast.success('Document saved successfully');
+    } catch (err) {
+      toast.error('Failed to save document');
+    }
+  };
 
   if (loading) {
     return (
@@ -39,7 +61,22 @@ const Index = () => {
       </header>
       
       <main className="flex-1 p-4">
-        <Editor />
+        <ResizablePanelGroup direction="horizontal" className="h-full">
+          <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
+            <WorkspacePanel 
+              onDocumentSelect={handleDocumentSelect}
+              selectedDocument={selectedDocument}
+            />
+          </ResizablePanel>
+          <ResizableHandle />
+          <ResizablePanel defaultSize={75}>
+            <Editor 
+              initialSchema={selectedDocument?.content}
+              onSave={handleDocumentSave}
+              documentName={selectedDocument?.name}
+            />
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </main>
     </div>
   );
