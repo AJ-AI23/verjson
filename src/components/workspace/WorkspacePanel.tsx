@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspaces } from '@/hooks/useWorkspaces';
 import { useDocuments } from '@/hooks/useDocuments';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { DeleteConfirmationDialog } from './DeleteConfirmationDialog';
+import { CollaboratorsPanel } from './CollaboratorsPanel';
 import { 
   Plus, 
   FolderPlus, 
@@ -33,6 +35,7 @@ interface WorkspacePanelProps {
 }
 
 export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDocument, isCollapsed }: WorkspacePanelProps) {
+  const { user } = useAuth();
   const { workspaces, createWorkspace, deleteWorkspace } = useWorkspaces();
   const [selectedWorkspace, setSelectedWorkspace] = useState<string>('');
   const { documents, createDocument, deleteDocument } = useDocuments(selectedWorkspace);
@@ -140,14 +143,16 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
     }
   };
 
+  const isDocumentOwner = selectedDocument && user ? selectedDocument.user_id === user.id : false;
+
   // Don't render content if collapsed
   if (isCollapsed) {
     return null;
   }
 
   return (
-    <div className="h-full p-4">
-      <Card className="h-full flex flex-col border-0 shadow-none">
+    <div className="h-full p-4 space-y-4">
+      <Card className="flex-1 flex flex-col border-0 shadow-none">
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-3">
             <CardTitle className="text-lg">Workspaces</CardTitle>
@@ -360,6 +365,11 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
         )}
         </CardContent>
       </Card>
+
+      <CollaboratorsPanel 
+        document={selectedDocument}
+        isOwner={isDocumentOwner}
+      />
 
       <DeleteConfirmationDialog
         open={deleteDialogOpen}
