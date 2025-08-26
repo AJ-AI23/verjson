@@ -112,15 +112,23 @@ export const useVersioning = ({
         const parsedSchema = JSON.parse(currentSchemaToUse);
         // Only create initial version if the schema has actual content
         if (Object.keys(parsedSchema).length > 0) {
-          console.log('Creating initial version for document:', documentId, 'with schema keys:', Object.keys(parsedSchema));
-          const initialPatch = generatePatch(
-            {}, // Empty previous schema
-            parsedSchema,
-            { major: 0, minor: 1, patch: 0 },
-            'minor',
-            'Initial version',
-            true // Mark as released
-          );
+        console.log('Creating initial version for document:', documentId, 'with schema keys:', Object.keys(parsedSchema));
+        const initialPatch = generatePatch(
+          {}, // Empty previous schema
+          parsedSchema,
+          { major: 0, minor: 1, patch: 0 },
+          'minor',
+          'Initial version',
+          true // Mark as released
+        );
+        
+        // Log what we're about to save
+        console.log('Initial version patch contains:', {
+          hasPatches: !!initialPatch.patches,
+          hasFullDocument: !!initialPatch.fullDocument,
+          fullDocumentKeys: initialPatch.fullDocument ? Object.keys(initialPatch.fullDocument) : 'none',
+          fullDocumentPreview: initialPatch.fullDocument ? JSON.stringify(initialPatch.fullDocument).substring(0, 200) : 'none'
+        });
           
           // Mark that we've attempted creation for this document
           initialVersionAttempted.current = documentId;

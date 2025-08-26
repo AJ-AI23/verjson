@@ -159,7 +159,11 @@ export const applySelectedPatches = (patches: SchemaPatch[]): any => {
       if (patch.fullDocument) {
         baseSchema = JSON.parse(JSON.stringify(patch.fullDocument)); // Deep clone
         startIndex = i + 1;
-        console.log(`Using released version ${formatVersion(patch.version)} as base with fullDocument`);
+        console.log(`Using released version ${formatVersion(patch.version)} as base with fullDocument:`, {
+          keys: Object.keys(patch.fullDocument),
+          hasContent: Object.keys(patch.fullDocument).length > 0,
+          preview: JSON.stringify(patch.fullDocument).substring(0, 200)
+        });
         break;
       } else {
         // For initial version without fullDocument, apply all patches from beginning
