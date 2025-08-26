@@ -134,7 +134,7 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
           className="ml-auto text-xs"
           title={!isModified ? "No changes to commit" : !description.trim() ? "Please enter a description" : ""}
         >
-          Commit Changes
+          Commit Changes {isModified ? '✓' : '✗'}
         </Button>
       </div>
     </div>
