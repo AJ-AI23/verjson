@@ -134,7 +134,7 @@ export const generateOpenApiLayout = (
       }
     }
     
-    // Create Paths structure if paths exist and is explicitly expanded
+    // Create Paths container box when showing OpenAPI structure
     if (schema.paths) {
       const pathsPath = 'root.paths';
       const pathsExplicitlyExpanded = collapsedPaths[pathsPath] === false || 
@@ -142,8 +142,8 @@ export const generateOpenApiLayout = (
       
       console.log(`🔥 [OPENAPI LAYOUT] Paths path: ${pathsPath}, explicitly expanded: ${pathsExplicitlyExpanded}`);
       
-      if (pathsExplicitlyExpanded) {
-        // Create a Paths container node first
+      if (!pathsExplicitlyExpanded) {
+        // Show Paths container box (when root.paths is NOT explicitly expanded)
         const pathsContainerNode = createPropertyNode(
           'Paths',
           { 
@@ -160,22 +160,22 @@ export const generateOpenApiLayout = (
         const pathsContainerEdge = createEdge('root', pathsContainerNode.id, undefined, false, {}, 'default');
         result.nodes.push(pathsContainerNode);
         result.edges.push(pathsContainerEdge);
-        console.log(`[OPENAPI LAYOUT] Created paths container node with ID: ${pathsContainerNode.id}`);
-        console.log(`[OPENAPI LAYOUT] Created paths container edge:`, pathsContainerEdge);
-        
-        // Then create individual endpoint nodes connected to the paths container
+        console.log(`🔥 [OPENAPI LAYOUT] Created paths container node with ID: ${pathsContainerNode.id}`);
+      } else {
+        // Show individual endpoint boxes (when root.paths IS explicitly expanded)
+        console.log(`🔥 [OPENAPI LAYOUT] Creating individual endpoint boxes instead of container`);
         processOpenApiPaths(
           schema.paths,
-          pathsContainerNode.id, // Connect to paths container instead of root
+          'root', // Connect directly to root instead of paths container
           400,
-          yOffset + 200, // Position below the paths container
+          yOffset, // Same level as other OpenAPI structure boxes
           200,
           result,
           maxDepth,
           collapsedPaths,
           'root.paths'
         );
-        console.log(`[OPENAPI LAYOUT] Processed individual paths`);
+        console.log(`🔥 [OPENAPI LAYOUT] Processed individual paths`);
       }
     }
     
