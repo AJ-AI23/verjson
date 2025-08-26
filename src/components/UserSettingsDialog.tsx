@@ -12,8 +12,9 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, User, Mail, Key } from 'lucide-react';
+import { Loader2, User, Mail, Key, UserCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useUserProfile } from '@/hooks/useUserProfile';
 
 interface UserSettingsDialogProps {
   open: boolean;
@@ -22,13 +23,48 @@ interface UserSettingsDialogProps {
 
 export function UserSettingsDialog({ open, onOpenChange }: UserSettingsDialogProps) {
   const { user, updatePassword, updateEmail } = useAuth();
+  const { profile, updateProfile, loading } = useUserProfile();
   const { toast } = useToast();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [newUsername, setNewUsername] = useState('');
+  const [newFullName, setNewFullName] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Initialize form fields when profile loads
+  React.useEffect(() => {
+    if (profile) {
+      setNewUsername(profile.username || '');
+      setNewFullName(profile.full_name || '');
+    }
+  }, [profile]);
+
+  const handleProfileUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsSubmitting(true);
+
+    try {
+      const success = await updateProfile({
+        username: newUsername,
+        full_name: newFullName,
+      });
+
+      if (success) {
+        toast({
+          title: "Profile updated",
+          description: "Your profile has been updated successfully.",
+        });
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,12 +141,16 @@ export function UserSettingsDialog({ open, onOpenChange }: UserSettingsDialogPro
             Account Settings
           </DialogTitle>
           <DialogDescription>
-            Update your password or email address. Changes will require verification.
+            Update your profile, password, or email address.
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="password" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs defaultValue="profile" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="profile" className="flex items-center gap-2">
+              <UserCircle className="h-4 w-4" />
+              Profile
+            </TabsTrigger>
             <TabsTrigger value="password" className="flex items-center gap-2">
               <Key className="h-4 w-4" />
               Password
@@ -120,6 +160,53 @@ export function UserSettingsDialog({ open, onOpenChange }: UserSettingsDialogPro
               Email
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="profile" className="space-y-4">
+            {loading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            ) : (
+              <form onSubmit={handleProfileUpdate} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="full-name">Full Name</Label>
+                  <Input
+                    id="full-name"
+                    type="text"
+                    placeholder="Enter your full name"
+                    value={newFullName}
+                    onChange={(e) => setNewFullName(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    type="text"
+                    placeholder="Enter your username"
+                    value={newUsername}
+                    onChange={(e) => setNewUsername(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={isSubmitting || (!newUsername && !newFullName)}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating Profile...
+                    </>
+                  ) : (
+                    'Update Profile'
+                  )}
+                </Button>
+              </form>
+            )}
+          </TabsContent>
 
           <TabsContent value="password" className="space-y-4">
             <form onSubmit={handlePasswordChange} className="space-y-4">
