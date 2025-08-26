@@ -192,9 +192,9 @@ export const createEndpointNode = (
       responses: methodData.responses
     }));
 
-  // Create a label that shows the main method and path
-  const primaryMethod = methods.length > 0 ? methods[0].method.toUpperCase() : '';
-  const nodeLabel = primaryMethod ? `${primaryMethod} ${path}` : path;
+  // Create a label that shows all methods for consolidated view
+  const methodLabels = methods.map(m => m.method.toUpperCase()).join(' ');
+  const nodeLabel = methods.length > 0 ? `${methodLabels} ${path}` : path;
 
   return {
     id: `endpoint-${path.replace(/[^\w]/g, '-')}`,

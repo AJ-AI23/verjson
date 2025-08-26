@@ -372,7 +372,7 @@ function processJsonSchemaProperties(
   });
 }
 
-// Process OpenAPI paths structure - creates individual method nodes
+// Process OpenAPI paths structure - handles both consolidated and expanded views
 function processOpenApiPaths(
   paths: Record<string, any>,
   parentNodeId: string,
@@ -384,98 +384,125 @@ function processOpenApiPaths(
   collapsedPaths: CollapsedState,
   parentPath: string
 ) {
-  console.log(`[OPENAPI LAYOUT] Processing paths:`, Object.keys(paths));
+  console.log(`🔥 [OPENAPI LAYOUT] Processing paths:`, Object.keys(paths));
   
-  // Collect all individual methods from all paths
-  const allMethods: Array<{
-    path: string;
-    method: string;
-    methodData: any;
-    fullLabel: string;
-    basePath: string;
-  }> = [];
+  const pathNames = Object.keys(paths);
+  const startX = xPos - (pathNames.length * xSpacing) / 2 + xSpacing / 2;
   
-  Object.entries(paths).forEach(([pathName, pathValue]) => {
-    console.log(`[OPENAPI LAYOUT] Processing path "${pathName}":`, Object.keys(pathValue || {}));
+  pathNames.forEach((pathName, pathIndex) => {
+    const pathData = paths[pathName];
+    const pathX = startX + pathIndex * xSpacing;
+    const individualPathPath = `${parentPath}.${pathName}`;
     
-    if (typeof pathValue === 'object' && pathValue !== null) {
-      Object.entries(pathValue).forEach(([method, methodData]) => {
-        console.log(`[OPENAPI LAYOUT] Found method "${method}" for path "${pathName}"`);
+    // Check if this individual path is expanded
+    const isIndividualPathExpanded = collapsedPaths[individualPathPath] === false || 
+      (collapsedPaths[individualPathPath] && typeof collapsedPaths[individualPathPath] === 'object');
+    
+    console.log(`🔥 [OPENAPI LAYOUT] Path "${pathName}": expanded=${isIndividualPathExpanded}`);
+    
+    if (isIndividualPathExpanded) {
+      // EXPANDED MODE: Show individual method boxes for this path
+      console.log(`🔥 [OPENAPI LAYOUT] Creating individual method boxes for path: ${pathName}`);
+      
+      const methods = Object.entries(pathData || {})
+        .filter(([method]) => ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'].includes(method.toLowerCase()));
+      
+      const methodStartX = pathX - (methods.length * 150) / 2 + 75;
+      
+      methods.forEach(([method, methodData], methodIndex) => {
+        const methodX = methodStartX + methodIndex * 150;
+        const methodPath = `${individualPathPath}.${method.toLowerCase()}`;
         
-        if (['get', 'post', 'put', 'patch', 'delete', 'head', 'options'].includes(method.toLowerCase())) {
-          const methodEntry = {
-            path: pathName,
-            method: method.toLowerCase(),
+        // Check if this specific method is collapsed
+        const isMethodCollapsed = collapsedPaths[methodPath] === true;
+        
+        if (!isMethodCollapsed) {
+          const methodNode = createMethodNode(
+            pathName,
+            method.toLowerCase(),
             methodData,
-            fullLabel: `${method.toUpperCase()} ${pathName}`,
-            basePath: `${parentPath}.${pathName}.${method.toLowerCase()}`
-          };
-          allMethods.push(methodEntry);
-          console.log(`[OPENAPI LAYOUT] Added method entry:`, methodEntry.fullLabel);
-        } else {
-          console.log(`[OPENAPI LAYOUT] Skipping non-HTTP method "${method}"`);
+            methodX,
+            yPos
+          );
+          
+          const edge = createEdge(parentNodeId, methodNode.id, undefined, false, {}, 'default');
+          
+          result.nodes.push(methodNode);
+          result.edges.push(edge);
+          
+          console.log(`🔥 [OPENAPI LAYOUT] Created individual method node: ${method.toUpperCase()} ${pathName}`);
+          
+          // Process responses and request bodies for individual method nodes
+          processMethodDetails(methodData, methodNode, methodX, yPos, result, collapsedPaths, methodPath);
         }
       });
     } else {
-      console.log(`[OPENAPI LAYOUT] Path "${pathName}" is not a valid object:`, pathValue);
-    }
-  });
-  
-  console.log(`[OPENAPI LAYOUT] Total methods found:`, allMethods.length, allMethods.map(m => m.fullLabel));
-  
-  const startX = xPos - (allMethods.length * xSpacing) / 2 + xSpacing / 2;
-  
-  allMethods.forEach((methodEntry, index) => {
-    const methodX = startX + index * xSpacing;
-    const methodPath = `${parentPath}.${methodEntry.path}.${methodEntry.method}`;
-    
-    // Check if this specific method is collapsed
-    const isMethodCollapsed = collapsedPaths[methodPath] === true;
-    
-    console.log(`[OPENAPI LAYOUT] Processing method ${methodEntry.fullLabel}, path: ${methodPath}, collapsed: ${isMethodCollapsed}`);
-    
-    // Only create method node if it's not collapsed
-    if (!isMethodCollapsed) {
-      // Create individual method node
-      const methodNode = createMethodNode(
-        methodEntry.path,
-        methodEntry.method,
-        methodEntry.methodData,
-        methodX,
+      // CONSOLIDATED MODE: Show single endpoint box with all methods
+      console.log(`🔥 [OPENAPI LAYOUT] Creating consolidated endpoint box for path: ${pathName}`);
+      
+      const endpointNode = createEndpointNode(
+        pathName,
+        pathData,
+        pathX,
         yPos
       );
       
-      const edge = createEdge(parentNodeId, methodNode.id, undefined, false, {}, 'default');
+      const edge = createEdge(parentNodeId, endpointNode.id, undefined, false, {}, 'default');
       
-      result.nodes.push(methodNode);
+      result.nodes.push(endpointNode);
       result.edges.push(edge);
       
-      console.log(`[OPENAPI LAYOUT] Created method node for ${methodEntry.fullLabel} with ID: ${methodNode.id}`);
+      console.log(`🔥 [OPENAPI LAYOUT] Created consolidated endpoint node for: ${pathName}`);
+    }
+  });
+}
+
+// Helper function to process method details (responses, request bodies, references)
+function processMethodDetails(
+  methodData: any,
+  methodNode: any,
+  methodX: number,
+  yPos: number,
+  result: DiagramElements,
+  collapsedPaths: CollapsedState,
+  methodPath: string
+) {
+  let responseOffset = 0;
+  
+  // Process request body if it has application/json content
+  if (methodData.requestBody?.content?.['application/json']) {
+    const requestBodyPath = `${methodPath}.requestBody`;
+    const requestBodyExpanded = collapsedPaths[requestBodyPath] === false || 
+      (collapsedPaths[requestBodyPath] && typeof collapsedPaths[requestBodyPath] === 'object');
+    
+    if (requestBodyExpanded) {
+      const requestBodyNode = createRequestBodyNode(
+        methodData.requestBody,
+        methodX - 200,
+        yPos + 150
+      );
       
-      // Process request body if it has application/json content
-      if (methodEntry.methodData.requestBody?.content?.['application/json']) {
-        const requestBodyNode = createRequestBodyNode(
-          methodEntry.methodData.requestBody,
-          methodX - 200,
-          yPos + 150
-        );
+      const requestBodyEdge = createEdge(methodNode.id, requestBodyNode.id, undefined, false, {}, 'default');
+      
+      result.nodes.push(requestBodyNode);
+      result.edges.push(requestBodyEdge);
+      
+      console.log(`🔥 [OPENAPI LAYOUT] Created request body node for method`);
+      
+      // Process request body schema if expanded
+      const requestBodySchema = methodData.requestBody.content['application/json'].schema;
+      if (requestBodySchema) {
+        const schemaPath = `${requestBodyPath}.content.application/json.schema`;
+        const schemaExpanded = collapsedPaths[schemaPath] === false || 
+          (collapsedPaths[schemaPath] && typeof collapsedPaths[schemaPath] === 'object');
         
-        const requestBodyEdge = createEdge(methodNode.id, requestBodyNode.id, undefined, false, {}, 'default');
-        
-        result.nodes.push(requestBodyNode);
-        result.edges.push(requestBodyEdge);
-        
-        console.log(`[OPENAPI LAYOUT] Created request body node for ${methodEntry.fullLabel}`);
-        
-        // If request body has a schema, create a schema node
-        const requestBodySchema = methodEntry.methodData.requestBody.content['application/json'].schema;
-        if (requestBodySchema) {
+        if (schemaExpanded) {
           const schemaNode = createPropertyNode(
             'Schema',
             requestBodySchema,
             [],
-            methodX - 200,
-            yPos + 300,
+            methodX - 400,
+            yPos + 150,
             false
           );
           
@@ -483,209 +510,119 @@ function processOpenApiPaths(
           
           result.nodes.push(schemaNode);
           result.edges.push(schemaEdge);
+          
+          // Handle references for request body schema
+          handleSchemaReferences(requestBodySchema, schemaNode.id, result);
         }
       }
-      
-      // Process responses that have application/json content - only if responses property is expanded
-      if (methodEntry.methodData.responses) {
-        const responsesPath = `${methodEntry.basePath}.responses`;
-        const responsesExpanded = collapsedPaths[responsesPath] === false || 
-          (collapsedPaths[responsesPath] && typeof collapsedPaths[responsesPath] === 'object');
-        
-        console.log(`[OPENAPI LAYOUT] Responses path: ${responsesPath}, expanded: ${responsesExpanded}`);
-        
-        if (responsesExpanded) {
-          const responseEntries = Object.entries(methodEntry.methodData.responses)
-            .filter(([_, responseData]: [string, any]) => 
-              responseData?.content?.['application/json']
-            );
-          
-          responseEntries.forEach(([statusCode, responseData]: [string, any], responseIndex) => {
-            const responseNode = createResponseNode(
-              statusCode,
-              responseData,
-              methodX + 200 + (responseIndex * 150),
-              yPos + 150
-            );
-            
-            const responseEdge = createEdge(methodNode.id, responseNode.id, undefined, false, {}, 'default');
-            
-            result.nodes.push(responseNode);
-            result.edges.push(responseEdge);
-            
-            console.log(`[OPENAPI LAYOUT] Created response node for ${methodEntry.fullLabel} - ${statusCode}`);
-            
-            // Check if the schema property is expanded for this response
-            const schemaPath = `${methodEntry.basePath}.responses.${statusCode}.content.application/json.schema`;
-            const schemaExpanded = collapsedPaths[schemaPath] === false || 
-              (collapsedPaths[schemaPath] && typeof collapsedPaths[schemaPath] === 'object');
-            
-            console.log(`[OPENAPI LAYOUT] Schema path: ${schemaPath}, expanded: ${schemaExpanded}`);
-            
-            // If response has a schema and schema property is expanded, create a schema node
-            const responseSchema = responseData.content['application/json'].schema;
-            if (responseSchema && schemaExpanded) {
-              const schemaNode = createPropertyNode(
-                'Schema',
-                responseSchema,
-                [],
-                methodX + 400 + (responseIndex * 150),
-                yPos + 150,
-                false
-              );
-              
-              const schemaEdge = createEdge(responseNode.id, schemaNode.id, undefined, false, {}, 'default');
-              
-              result.nodes.push(schemaNode);
-              result.edges.push(schemaEdge);
-              
-              // If schema has a $ref, create a dotted edge to the referenced component
-              if (responseSchema.$ref) {
-                const refPath = responseSchema.$ref.replace('#/components/schemas/', '');
-                const componentNodeId = `prop-${refPath}`;
-                
-                // Check if the referenced component node exists
-                const existingComponentNode = result.nodes.find(node => node.id === componentNodeId);
-                if (existingComponentNode) {
-                  const refEdge = createEdge(
-                    schemaNode.id,
-                    componentNodeId,
-                    undefined,
-                    false,
-                    { strokeDasharray: '5,5' },
-                    'default'
-                  );
-                  result.edges.push(refEdge);
-                  console.log(`[OPENAPI LAYOUT] Created dotted reference edge from ${schemaNode.id} to ${componentNodeId}`);
-                }
-              }
-              
-              console.log(`[OPENAPI LAYOUT] Created schema node for response ${statusCode}:`, schemaNode.id);
-            }
-          });
-        }
-      }
-      
-      // Handle reference edges - start from the most specific expanded level and work backwards
-      console.log(`[OPENAPI LAYOUT] Checking reference edges for method: ${methodEntry.fullLabel}`);
-      console.log(`[OPENAPI LAYOUT] Method data responses:`, Object.keys(methodEntry.methodData.responses || {}));
-      
-      if (methodEntry.methodData.responses) {
-        Object.entries(methodEntry.methodData.responses).forEach(([statusCode, responseData]: [string, any]) => {
-          console.log(`[OPENAPI LAYOUT] Checking response ${statusCode}:`, responseData?.content?.['application/json']?.schema);
-          
-          // Check for $ref in the response schema or its items property
-          const responseSchema = responseData?.content?.['application/json']?.schema;
-          const hasDirectRef = responseSchema?.$ref;
-          const hasItemsRef = responseSchema?.items?.$ref;
-          
-          if (hasDirectRef || hasItemsRef) {
-            const refValue = hasDirectRef ? responseSchema.$ref : responseSchema.items.$ref;
-            const refPath = refValue.replace('#/components/schemas/', '');
-            const componentNodeId = `prop-${refPath}`;
-            const existingComponentNode = result.nodes.find(node => node.id === componentNodeId);
-            
-            console.log(`[OPENAPI LAYOUT] Found $ref: ${refValue}`);
-            console.log(`[OPENAPI LAYOUT] Component node ID: ${componentNodeId}`);
-            console.log(`[OPENAPI LAYOUT] Component node exists:`, !!existingComponentNode);
-            console.log(`[OPENAPI LAYOUT] All node IDs:`, result.nodes.map(n => n.id));
-            
-            if (existingComponentNode) {
-              const responsesPath = `${methodEntry.basePath}.responses`;
-              const responsesExpanded = collapsedPaths[responsesPath] === false || 
-                (collapsedPaths[responsesPath] && typeof collapsedPaths[responsesPath] === 'object');
-              
-              if (responsesExpanded) {
-                const schemaPath = `${methodEntry.basePath}.responses.${statusCode}.content.application/json.schema`;
-                const schemaExpanded = collapsedPaths[schemaPath] === false || 
-                  (collapsedPaths[schemaPath] && typeof collapsedPaths[schemaPath] === 'object');
-                
-                if (schemaExpanded) {
-                  // Reference edge from schema node (already handled above in schema creation)
-                  console.log(`[OPENAPI LAYOUT] Schema expanded - reference edge handled in schema creation`);
-                } else {
-                  // Reference edge from response node
-                  const responseNodeId = `response-${methodEntry.path.replace(/[^\w]/g, '-')}-${methodEntry.method}-${statusCode}`;
-                  const existingResponseNode = result.nodes.find(node => node.id === responseNodeId);
-                  
-                  if (existingResponseNode) {
-                    const refEdge = createEdge(
-                      responseNodeId,
-                      componentNodeId,
-                      undefined,
-                      false,
-                      { strokeDasharray: '5,5' },
-                      'default'
-                    );
-                    result.edges.push(refEdge);
-                    console.log(`[OPENAPI LAYOUT] Created dotted reference edge from response ${responseNodeId} to ${componentNodeId}`);
-                  }
-                }
-              } else {
-                // Reference edge from method node (responses not expanded)
-                const refEdge = createEdge(
-                  methodNode.id,
-                  componentNodeId,
-                  undefined,
-                  false,
-                  { strokeDasharray: '5,5' },
-                  'default'
-                );
-                result.edges.push(refEdge);
-                console.log(`[OPENAPI LAYOUT] Created dotted reference edge from method ${methodNode.id} to ${componentNodeId}`);
-              }
-            }
-          }
-        });
-      }
-      
-      // Handle request body references
-      if (methodEntry.methodData.requestBody?.content?.['application/json']?.schema?.$ref) {
-        const requestBodyPath = `${methodEntry.basePath}.requestBody`;
-        const requestBodyExpanded = collapsedPaths[requestBodyPath] === false || 
-          (collapsedPaths[requestBodyPath] && typeof collapsedPaths[requestBodyPath] === 'object');
-        
-        const refPath = methodEntry.methodData.requestBody.content['application/json'].schema.$ref.replace('#/components/schemas/', '');
-        const componentNodeId = `prop-${refPath}`;
-        const existingComponentNode = result.nodes.find(node => node.id === componentNodeId);
-        
-        if (existingComponentNode) {
-          if (requestBodyExpanded) {
-            // Reference edge from request body node (if it exists)
-            const requestBodyNodeId = `requestbody-${methodEntry.path.replace(/[^\w]/g, '-')}-${methodEntry.method}`;
-            const existingRequestBodyNode = result.nodes.find(node => node.id === requestBodyNodeId);
-            
-            if (existingRequestBodyNode) {
-              const refEdge = createEdge(
-                requestBodyNodeId,
-                componentNodeId,
-                undefined,
-                false,
-                { strokeDasharray: '5,5' },
-                'default'
-              );
-              result.edges.push(refEdge);
-              console.log(`[OPENAPI LAYOUT] Created dotted reference edge from request body ${requestBodyNodeId} to ${componentNodeId}`);
-            }
-          } else {
-            // Reference edge from method node
-            const refEdge = createEdge(
-              methodNode.id,
-              componentNodeId,
-              undefined,
-              false,
-              { strokeDasharray: '5,5' },
-              'default'
-            );
-            result.edges.push(refEdge);
-            console.log(`[OPENAPI LAYOUT] Created dotted reference edge from method ${methodNode.id} to ${componentNodeId} for request body`);
-          }
-        }
-      }
-    } else {
-      console.log(`[OPENAPI LAYOUT] Skipped collapsed method: ${methodEntry.fullLabel}`);
     }
-  });
+  }
+  
+  // Process responses that have application/json content
+  if (methodData.responses) {
+    const responsesPath = `${methodPath}.responses`;
+    const responsesExpanded = collapsedPaths[responsesPath] === false || 
+      (collapsedPaths[responsesPath] && typeof collapsedPaths[responsesPath] === 'object');
+    
+    console.log(`🔥 [OPENAPI LAYOUT] Responses path: ${responsesPath}, expanded: ${responsesExpanded}`);
+    
+    if (responsesExpanded) {
+      Object.entries(methodData.responses).forEach(([statusCode, responseData]: [string, any]) => {
+        if (responseData?.content?.['application/json']) {
+          const responseNode = createResponseNode(
+            statusCode,
+            responseData,
+            methodX + 200,
+            yPos + 150 + responseOffset
+          );
+          
+          const responseEdge = createEdge(methodNode.id, responseNode.id, undefined, false, {}, 'default');
+          
+          result.nodes.push(responseNode);
+          result.edges.push(responseEdge);
+          
+          console.log(`🔥 [OPENAPI LAYOUT] Created response node for ${statusCode}`);
+          
+          // Check if the schema property is expanded for this response
+          const schemaPath = `${methodPath}.responses.${statusCode}.content.application/json.schema`;
+          const schemaExpanded = collapsedPaths[schemaPath] === false || 
+            (collapsedPaths[schemaPath] && typeof collapsedPaths[schemaPath] === 'object');
+          
+          console.log(`🔥 [OPENAPI LAYOUT] Schema path: ${schemaPath}, expanded: ${schemaExpanded}`);
+          
+          // If response has a schema and schema property is expanded, create a schema node
+          const responseSchema = responseData.content['application/json'].schema;
+          if (responseSchema && schemaExpanded) {
+            const schemaNode = createPropertyNode(
+              'Schema',
+              responseSchema,
+              [],
+              methodX + 400,
+              yPos + 150 + responseOffset,
+              false
+            );
+            
+            const schemaEdge = createEdge(responseNode.id, schemaNode.id, undefined, false, {}, 'default');
+            
+            result.nodes.push(schemaNode);
+            result.edges.push(schemaEdge);
+            
+            // Handle references for response schema
+            handleSchemaReferences(responseSchema, schemaNode.id, result);
+            
+            console.log(`🔥 [OPENAPI LAYOUT] Created schema node for response ${statusCode}`);
+          }
+          
+          responseOffset += 100;
+        }
+      });
+    }
+  }
+}
+
+// Helper function to handle schema references ($ref)
+function handleSchemaReferences(schema: any, sourceNodeId: string, result: DiagramElements) {
+  // Check for direct $ref
+  if (schema.$ref) {
+    createReferenceEdge(schema.$ref, sourceNodeId, result);
+  }
+  
+  // Check for $ref in items (for arrays)
+  if (schema.items?.$ref) {
+    createReferenceEdge(schema.items.$ref, sourceNodeId, result);
+  }
+  
+  // Check for $ref in properties
+  if (schema.properties) {
+    Object.values(schema.properties).forEach((prop: any) => {
+      if (prop.$ref) {
+        createReferenceEdge(prop.$ref, sourceNodeId, result);
+      }
+    });
+  }
+}
+
+// Helper function to create a reference edge
+function createReferenceEdge(ref: string, sourceNodeId: string, result: DiagramElements) {
+  if (ref.includes('#/components/schemas/')) {
+    const refPath = ref.replace('#/components/schemas/', '');
+    const componentNodeId = `prop-${refPath}`;
+    
+    // Check if the referenced component node exists
+    const existingComponentNode = result.nodes.find(node => node.id === componentNodeId);
+    if (existingComponentNode) {
+      const refEdge = createEdge(
+        sourceNodeId,
+        componentNodeId,
+        undefined,
+        false,
+        { strokeDasharray: '5,5' },
+        'default'
+      );
+      result.edges.push(refEdge);
+      console.log(`🔥 [OPENAPI LAYOUT] Created dotted reference edge from ${sourceNodeId} to ${componentNodeId}`);
+    }
+  }
 }
 
 // Process other OpenAPI properties generically

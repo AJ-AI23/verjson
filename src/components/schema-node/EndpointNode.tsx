@@ -52,9 +52,11 @@ export const EndpointNode = memo(({ data, isConnectable }: EndpointNodeProps) =>
       <div className="flex flex-col gap-2">
         <div className="flex flex-col gap-1">
           <div className="text-sm font-semibold text-slate-900">
-            {label || path}
+            {path}
           </div>
-          <div className="text-xs text-slate-600">API Endpoint</div>
+          <div className="text-xs text-slate-600">
+            {methods.length === 1 ? 'API Endpoint' : `${methods.length} Methods`}
+          </div>
         </div>
         
         <div className="flex flex-wrap gap-1">
@@ -72,6 +74,12 @@ export const EndpointNode = memo(({ data, isConnectable }: EndpointNodeProps) =>
         {methods.length === 1 && methods[0].summary && (
           <div className="text-xs text-slate-600 truncate" title={methods[0].summary}>
             {methods[0].summary}
+          </div>
+        )}
+        
+        {methods.length > 1 && (
+          <div className="text-xs text-slate-600">
+            Multiple operations available
           </div>
         )}
       </div>
