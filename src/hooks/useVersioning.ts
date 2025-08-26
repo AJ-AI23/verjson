@@ -71,21 +71,32 @@ export const useVersioning = ({
 
   // Create initial version when document is loaded (only once per document)
   useEffect(() => {
+    console.log('Initial version effect triggered:', { 
+      documentId, 
+      hasSchema: !!savedSchema && savedSchema.trim() !== '{}' && savedSchema.trim() !== '', 
+      loading, 
+      hasVersions: versions.length > 0,
+      attemptedFor: initialVersionAttempted.current 
+    });
+    
     if (!documentId || !savedSchema || savedSchema.trim() === '{}' || savedSchema.trim() === '') {
       return;
     }
 
     // Don't create if we've already attempted for this document
     if (initialVersionAttempted.current === documentId) {
+      console.log('Already attempted initial version for this document');
       return;
     }
 
     // Check if versions have loaded and if there's already an initial version
     if (loading) {
+      console.log('Still loading versions, waiting...');
       return; // Wait for versions to load
     }
 
     const hasInitialVersion = versions.some(v => v.description === 'Initial version');
+    console.log('Has initial version:', hasInitialVersion, 'Total versions:', versions.length);
     
     if (!hasInitialVersion) {
       try {
@@ -112,13 +123,19 @@ export const useVersioning = ({
         // Still mark as attempted to prevent infinite retries
         initialVersionAttempted.current = documentId;
       }
+    } else {
+      console.log('Initial version already exists, marking as attempted');
+      initialVersionAttempted.current = documentId;
     }
   }, [documentId, savedSchema, loading, versions, createVersion]);
 
   // Reset tracking when document changes
   useEffect(() => {
     if (documentId && initialVersionAttempted.current !== documentId) {
+      console.log('Document changed, resetting version tracking:', { documentId, previous: initialVersionAttempted.current });
       initialVersionAttempted.current = null;
+      // Also reset database version when document changes
+      setDatabaseVersion('');
     }
   }, [documentId]);
 
