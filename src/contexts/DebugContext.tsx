@@ -8,10 +8,44 @@ interface DebugContextType {
   errorToast: (message: string, error?: any) => void;
 }
 
+// Throttle function to limit toast frequency
+const createThrottledToast = (toastFn: any, delay: number = 2000) => {
+  let lastCall = 0;
+  let timeoutId: NodeJS.Timeout | null = null;
+  
+  return (message: string, options?: any) => {
+    const now = Date.now();
+    
+    if (now - lastCall >= delay) {
+      // If enough time has passed, show immediately
+      lastCall = now;
+      toastFn(message, options);
+    } else {
+      // Otherwise, schedule for later (debounce)
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        lastCall = Date.now();
+        toastFn(message, options);
+      }, delay - (now - lastCall));
+    }
+  };
+};
+
 const DebugContext = createContext<DebugContextType | undefined>(undefined);
 
 export const DebugProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isDebugMode, setIsDebugMode] = useState(false);
+
+  // Create throttled toast functions
+  const throttledInfoToast = React.useMemo(
+    () => createThrottledToast(toast.info, 3000), // 3 second throttle for debug toasts
+    []
+  );
+  
+  const throttledErrorToast = React.useMemo(
+    () => createThrottledToast(toast.error, 1000), // 1 second throttle for errors
+    []
+  );
 
   const toggleDebugMode = () => {
     setIsDebugMode(prev => {
@@ -27,9 +61,9 @@ export const DebugProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const debugToast = (message: string, data?: any) => {
     if (isDebugMode) {
       console.log('🔧 DEBUG:', message, data);
-      toast.info(`🔧 DEBUG: ${message}`, {
-        description: data ? JSON.stringify(data, null, 2).substring(0, 200) : undefined,
-        duration: 3000,
+      throttledInfoToast(`🔧 ${message}`, {
+        description: data ? JSON.stringify(data, null, 2).substring(0, 150) + '...' : undefined,
+        duration: 4000,
       });
     }
   };
@@ -37,9 +71,9 @@ export const DebugProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const errorToast = (message: string, error?: any) => {
     if (isDebugMode) {
       console.error('🚨 DEBUG ERROR:', message, error);
-      toast.error(`🚨 DEBUG ERROR: ${message}`, {
+      throttledErrorToast(`🚨 ${message}`, {
         description: error?.message || String(error),
-        duration: 5000,
+        duration: 6000,
       });
     } else {
       // Always log errors to console even when debug is off
