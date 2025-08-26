@@ -27,6 +27,7 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   expandedNotationPaths
 }) => {
   const [localMaxDepth, setLocalMaxDepth] = useState(maxDepth);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Update local maxDepth when prop changes
   useEffect(() => {
@@ -34,6 +35,31 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
       setLocalMaxDepth(maxDepth);
     }
   }, [maxDepth]);
+
+  // Handle escape key to exit fullscreen
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+
+    if (isFullscreen) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isFullscreen]);
+
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
 
   // Deep memoize the schema and collapsedPaths to prevent unnecessary re-renders
   const memoizedSchema = useMemo(() => schema, [JSON.stringify(schema)]);
@@ -102,8 +128,15 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   
   // Always render diagram when we have a schema, regardless of nodes count
   return (
-    <div className="flex flex-col flex-1 min-h-0">
-      <DiagramHeader />
+    <div className={`flex flex-col flex-1 min-h-0 ${
+      isFullscreen 
+        ? 'fixed inset-0 z-50 bg-background' 
+        : ''
+    }`}>
+      <DiagramHeader 
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={toggleFullscreen}
+      />
       <DiagramFlow
         nodes={nodes || []}
         edges={edges || []}
