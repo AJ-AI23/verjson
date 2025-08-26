@@ -199,7 +199,8 @@ export const useVersioning = ({
       console.log('Recalculating schema from selected patches...');
       const newSchema = applySelectedPatches(updatedPatches);
       const newSchemaString = JSON.stringify(newSchema, null, 2);
-      console.log('New schema calculated:', newSchema);
+      console.log('New schema calculated, length:', newSchemaString.length);
+      console.log('Setting editor content to:', newSchemaString.substring(0, 200) + '...');
       
       setSchema(newSchemaString);
       setSavedSchema(newSchemaString);

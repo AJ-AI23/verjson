@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { SchemaPatch, formatVersion } from '@/lib/versionUtils';
+import React, { useState, useMemo } from 'react';
+import { SchemaPatch, formatVersion, applySelectedPatches } from '@/lib/versionUtils';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +15,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Package, Tag, Trash2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Package, Tag, Trash2, Eye } from 'lucide-react';
 
 interface VersionHistoryProps {
   patches: SchemaPatch[];
@@ -25,6 +31,54 @@ interface VersionHistoryProps {
 }
 
 export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggleSelection, onMarkAsReleased, onDeleteVersion }) => {
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewPatches, setPreviewPatches] = useState<SchemaPatch[]>([]);
+  
+  // Calculate current schema based on selected patches
+  const currentSchema = useMemo(() => {
+    try {
+      return applySelectedPatches(patches);
+    } catch (err) {
+      console.error('Error calculating current schema:', err);
+      return {};
+    }
+  }, [patches]);
+  
+  // Handle preview of what schema would look like with different selections
+  const handlePreview = (patchId: string, wouldBeSelected: boolean) => {
+    const updatedPatches = patches.map(p => 
+      p.id === patchId ? { ...p, isSelected: wouldBeSelected } : p
+    );
+    setPreviewPatches(updatedPatches);
+    setPreviewOpen(true);
+  };
+  
+  // Calculate preview schema
+  const previewSchema = useMemo(() => {
+    if (previewPatches.length === 0) return {};
+    try {
+      return applySelectedPatches(previewPatches);
+    } catch (err) {
+      console.error('Error calculating preview schema:', err);
+      return {};
+    }
+  }, [previewPatches]);
+  
+  // Get summary of schema for display
+  const getSchemaSummary = (schema: any) => {
+    if (!schema || typeof schema !== 'object') return 'Empty schema';
+    
+    const keys = Object.keys(schema);
+    if (keys.length === 0) return 'Empty schema';
+    
+    const summary = [];
+    if (schema.info?.title) summary.push(`Title: ${schema.info.title}`);
+    if (schema.info?.version) summary.push(`Version: ${schema.info.version}`);
+    if (schema.paths) summary.push(`Paths: ${Object.keys(schema.paths).length}`);
+    if (schema.components?.schemas) summary.push(`Schemas: ${Object.keys(schema.components.schemas).length}`);
+    
+    return summary.length > 0 ? summary.join(', ') : `${keys.length} top-level properties`;
+  };
   if (patches.length === 0) {
     return (
       <div className="text-sm text-slate-500 p-4 text-center">
@@ -88,16 +142,27 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggl
             return (
               <tr key={patch.id} className={`hover:bg-slate-50 ${patch.isSelected ? 'bg-blue-50' : ''} ${isInitial ? 'border-l-4 border-l-blue-500' : ''}`}>
                 <td className="px-3 py-2">
-                  <Checkbox
-                    checked={patch.isSelected}
-                    disabled={!canDeselectPatch && patch.isSelected}
-                    onCheckedChange={() => onToggleSelection?.(patch.id)}
-                    title={
-                      isInitial ? 'Initial version - foundation document (cannot be deselected)' :
-                      beforeReleased && patch.isSelected ? 'Cannot deselect versions before a released version' : 
-                      'Toggle version selection'
-                    }
-                  />
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={patch.isSelected}
+                      disabled={!canDeselectPatch && patch.isSelected}
+                      onCheckedChange={() => onToggleSelection?.(patch.id)}
+                      title={
+                        isInitial ? 'Initial version - foundation document (cannot be deselected)' :
+                        beforeReleased && patch.isSelected ? 'Cannot deselect versions before a released version' : 
+                        'Toggle version selection'
+                      }
+                    />
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0 text-slate-500 hover:text-slate-700"
+                      onClick={() => handlePreview(patch.id, !patch.isSelected)}
+                      title="Preview resulting schema"
+                    >
+                      <Eye size={12} />
+                    </Button>
+                  </div>
                 </td>
                 <td className="px-3 py-2 font-mono text-xs">
                   <div className="flex items-center gap-2">
@@ -202,6 +267,33 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ patches, onToggl
           })}
         </tbody>
       </table>
+      
+      {/* Current Schema Summary */}
+      <div className="mt-4 p-3 bg-blue-50 rounded-lg border">
+        <h4 className="text-sm font-medium text-blue-800 mb-2">Current Schema Summary</h4>
+        <p className="text-sm text-blue-700">{getSchemaSummary(currentSchema)}</p>
+      </div>
+      
+      {/* Preview Dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Schema Preview</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-3 bg-slate-50 rounded">
+              <h4 className="font-medium text-slate-700 mb-2">Summary</h4>
+              <p className="text-sm text-slate-600">{getSchemaSummary(previewSchema)}</p>
+            </div>
+            <div className="p-3 bg-slate-50 rounded">
+              <h4 className="font-medium text-slate-700 mb-2">Full Schema (JSON)</h4>
+              <pre className="text-xs bg-white p-3 rounded border overflow-auto max-h-96 text-slate-800">
+                {JSON.stringify(previewSchema, null, 2)}
+              </pre>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
