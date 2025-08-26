@@ -145,6 +145,15 @@ const reverseOperation = (op: Operation): Operation => {
 
 // Apply selected patches to build the current schema
 export const applySelectedPatches = (patches: SchemaPatch[]): any => {
+  console.log('applySelectedPatches called with:', patches.map(p => ({ 
+    id: p.id, 
+    description: p.description, 
+    isSelected: p.isSelected,
+    isReleased: p.isReleased,
+    hasFullDocument: !!p.fullDocument,
+    hasPatches: !!p.patches
+  })));
+  
   // Sort patches by timestamp, oldest first
   const sortedPatches = [...patches].sort((a, b) => a.timestamp - b.timestamp);
   
@@ -179,6 +188,12 @@ export const applySelectedPatches = (patches: SchemaPatch[]): any => {
     console.log('No released version found, starting with empty schema');
   }
   
+  // If we only have the base schema and no more patches to apply, return it
+  if (startIndex >= sortedPatches.length) {
+    console.log('No additional patches to apply, returning base schema with keys:', Object.keys(baseSchema));
+    return baseSchema;
+  }
+  
   // Apply all selected patches after the base in chronological order
   let schema = baseSchema;
   
@@ -196,6 +211,7 @@ export const applySelectedPatches = (patches: SchemaPatch[]): any => {
     }
   }
   
+  console.log('Final schema has keys:', Object.keys(schema));
   return schema;
 };
 
