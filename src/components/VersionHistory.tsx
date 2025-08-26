@@ -44,9 +44,52 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewPatches, setPreviewPatches] = useState<SchemaPatch[]>([]);
   
-  // Fetch document versions directly from database
-  const { getSchemaPatches } = useDocumentVersions(documentId);
-  const patches = getSchemaPatches();
+  // Fetch document versions directly from database - use versions state directly for reactivity
+  const { versions, loading, error } = useDocumentVersions(documentId);
+  
+  // Convert versions to patches - memoize to avoid unnecessary recalculations
+  const patches = useMemo(() => {
+    if (!versions.length) return [];
+    
+    const convertedPatches = versions.map(version => ({
+      id: version.id,
+      timestamp: new Date(version.created_at).getTime(),
+      version: {
+        major: version.version_major,
+        minor: version.version_minor,
+        patch: version.version_patch,
+      },
+      description: version.description,
+      patches: (() => {
+        try {
+          return version.patches && typeof version.patches === 'string' 
+            ? JSON.parse(version.patches) 
+            : version.patches || undefined;
+        } catch (e) {
+          console.warn('Failed to parse patches for version', version.id, e);
+          return undefined;
+        }
+      })(),
+      tier: version.tier,
+      isReleased: version.is_released,
+      fullDocument: version.full_document || undefined,
+      isSelected: version.is_selected,
+    }));
+    
+    console.log('🔄 VersionHistory: Converted patches:', {
+      versionsCount: versions.length,
+      patchesCount: convertedPatches.length,
+      patches: convertedPatches.map(p => ({
+        id: p.id,
+        description: p.description,
+        isSelected: p.isSelected,
+        isReleased: p.isReleased,
+        version: `${p.version.major}.${p.version.minor}.${p.version.patch}`
+      }))
+    });
+    
+    return convertedPatches;
+  }, [versions]);
   
   // Fetch document information
   const [documentInfo, setDocumentInfo] = useState<any>(null);
