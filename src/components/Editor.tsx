@@ -70,6 +70,16 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument }
     }
   }, [initialSchema, setSchema, setSavedSchema, setCollapsedPaths, schemaType, handleSchemaTypeChange]);
   
+  // Debug version history state
+  React.useEffect(() => {
+    console.log('🔍 Editor: Version history state check:', {
+      isVersionHistoryOpen,
+      patchesCount: patches?.length || 0,
+      patchesDefined: !!patches,
+      patches: patches?.map(p => ({ id: p.id, description: p.description, version: `${p.version.major}.${p.version.minor}.${p.version.patch}` })) || 'NO PATCHES'
+    });
+  }, [isVersionHistoryOpen, patches]);
+  
   return (
     <div className="json-schema-editor">
       <EditorToolbar
