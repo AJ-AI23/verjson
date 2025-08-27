@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DocumentMergePreview } from "./DocumentMergePreview";
+import { MergeErrorBoundary } from "./MergeErrorBoundary";
 import { DocumentMergeEngine, DocumentMergeResult } from "@/lib/documentMergeEngine";
 import { getEffectiveDocumentContentForImport } from "@/lib/documentUtils";
 import { Document } from "@/types/workspace";
@@ -110,44 +111,53 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
 
   // Perform merge analysis when moving to preview step
   useEffect(() => {
-    if (currentStep === 'preview' && selectedDocumentObjects.length >= 2 && resultName && !isAnalyzing) {
+    if (currentStep === 'preview' && selectedDocumentObjects.length >= 2 && resultName && !isAnalyzing && !mergeResult) {
       setIsAnalyzing(true);
       
-      // Use setTimeout to allow UI to update before heavy computation
-      setTimeout(() => {
+      // Use requestAnimationFrame for better performance
+      requestAnimationFrame(() => {
         try {
-          console.log('🔍 Merge Analysis Debug:');
-          console.log('Selected Documents:', selectedDocumentObjects.map(d => ({ id: d.id, name: d.name })));
-          console.log('Effective Content Preview:', selectedDocumentObjects.map(d => ({ 
-            name: d.name, 
-            content: typeof d.content === 'object' ? Object.keys(d.content).join(', ') : 'invalid'
-          })));
+          console.log('🔍 Starting merge analysis for:', selectedDocumentObjects.map(d => d.name));
           
-          const result = DocumentMergeEngine.mergeDocuments(selectedDocumentObjects, resultName);
-          console.log('Merge Result:', result);
+          // Clean and sanitize documents before merging to avoid circular references
+          const sanitizedDocuments = selectedDocumentObjects.map(doc => ({
+            ...doc,
+            content: JSON.parse(JSON.stringify(doc.content, (key, value) => {
+              // Remove circular references and limit depth
+              if (typeof value === 'object' && value !== null) {
+                if (value._type === 'MaxDepthReached') {
+                  return undefined; // Skip these problematic objects
+                }
+              }
+              return value;
+            }))
+          }));
+          
+          const result = DocumentMergeEngine.mergeDocuments(sanitizedDocuments, resultName);
+          console.log('✅ Merge analysis completed successfully');
           setMergeResult(result);
         } catch (error) {
-          console.error('Error analyzing merge:', error);
+          console.error('❌ Error analyzing merge:', error);
           setMergeResult({
             mergedSchema: {},
             conflicts: [{
               path: '/',
               type: 'incompatible_schema',
               severity: 'high',
-              description: 'Failed to analyze documents for merging',
+              description: `Failed to analyze documents: ${error.message || 'Unknown error'}`,
               documents: selectedDocumentObjects.map(d => d.name),
               values: []
             }],
             isCompatible: false,
-            warnings: ['Analysis failed'],
+            warnings: ['Analysis failed - please try with simpler document structures'],
             summary: { addedProperties: 0, mergedComponents: 0, totalConflicts: 1 }
           });
         } finally {
           setIsAnalyzing(false);
         }
-      }, 100);
+      });
     }
-  }, [currentStep, selectedDocumentObjects, resultName, isAnalyzing]);
+  }, [currentStep, selectedDocumentObjects, resultName, isAnalyzing, mergeResult]);
 
   const handleDocumentSelect = (documentId: string, checked: boolean) => {
     setSelectedDocuments(prev => {
@@ -190,6 +200,7 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
 
   const handleNext = () => {
     if (currentStep === 'selection') {
+      setMergeResult(null); // Reset merge result when moving to preview
       setCurrentStep('preview');
     } else if (currentStep === 'preview') {
       setCurrentStep('finalize');
@@ -200,6 +211,7 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
     if (currentStep === 'preview') {
       setCurrentStep('selection');
       setMergeResult(null);
+      setIsAnalyzing(false); // Reset analyzing state
     } else if (currentStep === 'finalize') {
       setCurrentStep('preview');
     }
@@ -340,11 +352,13 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
                   <span>Analyzing documents for merge compatibility...</span>
                 </div>
               ) : mergeResult ? (
-                <DocumentMergePreview
-                  documents={selectedDocumentObjects}
-                  mergeResult={mergeResult}
-                  resultName={resultName}
-                />
+                <MergeErrorBoundary>
+                  <DocumentMergePreview
+                    documents={selectedDocumentObjects}
+                    mergeResult={mergeResult}
+                    resultName={resultName}
+                  />
+                </MergeErrorBoundary>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   Unable to analyze documents for merging

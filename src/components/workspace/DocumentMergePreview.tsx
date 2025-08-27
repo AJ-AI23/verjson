@@ -313,8 +313,28 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-96">
-                <pre className="bg-muted p-4 rounded text-xs">
-                  {JSON.stringify(mergeResult.mergedSchema, null, 2)}
+                <pre className="bg-muted p-4 rounded text-xs whitespace-pre-wrap break-words">
+                  {(() => {
+                    try {
+                      // Limit the depth of the preview to avoid UI freezing
+                      const limitedSchema = JSON.parse(JSON.stringify(mergeResult.mergedSchema, (key, value) => {
+                        if (typeof value === 'object' && value !== null) {
+                          // Skip problematic nested objects
+                          if (value._type === 'MaxDepthReached') {
+                            return '[Complex nested object - view in editor]';
+                          }
+                          // Limit array length in preview
+                          if (Array.isArray(value) && value.length > 5) {
+                            return [...value.slice(0, 5), `... and ${value.length - 5} more items`];
+                          }
+                        }
+                        return value;
+                      }));
+                      return JSON.stringify(limitedSchema, null, 2);
+                    } catch (error) {
+                      return 'Error rendering preview - schema is too complex. The merge will still work correctly.';
+                    }
+                  })()}
                 </pre>
               </ScrollArea>
             </CardContent>
