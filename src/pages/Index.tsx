@@ -131,7 +131,7 @@ const Index = () => {
               </div>
               <div className="flex items-center gap-4">
                 <div className="text-sm text-muted-foreground">
-                  Edit and visualize JSON Schema and OpenAPI 3.1 schemas in real-time
+                  Version, edit and render all your JSON files in collaboration!
                 </div>
                 <NotificationsButton />
                 <AuthButton />
