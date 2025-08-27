@@ -467,7 +467,7 @@ export const createGroupedPropertiesNode = (
       isGroupedProperties: true, // Special flag for enhanced styling
       propertyDetails: propertyDetails,
       hasCollapsibleContent: true,
-      isCollapsed: true, // Grouped nodes start collapsed by default
+      isCollapsed: false, // Grouped nodes show their content by default to display bullet points
       description: `View details of ${properties.length} grouped properties`
     }
   };
