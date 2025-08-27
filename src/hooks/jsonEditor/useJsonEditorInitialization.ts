@@ -30,14 +30,11 @@ export const useJsonEditorInitialization = ({
   
   // Initialize the editor
   const initializeEditor = useCallback((container: HTMLDivElement) => {
-    console.log('🔧 initializeEditor called with container:', !!container);
     if (!container) return null;
 
     try {
       // Get event handlers from our events hook
       const eventHandlers = createEditorEventHandlers();
-      
-      console.log('🔧 Initializing JSONEditor with event handlers:', !!eventHandlers.onExpand);
       
       // JSONEditor options
       const options = {
@@ -57,29 +54,23 @@ export const useJsonEditorInitialization = ({
       
       // Set initial content
       try {
-        console.log('🔧 Setting JSONEditor content...');
         editor.set(JSON.parse(value));
-        console.log('🔧 Content set, scheduling collapse...');
         
         // Start collapsed to match empty collapsedPaths state - nodes only show on explicit expansion
         setTimeout(() => {
           try {
-            console.log('🔧 Attempting to collapse JSONEditor...');
             editor.collapseAll();
-            console.log('🔧 JSONEditor collapsed successfully on initialization');
           } catch (e) {
-            console.error('🔧 Could not collapse editor on init:', e);
+            console.error('Could not collapse editor on init:', e);
           }
         }, 50); // Small delay to ensure content is set
       } catch (e) {
         // If parsing fails, just show the raw text
-        console.error('🔧 Failed to parse initial JSON, setting text:', e);
         editor.setText(value);
       }
 
       // Store the editor instance in the ref
       editorRef.current = editor;
-      console.log('🔧 JSONEditor initialized successfully, stored in ref');
       
       return editor;
     } catch (err) {
