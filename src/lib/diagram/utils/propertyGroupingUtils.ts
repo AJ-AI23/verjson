@@ -213,12 +213,12 @@ export function processSchemasWithGrouping(
     [], // schemas don't have required props in the same way
     result,
     {
-      maxIndividualProperties: shouldGroup ? maxIndividualSchemas : schemaEntries.length, // Show all individually if some are expanded
+      maxIndividualProperties: shouldGroup ? maxIndividualSchemas : schemaEntries.length, // Use grouping limit when should group, show all when some expanded
       xSpacing,
       parentNodeId,
       parentPath,
       yPosition: yPos,
-      startXPosition: xPos
+      startXPosition: xPos  
     }
   );
 }
