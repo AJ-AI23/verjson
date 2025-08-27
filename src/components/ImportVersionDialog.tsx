@@ -58,8 +58,49 @@ export const ImportVersionDialog: React.FC<ImportVersionDialogProps> = ({
     
     console.log('🔍 Calculating selected document schema from versions:', selectedDocVersions);
     
-    const selectedPatches = selectedDocVersions
-      .filter(version => version.is_selected)
+    // Find the latest released version with full_document (this is our base)
+    const releasedVersions = selectedDocVersions
+      .filter(version => version.is_released && version.full_document)
+      .sort((a, b) => {
+        // Sort by version numbers (major.minor.patch)
+        if (a.version_major !== b.version_major) return b.version_major - a.version_major;
+        if (a.version_minor !== b.version_minor) return b.version_minor - a.version_minor;
+        return b.version_patch - a.version_patch;
+      });
+    
+    let baseSchema: any = null;
+    let baseVersionTimestamp = 0;
+    
+    if (releasedVersions.length > 0) {
+      // Use the latest released version as base
+      baseSchema = releasedVersions[0].full_document;
+      baseVersionTimestamp = new Date(releasedVersions[0].created_at).getTime();
+      console.log('🔍 Using released version as base:', releasedVersions[0]);
+    } else {
+      // No released versions, find the earliest full_document or fall back to empty schema
+      const fullDocVersions = selectedDocVersions
+        .filter(version => version.full_document)
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      
+      if (fullDocVersions.length > 0) {
+        baseSchema = fullDocVersions[0].full_document;
+        baseVersionTimestamp = new Date(fullDocVersions[0].created_at).getTime();
+        console.log('🔍 Using earliest full document as base:', fullDocVersions[0]);
+      } else {
+        baseSchema = {};
+        console.log('🔍 No full document found, using empty schema as base');
+      }
+    }
+    
+    // Get all selected patches that came after the base version
+    const patchesToApply = selectedDocVersions
+      .filter(version => 
+        version.is_selected && 
+        version.patches && 
+        version.patches.length > 0 &&
+        new Date(version.created_at).getTime() > baseVersionTimestamp
+      )
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) // Apply in chronological order
       .map(version => ({
         id: version.id,
         version: {
@@ -75,11 +116,37 @@ export const ImportVersionDialog: React.FC<ImportVersionDialogProps> = ({
         fullDocument: version.full_document,
         tier: version.tier as 'major' | 'minor' | 'patch'
       }));
-
-    console.log('🔍 Selected patches for import document:', selectedPatches);
     
-    const result = applySelectedPatches(selectedPatches);
-    console.log('🔍 Calculated import schema:', JSON.stringify(result, null, 2));
+    console.log('🔍 Base schema:', JSON.stringify(baseSchema, null, 2));
+    console.log('🔍 Patches to apply after base:', patchesToApply);
+    
+    // Apply the patches to the base schema
+    let result = baseSchema;
+    if (patchesToApply.length > 0) {
+      // Create a full patches array that includes the base version if needed
+      const allPatches = [...patchesToApply];
+      
+      // If we have a base schema but no released version in the patches, 
+      // we need to create a synthetic base patch
+      if (Object.keys(baseSchema).length > 0 && !patchesToApply.some(p => p.isReleased)) {
+        const basePatch = {
+          id: 'base-' + Date.now(),
+          version: { major: 0, minor: 0, patch: 0 },
+          description: 'Base version',
+          patches: [],
+          timestamp: baseVersionTimestamp,
+          isSelected: true,
+          isReleased: true,
+          fullDocument: baseSchema,
+          tier: 'major' as const
+        };
+        allPatches.unshift(basePatch);
+      }
+      
+      result = applySelectedPatches(allPatches);
+    }
+    
+    console.log('🔍 Final calculated import schema:', JSON.stringify(result, null, 2));
     
     return result;
   }, [selectedDocVersions]);
