@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
   Version,
@@ -56,36 +56,54 @@ export const useVersioning = ({
   // Calculate if the schema has been modified since last database commit
   const isModified = schema !== databaseVersion;
   
-  // Debug logging for isModified calculation
-  debugToast('Version Debug', {
-    isModified,
-    schemaLength: schema?.length,
-    databaseVersionLength: databaseVersion?.length,
-    documentId,
-    schemaHash: schema?.substring(0, 100),
-    databaseVersionHash: databaseVersion?.substring(0, 100)
-  });
-  
-  // Get the current version based on patches
-  const currentVersion = calculateLatestVersion(patches);
+  // Memoized current version calculation to prevent recalculation on every render
+  const currentVersion = useMemo(() => {
+    return calculateLatestVersion(patches);
+  }, [patches]);
 
-  // Update patches when database versions change and set database version on load
+  // Move debug logging to useEffect to avoid render-phase side effects
   useEffect(() => {
-    const schemaPatches = getSchemaPatches();
-    setPatches(schemaPatches);
+    debugToast('Version Debug', {
+      isModified,
+      schemaLength: schema?.length,
+      databaseVersionLength: databaseVersion?.length,
+      documentId,
+      schemaHash: schema?.substring(0, 100),
+      databaseVersionHash: databaseVersion?.substring(0, 100)
+    });
+  }, [isModified, schema, databaseVersion, documentId]);
+
+  // Memoized function to get schema patches
+  const memoizedGetSchemaPatches = useCallback(() => {
+    return getSchemaPatches();
+  }, [getSchemaPatches]);
+
+  // Debounced database version calculation to prevent excessive updates
+  const calculateDatabaseVersion = useCallback((schemaPatches: SchemaPatch[]) => {
+    if (schemaPatches.length === 0) return;
     
-    // Set database version from the current merged state of selected versions when versions load
-    if (schemaPatches.length > 0 && !loading) {
-      try {
-        const currentMergedSchema = applySelectedPatches(schemaPatches);
-        const mergedSchemaString = JSON.stringify(currentMergedSchema, null, 2);
-        setDatabaseVersion(mergedSchemaString);
-        debugToast('Database version set from selected patches', mergedSchemaString.substring(0, 100));
-      } catch (err) {
-        console.error('Failed to calculate database version from patches:', err);
-      }
+    try {
+      const currentMergedSchema = applySelectedPatches(schemaPatches);
+      const mergedSchemaString = JSON.stringify(currentMergedSchema, null, 2);
+      setDatabaseVersion(mergedSchemaString);
+      debugToast('Database version set from selected patches', mergedSchemaString.substring(0, 100));
+    } catch (err) {
+      console.error('Failed to calculate database version from patches:', err);
     }
-  }, [versions, getSchemaPatches, loading]);
+  }, []);
+
+  // Update patches when database versions change
+  useEffect(() => {
+    const schemaPatches = memoizedGetSchemaPatches();
+    setPatches(schemaPatches);
+  }, [memoizedGetSchemaPatches]);
+
+  // Set database version when patches load or change (separated for better performance)
+  useEffect(() => {
+    if (patches.length > 0 && !loading) {
+      calculateDatabaseVersion(patches);
+    }
+  }, [patches, loading, calculateDatabaseVersion]);
 
   // Create initial version when document is loaded (only once per document)
   useEffect(() => {

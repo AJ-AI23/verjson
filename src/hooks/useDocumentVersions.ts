@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -164,33 +164,40 @@ export function useDocumentVersions(documentId?: string) {
     }
   };
 
-  // Convert database versions to SchemaPatch format
-  const convertToSchemaPatches = (dbVersions: DocumentVersion[]): SchemaPatch[] => {
-    return dbVersions.map(version => ({
-      id: version.id,
-      timestamp: new Date(version.created_at).getTime(),
-      version: {
-        major: version.version_major,
-        minor: version.version_minor,
-        patch: version.version_patch,
-      },
-      description: version.description,
-      patches: (() => {
-        try {
-          return version.patches && typeof version.patches === 'string' 
-            ? JSON.parse(version.patches) 
-            : version.patches || undefined;
-        } catch (e) {
-          console.warn('Failed to parse patches for version', version.id, e);
-          return undefined;
-        }
-      })(),
-      tier: version.tier,
-      isReleased: version.is_released,
-      fullDocument: version.full_document || undefined,
-      isSelected: version.is_selected,
-    }));
-  };
+  // Memoized conversion function to prevent recreation on every render
+  const convertToSchemaPatches = useMemo(() => {
+    return (dbVersions: DocumentVersion[]): SchemaPatch[] => {
+      return dbVersions.map(version => ({
+        id: version.id,
+        timestamp: new Date(version.created_at).getTime(),
+        version: {
+          major: version.version_major,
+          minor: version.version_minor,
+          patch: version.version_patch,
+        },
+        description: version.description,
+        patches: (() => {
+          try {
+            return version.patches && typeof version.patches === 'string' 
+              ? JSON.parse(version.patches) 
+              : version.patches || undefined;
+          } catch (e) {
+            console.warn('Failed to parse patches for version', version.id, e);
+            return undefined;
+          }
+        })(),
+        tier: version.tier,
+        isReleased: version.is_released,
+        fullDocument: version.full_document || undefined,
+        isSelected: version.is_selected,
+      }));
+    };
+  }, []); // Empty dependency array since the function logic is static
+
+  // Memoized schema patches to prevent recalculation on every getSchemaPatches call
+  const schemaPatches = useMemo(() => {
+    return convertToSchemaPatches(versions);
+  }, [versions, convertToSchemaPatches]);
 
   // Set up real-time subscription
   useEffect(() => {
@@ -236,21 +243,9 @@ export function useDocumentVersions(documentId?: string) {
     updateVersion,
     deleteVersion,
     refetch: fetchVersions,
-    // Helper to get patches in the expected format
-    getSchemaPatches: () => {
-      const patches = convertToSchemaPatches(versions);
-      debugToast('🔔 getSchemaPatches: Converting versions to patches', {
-        versionsCount: versions.length,
-        patchesCount: patches.length,
-        patches: patches.map(p => ({
-          id: p.id,
-          description: p.description,
-          isSelected: p.isSelected,
-          isReleased: p.isReleased,
-          version: `${p.version.major}.${p.version.minor}.${p.version.patch}`
-        }))
-      });
-      return patches;
-    },
+    // Memoized helper to get patches in the expected format
+    getSchemaPatches: useCallback(() => {
+      return schemaPatches;
+    }, [schemaPatches]),
   };
 }
