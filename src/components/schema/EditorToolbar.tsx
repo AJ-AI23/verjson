@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { toast } from "sonner";
 
 import { NotationsPanel } from '@/components/notations/NotationsPanel';
+import { RedoclyDialog } from '@/components/RedoclyDialog';
 import { DebugToggle } from '@/components/DebugToggle';
 import { SchemaType } from '@/lib/schemaUtils';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
@@ -211,6 +212,15 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                     </Badge>
                   )}
                 </Button>
+
+                {/* Redocly Documentation Button - Only show for OpenAPI specs */}
+                {schemaType === 'openapi' && (
+                  <RedoclyDialog 
+                    schema={schema}
+                    documentName={selectedDocument?.name}
+                    disabled={!selectedDocument}
+                  />
+                )}
               </div>
 
               <div className="flex items-center gap-3">
