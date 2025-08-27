@@ -14,7 +14,7 @@ export const DiagramHeader: React.FC<DiagramHeaderProps> = ({
 }) => {
   return (
     <div className="p-2 border-b bg-card shadow-sm">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-end">
         
         
         {onToggleFullscreen && (
