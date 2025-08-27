@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Document, CreateDocumentData } from '@/types/workspace';
 import { toast } from 'sonner';
+import { enhanceDocumentsWithEffectiveContent } from '@/lib/documentUtils';
 
 export function useDocuments(workspaceId?: string) {
   const { user } = useAuth();
@@ -24,7 +25,10 @@ export function useDocuments(workspaceId?: string) {
       const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
-      setDocuments((data || []) as Document[]);
+      
+      // Enhance documents with effective content from released versions
+      const documentsWithEffectiveContent = await enhanceDocumentsWithEffectiveContent((data || []) as Document[]);
+      setDocuments(documentsWithEffectiveContent);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch documents');
       toast.error('Failed to load documents');
