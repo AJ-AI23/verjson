@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      document_access_logs: {
+        Row: {
+          access_type: string
+          created_at: string
+          document_id: string
+          id: string
+          referrer: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          access_type?: string
+          created_at?: string
+          document_id: string
+          id?: string
+          referrer?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          access_type?: string
+          created_at?: string
+          document_id?: string
+          id?: string
+          referrer?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_access_logs_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_permissions: {
         Row: {
           created_at: string
