@@ -14,7 +14,7 @@ import {
   createGroupedPropertiesNode
 } from '../nodeGenerator';
 import { createEdge } from '../edgeGenerator';
-import { processSchemasWithGrouping } from '../utils/propertyGroupingUtils';
+import { processSchemasWithGrouping, processPropertiesWithGrouping } from '../utils/propertyGroupingUtils';
 
 // OpenAPI 3.1 required structure properties
 const OPENAPI_REQUIRED_PROPERTIES = ['openapi', 'info', 'paths'];
@@ -310,76 +310,48 @@ function processJsonSchemaProperties(
   parentPath: string,
   allSchemas?: Record<string, any> // Pass all schemas to detect references
 ) {
-  const propNames = Object.keys(properties);
-  const startX = xPos - (propNames.length * xSpacing) / 2 + xSpacing / 2;
-  
-  propNames.forEach((propName, index) => {
-    const propSchema = properties[propName];
-    const propX = startX + index * xSpacing;
-    const propPath = `${parentPath}.properties.${propName}`;
-    
-    const isPropCollapsed = collapsedPaths[propPath] === true;
-    
-    const propNode = createPropertyNode(
-      propName,
-      propSchema,
-      required,
-      propX,
-      yPos,
-      isPropCollapsed
-    );
-    
-    const edge = createEdge(parentNodeId, propNode.id);
-    
-    result.nodes.push(propNode);
-    result.edges.push(edge);
-    
-    // Check for schema references and create dotted edges
-    if (allSchemas) {
-      const referencedSchemaName = extractSchemaReference(propSchema);
-      if (referencedSchemaName && allSchemas[referencedSchemaName]) {
-        // Find the target schema node using the correct ID format
-        const targetSchemaNodeId = `prop-${referencedSchemaName}`;
-        
-        // Create dotted reference edge
-        const referenceEdge = createEdge(
-          propNode.id, 
-          targetSchemaNodeId, 
-          'references',
-          false,
-          {},
-          'reference'
-        );
-        
-        result.edges.push(referenceEdge);
-        console.log(`🔗 [REFERENCE] Created reference edge: ${propName} -> ${referencedSchemaName}`);
-      }
+  // Use property grouping utility instead of processing individually
+  const groupingResult = processPropertiesWithGrouping(
+    properties,
+    required,
+    result,
+    {
+      maxIndividualProperties: 6, // Allow more individual properties for schema properties
+      xSpacing,
+      parentNodeId,
+      parentPath: `${parentPath}.properties`,
+      yPosition: yPos,
+      startXPosition: xPos
     }
-    
-    // Recursively process nested properties if not collapsed and within depth
-    if (!isPropCollapsed && maxDepth > 0) {
-      if (propSchema?.type === 'object' && propSchema?.properties) {
-        const nestedPropertiesPath = `${propPath}.properties`;
-        const nestedPropertiesExpanded = collapsedPaths[nestedPropertiesPath] === false;
-        
-        if (nestedPropertiesExpanded) {
-          processJsonSchemaProperties(
-            propSchema.properties,
-            propSchema.required || [],
-            propNode.id,
-            propX,
-            yPos + 150,
-            xSpacing * 0.8,
-            result,
-            maxDepth - 1,
-            collapsedPaths,
-            propPath,
-            allSchemas // Pass through allSchemas for nested properties
+  );
+  
+  console.log(`[OPENAPI LAYOUT] Created ${groupingResult.totalNodesCreated} property nodes for ${groupingResult.nodesProcessed} properties in schema`);
+  
+  // Handle schema references for created nodes
+  if (allSchemas) {
+    result.nodes.forEach(node => {
+      if (node.id.startsWith('prop-') && node.data?.schema) {
+        const referencedSchemaName = extractSchemaReference(node.data.schema);
+        if (referencedSchemaName && allSchemas[referencedSchemaName]) {
+          // Find the target schema node using the correct ID format
+          const targetSchemaNodeId = `prop-${referencedSchemaName}`;
+          
+          // Create dotted reference edge
+          const referenceEdge = createEdge(
+            node.id, 
+            targetSchemaNodeId, 
+            'references',
+            false,
+            {},
+            'reference'
           );
+          
+          result.edges.push(referenceEdge);
+          console.log(`🔗 [REFERENCE] Created reference edge: ${node.id} -> ${referencedSchemaName}`);
         }
       }
-    }
-  });
+    });
+  }
 }
 
 // Process OpenAPI paths structure - handles both consolidated and expanded views
