@@ -175,50 +175,110 @@ export function processPropertiesWithGrouping(
 }
 
 /**
- * Process schema properties specifically (for components.schemas, etc.)
+ * Generic grouping function for any child elements (schemas, properties, etc.)
+ * Groups children when count exceeds maxIndividualItems, but shows expanded children individually
  */
-export function processSchemasWithGrouping(
-  schemas: Record<string, any>,
+export function processWithGrouping(
+  items: Record<string, any>,
   parentNodeId: string,
   xPos: number,
   yPos: number,
   xSpacing: number,
   result: DiagramElements,
-  maxIndividualSchemas: number = 4,
+  maxIndividualItems: number = 4,
   collapsedPaths: Record<string, boolean> = {},
-  parentPath: string = ''
+  parentPath: string = '',
+  requiredProps: string[] = []
 ): PropertyGroupingResult {
-  // Check if any schemas are already individually expanded
-  const schemaEntries = Object.entries(schemas);
-  const expandedSchemasCount = schemaEntries.filter(([schemaName]) => {
-    const schemaPath = `${parentPath}.${schemaName}`;
-    return collapsedPaths[schemaPath] === false; // explicitly expanded
-  }).length;
+  const itemEntries = Object.entries(items);
   
-  // Don't group if we have individual schemas already expanded
-  const shouldGroup = expandedSchemasCount === 0;
-  
-  console.log('🔧 DEBUG [SCHEMAS WITH GROUPING] Grouping decision:', {
-    parentPath,
-    expandedSchemasCount,
-    totalSchemas: schemaEntries.length,
-    shouldGroup,
-    maxIndividualSchemas,
-    sampleSchemaPath: schemaEntries.length > 0 ? `${parentPath}.${schemaEntries[0][0]}` : 'none',
-    allCollapsedPaths: Object.keys(collapsedPaths).filter(path => collapsedPaths[path] === false)
+  // Find which items are explicitly expanded
+  const expandedItems = itemEntries.filter(([itemName]) => {
+    const itemPath = `${parentPath}.${itemName}`;
+    return collapsedPaths[itemPath] === false; // explicitly expanded
   });
   
+  const totalItems = itemEntries.length;
+  const expandedCount = expandedItems.length;
+  
+  console.log('🔧 DEBUG [GENERIC GROUPING] Analyzing items:', {
+    parentPath,
+    totalItems,
+    expandedCount,
+    maxIndividualItems,
+    expandedPaths: expandedItems.map(([name]) => `${parentPath}.${name}`)
+  });
+  
+  // If total items <= maxIndividualItems + 1, show all individually
+  if (totalItems <= maxIndividualItems + 1) {
+    console.log('🔧 DEBUG [GENERIC GROUPING] Showing all items individually (count within limit)');
+    return processPropertiesWithGrouping(
+      items,
+      requiredProps,
+      result,
+      {
+        maxIndividualProperties: totalItems, // Show all
+        xSpacing,
+        parentNodeId,
+        parentPath,
+        yPosition: yPos,
+        startXPosition: xPos
+      }
+    );
+  }
+  
+  // If we have expanded items, we need to handle them specially
+  if (expandedCount > 0) {
+    // Show expanded items individually + group the rest if needed
+    const nonExpandedItems = itemEntries.filter(([itemName]) => {
+      const itemPath = `${parentPath}.${itemName}`;
+      return collapsedPaths[itemPath] !== false; // not explicitly expanded
+    });
+    
+    const individualItemsToShow = Math.max(maxIndividualItems - expandedCount, 0);
+    const itemsToShowIndividually = [
+      ...expandedItems,
+      ...nonExpandedItems.slice(0, individualItemsToShow)
+    ];
+    
+    console.log('🔧 DEBUG [GENERIC GROUPING] Mixed mode - expanded + grouped:', {
+      expandedCount,
+      individualItemsToShow,
+      totalIndividualItems: itemsToShowIndividually.length,
+      willHaveGroupedNode: nonExpandedItems.length > individualItemsToShow
+    });
+    
+    // Create a custom items object with the items we want to show individually
+    const individualItemsObj = Object.fromEntries(itemsToShowIndividually);
+    
+    return processPropertiesWithGrouping(
+      individualItemsObj,
+      requiredProps,
+      result,
+      {
+        maxIndividualProperties: itemsToShowIndividually.length + (nonExpandedItems.length > individualItemsToShow ? 1 : 0),
+        xSpacing,
+        parentNodeId,
+        parentPath,
+        yPosition: yPos,
+        startXPosition: xPos
+      }
+    );
+  }
+  
+  // Default grouping behavior - no items are expanded
+  console.log('🔧 DEBUG [GENERIC GROUPING] Default grouping behavior');
   return processPropertiesWithGrouping(
-    schemas,
-    [], // schemas don't have required props in the same way
+    items,
+    requiredProps,
     result,
     {
-      maxIndividualProperties: shouldGroup ? maxIndividualSchemas : schemaEntries.length, // Use grouping limit when should group, show all when some expanded
+      maxIndividualProperties: maxIndividualItems + 1, // +1 for the grouped node
       xSpacing,
       parentNodeId,
       parentPath,
       yPosition: yPos,
-      startXPosition: xPos  
+      startXPosition: xPos
     }
   );
 }

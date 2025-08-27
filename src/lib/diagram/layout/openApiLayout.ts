@@ -14,7 +14,7 @@ import {
   createGroupedPropertiesNode
 } from '../nodeGenerator';
 import { createEdge } from '../edgeGenerator';
-import { processSchemasWithGrouping, processPropertiesWithGrouping } from '../utils/propertyGroupingUtils';
+import { processWithGrouping, processPropertiesWithGrouping } from '../utils/propertyGroupingUtils';
 
 // OpenAPI 3.1 required structure properties
 const OPENAPI_REQUIRED_PROPERTIES = ['openapi', 'info', 'paths'];
