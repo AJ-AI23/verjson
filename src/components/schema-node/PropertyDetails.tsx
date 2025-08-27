@@ -33,36 +33,57 @@ export const PropertyDetails = memo(({
       <div className="text-xs font-medium mb-1">
         {isGrouped ? 'Grouped Properties:' : 'Properties:'}
       </div>
-      <div className="grid gap-2">
-        {propertyDetails.map((prop, index) => (
-          <div 
-            key={index} 
-            className={`flex items-start gap-1 text-xs ${
-              isGrouped && onExpandProperty ? 'cursor-pointer hover:bg-accent/50 p-1 rounded' : ''
-            }`}
-            onClick={isGrouped && onExpandProperty ? () => onExpandProperty(prop.name) : undefined}
-            title={isGrouped ? `Click to expand ${prop.name} individually` : prop.description}
-          >
-            <div className="flex-1">
-              <div className="flex items-center gap-1">
-                <span className="font-medium">{prop.name}</span>
-                {prop.required && (
-                  <span className="text-[10px] text-blue-600">*</span>
-                )}
-                {isGrouped && (
-                  <span className="text-[10px] text-muted-foreground ml-1">↗</span>
+      {isGrouped ? (
+        // Bullet point list for grouped properties
+        <div className="space-y-1">
+          {propertyDetails.slice(0, 20).map((prop, index) => (
+            <div 
+              key={index} 
+              className="flex items-center gap-2 text-xs cursor-pointer hover:bg-accent/50 p-1 rounded"
+              onClick={onExpandProperty ? () => onExpandProperty(prop.name) : undefined}
+              title={`Click to expand ${prop.name} individually`}
+            >
+              <span className="text-muted-foreground">•</span>
+              <span className="font-medium flex-1">{prop.name}</span>
+              {prop.required && (
+                <span className="text-[10px] text-blue-600">*</span>
+              )}
+              <SchemaTypeBadge type={prop.type} format={prop.format} isSmall />
+            </div>
+          ))}
+          {propertyDetails.length > 20 && (
+            <div className="text-xs text-muted-foreground italic pl-3">
+              ... and {propertyDetails.length - 20} more properties
+            </div>
+          )}
+        </div>
+      ) : (
+        // Original grid layout for non-grouped properties
+        <div className="grid gap-2">
+          {propertyDetails.map((prop, index) => (
+            <div 
+              key={index} 
+              className="flex items-start gap-1 text-xs"
+              title={prop.description}
+            >
+              <div className="flex-1">
+                <div className="flex items-center gap-1">
+                  <span className="font-medium">{prop.name}</span>
+                  {prop.required && (
+                    <span className="text-[10px] text-blue-600">*</span>
+                  )}
+                </div>
+                {prop.description && (
+                  <p className="text-slate-500 text-[10px] break-words leading-relaxed" title={prop.description}>
+                    {prop.description}
+                  </p>
                 )}
               </div>
-              {prop.description && !isGrouped && (
-                <p className="text-slate-500 text-[10px] break-words leading-relaxed" title={prop.description}>
-                  {prop.description}
-                </p>
-              )}
+              <SchemaTypeBadge type={prop.type} format={prop.format} isSmall />
             </div>
-            <SchemaTypeBadge type={prop.type} format={prop.format} isSmall />
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
       {isGrouped && (
         <div className="mt-1 text-[10px] text-muted-foreground">
           Click any property to expand it individually
