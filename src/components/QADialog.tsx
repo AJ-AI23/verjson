@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Copy, Download, Languages, FileText } from 'lucide-react';
+import { Copy, Download, Languages, FileText, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractStringValues, createTranslationIndex, downloadJsonFile, TranslationEntry } from '@/lib/translationUtils';
+import { validateSyntax, ValidationResult } from '@/lib/schemaUtils';
 
 interface QADialogProps {
   schema: string;
@@ -21,6 +22,8 @@ export const QADialog: React.FC<QADialogProps> = ({
   disabled = false 
 }) => {
   const [open, setOpen] = useState(false);
+  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
 
   const translationData = useMemo(() => {
     try {
@@ -76,6 +79,27 @@ export const QADialog: React.FC<QADialogProps> = ({
     
     return groups;
   }, [translationData.entries]);
+
+  const handleValidateSchema = async () => {
+    setIsValidating(true);
+    try {
+      const result = await validateSyntax(schema);
+      setValidationResult(result);
+    } catch (error) {
+      console.error('Validation failed:', error);
+      setValidationResult({
+        isValid: false,
+        errors: [{
+          path: 'root',
+          message: `Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          severity: 'error'
+        }],
+        warnings: []
+      });
+    } finally {
+      setIsValidating(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -142,9 +166,10 @@ export const QADialog: React.FC<QADialogProps> = ({
 
           {/* Tabs for different views */}
           <Tabs defaultValue="grouped" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="grouped">Grouped View</TabsTrigger>
               <TabsTrigger value="flat">Flat Index</TabsTrigger>
+              <TabsTrigger value="syntax">Syntax</TabsTrigger>
             </TabsList>
             
             <TabsContent value="grouped" className="mt-4">
@@ -197,6 +222,138 @@ export const QADialog: React.FC<QADialogProps> = ({
                   ))}
                 </div>
               </ScrollArea>
+            </TabsContent>
+            
+            <TabsContent value="syntax" className="mt-4">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium">Schema Validation</h3>
+                  <Button 
+                    size="sm" 
+                    onClick={handleValidateSchema}
+                    disabled={isValidating}
+                    className="gap-2"
+                  >
+                    {isValidating ? (
+                      <>Validating...</>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-4 w-4" />
+                        Validate
+                      </>
+                    )}
+                  </Button>
+                </div>
+                
+                {validationResult && (
+                  <ScrollArea className="h-[400px] w-full">
+                    <div className="space-y-4">
+                      {/* Validation Summary */}
+                      <Card>
+                        <CardContent className="pt-4">
+                          <div className="flex items-center gap-2">
+                            {validationResult.isValid ? (
+                              <>
+                                <CheckCircle className="h-5 w-5 text-green-500" />
+                                <span className="text-green-700 font-medium">Valid Schema</span>
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="h-5 w-5 text-red-500" />
+                                <span className="text-red-700 font-medium">Invalid Schema</span>
+                              </>
+                            )}
+                            <Badge variant="outline" className="ml-auto">
+                              {validationResult.errors.length} errors, {validationResult.warnings.length} warnings
+                            </Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      {/* Errors */}
+                      {validationResult.errors.length > 0 && (
+                        <Card>
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-sm flex items-center gap-2 text-red-700">
+                              <XCircle className="h-4 w-4" />
+                              Errors ({validationResult.errors.length})
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <div className="space-y-2">
+                              {validationResult.errors.map((error, index) => (
+                                <div key={index} className="p-3 bg-red-50 border border-red-200 rounded text-sm">
+                                  <div className="font-mono text-xs text-red-600 mb-1">
+                                    {error.path}
+                                  </div>
+                                  <div className="text-red-800">
+                                    {error.message}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                      
+                      {/* Warnings */}
+                      {validationResult.warnings.length > 0 && (
+                        <Card>
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-sm flex items-center gap-2 text-orange-700">
+                              <AlertTriangle className="h-4 w-4" />
+                              Warnings ({validationResult.warnings.length})
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <div className="space-y-2">
+                              {validationResult.warnings.map((warning, index) => (
+                                <div key={index} className="p-3 bg-orange-50 border border-orange-200 rounded text-sm">
+                                  <div className="font-mono text-xs text-orange-600 mb-1">
+                                    {warning.path}
+                                  </div>
+                                  <div className="text-orange-800 mb-1">
+                                    {warning.message}
+                                  </div>
+                                  {warning.suggestion && (
+                                    <div className="text-orange-700 text-xs italic">
+                                      Suggestion: {warning.suggestion}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                      
+                      {validationResult.errors.length === 0 && validationResult.warnings.length === 0 && (
+                        <Card>
+                          <CardContent className="pt-4">
+                            <div className="text-center py-8">
+                              <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                              <h3 className="text-lg font-medium text-green-700 mb-2">Perfect Schema!</h3>
+                              <p className="text-green-600">Your schema follows all best practices and specifications.</p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  </ScrollArea>
+                )}
+                
+                {!validationResult && (
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="text-center py-8">
+                        <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-muted-foreground mb-2">Ready to Validate</h3>
+                        <p className="text-muted-foreground">Click the Validate button to check your schema for syntax errors and best practices.</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             </TabsContent>
           </Tabs>
         </div>
