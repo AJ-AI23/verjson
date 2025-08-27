@@ -18,12 +18,15 @@ import {
 } from '@/components/ui/select';
 import { Settings, Crown, Edit3, Eye } from 'lucide-react';
 import { DocumentPermission } from '@/hooks/useDocumentPermissions';
+import { WorkspacePermission } from '@/hooks/useWorkspacePermissions';
+
+type Permission = DocumentPermission | WorkspacePermission;
 
 interface ChangeAccessDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdateRole: (newRole: 'editor' | 'viewer') => Promise<void>;
-  permission: DocumentPermission | null;
+  permission: Permission | null;
 }
 
 export function ChangeAccessDialog({

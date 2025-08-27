@@ -733,29 +733,67 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
       />
 
       <Dialog open={showWorkspaceEditDialog} onOpenChange={setShowWorkspaceEditDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Workspace</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="edit-workspace-name">Name</Label>
-              <Input
-                id="edit-workspace-name"
-                value={editWorkspaceName}
-                onChange={(e) => setEditWorkspaceName(e.target.value)}
-                placeholder="Workspace name"
-              />
+          <div className="space-y-6">
+            {/* Basic Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Basic Information</h3>
+              <div>
+                <Label htmlFor="edit-workspace-name">Name</Label>
+                <Input
+                  id="edit-workspace-name"
+                  value={editWorkspaceName}
+                  onChange={(e) => setEditWorkspaceName(e.target.value)}
+                  placeholder="Workspace name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-workspace-desc">Description (optional)</Label>
+                <Textarea
+                  id="edit-workspace-desc"
+                  value={editWorkspaceDesc}
+                  onChange={(e) => setEditWorkspaceDesc(e.target.value)}
+                  placeholder="Workspace description..."
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="edit-workspace-desc">Description (optional)</Label>
-              <Textarea
-                id="edit-workspace-desc"
-                value={editWorkspaceDesc}
-                onChange={(e) => setEditWorkspaceDesc(e.target.value)}
-                placeholder="Workspace description..."
-              />
+
+            <Separator />
+
+            {/* Collaborator Management */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">Collaborators</h3>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setShowWorkspaceEditDialog(false);
+                    setShowWorkspaceInviteDialog(true);
+                  }}
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Invite Collaborator
+                </Button>
+              </div>
+              
+              {/* Existing Collaborators */}
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">
+                  Workspace collaborators will have access to all documents in this workspace.
+                </Label>
+                <CollaboratorsPanel 
+                  document={null} 
+                  workspaceId={selectedWorkspace}
+                  isOwner={isWorkspaceOwner}
+                  showWorkspaceCollaborators={true}
+                />
+              </div>
             </div>
+
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowWorkspaceEditDialog(false)}>
                 Cancel

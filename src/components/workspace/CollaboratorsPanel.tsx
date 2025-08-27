@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useDocumentPermissions, DocumentPermission } from '@/hooks/useDocumentPermissions';
+import { useWorkspacePermissions, WorkspacePermission } from '@/hooks/useWorkspacePermissions';
 import { InviteCollaboratorDialog } from './InviteCollaboratorDialog';
 import { ChangeAccessDialog } from './ChangeAccessDialog';
 import { Document } from '@/types/workspace';
@@ -27,25 +28,26 @@ import { useAuth } from '@/contexts/AuthContext';
 interface CollaboratorsPanelProps {
   document: Document | null;
   isOwner: boolean;
+  workspaceId?: string;
+  showWorkspaceCollaborators?: boolean;
 }
 
-export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProps) {
+export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspaceCollaborators }: CollaboratorsPanelProps) {
   const { user } = useAuth();
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [showChangeAccessDialog, setShowChangeAccessDialog] = useState(false);
-  const [selectedPermission, setSelectedPermission] = useState<DocumentPermission | null>(null);
-  const { 
-    permissions, 
-    loading, 
-    inviteCollaborator, 
-    updatePermission, 
-    removePermission 
-  } = useDocumentPermissions(document?.id);
-
+  const [selectedPermission, setSelectedPermission] = useState<DocumentPermission | WorkspacePermission | null>(null);
+  
+  // Use document permissions by default, workspace permissions when specified
+  const documentPermissions = useDocumentPermissions(document?.id);
+  const workspacePermissions = useWorkspacePermissions(workspaceId);
+  
+  const permissions = showWorkspaceCollaborators ? workspacePermissions : documentPermissions;
+  
   // Filter out the current user from collaborators since they're shown as owner
-  const collaboratorPermissions = permissions.filter(permission => permission.user_id !== user?.id);
+  const collaboratorPermissions = permissions.permissions.filter(permission => permission.user_id !== user?.id);
 
-  if (!document) {
+  if (!document && !showWorkspaceCollaborators) {
     return (
       <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="collaborators" className="border rounded-lg">
@@ -92,22 +94,27 @@ export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProp
   };
 
   const handleInvite = async (email: string, role: 'editor' | 'viewer') => {
-    return await inviteCollaborator(email, document.name, role);
+    if (showWorkspaceCollaborators && workspaceId) {
+      return await workspacePermissions.inviteToWorkspace(email, 'Workspace', role);
+    } else if (document) {
+      return await documentPermissions.inviteCollaborator(email, document.name, role);
+    }
+    return false;
   };
 
-  const handleChangeAccess = (permission: DocumentPermission) => {
+  const handleChangeAccess = (permission: DocumentPermission | WorkspacePermission) => {
     setSelectedPermission(permission);
     setShowChangeAccessDialog(true);
   };
 
   const handleUpdateRole = async (newRole: 'editor' | 'viewer') => {
     if (selectedPermission) {
-      await updatePermission(selectedPermission.id, newRole);
+      await permissions.updatePermission(selectedPermission.id, newRole);
     }
   };
 
-  const handleRemoveCollaborator = async (permission: DocumentPermission) => {
-    await removePermission(permission.id);
+  const handleRemoveCollaborator = async (permission: DocumentPermission | WorkspacePermission) => {
+    await permissions.removePermission(permission.id);
   };
 
   return (
@@ -125,7 +132,7 @@ export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProp
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4">
             <div className="space-y-3">
-              {loading ? (
+              {permissions.loading ? (
                 <p className="text-sm text-muted-foreground">Loading collaborators...</p>
               ) : (
                 <>
@@ -225,7 +232,7 @@ export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProp
         open={showInviteDialog}
         onOpenChange={setShowInviteDialog}
         onInvite={handleInvite}
-        documentName={document.name}
+        documentName={showWorkspaceCollaborators ? 'Workspace' : (document?.name || '')}
       />
       
       <ChangeAccessDialog
