@@ -99,18 +99,18 @@ export const DocumentationDialog: React.FC<DocumentationDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl h-[80vh] p-0">
-        <DialogHeader className="p-6 pb-2">
+      <DialogContent className="max-w-6xl h-[80vh] p-0 flex flex-col">
+        <DialogHeader className="p-6 pb-2 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <BookOpen className="h-5 w-5" />
             Documentation
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex h-full">
+        <div className="flex flex-1 min-h-0">
           {/* Sidebar */}
-          <div className="w-80 border-r bg-muted/30">
-            <div className="p-4">
+          <div className="w-80 border-r bg-muted/30 flex flex-col">
+            <div className="p-4 shrink-0">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -122,7 +122,7 @@ export const DocumentationDialog: React.FC<DocumentationDialogProps> = ({
               </div>
             </div>
 
-            <ScrollArea className="h-[calc(100%-5rem)]">
+            <ScrollArea className="flex-1 min-h-0">
               <div className="p-4 pt-0">
                 {categories.map((category) => (
                   <div key={category} className="mb-6">
@@ -159,7 +159,7 @@ export const DocumentationDialog: React.FC<DocumentationDialogProps> = ({
           </div>
 
           {/* Content Area */}
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col min-h-0">
             {selectedDoc ? (
               <DocumentationViewer docPath={selectedDoc.path} title={selectedDoc.title} />
             ) : (
