@@ -19,7 +19,7 @@ export const useJsonEditorInitialization = ({
     const editor = editorRef.current;
     if (!editor) return;
     
-    console.log('[DEBUG] Updating JSONEditor event handlers with new maxDepth');
+    
     
     // Update the event handlers on the existing editor
     const newEventHandlers = createEditorEventHandlers();

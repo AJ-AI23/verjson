@@ -180,14 +180,8 @@ function processProperties(
   
   // Process all properties individually (no grouping)
   propertyEntries.forEach(([propName, propSchema]: [string, any], index) => {
-    console.log(`[DEBUG] Processing property ${index}: ${propName}`);
-    console.log(`[DEBUG] Schema type: ${propSchema?.type}`);
-    console.log(`[DEBUG] Current path: ${currentPath}`);
-    console.log(`[DEBUG] Current depth: ${currentDepth}, Max depth: ${maxDepth}`);
-    
     // Skip if propSchema is null or undefined
     if (!propSchema) {
-      console.log(`[DEBUG] Skipping ${propName} - no schema`);
       return;
     }
     
