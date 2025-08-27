@@ -49,6 +49,14 @@ export function processPropertiesWithGrouping(
   // Determine if we need to group properties
   const shouldGroupProperties = totalProperties > maxIndividualProperties;
   
+  console.log('🔧 DEBUG [PROPERTY GROUPING] Grouping decision:', {
+    totalProperties,
+    maxIndividualProperties, 
+    shouldGroupProperties,
+    willShowIndividual: shouldGroupProperties ? maxIndividualProperties - 1 : totalProperties,
+    willShowGrouped: shouldGroupProperties ? totalProperties - (maxIndividualProperties - 1) : 0
+  });
+  
   if (shouldGroupProperties) {
     // Show first (maxIndividualProperties - 1) individual properties + 1 grouped node
     const individualProperties = propertyEntries.slice(0, maxIndividualProperties - 1);
