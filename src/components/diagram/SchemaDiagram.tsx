@@ -1,5 +1,4 @@
-
-import React, { memo, useEffect } from 'react';
+import React, { memo } from 'react';
 import '@xyflow/react/dist/style.css';
 import { DiagramContainer } from './DiagramContainer';
 import { CollapsedState } from '@/lib/diagram/types';
@@ -23,44 +22,8 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   onAddNotation,
   expandedNotationPaths
 }) => {
-  // Debug output to help diagnose issues
-  useEffect(() => {
-    console.log('SchemaDiagram rendering', { 
-      hasSchema: !!schema, 
-      schemaType: schema?.type,
-      error, 
-      groupProperties, 
-      collapsedPathsCount: collapsedPaths ? Object.keys(collapsedPaths).length : 0,
-      rootCollapsed: collapsedPaths?.root === true,
-      maxDepth
-    });
-    
-    if (schema) {
-      console.log('Schema structure:', {
-        type: schema.type,
-        title: schema.title,
-        properties: schema.properties ? Object.keys(schema.properties) : []
-      });
-    }
-    
-    // Debug collapsed paths
-    if (collapsedPaths && Object.keys(collapsedPaths).length > 0) {
-      console.log('Collapsed paths in SchemaDiagram:');
-      Object.entries(collapsedPaths).forEach(([path, isCollapsed]) => {
-        if (isCollapsed) {
-          console.log(`- Collapsed: ${path}`);
-        } else {
-          console.log(`- Expanded: ${path}`);
-        }
-      });
-    } else {
-      console.log('No collapsed paths in SchemaDiagram');
-    }
-  }, [schema, error, groupProperties, collapsedPaths, maxDepth]);
-  
   return (
     <div className="h-full flex flex-col min-h-0">
-      
       <DiagramContainer 
         schema={schema}
         error={error}
@@ -84,21 +47,6 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
       collapsedEqual &&
       prevProps.maxDepth === nextProps.maxDepth
     );
-    
-    if (!result) {
-      console.log('SchemaDiagram props changed, will re-render');
-      
-      // Log exactly what changed
-      if (!schemaEqual) console.log('Schema changed');
-      if (!collapsedEqual) {
-        console.log('CollapsedPaths changed');
-        console.log('Prev:', prevProps.collapsedPaths);
-        console.log('Next:', nextProps.collapsedPaths);
-      }
-      if (prevProps.error !== nextProps.error) console.log('Error state changed');
-      if (prevProps.groupProperties !== nextProps.groupProperties) console.log('Group properties changed');
-      if (prevProps.maxDepth !== nextProps.maxDepth) console.log('Max depth changed');
-    }
     
     return result;
   } catch (error) {

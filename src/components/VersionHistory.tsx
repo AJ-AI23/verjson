@@ -33,13 +33,6 @@ interface VersionHistoryProps {
 }
 
 export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onToggleSelection, onMarkAsReleased, onDeleteVersion }) => {
-  console.log('🔍 VersionHistory: Component rendering with documentId:', documentId);
-  console.log('🔍 VersionHistory: Props received:', {
-    documentId,
-    hasOnToggleSelection: !!onToggleSelection,
-    hasOnMarkAsReleased: !!onMarkAsReleased,
-    hasOnDeleteVersion: !!onDeleteVersion
-  });
   
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewPatches, setPreviewPatches] = useState<SchemaPatch[]>([]);
@@ -66,7 +59,6 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
             ? JSON.parse(version.patches) 
             : version.patches || undefined;
         } catch (e) {
-          console.warn('Failed to parse patches for version', version.id, e);
           return undefined;
         }
       })(),
@@ -75,18 +67,6 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
       fullDocument: version.full_document || undefined,
       isSelected: version.is_selected,
     }));
-    
-    console.log('🔄 VersionHistory: Converted patches:', {
-      versionsCount: versions.length,
-      patchesCount: convertedPatches.length,
-      patches: convertedPatches.map(p => ({
-        id: p.id,
-        description: p.description,
-        isSelected: p.isSelected,
-        isReleased: p.isReleased,
-        version: `${p.version.major}.${p.version.minor}.${p.version.patch}`
-      }))
-    });
     
     return convertedPatches;
   }, [versions]);
@@ -108,7 +88,6 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
         if (error) {
           console.error('Failed to fetch document info:', error);
         } else {
-          console.log('🔍 VersionHistory: Document info fetched:', data);
           setDocumentInfo(data);
         }
       } catch (err) {
@@ -119,46 +98,11 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
     fetchDocumentInfo();
   }, [documentId]);
   
-  console.log('🔍 VersionHistory: Fetched patches from database:', {
-    documentId,
-    patchCount: patches?.length || 0,
-    patches: patches?.map(p => ({
-      id: p.id,
-      description: p.description,
-      isSelected: p.isSelected,
-      isReleased: p.isReleased,
-      version: `${p.version.major}.${p.version.minor}.${p.version.patch}`,
-      hasFullDocument: !!p.fullDocument,
-      hasPatches: !!p.patches,
-      fullDocumentKeys: p.fullDocument ? Object.keys(p.fullDocument) : 'NO FULL DOCUMENT'
-    })) || 'NO PATCHES'
-  });
   
   // Calculate current schema based on selected patches from database
   const currentSchema = useMemo(() => {
-    console.log('🔍 VersionHistory: Calculating currentSchema with patches:', {
-      count: patches.length,
-      selectedPatches: patches.filter(p => p.isSelected).length,
-      patchDetails: patches.map(p => ({
-        id: p.id,
-        description: p.description,
-        isSelected: p.isSelected,
-        hasFullDocument: !!p.fullDocument,
-        hasPatches: !!p.patches,
-        timestamp: p.timestamp
-      }))
-    });
-    
     try {
-      const result = applySelectedPatches(patches);
-      console.log('🔍 VersionHistory: Current schema calculation result:', {
-        patchesCount: patches.length,
-        resultKeys: Object.keys(result || {}),
-        resultPreview: result ? JSON.stringify(result).substring(0, 200) : 'null/undefined',
-        hasContent: result && Object.keys(result).length > 0,
-        fullResult: result
-      });
-      return result;
+      return applySelectedPatches(patches);
     } catch (err) {
       console.error('🚨 VersionHistory: Error calculating current schema:', err);
       return {};
@@ -167,21 +111,9 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
   
   // Handle preview of what schema would look like with different selections
   const handlePreview = (patchId: string, wouldBeSelected: boolean) => {
-    console.log('🔍 VersionHistory: handlePreview called:', { patchId, wouldBeSelected, originalPatchesCount: patches.length });
-    
-    const updatedPatches = patches.map(p => {
-      const newPatch = p.id === patchId ? { ...p, isSelected: wouldBeSelected } : p;
-      console.log(`Patch ${p.id} (${p.description}): selected ${p.isSelected} -> ${newPatch.isSelected}`);
-      return newPatch;
-    });
-    
-    console.log('🔍 VersionHistory: Preview patches created:', updatedPatches.map(p => ({ 
-      id: p.id, 
-      description: p.description, 
-      isSelected: p.isSelected,
-      hasFullDocument: !!p.fullDocument,
-      hasPatches: !!p.patches
-    })));
+    const updatedPatches = patches.map(p => 
+      p.id === patchId ? { ...p, isSelected: wouldBeSelected } : p
+    );
     
     setPreviewPatches(updatedPatches);
     setPreviewOpen(true);
@@ -192,19 +124,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
     if (previewPatches.length === 0) return {};
     
     try {
-      console.log('🔍 VersionHistory: Calculating preview schema with patches:', {
-        previewPatchesCount: previewPatches.length,
-        selectedPreviewPatches: previewPatches.filter(p => p.isSelected).length
-      });
-      
-      const result = applySelectedPatches(previewPatches);
-      console.log('🔍 VersionHistory: Preview schema calculation result:', {
-        previewPatchesCount: previewPatches.length,
-        resultKeys: Object.keys(result || {}),
-        resultPreview: result ? JSON.stringify(result).substring(0, 200) : 'null/undefined',
-        hasContent: result && Object.keys(result).length > 0
-      });
-      return result;
+      return applySelectedPatches(previewPatches);
     } catch (err) {
       console.error('🚨 VersionHistory: Error calculating preview schema:', err);
       return {};
@@ -213,14 +133,6 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
   
   // Get summary of schema for display
   const getSchemaSummary = (schema: any) => {
-    console.log('getSchemaSummary called with:', {
-      schema: schema,
-      type: typeof schema,
-      keys: schema ? Object.keys(schema) : 'no keys',
-      isObject: schema && typeof schema === 'object',
-      keysLength: schema ? Object.keys(schema).length : 0
-    });
-    
     if (!schema || typeof schema !== 'object') return 'Empty schema';
     
     const keys = Object.keys(schema);
@@ -237,9 +149,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
     if (schema.properties) summary.push(`Properties: ${Object.keys(schema.properties).length}`);
     if (schema.type) summary.push(`Type: ${schema.type}`);
     
-    const result = summary.length > 0 ? summary.join(', ') : `${keys.length} top-level properties`;
-    console.log('getSchemaSummary result:', result);
-    return result;
+    return summary.length > 0 ? summary.join(', ') : `${keys.length} top-level properties`;
   };
   if (patches.length === 0) {
     return (
@@ -358,23 +268,10 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
                       checked={patch.isSelected}
                       disabled={!canDeselectPatch && patch.isSelected}
                       onCheckedChange={(checked) => {
-                        console.log('🔘 CHECKBOX CLICKED!!! This should appear in console');
-                        console.log('🔘 Checkbox clicked:', { 
-                          patchId: patch.id, 
-                          description: patch.description,
-                          currentSelection: patch.isSelected, 
-                          newSelection: checked,
-                          canDeselect: canDeselectPatch,
-                          hasOnToggleSelection: !!onToggleSelection
-                        });
-                        
                          if (onToggleSelection) {
-                           console.log('🔘 Calling onToggleSelection with patch ID:', patch.id);
                            onToggleSelection(patch.id);
-                         } else {
-                           console.log('🚨 onToggleSelection is not available!');
                          }
-                      }}
+                       }}
                       title={
                         isInitial ? 'Initial version - foundation document (cannot be deselected)' :
                         beforeReleased && patch.isSelected ? 'Cannot deselect versions before a released version' : 

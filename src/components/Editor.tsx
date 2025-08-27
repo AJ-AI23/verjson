@@ -18,9 +18,6 @@ interface EditorProps {
 }
 
 export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, onClearRequest, onClose }: EditorProps) => {
-  console.log('Editor: selectedDocument received:', selectedDocument);
-  console.log('Editor: selectedDocument.id:', selectedDocument?.id);
-  console.log('Editor: typeof selectedDocument.id:', typeof selectedDocument?.id);
   
   // Convert initialSchema to string if it's an object to prevent crashes in versioning hooks
   const schemaAsString = React.useMemo(() => {
@@ -61,7 +58,6 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
   // Clear editor state when onClearRequest is triggered
   React.useEffect(() => {
     if (onClearRequest) {
-      console.log('🧹 Editor: Clearing all editor state due to clear request');
       clearEditorState();
     }
   }, [onClearRequest, clearEditorState]);
@@ -71,16 +67,13 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
   
   React.useEffect(() => {
     if (initialSchema && typeof initialSchema === 'object' && initialSchema !== lastLoadedSchemaRef.current) {
-      const schemaString = JSON.stringify(initialSchema, null, 2);
-      console.log('Loading new document content into editor:', schemaString.substring(0, 100));
-      
       // Detect the schema type and update it
       const detectedType = detectSchemaType(initialSchema);
-      console.log('Detected schema type:', detectedType);
       if (detectedType !== schemaType) {
         handleSchemaTypeChange(detectedType);
       }
       
+      const schemaString = JSON.stringify(initialSchema, null, 2);
       setSchema(schemaString);
       setSavedSchema(schemaString);
       setCollapsedPaths({ root: true });
@@ -88,15 +81,6 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     }
   }, [initialSchema, setSchema, setSavedSchema, setCollapsedPaths, schemaType, handleSchemaTypeChange]);
   
-  // Debug version history state
-  React.useEffect(() => {
-    console.log('🔍 Editor: Version history state check:', {
-      isVersionHistoryOpen,
-      patchesCount: patches?.length || 0,
-      patchesDefined: !!patches,
-      patches: patches?.map(p => ({ id: p.id, description: p.description, version: `${p.version.major}.${p.version.minor}.${p.version.patch}` })) || 'NO PATCHES'
-    });
-  }, [isVersionHistoryOpen, patches]);
   
   return (
     <div className="json-schema-editor">

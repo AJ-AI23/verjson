@@ -71,8 +71,6 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   
   // Wrap onToggleCollapse to prevent initial setup events but allow bulk operations
   const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
-    console.log(`JsonEditorPoc: handleToggleCollapse called with path=${path}, isCollapsed=${isCollapsed}, isMounted=${isMountedRef.current}`);
-    
     // Always allow the callback for better bulk operation support
     if (onToggleCollapse) {
       onToggleCollapse(path, isCollapsed);
@@ -130,19 +128,13 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
           <div className="w-px h-4 bg-slate-300" />
           <div className="flex gap-2">
             <button
-              onClick={() => {
-                console.log('Expand All button clicked!');
-                expandAll();
-              }}
+              onClick={expandAll}
               className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
             >
               Expand All
             </button>
             <button
-              onClick={() => {
-                console.log('Collapse All button clicked!');
-                collapseAll();
-              }}
+              onClick={collapseAll}
               className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
             >
               Collapse All

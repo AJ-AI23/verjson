@@ -21,7 +21,6 @@ export const useJsonEditorFolding = ({
   // Update ref when props change
   useEffect(() => {
     collapsedPathsRef.current = { ...collapsedPaths };
-    console.log('Updated collapsedPathsRef in useJsonEditorFolding:', collapsedPathsRef.current);
   }, [collapsedPaths]);
 
   
@@ -73,35 +72,21 @@ export const useJsonEditorFolding = ({
 
   // Expand all nodes in the editor and update diagram state
   const expandAll = useCallback(() => {
-    console.log('expandAll called - starting operation');
-    
-    if (!editorRef.current) {
-      console.log('expandAll: No editor reference available');
-      return;
-    }
-    
-    if (!onToggleCollapse) {
-      console.log('expandAll: No onToggleCollapse callback available');
+    if (!editorRef.current || !onToggleCollapse) {
       return;
     }
     
     try {
-      console.log('Starting bulk expand all operation');
-      console.log('parsedSchema available:', !!parsedSchema);
-      
       // Get all possible paths from the schema
       let allPaths: string[] = [];
       if (parsedSchema) {
         allPaths = getDiagramPaths(parsedSchema);
-        console.log('Found schema paths for expansion:', allPaths);
         
         // Update all paths to expanded state
         allPaths.forEach(path => {
-          console.log(`Setting path ${path} to expanded`);
           onToggleCollapse(path, false); // false = expanded
         });
       } else {
-        console.log('No parsedSchema available, falling back to root only');
         // Fallback: just expand root
         onToggleCollapse('root', false);
       }
@@ -112,8 +97,6 @@ export const useJsonEditorFolding = ({
         isExpand: true,
         recursive: true
       });
-      
-      console.log('Expanded all nodes - both editor and diagram state updated');
     } catch (err) {
       console.error('Error expanding all nodes:', err);
     }
@@ -121,40 +104,25 @@ export const useJsonEditorFolding = ({
 
   // Collapse all nodes in the editor and update diagram state
   const collapseAll = useCallback(() => {
-    console.log('collapseAll called - starting operation');
-    
-    if (!editorRef.current) {
-      console.log('collapseAll: No editor reference available');
-      return;
-    }
-    
-    if (!onToggleCollapse) {
-      console.log('collapseAll: No onToggleCollapse callback available');
+    if (!editorRef.current || !onToggleCollapse) {
       return;
     }
     
     try {
-      console.log('Starting bulk collapse all operation');
-      console.log('parsedSchema available:', !!parsedSchema);
-      
       // Get all possible paths from the schema
       let allPaths: string[] = [];
       if (parsedSchema) {
         allPaths = getDiagramPaths(parsedSchema);
-        console.log('Found schema paths for collapse:', allPaths);
         
         // Update all paths to collapsed state (except root, which should be expanded to show the collapsed children)
         allPaths.forEach(path => {
           if (path === 'root') {
-            console.log(`Setting root to expanded`);
             onToggleCollapse(path, false); // Keep root expanded so we can see it has children
           } else {
-            console.log(`Setting path ${path} to collapsed`);
             onToggleCollapse(path, true); // true = collapsed
           }
         });
       } else {
-        console.log('No parsedSchema available, falling back to root only');
         // Fallback: just expand root
         onToggleCollapse('root', false);
       }
@@ -165,8 +133,6 @@ export const useJsonEditorFolding = ({
         isExpand: false,
         recursive: true
       });
-      
-      console.log('Collapsed all nodes - both editor and diagram state updated');
     } catch (err) {
       console.error('Error collapsing all nodes:', err);
     }
@@ -197,8 +163,6 @@ export const useJsonEditorFolding = ({
       if (onToggleCollapse) {
         onToggleCollapse('root', false);
       }
-      
-      console.log('Expanded first level nodes using targeted expand() calls');
     } catch (err) {
       console.error('Error expanding first level:', err);
     }
@@ -219,8 +183,6 @@ export const useJsonEditorFolding = ({
         isExpand: !rootCollapsed,
         recursive: false
       });
-      
-      console.log(`Force updated root node to ${rootCollapsed ? 'collapsed' : 'expanded'}`);
     } catch (err) {
       console.error('Error forcing update of editor fold state:', err);
     }
