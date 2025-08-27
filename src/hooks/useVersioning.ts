@@ -295,6 +295,24 @@ export const useVersioning = ({
           full_document: schemaForRelease,
           patches: null, // Remove patches as we now store full document
         });
+        
+        // Update the main document's content to match the released version
+        if (documentId) {
+          const { error } = await supabase
+            .from('documents')
+            .update({ content: schemaForRelease })
+            .eq('id', documentId);
+            
+          if (error) {
+            console.error('Failed to update document content:', error);
+          } else {
+            // Update local state to reflect the new schema
+            const schemaString = JSON.stringify(schemaForRelease, null, 2);
+            setSchema(schemaString);
+            setSavedSchema(schemaString);
+            setDatabaseVersion(schemaString);
+          }
+        }
       }
       
       toast.success('Version marked as released');
