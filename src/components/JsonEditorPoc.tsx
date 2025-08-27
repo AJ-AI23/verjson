@@ -77,6 +77,11 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     documentId,
     initialContent: value,
     baseContent: baseContentForVersion,
+    // 🎛️ Cache Strategy Configuration
+    enableServerSync: true,        // Set to false for local-only mode
+    syncIntervalMs: 30000,         // Sync every 30 seconds (adjust as needed)
+    maxHistorySize: 50,            // Max entries to keep (default: 50)
+    debounceMs: 1000,              // Debounce delay for saving (default: 1000ms)
     onContentChange: (content) => {
       // When restoring from history, don't trigger addToHistory again
       isRestoringFromHistory.current = true;
@@ -90,9 +95,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
       if (hasConflict && settings.showVersionMismatchWarning) {
         setShowVersionMismatch(true);
       }
-    },
-    maxHistorySize: 50,
-    debounceMs: 1000
+    }
   });
   
   // Wrap onChange to add to history
