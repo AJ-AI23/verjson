@@ -19,6 +19,7 @@ import { BulkExportDialog } from './BulkExportDialog';
 import { ImportDialog } from './ImportDialog';
 import { WorkspaceInviteDialog } from './WorkspaceInviteDialog';
 import { DocumentPinSetupDialog } from './DocumentPinSetupDialog';
+import { DocumentMergeDialog } from './DocumentMergeDialog';
 import { useWorkspacePermissions } from '@/hooks/useWorkspacePermissions';
 import { useDocumentPinSecurity } from '@/hooks/useDocumentPinSecurity';
 import { useDebug } from '@/contexts/DebugContext';
@@ -34,7 +35,8 @@ import {
   File,
   Users,
   UserPlus,
-  Shield
+  Shield,
+  GitMerge
 } from 'lucide-react';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
@@ -73,6 +75,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   const [showBulkInviteDialog, setShowBulkInviteDialog] = useState(false);
   const [showBulkExportDialog, setShowBulkExportDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showMergeDialog, setShowMergeDialog] = useState(false);
   
   // PIN security dialog states
   const [showPinSetupDialog, setShowPinSetupDialog] = useState(false);
@@ -321,6 +324,25 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
     }
   };
 
+  const handleDocumentMerge = async (mergedSchema: any, resultName: string) => {
+    if (!selectedWorkspace) return;
+    
+    // Detect file type from merged schema
+    const fileType = mergedSchema.openapi || mergedSchema.swagger ? 'openapi' : 'json-schema';
+    
+    const document = await createDocument({
+      workspace_id: selectedWorkspace,
+      name: resultName,
+      content: mergedSchema,
+      file_type: fileType,
+    });
+    
+    if (document) {
+      onDocumentSelect(document);
+      toast.success(`Merged document created: ${resultName}`);
+    }
+  };
+
   // Don't render content if collapsed
   if (isCollapsed) {
     return null;
@@ -487,6 +509,16 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                   >
                     <Download className="h-3 w-3" />
                   </Button>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="h-7 w-7 p-0"
+                    onClick={() => setShowMergeDialog(true)}
+                    disabled={documents.length < 2}
+                    title="Merge Documents"
+                  >
+                    <GitMerge className="h-3 w-3" />
+                  </Button>
                 </div>
               </div>
               <ScrollArea className="h-64 border rounded-md">
@@ -646,6 +678,14 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
         open={showImportDialog}
         onOpenChange={setShowImportDialog}
         onImport={handleImportFiles}
+      />
+
+      <DocumentMergeDialog
+        isOpen={showMergeDialog}
+        onOpenChange={setShowMergeDialog}
+        documents={documents}
+        onMergeConfirm={handleDocumentMerge}
+        workspaceName={workspaces.find(w => w.id === selectedWorkspace)?.name}
       />
     </div>
   );
