@@ -63,15 +63,17 @@ export const RedoclyDialog: React.FC<RedoclyDialogProps> = ({
       containerRef.current.appendChild(redocContainer);
 
       // Initialize Redocly
-      const RedocStandalone = (window as any).RedocStandalone;
-      if (!RedocStandalone) {
-        console.error('RedocStandalone not found on window object. Available keys:', Object.keys(window).filter(k => k.toLowerCase().includes('redoc')));
-        throw new Error('Redocly library failed to load - RedocStandalone not available');
+      // Try different possible global names that Redoc library might expose
+      let RedocAPI = (window as any).RedocStandalone || (window as any).Redoc;
+      if (!RedocAPI) {
+        console.error('RedocStandalone not found. Available globals:', Object.keys(window).filter(k => k.toLowerCase().includes('redoc')));
+        throw new Error('Redocly library failed to load - No Redoc global available');
       }
 
       console.log('Initializing Redocly with schema:', parsedSchema.info?.title || 'Untitled API');
 
-      RedocStandalone.init(parsedSchema, {
+      // Use the init method
+      RedocAPI.init(parsedSchema, {
         scrollYOffset: 0,
         hideDownloadButton: false,
         disableSearch: false,
@@ -79,7 +81,7 @@ export const RedoclyDialog: React.FC<RedoclyDialogProps> = ({
         theme: {
           colors: {
             primary: {
-              main: '#3b82f6', // Use a standard blue color instead of CSS variable
+              main: '#3b82f6', // Use a standard blue color
             },
           },
           typography: {

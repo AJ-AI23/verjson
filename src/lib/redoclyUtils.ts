@@ -25,21 +25,34 @@ export const loadRedocly = async (): Promise<void> => {
   redoclyPromise = new Promise((resolve, reject) => {
     // Create script element for Redocly standalone
     const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/redoc@2.1.3/bundles/redoc.standalone.js';
+    script.src = 'https://cdn.redoc.ly/redoc/v2.1.3/bundles/redoc.standalone.js';
     script.async = true;
     script.crossOrigin = 'anonymous';
 
     script.onload = () => {
-      // Wait a bit for the global to be available
+      // Wait a bit for the global to be available and check multiple possible global names
       setTimeout(() => {
-        if (window.RedocStandalone) {
+        const possibleGlobals = ['Redoc', 'RedocStandalone', 'redoc'];
+        let redocGlobal = null;
+        
+        for (const globalName of possibleGlobals) {
+          if ((window as any)[globalName]) {
+            redocGlobal = (window as any)[globalName];
+            console.log(`Found Redoc global as: ${globalName}`);
+            break;
+          }
+        }
+
+        if (redocGlobal) {
+          (window as any).RedocStandalone = redocGlobal; // Normalize to expected name
           redoclyLoaded = true;
           resolve();
         } else {
+          console.error('Available window keys:', Object.keys(window).filter(k => k.toLowerCase().includes('redoc')));
           redoclyPromise = null;
-          reject(new Error('Redocly library loaded but RedocStandalone not available'));
+          reject(new Error('Redocly library loaded but no global found. Available globals: ' + Object.keys(window).filter(k => k.toLowerCase().includes('redoc')).join(', ')));
         }
-      }, 100);
+      }, 200);
     };
 
     script.onerror = (error) => {
