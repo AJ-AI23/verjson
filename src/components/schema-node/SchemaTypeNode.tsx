@@ -36,6 +36,7 @@ interface SchemaTypeNodeProps {
     maxItems?: number;
     isRoot?: boolean;
     isGroup?: boolean;
+    isGrouped?: boolean; // For grouped property nodes
     reference?: string;
     propertyDetails?: PropertyDetail[];
     hasMoreLevels?: boolean;
@@ -46,6 +47,7 @@ interface SchemaTypeNodeProps {
     notations?: NotationComment[];
     notationCount?: number;
     hasNotations?: boolean;
+    path?: string; // For tracking paths in grouped nodes
   };
   id: string;
   isConnectable: boolean;
@@ -65,6 +67,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
     maxItems,
     isRoot,
     isGroup,
+    isGrouped,
     reference,
     propertyDetails,
     hasMoreLevels,
@@ -75,6 +78,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
     notations = [],
     notationCount = 0,
     hasNotations = false,
+    path,
   } = data;
 
   const [isNotationsExpanded, setIsNotationsExpanded] = useState(false);
@@ -100,16 +104,17 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
   const nodeContainerClasses = useMemo(() => {
     return cn(
       'px-3 py-2 rounded-md shadow-sm border min-w-[160px] w-fit',
-      isGroup ? 'max-w-[420px]' : 'max-w-[280px]',
+      (isGroup || isGrouped) ? 'max-w-[420px]' : 'max-w-[280px]',
       `node-${type}`,
       required && 'node-required',
       isRoot && 'border-2 border-blue-500 bg-blue-50',
       isGroup && 'border-2 border-slate-300 bg-slate-50',
+      isGrouped && 'border-2 border-orange-300 bg-orange-50',
       isCollapsed && 'border-dashed bg-slate-50',
       hasMoreLevels && !isCollapsed && 'border-dashed',
       hasNotations && 'border-l-2 border-l-amber-400'
     );
-  }, [type, required, isRoot, isGroup, isCollapsed, hasMoreLevels, hasNotations]);
+  }, [type, required, isRoot, isGroup, isGrouped, isCollapsed, hasMoreLevels, hasNotations]);
 
   return (
     <div className={nodeContainerClasses}>
@@ -150,11 +155,25 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
           minItems={minItems}
           maxItems={maxItems}
           isGroup={isGroup}
+          isGrouped={isGrouped}
           required={required}
         />
         
-        {isGroup && propertyDetails && propertyDetails.length > 0 && (
-          <PropertyDetails propertyDetails={propertyDetails} />
+        {/* Property details section */}
+        {propertyDetails && propertyDetails.length > 0 && (
+          <PropertyDetails 
+            propertyDetails={propertyDetails} 
+            isGrouped={isGrouped}
+            nodeId={id}
+            onExpandProperty={onAddNotation ? (propName: string) => {
+              // When expanding a property from a grouped node, we need to trigger the expansion
+              const groupedPath = path || id.replace('grouped-', '').replace('-properties', '');
+              const expandPath = groupedPath === 'root' ? 
+                'root.properties._grouped' : 
+                `${groupedPath}._grouped`;
+              onAddNotation(expandPath, 'expand', `Expand property ${propName}`);
+            } : undefined}
+          />
         )}
 
         {(hasNotations || onAddNotation) && (

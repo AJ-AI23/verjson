@@ -439,3 +439,34 @@ export const createRequestBodyNode = (
     }
   };
 };
+
+export const createGroupedPropertiesNode = (
+  nodeId: string,
+  properties: [string, any][],
+  requiredProps: string[],
+  xPos: number,
+  yOffset: number
+): Node => {
+  const propertyDetails = properties.map(([name, prop]) => ({
+    name,
+    type: prop.type || (prop.$ref ? 'reference' : 'unknown'),
+    required: requiredProps.includes(name),
+    format: prop.format,
+    description: prop.description,
+    reference: prop.$ref
+  }));
+
+  return {
+    id: nodeId,
+    type: 'schemaType',
+    position: { x: xPos, y: yOffset },
+    data: {
+      label: `${properties.length} More Properties`,
+      type: 'object',
+      isGrouped: true,
+      propertyDetails: propertyDetails,
+      hasCollapsibleContent: true,
+      isCollapsed: true // Grouped nodes start collapsed by default
+    }
+  };
+};

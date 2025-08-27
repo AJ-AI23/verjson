@@ -4,7 +4,8 @@ import { DiagramElements, CollapsedState } from '../types';
 import { 
   createPropertyNode, 
   createNestedPropertyNode, 
-  createArrayItemNode 
+  createArrayItemNode,
+  createGroupedPropertiesNode 
 } from '../nodeGenerator';
 import { createEdge } from '../edgeGenerator';
 
@@ -61,20 +62,21 @@ export const generateExpandedLayout = (
   if (rootPropertiesExpanded) {
     console.log('[EXPANDED LAYOUT] Root properties are explicitly expanded, processing first level properties');
     // Process the first level of properties (depth 1)
-    processProperties(
-      properties, 
-      requiredProps, 
-      xOffset, 
-      yOffset, 
-      xSpacing, 
-      result, 
-      'root', 
-      1, 
-      maxDepth, 
-      collapsedPaths, 
-      'root',
-      0 // Start with 0 expandedNodeDepth from root
-    );
+        processProperties(
+          properties, 
+          requiredProps, 
+          xOffset, 
+          yOffset, 
+          xSpacing, 
+          result, 
+          'root', 
+          1, 
+          maxDepth, 
+          collapsedPaths, 
+          'root',
+          0, // Start with 0 expandedNodeDepth from root
+          5 // Maximum properties limit before grouping
+        );
   } else {
     console.log('[EXPANDED LAYOUT] Root properties are not explicitly expanded, skipping first level properties');
   }
@@ -97,10 +99,28 @@ function processProperties(
   maxDepth: number,
   collapsedPaths: CollapsedState = {},
   currentPath: string = '',
-  expandedNodeDepth: number = 0 // New parameter to track depth from last expanded node
+  expandedNodeDepth: number = 0, // New parameter to track depth from last expanded node
+  maxPropertiesLimit: number = 5 // Maximum number of individual property nodes before grouping
 ) {
-  // Calculate starting x position to center the nodes
-  const totalWidth = Object.keys(properties).length * xSpacing;
+  const propertyEntries = Object.entries(properties);
+  const totalProperties = propertyEntries.length;
+  
+  // Determine if we need to group properties
+  const shouldGroupProperties = totalProperties > maxPropertiesLimit;
+  
+  // If grouping, show first 4 individual properties + 1 grouped node
+  // If not grouping, show all properties
+  const individualProperties = shouldGroupProperties 
+    ? propertyEntries.slice(0, maxPropertiesLimit - 1)
+    : propertyEntries;
+  
+  const groupedProperties = shouldGroupProperties 
+    ? propertyEntries.slice(maxPropertiesLimit - 1)
+    : [];
+  
+  // Calculate layout based on what we're actually showing
+  const nodesToShow = shouldGroupProperties ? maxPropertiesLimit : totalProperties;
+  const totalWidth = nodesToShow * xSpacing;
   const startXOffset = xOffset - totalWidth / 2 + xSpacing / 2;
   
   // Helper function to check if any ancestor path is collapsed
@@ -123,14 +143,11 @@ function processProperties(
   
   console.log(`Processing properties at path: ${currentPath}`);
   console.log(`Parent properties path: ${parentPropertiesPath}, collapsed: ${isParentPropertiesCollapsed}`);
-  console.log(`All collapsed paths:`, collapsedPaths);
-  console.log(`Properties object:`, properties);
-  console.log(`Properties keys:`, Object.keys(properties));
-  console.log(`Properties entries count:`, Object.entries(properties).length);
-  console.log(`Current depth: ${currentDepth}, Max depth: ${maxDepth}`);
-  console.log(`Is parent properties collapsed: ${isParentPropertiesCollapsed}`);
+  console.log(`Should group properties: ${shouldGroupProperties} (${totalProperties} > ${maxPropertiesLimit})`);
+  console.log(`Individual properties: ${individualProperties.length}, Grouped: ${groupedProperties.length}`);
   
-  Object.entries(properties).forEach(([propName, propSchema]: [string, any], index) => {
+  // Process individual properties
+  individualProperties.forEach(([propName, propSchema]: [string, any], index) => {
     console.log(`[DEBUG] Processing property ${index}: ${propName}`);
     console.log(`[DEBUG] Schema type: ${propSchema?.type}`);
     console.log(`[DEBUG] Current path: ${currentPath}`);
@@ -257,20 +274,21 @@ function processProperties(
           console.log(`  - Resetting expandedNodeDepth to ${newExpandedNodeDepth} for explicitly expanded node`);
           
           // Process nested properties (depth + 1)
-          processProperties(
-            nestedProps, 
-            nestedRequired, 
-            xPos, 
-            nestedYOffset, 
-            xSpacing * 0.8, 
-            result, 
-            propNode.id, 
-            currentDepth + 1, 
-            maxDepth,
-            collapsedPaths,
-            jsonEditorPath,
-            newExpandedNodeDepth
-          );
+              processProperties(
+                nestedProps, 
+                nestedRequired, 
+                xPos, 
+                nestedYOffset, 
+                xSpacing * 0.8, 
+                result, 
+                propNode.id, 
+                currentDepth + 1, 
+                maxDepth,
+                collapsedPaths,
+                jsonEditorPath,
+                newExpandedNodeDepth,
+                maxPropertiesLimit
+              );
         } else {
           // If properties are not explicitly expanded but we're still processing
           // (this happens when we're within the maxDepth limit but no explicit expand)
@@ -317,20 +335,21 @@ function processProperties(
               const newExpandedNodeDepth = 0;
               console.log(`  - Resetting expandedNodeDepth to ${newExpandedNodeDepth} for explicitly expanded array items`);
               
-              processProperties(
-                itemProps,
-                itemRequired,
-                xPos,
-                yOffset + 300,
-                xSpacing * 0.8,
-                result,
-                itemNode.id,
-                currentDepth + 2,
-                maxDepth,
-                collapsedPaths,
-                itemPath,
-                newExpandedNodeDepth
-              );
+                processProperties(
+                  itemProps,
+                  itemRequired,
+                  xPos,
+                  yOffset + 300,
+                  xSpacing * 0.8,
+                  result,
+                  itemNode.id,
+                  currentDepth + 2,
+                  maxDepth,
+                  collapsedPaths,
+                  itemPath,
+                  newExpandedNodeDepth,
+                  maxPropertiesLimit
+                );
             }
           }
         }
@@ -361,4 +380,93 @@ function processProperties(
       }
     }
   });
+
+  // Create grouped properties node if needed
+  if (shouldGroupProperties && groupedProperties.length > 0) {
+    const groupedIndex = individualProperties.length; // Position after individual properties
+    const groupedXPos = startXOffset + groupedIndex * xSpacing;
+    
+    // Check if the grouped node should be expanded (showing individual properties)
+    const groupedNodePath = currentPath === 'root' ? 
+      'root.properties._grouped' : 
+      `${currentPath}._grouped`;
+    const isGroupedExpanded = collapsedPaths[groupedNodePath] === false;
+    
+    if (isGroupedExpanded) {
+      // Show individual nodes for each grouped property
+      groupedProperties.forEach(([propName, propSchema]: [string, any], groupedIdx) => {
+        const individualIndex = groupedIndex + groupedIdx;
+        const individualXPos = startXOffset + individualIndex * xSpacing;
+        
+        // Build paths correctly
+        const diagramPath = currentPath === 'root' ? propName : `${currentPath}.${propName}`;
+        const jsonEditorPath = currentPath === 'root' ? 
+          `root.properties.${propName}` : 
+          `${currentPath}.${propName}`;
+        
+        // Check collapse state
+        const pathValue = collapsedPaths[diagramPath] || collapsedPaths[jsonEditorPath];
+        const isPathExplicitlyCollapsed = pathValue !== false && 
+          !(typeof pathValue === 'object' && pathValue !== null);
+        
+        try {
+          const propNode = createPropertyNode(propName, propSchema, requiredProps, individualXPos, yOffset, isPathExplicitlyCollapsed);
+          const edge = createEdge(parentId, propNode.id);
+          
+          result.nodes.push(propNode);
+          result.edges.push(edge);
+          
+          // Process nested properties if needed (same logic as individual properties above)
+          if (expandedNodeDepth < maxDepth && !isPathExplicitlyCollapsed) {
+            if (propSchema.type === 'object' && propSchema.properties) {
+              const nestedProps = propSchema.properties;
+              const nestedRequired = propSchema.required || [];
+              const nestedYOffset = yOffset + 150;
+              
+              propNode.data.properties = Object.keys(nestedProps).length;
+              
+              const jsonEditorPropertiesPath = `${jsonEditorPath}.properties`;
+              const isThisPropertiesExplicitlyExpanded = collapsedPaths[jsonEditorPropertiesPath] === false;
+              const isParentNodeCollapsed = collapsedPaths[jsonEditorPath] === true;
+              
+              if (isThisPropertiesExplicitlyExpanded && !isParentNodeCollapsed) {
+                processProperties(
+                  nestedProps, 
+                  nestedRequired, 
+                  individualXPos, 
+                  nestedYOffset, 
+                  xSpacing * 0.8, 
+                  result, 
+                  propNode.id, 
+                  currentDepth + 1, 
+                  maxDepth,
+                  collapsedPaths,
+                  jsonEditorPath,
+                  0, // Reset expandedNodeDepth for explicitly expanded
+                  maxPropertiesLimit
+                );
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`Error creating grouped property node for ${propName}:`, error);
+        }
+      });
+    } else {
+      // Show single grouped node
+      const groupedNodeId = `grouped-${parentId}-properties`;
+      const groupedNode = createGroupedPropertiesNode(
+        groupedNodeId,
+        groupedProperties,
+        requiredProps,
+        groupedXPos,
+        yOffset
+      );
+      
+      const groupedEdge = createEdge(parentId, groupedNodeId);
+      
+      result.nodes.push(groupedNode);
+      result.edges.push(groupedEdge);
+    }
+  }
 }

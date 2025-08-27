@@ -6,36 +6,69 @@ interface NodeMetaInfoProps {
   minItems?: number;
   maxItems?: number;
   isGroup?: boolean;
+  isGrouped?: boolean;
   required?: boolean;
 }
 
 export const NodeMetaInfo = memo(({ 
   properties, 
   minItems, 
-  maxItems,
-  isGroup,
-  required
+  maxItems, 
+  isGroup, 
+  isGrouped,
+  required 
 }: NodeMetaInfoProps) => {
+  const showMeta = Boolean(
+    properties || 
+    (minItems !== undefined && minItems !== null) || 
+    (maxItems !== undefined && maxItems !== null) || 
+    required || 
+    isGroup || 
+    isGrouped
+  );
+
+  if (!showMeta) {
+    return null;
+  }
+
   return (
-    <>
-      {properties !== undefined && !isGroup && (
-        <div className="text-xs">
-          <span className="text-slate-500">properties:</span> {properties}
-        </div>
-      )}
-
-      {(minItems !== undefined || maxItems !== undefined) && (
-        <div className="text-xs">
-          <span className="text-slate-500">items:</span>{' '}
-          {minItems !== undefined ? minItems : '0'} 
-          {maxItems !== undefined ? ` - ${maxItems}` : '+'}
-        </div>
-      )}
-
-      {required && !isGroup && (
-        <div className="text-xs font-medium text-blue-600">Required</div>
-      )}
-    </>
+    <div className="mt-1">
+      <div className="flex flex-wrap gap-2 text-xs">
+        {required && (
+          <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-[10px] font-medium">
+            Required
+          </span>
+        )}
+        
+        {(isGroup || isGrouped) && (
+          <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
+            isGrouped 
+              ? 'bg-orange-100 text-orange-800'
+              : 'bg-slate-100 text-slate-800'
+          }`}>
+            {isGrouped ? 'Grouped' : 'Group'}
+          </span>
+        )}
+        
+        {properties && (
+          <span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-[10px] font-medium">
+            {properties} properties
+          </span>
+        )}
+        
+        {(minItems !== undefined && minItems !== null) && (
+          <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-[10px] font-medium">
+            min: {minItems}
+          </span>
+        )}
+        
+        {(maxItems !== undefined && maxItems !== null) && (
+          <span className="bg-red-100 text-red-800 px-2 py-0.5 rounded text-[10px] font-medium">
+            max: {maxItems}
+          </span>
+        )}
+      </div>
+    </div>
   );
 });
 
