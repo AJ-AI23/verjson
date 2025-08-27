@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Bell } from 'lucide-react';
 import { NotificationsDialog } from './NotificationsDialog';
 import { DebugToggle } from '@/components/DebugToggle';
+import { SupportButton } from './SupportButton';
 import { useNotifications } from '@/hooks/useNotifications';
 
 export const NotificationsButton: React.FC = () => {
@@ -12,6 +13,9 @@ export const NotificationsButton: React.FC = () => {
 
   return (
     <div className="flex items-center gap-2">
+      {/* Support Button */}
+      <SupportButton />
+      
       {/* Debug Toggle */}
       <DebugToggle />
       
