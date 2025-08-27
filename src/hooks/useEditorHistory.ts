@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
+import { getDocumentVersionInfo, compareVersionInfo, DocumentVersionInfo } from '@/lib/documentVersionUtils';
 
 interface HistoryEntry {
   content: string;
@@ -7,60 +8,119 @@ interface HistoryEntry {
   documentId?: string;
 }
 
+interface CachedHistoryData {
+  history: HistoryEntry[];
+  currentIndex: number;
+  lastUpdated: number;
+  versionInfo?: DocumentVersionInfo;
+}
+
 interface UseEditorHistoryProps {
   documentId?: string;
   onContentChange?: (content: string) => void;
   maxHistorySize?: number;
   debounceMs?: number;
+  initialContent?: string;
+  baseContent?: any;
+  onVersionMismatch?: (hasConflict: boolean) => void;
 }
 
 export const useEditorHistory = ({
   documentId,
   onContentChange,
   maxHistorySize = 50,
-  debounceMs = 1000
+  debounceMs = 1000,
+  initialContent,
+  baseContent,
+  onVersionMismatch
 }: UseEditorHistoryProps) => {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
+  const [isInitialized, setIsInitialized] = useState(false);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedContentRef = useRef<string>('');
+  const currentVersionInfoRef = useRef<DocumentVersionInfo | null>(null);
   
   // Generate storage key for the current document
   const getStorageKey = useCallback((docId?: string) => {
     return `editor-history-${docId || 'default'}`;
   }, []);
 
-  // Load history from localStorage on mount or document change
+  // Load history from localStorage and check version conflicts
   useEffect(() => {
-    const storageKey = getStorageKey(documentId);
-    const savedHistory = localStorage.getItem(storageKey);
+    const initializeHistory = async () => {
+      const storageKey = getStorageKey(documentId);
+      const savedHistory = localStorage.getItem(storageKey);
+      
+      // Get current document version info if we have the necessary data
+      let currentVersionInfo: DocumentVersionInfo | null = null;
+      if (documentId && baseContent) {
+        try {
+          currentVersionInfo = await getDocumentVersionInfo(documentId, baseContent);
+          currentVersionInfoRef.current = currentVersionInfo;
+        } catch (error) {
+          console.error('Error getting document version info:', error);
+        }
+      }
+      
+      if (savedHistory) {
+        try {
+          const parsed: CachedHistoryData = JSON.parse(savedHistory);
+          const cachedVersionInfo = parsed.versionInfo;
+          
+          // Check for version mismatch
+          const hasVersionMismatch = currentVersionInfo && cachedVersionInfo ? 
+            compareVersionInfo(cachedVersionInfo, currentVersionInfo) : false;
+          
+          if (hasVersionMismatch && onVersionMismatch) {
+            onVersionMismatch(true);
+          }
+          
+          // Load cached history regardless of version mismatch (user can choose what to do)
+          setHistory(parsed.history || []);
+          setCurrentIndex(parsed.currentIndex ?? -1);
+          
+        } catch (error) {
+          console.error('Failed to load editor history:', error);
+          initializeWithInitialContent();
+        }
+      } else {
+        initializeWithInitialContent();
+      }
+      
+      setIsInitialized(true);
+    };
     
-    if (savedHistory) {
-      try {
-        const parsed = JSON.parse(savedHistory);
-        setHistory(parsed.history || []);
-        setCurrentIndex(parsed.currentIndex ?? -1);
-        
-      } catch (error) {
-        console.error('Failed to load editor history:', error);
+    const initializeWithInitialContent = () => {
+      if (initialContent) {
+        const initialEntry: HistoryEntry = {
+          content: initialContent,
+          timestamp: Date.now(),
+          documentId
+        };
+        setHistory([initialEntry]);
+        setCurrentIndex(0);
+        lastSavedContentRef.current = initialContent;
+      } else {
         setHistory([]);
         setCurrentIndex(-1);
       }
-    } else {
-      setHistory([]);
-      setCurrentIndex(-1);
-    }
-  }, [documentId, getStorageKey]);
+    };
+    
+    initializeHistory();
+  }, [documentId, getStorageKey, initialContent, baseContent, onVersionMismatch]);
 
-  // Save history to localStorage
+  // Save history to localStorage with version info
   const saveHistoryToStorage = useCallback((historyEntries: HistoryEntry[], index: number) => {
     const storageKey = getStorageKey(documentId);
     try {
-      localStorage.setItem(storageKey, JSON.stringify({
+      const cacheData: CachedHistoryData = {
         history: historyEntries,
         currentIndex: index,
-        lastUpdated: Date.now()
-      }));
+        lastUpdated: Date.now(),
+        versionInfo: currentVersionInfoRef.current || undefined
+      };
+      localStorage.setItem(storageKey, JSON.stringify(cacheData));
     } catch (error) {
       console.error('Failed to save editor history:', error);
     }
@@ -116,12 +176,12 @@ export const useEditorHistory = ({
     }, debounceMs);
   }, [currentIndex, debounceMs, documentId, maxHistorySize]);
 
-  // Save to localStorage when history changes
+  // Save to localStorage when history changes (only after initialization)
   useEffect(() => {
-    if (history.length > 0) {
+    if (isInitialized && history.length > 0) {
       saveHistoryToStorage(history, currentIndex);
     }
-  }, [history, currentIndex, saveHistoryToStorage]);
+  }, [history, currentIndex, saveHistoryToStorage, isInitialized]);
 
   // Undo functionality
   const undo = useCallback(() => {
@@ -187,15 +247,52 @@ export const useEditorHistory = ({
   const canRedo = currentIndex < history.length - 1;
   const historySize = history.length;
 
+  // Clear history and start fresh with current content
+  const startFresh = useCallback(async () => {
+    if (documentId && baseContent) {
+      try {
+        // Get fresh version info
+        const freshVersionInfo = await getDocumentVersionInfo(documentId, baseContent);
+        currentVersionInfoRef.current = freshVersionInfo;
+        
+        // Clear localStorage
+        const storageKey = getStorageKey(documentId);
+        localStorage.removeItem(storageKey);
+        
+        // Reset history
+        if (initialContent) {
+          const initialEntry: HistoryEntry = {
+            content: initialContent,
+            timestamp: Date.now(),
+            documentId
+          };
+          setHistory([initialEntry]);
+          setCurrentIndex(0);
+          lastSavedContentRef.current = initialContent;
+        } else {
+          setHistory([]);
+          setCurrentIndex(-1);
+        }
+        
+        toast.success('Started fresh with latest document version');
+      } catch (error) {
+        console.error('Error starting fresh:', error);
+        toast.error('Failed to refresh document state');
+      }
+    }
+  }, [documentId, baseContent, initialContent, getStorageKey]);
+
   return {
     addToHistory,
     undo,
     redo,
     clearHistory,
+    startFresh,
     canUndo,
     canRedo,
     historySize,
     currentIndex: currentIndex + 1, // Display as 1-based
-    totalEntries: historySize
+    totalEntries: historySize,
+    isInitialized
   };
 };

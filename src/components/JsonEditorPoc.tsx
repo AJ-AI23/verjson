@@ -1,10 +1,13 @@
 
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import 'jsoneditor/dist/jsoneditor.css';
 import { CollapsedState } from '@/lib/diagram/types';
 import { useJsonEditor } from '@/hooks/useJsonEditor';
 import { useEditorHistory } from '@/hooks/useEditorHistory';
 import { EditorHistoryControls } from '@/components/editor/EditorHistoryControls';
+import { VersionMismatchRibbon } from '@/components/editor/VersionMismatchRibbon';
+import { useEditorSettings } from '@/contexts/EditorSettingsContext';
+import { getEffectiveDocumentContentForEditor } from '@/lib/documentUtils';
 
 interface JsonEditorPocProps {
   value: string;
@@ -35,18 +38,45 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   // Track if we're currently restoring from history to avoid circular updates
   const isRestoringFromHistory = useRef<boolean>(false);
   
+  // Editor settings and version mismatch state
+  const { settings } = useEditorSettings();
+  const [showVersionMismatch, setShowVersionMismatch] = useState(false);
+  const [baseContentForVersion, setBaseContentForVersion] = useState<any>(null);
+  
+  // Get base content for version comparison
+  useEffect(() => {
+    const getBaseContent = async () => {
+      if (documentId) {
+        try {
+          // Parse the current value to get base content structure
+          const parsedValue = JSON.parse(value);
+          setBaseContentForVersion(parsedValue);
+        } catch (error) {
+          console.error('Error parsing current value for version comparison:', error);
+          setBaseContentForVersion(null);
+        }
+      }
+    };
+    
+    getBaseContent();
+  }, [documentId, value]);
+
   // Initialize editor history
   const {
     addToHistory,
     undo,
     redo,
     clearHistory,
+    startFresh,
     canUndo,
     canRedo,
     currentIndex,
-    totalEntries
+    totalEntries,
+    isInitialized
   } = useEditorHistory({
     documentId,
+    initialContent: value,
+    baseContent: baseContentForVersion,
     onContentChange: (content) => {
       // When restoring from history, don't trigger addToHistory again
       isRestoringFromHistory.current = true;
@@ -56,6 +86,11 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
         isRestoringFromHistory.current = false;
       }, 100);
     },
+    onVersionMismatch: (hasConflict) => {
+      if (hasConflict && settings.showVersionMismatchWarning) {
+        setShowVersionMismatch(true);
+      }
+    },
     maxHistorySize: 50,
     debounceMs: 1000
   });
@@ -63,11 +98,11 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   // Wrap onChange to add to history
   const handleChange = useCallback((newValue: string) => {
     onChange(newValue);
-    // Only add to history if we're not restoring from history
-    if (!isRestoringFromHistory.current) {
+    // Only add to history if we're not restoring from history and history is initialized
+    if (!isRestoringFromHistory.current && isInitialized) {
       addToHistory(newValue);
     }
-  }, [onChange, addToHistory]);
+  }, [onChange, addToHistory, isInitialized]);
   
   // Wrap onToggleCollapse to prevent initial setup events but allow bulk operations
   const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
@@ -111,10 +146,31 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     };
   }, []);
 
+  // Handle version mismatch ribbon actions
+  const handleDismissVersionMismatch = useCallback(() => {
+    setShowVersionMismatch(false);
+  }, []);
+
+  const handleStartFresh = useCallback(async () => {
+    setShowVersionMismatch(false);
+    await startFresh();
+  }, [startFresh]);
+
+  const handleKeepEdits = useCallback(() => {
+    setShowVersionMismatch(false);
+  }, []);
+
   return (
     <div className="h-full flex flex-col">
-      <div className="p-2 border-b bg-slate-50 flex justify-between items-center">
-        <h2 className="font-semibold text-slate-700">JSON Editor</h2>
+      <VersionMismatchRibbon
+        isVisible={showVersionMismatch}
+        onDismiss={handleDismissVersionMismatch}
+        onStartFresh={handleStartFresh}
+        onKeepEdits={handleKeepEdits}
+        documentId={documentId}
+      />
+      <div className="p-2 border-b bg-muted/30 flex justify-between items-center">
+        <h2 className="font-semibold text-foreground">JSON Editor</h2>
         <div className="flex items-center gap-3">
           <EditorHistoryControls
             canUndo={canUndo}
@@ -125,17 +181,17 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
             currentIndex={currentIndex}
             totalEntries={totalEntries}
           />
-          <div className="w-px h-4 bg-slate-300" />
+          <div className="w-px h-4 bg-border" />
           <div className="flex gap-2">
             <button
               onClick={expandAll}
-              className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
+              className="text-xs px-2 py-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded transition-colors"
             >
               Expand All
             </button>
             <button
               onClick={collapseAll}
-              className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded transition-colors"
+              className="text-xs px-2 py-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded transition-colors"
             >
               Collapse All
             </button>
@@ -148,7 +204,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
       
       {/* Error display */}
       {error && (
-        <div className="p-2 bg-red-50 border-t border-red-200 text-red-600 text-sm">
+        <div className="p-2 bg-destructive/10 border-t border-destructive/20 text-destructive text-sm">
           {error}
         </div>
       )}

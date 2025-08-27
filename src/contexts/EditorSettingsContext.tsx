@@ -4,12 +4,16 @@ import { useDebug } from '@/contexts/DebugContext';
 interface EditorSettings {
   maxDepth: number;
   groupProperties: boolean;
+  undoRedoStrategy: 'local-with-notifications' | 'server-based';
+  showVersionMismatchWarning: boolean;
 }
 
 interface EditorSettingsContextType {
   settings: EditorSettings;
   updateMaxDepth: (depth: number) => void;
   updateGroupProperties: (groupProperties: boolean) => void;
+  updateUndoRedoStrategy: (strategy: 'local-with-notifications' | 'server-based') => void;
+  updateShowVersionMismatchWarning: (show: boolean) => void;
 }
 
 const EditorSettingsContext = createContext<EditorSettingsContextType | undefined>(undefined);
@@ -22,7 +26,9 @@ export const EditorSettingsProvider: React.FC<EditorSettingsProviderProps> = ({ 
   const { debugToast } = useDebug();
   const [settings, setSettings] = useState<EditorSettings>({
     maxDepth: 1,
-    groupProperties: false
+    groupProperties: false,
+    undoRedoStrategy: 'local-with-notifications',
+    showVersionMismatchWarning: true
   });
 
   const updateMaxDepth = (depth: number) => {
@@ -34,10 +40,20 @@ export const EditorSettingsProvider: React.FC<EditorSettingsProviderProps> = ({ 
     setSettings(prev => ({ ...prev, groupProperties }));
   };
 
+  const updateUndoRedoStrategy = (strategy: 'local-with-notifications' | 'server-based') => {
+    setSettings(prev => ({ ...prev, undoRedoStrategy: strategy }));
+  };
+
+  const updateShowVersionMismatchWarning = (show: boolean) => {
+    setSettings(prev => ({ ...prev, showVersionMismatchWarning: show }));
+  };
+
   const value = {
     settings,
     updateMaxDepth,
-    updateGroupProperties
+    updateGroupProperties,
+    updateUndoRedoStrategy,
+    updateShowVersionMismatchWarning
   };
 
   return (
