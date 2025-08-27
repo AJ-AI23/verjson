@@ -15,6 +15,7 @@ import {
 } from '@/lib/versionUtils';
 import { useDocumentVersions } from '@/hooks/useDocumentVersions';
 import { supabase } from '@/integrations/supabase/client';
+import { useDebug } from '@/contexts/DebugContext';
 
 interface UseVersioningProps {
   schema: string;
@@ -31,6 +32,7 @@ export const useVersioning = ({
   setSchema,
   documentId
 }: UseVersioningProps) => {
+  const { debugToast } = useDebug();
   const [patches, setPatches] = useState<SchemaPatch[]>([]);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   
@@ -54,7 +56,7 @@ export const useVersioning = ({
   const isModified = schema !== databaseVersion;
   
   // Debug logging for isModified calculation
-  console.log('Version Debug:', {
+  debugToast('Version Debug', {
     isModified,
     schemaLength: schema?.length,
     databaseVersionLength: databaseVersion?.length,
@@ -77,7 +79,7 @@ export const useVersioning = ({
         const currentMergedSchema = applySelectedPatches(schemaPatches);
         const mergedSchemaString = JSON.stringify(currentMergedSchema, null, 2);
         setDatabaseVersion(mergedSchemaString);
-        console.log('Database version set from selected patches:', mergedSchemaString.substring(0, 100));
+        debugToast('Database version set from selected patches', mergedSchemaString.substring(0, 100));
       } catch (err) {
         console.error('Failed to calculate database version from patches:', err);
       }
@@ -124,7 +126,7 @@ export const useVersioning = ({
           .limit(1);
           
         if (existingVersions && existingVersions.length > 0) {
-          console.log('Initial version already exists in database, skipping creation');
+          debugToast('Initial version already exists in database, skipping creation');
           return;
         }
         
@@ -161,7 +163,7 @@ export const useVersioning = ({
   // Reset tracking when document changes
   useEffect(() => {
     if (documentId && initialVersionAttempted.current !== documentId) {
-      console.log('Document changed, resetting version tracking:', { documentId, previous: initialVersionAttempted.current });
+      debugToast('Document changed, resetting version tracking', { documentId, previous: initialVersionAttempted.current });
       initialVersionAttempted.current = null;
       // Also reset database version when document changes
       setDatabaseVersion('');
@@ -207,25 +209,25 @@ export const useVersioning = ({
 
   const handleToggleSelection = async (patchId: string) => {
     try {
-      console.log('🔄 handleToggleSelection called for patch:', patchId);
-      console.log('🔄 Current patches:', patches.map(p => ({ id: p.id, isSelected: p.isSelected, description: p.description })));
+      debugToast('🔄 handleToggleSelection called for patch', patchId);
+      debugToast('🔄 Current patches', patches.map(p => ({ id: p.id, isSelected: p.isSelected, description: p.description })));
       
       const updatedPatches = togglePatchSelection(patches, patchId);
       
       // Only proceed if the patches actually changed (selection was allowed)
       if (updatedPatches === patches) {
-        console.log('🚫 Selection toggle was prevented by togglePatchSelection');
+        debugToast('🚫 Selection toggle was prevented by togglePatchSelection');
         return;
       }
       
-      console.log('✅ Selection toggle allowed, proceeding with database update');
+      debugToast('✅ Selection toggle allowed, proceeding with database update');
       
       // Find the patch to update
       const patchToUpdate = updatedPatches.find(p => p.id === patchId);
       if (patchToUpdate) {
-        console.log('📝 Updating database for patch:', { id: patchId, newSelection: patchToUpdate.isSelected });
+        debugToast('📝 Updating database for patch', { id: patchId, newSelection: patchToUpdate.isSelected });
         const result = await updateVersion(patchId, { is_selected: patchToUpdate.isSelected });
-        console.log('📝 Database update result:', result ? 'SUCCESS' : 'FAILED');
+        debugToast('📝 Database update result', result ? 'SUCCESS' : 'FAILED');
         
         if (!result) {
           toast.error('Failed to update version selection');
@@ -234,18 +236,18 @@ export const useVersioning = ({
       }
       
       // Apply selected patches to get new schema and update both editor and database version
-      console.log('🔍 Recalculating schema from selected patches...');
+      debugToast('🔍 Recalculating schema from selected patches...');
       const newSchema = applySelectedPatches(updatedPatches);
       const newSchemaString = JSON.stringify(newSchema, null, 2);
-      console.log('🔍 New schema calculated, length:', newSchemaString.length);
-      console.log('🎯 Setting editor content to:', newSchemaString.substring(0, 200) + '...');
+      debugToast('🔍 New schema calculated, length', newSchemaString.length);
+      debugToast('🎯 Setting editor content to', newSchemaString.substring(0, 200) + '...');
       
       setSchema(newSchemaString);
       setSavedSchema(newSchemaString);
       // Update database version to reflect the current selected state
       setDatabaseVersion(newSchemaString);
       
-      console.log('Schema updated successfully');
+      debugToast('Schema updated successfully');
     } catch (err) {
       console.error('Error in handleToggleSelection:', err);
       toast.error('Failed to toggle version selection', {
@@ -321,7 +323,7 @@ export const useVersioning = ({
 
   // Clear all version state when document is deleted
   const clearVersionState = () => {
-    console.log('🧹 Versioning: Clearing all version state');
+    debugToast('🧹 Versioning: Clearing all version state');
     setPatches([]);
     setDatabaseVersion('');
     initialVersionAttempted.current = null;

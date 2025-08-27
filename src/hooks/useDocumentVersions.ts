@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { SchemaPatch, Version, VersionTier } from '@/lib/versionUtils';
+import { useDebug } from '@/contexts/DebugContext';
 
 interface DocumentVersion {
   id: string;
@@ -22,6 +23,7 @@ interface DocumentVersion {
 }
 
 export function useDocumentVersions(documentId?: string) {
+  const { debugToast } = useDebug();
   const { user } = useAuth();
   const [versions, setVersions] = useState<DocumentVersion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,14 +31,14 @@ export function useDocumentVersions(documentId?: string) {
 
   const fetchVersions = async () => {
     if (!user || !documentId) {
-      console.log('🔔 fetchVersions: No user or documentId, clearing versions');
+      debugToast('🔔 fetchVersions: No user or documentId, clearing versions');
       setVersions([]);
       setLoading(false);
       return;
     }
 
     try {
-      console.log('🔔 fetchVersions: Fetching versions for document:', documentId);
+      debugToast('🔔 fetchVersions: Fetching versions for document', documentId);
       setLoading(true);
       const { data, error } = await supabase
         .from('document_versions')
@@ -47,7 +49,7 @@ export function useDocumentVersions(documentId?: string) {
 
       if (error) throw error;
       
-      console.log('🔔 fetchVersions: Retrieved versions:', {
+      debugToast('🔔 fetchVersions: Retrieved versions', {
         count: data?.length || 0,
         versions: data?.map(v => ({ 
           id: v.id, 
@@ -133,7 +135,7 @@ export function useDocumentVersions(documentId?: string) {
     if (!user) return false;
 
     try {
-      console.log('🗑️ deleteVersion: Attempting to delete version:', versionId);
+      debugToast('🗑️ deleteVersion: Attempting to delete version', versionId);
       const { error } = await supabase
         .from('document_versions')
         .delete()
@@ -142,10 +144,10 @@ export function useDocumentVersions(documentId?: string) {
 
       if (error) throw error;
 
-      console.log('🗑️ deleteVersion: Successfully deleted from database, updating local state');
+      debugToast('🗑️ deleteVersion: Successfully deleted from database, updating local state');
       setVersions(prev => {
         const updated = prev.filter(v => v.id !== versionId);
-        console.log('🗑️ deleteVersion: Local versions updated:', {
+        debugToast('🗑️ deleteVersion: Local versions updated', {
           before: prev.length,
           after: updated.length,
           deletedId: versionId
@@ -194,7 +196,7 @@ export function useDocumentVersions(documentId?: string) {
   useEffect(() => {
     if (!user || !documentId) return;
 
-    console.log('🔔 Setting up real-time subscription for document:', documentId);
+    debugToast('🔔 Setting up real-time subscription for document', documentId);
     fetchVersions();
 
     const channel = supabase
@@ -208,21 +210,20 @@ export function useDocumentVersions(documentId?: string) {
           filter: `document_id=eq.${documentId}`,
         },
         (payload) => {
-          console.log('🔔 Real-time event received:', {
+          debugToast('🔔 Real-time event received', {
             eventType: payload.eventType,
             table: payload.table,
             documentId: documentId,
-            payload: payload
           });
           fetchVersions();
         }
       )
       .subscribe((status) => {
-        console.log('🔔 Subscription status:', status, 'for document:', documentId);
+        debugToast('🔔 Subscription status', { status, documentId });
       });
 
     return () => {
-      console.log('🔔 Cleaning up subscription for document:', documentId);
+      debugToast('🔔 Cleaning up subscription for document', documentId);
       supabase.removeChannel(channel);
     };
   }, [user, documentId]);
@@ -238,7 +239,7 @@ export function useDocumentVersions(documentId?: string) {
     // Helper to get patches in the expected format
     getSchemaPatches: () => {
       const patches = convertToSchemaPatches(versions);
-      console.log('🔔 getSchemaPatches: Converting versions to patches:', {
+      debugToast('🔔 getSchemaPatches: Converting versions to patches', {
         versionsCount: versions.length,
         patchesCount: patches.length,
         patches: patches.map(p => ({
