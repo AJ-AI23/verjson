@@ -26,6 +26,13 @@ export function processPropertiesWithGrouping(
   result: DiagramElements,
   options: PropertyGroupingOptions
 ): PropertyGroupingResult {
+  console.log('🔧 DEBUG [PROPERTY GROUPING] Called with:', {
+    propertiesCount: Array.isArray(properties) ? properties.length : Object.keys(properties).length,
+    maxIndividualProperties: options.maxIndividualProperties,
+    parentNodeId: options.parentNodeId,
+    parentPath: options.parentPath
+  });
+  
   const { maxIndividualProperties, parentNodeId, yPosition, startXPosition, xSpacing } = options;
   
   // Convert to array format if needed
