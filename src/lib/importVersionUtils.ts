@@ -24,18 +24,27 @@ export function compareDocumentVersions(
   currentSchema: any,
   importSchema: any
 ): DocumentVersionComparison {
+  console.log('🔍 compareDocumentVersions called:');
+  console.log('Current Schema:', JSON.stringify(currentSchema, null, 2));
+  console.log('Import Schema:', JSON.stringify(importSchema, null, 2));
+  
   const patches = compare(currentSchema, importSchema);
+  console.log('Generated patches:', patches);
+  
   const mergeConflicts = generateMergeConflicts(patches, currentSchema, importSchema);
   const hasBreakingChanges = detectBreakingChanges(patches);
   const recommendedVersionTier = calculateImportVersionTier(patches, hasBreakingChanges);
 
-  return {
+  const result = {
     patches,
     conflictCount: mergeConflicts.length,
     recommendedVersionTier,
     hasBreakingChanges,
     mergeConflicts,
   };
+  
+  console.log('Comparison result:', result);
+  return result;
 }
 
 /**

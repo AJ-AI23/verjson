@@ -56,6 +56,8 @@ export const ImportVersionDialog: React.FC<ImportVersionDialogProps> = ({
   const selectedDocumentCurrentSchema = useMemo(() => {
     if (!selectedDocVersions.length) return null;
     
+    console.log('🔍 Calculating selected document schema from versions:', selectedDocVersions);
+    
     const selectedPatches = selectedDocVersions
       .filter(version => version.is_selected)
       .map(version => ({
@@ -74,7 +76,12 @@ export const ImportVersionDialog: React.FC<ImportVersionDialogProps> = ({
         tier: version.tier as 'major' | 'minor' | 'patch'
       }));
 
-    return applySelectedPatches(selectedPatches);
+    console.log('🔍 Selected patches for import document:', selectedPatches);
+    
+    const result = applySelectedPatches(selectedPatches);
+    console.log('🔍 Calculated import schema:', JSON.stringify(result, null, 2));
+    
+    return result;
   }, [selectedDocVersions]);
 
   // Reset state when dialog opens/closes
@@ -91,8 +98,13 @@ export const ImportVersionDialog: React.FC<ImportVersionDialogProps> = ({
   useEffect(() => {
     if (currentStep === 'preview' && selectedDocumentCurrentSchema && currentSchema) {
       setIsComparing(true);
+      console.log('🔍 Import Comparison Debug:');
+      console.log('Current Schema:', JSON.stringify(currentSchema, null, 2));
+      console.log('Import Schema:', JSON.stringify(selectedDocumentCurrentSchema, null, 2));
+      
       try {
         const comparisonResult = compareDocumentVersions(currentSchema, selectedDocumentCurrentSchema);
+        console.log('Comparison Result:', comparisonResult);
         setComparison(comparisonResult);
       } catch (error) {
         console.error('Error comparing versions:', error);
