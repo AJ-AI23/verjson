@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DocumentMergePreview } from "./DocumentMergePreview";
 import { DocumentMergeEngine, DocumentMergeResult } from "@/lib/documentMergeEngine";
+import { getEffectiveDocumentContentForImport } from "@/lib/documentUtils";
 import { Document } from "@/types/workspace";
 import { ArrowLeft, FileText, Loader2, GitMerge, AlertTriangle } from "lucide-react";
 
@@ -35,6 +36,7 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
   const [resultName, setResultName] = useState('');
   const [mergeResult, setMergeResult] = useState<DocumentMergeResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [effectiveDocuments, setEffectiveDocuments] = useState<Document[]>([]);
 
   // Group documents by file type for easier selection
   const documentsByType = useMemo(() => {
@@ -48,10 +50,10 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
     return groups;
   }, [documents]);
 
-  // Get selected document objects
+  // Get selected document objects with effective content
   const selectedDocumentObjects = useMemo(() => {
-    return documents.filter(doc => selectedDocuments.includes(doc.id));
-  }, [documents, selectedDocuments]);
+    return effectiveDocuments.filter(doc => selectedDocuments.includes(doc.id));
+  }, [effectiveDocuments, selectedDocuments]);
 
   // Check compatibility when documents are selected
   const compatibilityCheck = useMemo(() => {
@@ -60,6 +62,37 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
     }
     return DocumentMergeEngine.checkCompatibility(selectedDocumentObjects);
   }, [selectedDocumentObjects]);
+
+  // Fetch effective content for all documents when dialog opens
+  useEffect(() => {
+    if (isOpen && documents.length > 0) {
+      const fetchEffectiveContent = async () => {
+        try {
+          setIsAnalyzing(true);
+          const documentsWithEffectiveContent = await Promise.all(
+            documents.map(async (doc) => {
+              const effectiveContent = await getEffectiveDocumentContentForImport(doc.id, doc.content);
+              return {
+                ...doc,
+                content: effectiveContent
+              };
+            })
+          );
+          setEffectiveDocuments(documentsWithEffectiveContent);
+        } catch (error) {
+          console.error('Error fetching effective document content:', error);
+          // Fallback to original documents if fetching fails
+          setEffectiveDocuments(documents);
+        } finally {
+          setIsAnalyzing(false);
+        }
+      };
+
+      fetchEffectiveContent();
+    } else if (!isOpen) {
+      setEffectiveDocuments([]);
+    }
+  }, [isOpen, documents]);
 
   // Reset state when dialog opens/closes
   useEffect(() => {
@@ -77,13 +110,21 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
 
   // Perform merge analysis when moving to preview step
   useEffect(() => {
-    if (currentStep === 'preview' && selectedDocumentObjects.length >= 2 && resultName) {
+    if (currentStep === 'preview' && selectedDocumentObjects.length >= 2 && resultName && !isAnalyzing) {
       setIsAnalyzing(true);
       
       // Use setTimeout to allow UI to update before heavy computation
       setTimeout(() => {
         try {
+          console.log('🔍 Merge Analysis Debug:');
+          console.log('Selected Documents:', selectedDocumentObjects.map(d => ({ id: d.id, name: d.name })));
+          console.log('Effective Content Preview:', selectedDocumentObjects.map(d => ({ 
+            name: d.name, 
+            content: typeof d.content === 'object' ? Object.keys(d.content).join(', ') : 'invalid'
+          })));
+          
           const result = DocumentMergeEngine.mergeDocuments(selectedDocumentObjects, resultName);
+          console.log('Merge Result:', result);
           setMergeResult(result);
         } catch (error) {
           console.error('Error analyzing merge:', error);
@@ -106,7 +147,7 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
         }
       }, 100);
     }
-  }, [currentStep, selectedDocumentObjects, resultName]);
+  }, [currentStep, selectedDocumentObjects, resultName, isAnalyzing]);
 
   const handleDocumentSelect = (documentId: string, checked: boolean) => {
     setSelectedDocuments(prev => {
@@ -132,6 +173,20 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
       }
     });
   };
+
+  // Use effective documents for UI display but original documents for grouping
+  const displayDocumentsByType = useMemo(() => {
+    const groups: { [key: string]: Document[] } = {};
+    const docsToDisplay = effectiveDocuments.length > 0 ? effectiveDocuments : documents;
+    
+    docsToDisplay.forEach(doc => {
+      if (!groups[doc.file_type]) {
+        groups[doc.file_type] = [];
+      }
+      groups[doc.file_type].push(doc);
+    });
+    return groups;
+  }, [effectiveDocuments, documents]);
 
   const handleNext = () => {
     if (currentStep === 'selection') {
@@ -160,6 +215,9 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
   const canProceed = selectedDocuments.length >= 2 && compatibilityCheck?.isCompatible;
   const allSelectedSameType = selectedDocumentObjects.length > 0 && 
     new Set(selectedDocumentObjects.map(doc => doc.file_type)).size === 1;
+
+  // Show loading state while fetching effective content
+  const isLoadingContent = isOpen && documents.length > 0 && effectiveDocuments.length === 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -191,6 +249,11 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
             <div className="space-y-4">
               <div className="text-sm text-muted-foreground">
                 Select at least 2 documents to merge. Only documents of the same type can be merged together.
+                {isLoadingContent && (
+                  <span className="block mt-2 text-blue-600">
+                    Loading latest released versions...
+                  </span>
+                )}
               </div>
 
               {!allSelectedSameType && selectedDocuments.length > 1 && (
@@ -212,9 +275,15 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
                 </Alert>
               )}
 
-              <ScrollArea className="h-96">
-                <div className="space-y-4">
-                  {Object.entries(documentsByType).map(([fileType, docs]) => {
+              {isLoadingContent ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                  <span>Loading document versions...</span>
+                </div>
+              ) : (
+                <ScrollArea className="h-96">
+                  <div className="space-y-4">
+                    {Object.entries(displayDocumentsByType).map(([fileType, docs]) => {
                     const selectedInType = docs.filter(doc => selectedDocuments.includes(doc.id)).length;
                     const allSelectedInType = selectedInType === docs.length;
                     const someSelectedInType = selectedInType > 0 && selectedInType < docs.length;
@@ -256,9 +325,10 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
                         </CardContent>
                       </Card>
                     );
-                  })}
-                </div>
-              </ScrollArea>
+                    })}
+                  </div>
+                </ScrollArea>
+              )}
             </div>
           )}
 
@@ -340,7 +410,7 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
             </Button>
             
             {currentStep === 'selection' && (
-              <Button onClick={handleNext} disabled={!canProceed}>
+              <Button onClick={handleNext} disabled={!canProceed || isLoadingContent}>
                 Preview Merge
               </Button>
             )}
