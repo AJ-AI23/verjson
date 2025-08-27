@@ -537,6 +537,16 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                   <Button 
                     size="sm" 
                     variant="ghost" 
+                    className="h-7 w-7 p-0"
+                    onClick={() => setShowBulkInviteDialog(true)}
+                    disabled={documents.length === 0}
+                    title="Bulk Invite to Documents"
+                  >
+                    <UserPlus className="h-3 w-3" />
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
                     className="h-7 w-7 p-0" 
                     onClick={() => setShowImportDialog(true)}
                     title="Import Files"
@@ -652,20 +662,6 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
         </CardContent>
       </Card>
 
-      {/* Workspace Actions */}
-      {isWorkspaceOwner && selectedWorkspace && (
-        <div className="flex justify-center mb-4">
-          <Button 
-            size="sm" 
-            variant="outline" 
-            onClick={() => setShowBulkInviteDialog(true)}
-            disabled={documents.length === 0}
-          >
-            <Users className="h-4 w-4 mr-2" />
-            Bulk Invite Documents
-          </Button>
-        </div>
-      )}
 
       <CollaboratorsPanel 
         document={selectedDocument}
