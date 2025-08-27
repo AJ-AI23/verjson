@@ -26,7 +26,7 @@ export const QADialog: React.FC<QADialogProps> = ({
   const [open, setOpen] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState(false);
-  const [groupingStrategy, setGroupingStrategy] = useState<'path' | 'property' | 'value'>('path');
+  const [groupingStrategy, setGroupingStrategy] = useState<'property' | 'value'>('property');
   const [filterValue, setFilterValue] = useState('');
 
   const translationData = useMemo(() => {
@@ -99,13 +99,9 @@ export const QADialog: React.FC<QADialogProps> = ({
           groupKey = entry.path.length > 0 ? entry.path[entry.path.length - 1] : 'root';
           break;
         case 'value':
+        default:
           // Group by identical values (truncate long values for display)
           groupKey = entry.value.length > 50 ? `${entry.value.substring(0, 50)}...` : entry.value;
-          break;
-        case 'path':
-        default:
-          // Group by top-level path (original behavior)
-          groupKey = entry.path[0] || 'root';
           break;
       }
       
@@ -125,31 +121,21 @@ export const QADialog: React.FC<QADialogProps> = ({
         
         switch (groupingStrategy) {
           case 'property':
-            // Filter by property name
+            // Filter by partial match on property name
             shouldInclude = groupKey.toLowerCase().includes(lowerFilter);
             break;
           case 'value':
-            // Filter by the actual string values in the group
+          default:
+            // Filter by partial match on the actual string values
             shouldInclude = entries.some(entry => 
               entry.value.toLowerCase().includes(lowerFilter)
             );
             break;
-          case 'path':
-          default:
-            // Filter by path name
-            shouldInclude = groupKey.toLowerCase().includes(lowerFilter);
-            break;
         }
         
         if (shouldInclude) {
-          // For value filtering, also filter individual entries within the group
-          if (groupingStrategy === 'value') {
-            filteredGroups[groupKey] = entries.filter(entry => 
-              entry.value.toLowerCase().includes(lowerFilter)
-            );
-          } else {
-            filteredGroups[groupKey] = entries;
-          }
+          // For value filtering, include the whole group but highlight the matching entries
+          filteredGroups[groupKey] = entries;
         }
       });
       
@@ -165,15 +151,13 @@ export const QADialog: React.FC<QADialogProps> = ({
       case 'property':
         return 'Filter by property name (e.g., description, title)...';
       case 'value':
-        return 'Filter by string content...';
-      case 'path':
       default:
-        return 'Filter by path name...';
+        return 'Filter by property value content...';
     }
   };
 
   // Reset filter when grouping strategy changes
-  const handleGroupingChange = (value: 'path' | 'property' | 'value') => {
+  const handleGroupingChange = (value: 'property' | 'value') => {
     setGroupingStrategy(value);
     setFilterValue(''); // Clear filter when switching strategies
   };
@@ -310,9 +294,8 @@ export const QADialog: React.FC<QADialogProps> = ({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="path">Top-level Path</SelectItem>
-                          <SelectItem value="property">Property Name</SelectItem>
-                          <SelectItem value="value">Identical Values</SelectItem>
+                          <SelectItem value="property">Property Names</SelectItem>
+                          <SelectItem value="value">Property Values</SelectItem>
                         </SelectContent>
                       </Select>
                       {groupingStrategy === 'property' && availableProperties.length > 0 && (
@@ -360,7 +343,7 @@ export const QADialog: React.FC<QADialogProps> = ({
                                 )}
                                 {groupingStrategy === 'value' && entries.length > 1 && (
                                   <div className="text-xs text-muted-foreground mt-1">
-                                    Duplicate value found in {entries.length} places
+                                    Same value found in {entries.length} places
                                   </div>
                                 )}
                               </div>
@@ -378,7 +361,7 @@ export const QADialog: React.FC<QADialogProps> = ({
                                     <div className="text-foreground break-words">
                                       "{entry.value}"
                                     </div>
-                                    {groupingStrategy !== 'path' && (
+                                    {groupingStrategy !== 'property' && (
                                       <div className="text-xs text-muted-foreground mt-1">
                                         Path: {entry.path.join(' → ')}
                                       </div>
