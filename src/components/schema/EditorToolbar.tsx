@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { NotationsPanel } from '@/components/notations/NotationsPanel';
 import { RedoclyDialog } from '@/components/RedoclyDialog';
 import { DebugToggle } from '@/components/DebugToggle';
+import { QADialog } from '@/components/QADialog';
 import { SchemaType } from '@/lib/schemaUtils';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 import { useNotationsManager } from '@/hooks/useNotationsManager';
@@ -212,6 +213,12 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                     </Badge>
                   )}
                 </Button>
+
+                <QADialog 
+                  schema={schema}
+                  documentName={selectedDocument?.name}
+                  disabled={!selectedDocument}
+                />
 
                 {/* Redocly Documentation Button - Only show for OpenAPI specs */}
                 {schemaType === 'openapi' && (
