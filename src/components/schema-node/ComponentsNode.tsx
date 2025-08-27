@@ -25,7 +25,7 @@ interface ComponentsNodeProps {
 }
 
 export const ComponentsNode = memo(({ data, isConnectable, id, onAddNotation }: ComponentsNodeProps) => {
-  const { schemasCount, schemas, notations = [], notationCount = 0, hasNotations = false } = data;
+  const { schemasCount, schemas = [], notations = [], notationCount = 0, hasNotations = false } = data;
 
   return (
     <div className={cn(
