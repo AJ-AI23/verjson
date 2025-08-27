@@ -1,16 +1,42 @@
 
 import Ajv from 'ajv';
-import metaSchema from 'ajv/lib/refs/json-schema-draft-07.json';
+import metaSchemaDraft07 from 'ajv/lib/refs/json-schema-draft-07.json';
 import addFormats from 'ajv-formats';
 
-// Create a singleton instance of Ajv
-const ajv = new Ajv({ allErrors: true });
+// Create a singleton instance of Ajv with support for multiple drafts
+const ajv = new Ajv({ 
+  allErrors: true,
+  strict: false, // Allow newer features
+  loadSchema: async (uri: string) => {
+    // Handle loading of remote schemas
+    try {
+      const response = await fetch(uri);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch schema: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error(`Failed to load schema from ${uri}:`, error);
+      throw error;
+    }
+  }
+});
 addFormats(ajv);
 
-// Only add the meta schema if it hasn't been added yet
-// This check prevents the "schema already exists" error
-if (!ajv.getSchema(metaSchema.$id)) {
-  ajv.addMetaSchema(metaSchema);
+// Add draft-07 meta-schema
+if (!ajv.getSchema(metaSchemaDraft07.$id)) {
+  ajv.addMetaSchema(metaSchemaDraft07);
+}
+
+// Add support for draft 2020-12 meta-schema
+const draft202012MetaSchemaUrl = 'https://json-schema.org/draft/2020-12/schema';
+try {
+  // Try to add the 2020-12 meta-schema if not already present
+  if (!ajv.getSchema(draft202012MetaSchemaUrl)) {
+    // We'll load this dynamically when needed
+  }
+} catch (e) {
+  console.warn('Could not pre-load draft 2020-12 meta-schema:', e);
 }
 
 export type SchemaType = 'json-schema' | 'openapi';
@@ -153,7 +179,7 @@ export const validateSyntax = async (jsonString: string): Promise<ValidationResu
     const schemaType = detectSchemaType(parsedSchema);
     
     if (schemaType === 'json-schema') {
-      return validateJsonSchemaSyntax(parsedSchema);
+      return await validateJsonSchemaSyntax(parsedSchema);
     } else if (schemaType === 'openapi') {
       return validateOpenAPISyntax(parsedSchema);
     }
@@ -198,7 +224,7 @@ export const validateSyntax = async (jsonString: string): Promise<ValidationResu
   return result;
 };
 
-const validateJsonSchemaSyntax = (schema: any): ValidationResult => {
+const validateJsonSchemaSyntax = async (schema: any): Promise<ValidationResult> => {
   const result: ValidationResult = {
     isValid: true,
     errors: [],
@@ -206,7 +232,29 @@ const validateJsonSchemaSyntax = (schema: any): ValidationResult => {
   };
 
   try {
-    // Validate against JSON Schema meta-schema using its URL
+    // Check if schema has $schema property and load appropriate meta-schema
+    if (schema.$schema) {
+      const schemaUrl = schema.$schema;
+      
+      // Try to ensure the meta-schema is loaded
+      if (!ajv.getSchema(schemaUrl)) {
+        try {
+          const response = await fetch(schemaUrl);
+          if (response.ok) {
+            const metaSchema = await response.json();
+            ajv.addMetaSchema(metaSchema, schemaUrl);
+          }
+        } catch (error) {
+          result.warnings.push({
+            path: '$schema',
+            message: `Could not load meta-schema from ${schemaUrl}`,
+            suggestion: 'The schema validation will use basic JSON Schema validation'
+          });
+        }
+      }
+    }
+    
+    // Validate against JSON Schema meta-schema
     const isValid = ajv.validateSchema(schema);
     
     if (!isValid && ajv.errors) {
