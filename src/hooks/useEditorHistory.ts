@@ -48,6 +48,11 @@ export const useEditorHistory = ({
 
   // Load history from localStorage and check version conflicts
   useEffect(() => {
+    // Skip initialization if we don't have the necessary data yet
+    if (documentId && !baseContent) {
+      return;
+    }
+
     const initializeHistory = async () => {
       const storageKey = getStorageKey(documentId);
       const savedHistory = localStorage.getItem(storageKey);
@@ -107,8 +112,11 @@ export const useEditorHistory = ({
       }
     };
     
-    initializeHistory();
-  }, [documentId, getStorageKey, initialContent, baseContent, onVersionMismatch]);
+    // Only initialize once when we have all necessary data
+    if (!isInitialized) {
+      initializeHistory();
+    }
+  }, [documentId, getStorageKey, initialContent, baseContent, onVersionMismatch, isInitialized]);
 
   // Save history to localStorage with version info
   const saveHistoryToStorage = useCallback((historyEntries: HistoryEntry[], index: number) => {
@@ -126,8 +134,13 @@ export const useEditorHistory = ({
     }
   }, [documentId, getStorageKey]);
 
-  // Add content to history (with debouncing)
+  // Add content to history (with debouncing) - only after initialization
   const addToHistory = useCallback((content: string) => {
+    // Don't add to history if not initialized yet
+    if (!isInitialized) {
+      return;
+    }
+
     // Clear existing timeout
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
@@ -174,7 +187,7 @@ export const useEditorHistory = ({
       
       lastSavedContentRef.current = content;
     }, debounceMs);
-  }, [currentIndex, debounceMs, documentId, maxHistorySize]);
+  }, [currentIndex, debounceMs, documentId, maxHistorySize, isInitialized]);
 
   // Save to localStorage when history changes (only after initialization)
   useEffect(() => {

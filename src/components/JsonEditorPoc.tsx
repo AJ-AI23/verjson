@@ -43,10 +43,10 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   const [showVersionMismatch, setShowVersionMismatch] = useState(false);
   const [baseContentForVersion, setBaseContentForVersion] = useState<any>(null);
   
-  // Get base content for version comparison
+  // Get base content for version comparison (only once per document)
   useEffect(() => {
     const getBaseContent = async () => {
-      if (documentId) {
+      if (documentId && !baseContentForVersion) {
         try {
           // Parse the current value to get base content structure
           const parsedValue = JSON.parse(value);
@@ -59,7 +59,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     };
     
     getBaseContent();
-  }, [documentId, value]);
+  }, [documentId]); // Only depend on documentId, not value
 
   // Initialize editor history
   const {
