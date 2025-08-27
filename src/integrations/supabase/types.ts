@@ -185,6 +185,39 @@ export type Database = {
           },
         ]
       }
+      editor_history: {
+        Row: {
+          content: string
+          content_hash: string
+          created_at: string
+          document_id: string
+          id: string
+          sequence_number: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          content_hash: string
+          created_at?: string
+          document_id: string
+          id?: string
+          sequence_number: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          content_hash?: string
+          created_at?: string
+          document_id?: string
+          id?: string
+          sequence_number?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -316,7 +349,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      cleanup_old_editor_history: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      generate_content_hash: {
+        Args: { content: string }
+        Returns: string
+      }
     }
     Enums: {
       permission_role: "owner" | "editor" | "viewer"
