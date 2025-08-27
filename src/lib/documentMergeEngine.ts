@@ -10,6 +10,10 @@ export interface MergeConflict {
   documents: string[];
   values: any[];
   suggestedResolution?: string;
+  resolution?: 'current' | 'incoming' | 'custom' | 'unresolved';
+  customValue?: any;
+  currentValue?: any;
+  incomingValue?: any;
 }
 
 export interface DocumentMergeResult {
@@ -21,6 +25,8 @@ export interface DocumentMergeResult {
     addedProperties: number;
     mergedComponents: number;
     totalConflicts: number;
+    resolvedConflicts: number;
+    unresolvedConflicts: number;
   };
   mergeSteps: Array<{
     stepNumber: number;
@@ -95,7 +101,7 @@ export class DocumentMergeEngine {
         }],
         isCompatible: false,
         warnings: [compatibility.reason || 'Incompatible documents'],
-        summary: { addedProperties: 0, mergedComponents: 0, totalConflicts: 1 },
+        summary: { addedProperties: 0, mergedComponents: 0, totalConflicts: 1, resolvedConflicts: 0, unresolvedConflicts: 1 },
         mergeSteps: []
       };
     }
@@ -136,7 +142,10 @@ export class DocumentMergeEngine {
           description: `Step ${i} (${currentDoc.name}): ${conflict.description}`,
           documents: [i === 1 ? documents[0].name : 'Previous merge result', currentDoc.name],
           values: [conflict.currentValue, conflict.importValue],
-          suggestedResolution: 'Manual review required'
+          suggestedResolution: 'Manual review required',
+          resolution: 'unresolved' as const,
+          currentValue: conflict.currentValue,
+          incomingValue: conflict.importValue
         }));
 
         allConflicts.push(...stepConflicts);
@@ -188,9 +197,14 @@ export class DocumentMergeEngine {
       };
     }
 
+    const resolvedConflicts = allConflicts.filter(c => c.resolution !== 'unresolved').length;
+    const unresolvedConflicts = allConflicts.filter(c => c.resolution === 'unresolved').length;
+
     console.log('🎯 Sequential merge completed:', {
       steps: mergeSteps.length,
       totalConflicts: allConflicts.length,
+      resolvedConflicts,
+      unresolvedConflicts,
       totalAddedProperties
     });
 
@@ -202,10 +216,56 @@ export class DocumentMergeEngine {
       summary: {
         addedProperties: totalAddedProperties,
         mergedComponents: totalMergedComponents,
-        totalConflicts: allConflicts.length
+        totalConflicts: allConflicts.length,
+        resolvedConflicts,
+        unresolvedConflicts
       },
       mergeSteps
     };
+  }
+
+  /**
+   * Apply conflict resolutions to generate final merged schema
+   */
+  static applyConflictResolutions(baseSchema: any, conflicts: MergeConflict[]): any {
+    let result = JSON.parse(JSON.stringify(baseSchema));
+    
+    conflicts.forEach(conflict => {
+      if (conflict.resolution && conflict.resolution !== 'unresolved') {
+        const pathParts = conflict.path.split('/').filter(part => part !== '');
+        let current = result;
+        
+        // Navigate to the parent object
+        for (let i = 0; i < pathParts.length - 1; i++) {
+          if (!current[pathParts[i]]) {
+            current[pathParts[i]] = {};
+          }
+          current = current[pathParts[i]];
+        }
+        
+        // Apply the resolution
+        const finalPart = pathParts[pathParts.length - 1];
+        let valueToApply;
+        
+        switch (conflict.resolution) {
+          case 'current':
+            valueToApply = conflict.currentValue;
+            break;
+          case 'incoming':
+            valueToApply = conflict.incomingValue;
+            break;
+          case 'custom':
+            valueToApply = conflict.customValue;
+            break;
+        }
+        
+        if (valueToApply !== undefined) {
+          current[finalPart] = valueToApply;
+        }
+      }
+    });
+    
+    return result;
   }
 
   /**
@@ -317,7 +377,9 @@ export class DocumentMergeEngine {
       summary: {
         addedProperties,
         mergedComponents,
-        totalConflicts: conflicts.length
+        totalConflicts: conflicts.length,
+        resolvedConflicts: 0,
+        unresolvedConflicts: conflicts.length
       },
       mergeSteps: [] // Legacy merge method doesn't track steps
     };
@@ -421,7 +483,9 @@ export class DocumentMergeEngine {
       summary: {
         addedProperties,
         mergedComponents,
-        totalConflicts: conflicts.length
+        totalConflicts: conflicts.length,
+        resolvedConflicts: 0,
+        unresolvedConflicts: conflicts.length
       },
       mergeSteps: [] // Legacy merge method doesn't track steps
     };

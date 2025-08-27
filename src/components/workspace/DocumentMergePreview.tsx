@@ -1,26 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { DocumentMergeResult, MergeConflict } from "@/lib/documentMergeEngine";
+import { DocumentMergeResult, MergeConflict, DocumentMergeEngine } from "@/lib/documentMergeEngine";
 import { Document } from "@/types/workspace";
-import { AlertTriangle, CheckCircle, FileText, GitMerge, Layers } from "lucide-react";
+import { AlertTriangle, CheckCircle, FileText, GitMerge, Layers, ChevronDown, ChevronRight } from "lucide-react";
 
 interface DocumentMergePreviewProps {
   documents: Document[];
   mergeResult: DocumentMergeResult;
   resultName: string;
+  onConflictResolve?: (updatedResult: DocumentMergeResult) => void;
 }
 
 export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
   documents,
-  mergeResult,
-  resultName
+  mergeResult: initialMergeResult,
+  resultName,
+  onConflictResolve
 }) => {
   const [selectedTab, setSelectedTab] = useState<string>("summary");
+  const [mergeResult, setMergeResult] = useState<DocumentMergeResult>(initialMergeResult);
+  const [expandedConflicts, setExpandedConflicts] = useState<Set<number>>(new Set());
+
+  // Update internal state when prop changes
+  useEffect(() => {
+    setMergeResult(initialMergeResult);
+  }, [initialMergeResult]);
 
   const getSeverityColor = (severity: MergeConflict['severity']) => {
     switch (severity) {
@@ -48,6 +58,50 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
       return `"${value}"`;
     }
     return JSON.stringify(value, null, 2);
+  };
+
+  const handleConflictResolve = (conflictIndex: number, resolution: 'current' | 'incoming' | 'custom', customValue?: any) => {
+    const updatedConflicts = [...mergeResult.conflicts];
+    updatedConflicts[conflictIndex] = {
+      ...updatedConflicts[conflictIndex],
+      resolution,
+      customValue
+    };
+
+    const resolvedCount = updatedConflicts.filter(c => c.resolution !== 'unresolved').length;
+    const unresolvedCount = updatedConflicts.filter(c => c.resolution === 'unresolved').length;
+
+    const updatedResult = {
+      ...mergeResult,
+      conflicts: updatedConflicts,
+      summary: {
+        ...mergeResult.summary,
+        resolvedConflicts: resolvedCount,
+        unresolvedConflicts: unresolvedCount
+      }
+    };
+
+    // Generate updated merged schema with conflict resolutions
+    if (resolvedCount > 0) {
+      const resolvedSchema = DocumentMergeEngine.applyConflictResolutions(
+        mergeResult.mergedSchema,
+        updatedConflicts
+      );
+      updatedResult.mergedSchema = resolvedSchema;
+    }
+
+    setMergeResult(updatedResult);
+    onConflictResolve?.(updatedResult);
+  };
+
+  const toggleConflictExpansion = (index: number) => {
+    const newExpanded = new Set(expandedConflicts);
+    if (newExpanded.has(index)) {
+      newExpanded.delete(index);
+    } else {
+      newExpanded.add(index);
+    }
+    setExpandedConflicts(newExpanded);
   };
 
   const getDocumentInfo = (doc: Document) => {
@@ -173,10 +227,16 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
                   <div className="text-muted-foreground">Components Merged</div>
                 </div>
                 <div className="text-center">
-                  <div className={`text-2xl font-bold ${mergeResult.conflicts.length > 0 ? 'text-orange-600' : 'text-green-600'}`}>
-                    {mergeResult.conflicts.length}
+                  <div className={`text-2xl font-bold ${mergeResult.summary.resolvedConflicts > 0 ? 'text-green-600' : 'text-blue-600'}`}>
+                    {mergeResult.summary.resolvedConflicts}
                   </div>
-                  <div className="text-muted-foreground">Conflicts</div>
+                  <div className="text-muted-foreground">Resolved</div>
+                </div>
+                <div className="text-center">
+                  <div className={`text-2xl font-bold ${mergeResult.summary.unresolvedConflicts > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                    {mergeResult.summary.unresolvedConflicts}
+                  </div>
+                  <div className="text-muted-foreground">Unresolved</div>
                 </div>
               </div>
             </CardContent>
@@ -261,62 +321,127 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
           ) : (
             <ScrollArea className="h-96">
               <div className="space-y-3">
-                {mergeResult.conflicts.map((conflict, index) => (
-                  <Card key={index}>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm flex items-center gap-2">
-                        {getSeverityIcon(conflict.severity)}
-                        <code className="font-mono text-xs bg-muted px-1 rounded">
-                          {conflict.path}
-                        </code>
-                        <Badge variant={getSeverityColor(conflict.severity)} className="ml-auto">
-                          {conflict.severity}
-                        </Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <p className="text-sm text-muted-foreground mb-3">{conflict.description}</p>
-                      
-                      <div className="space-y-2">
-                        <div className="text-xs font-medium">Conflicting Documents:</div>
-                        <div className="flex gap-1 flex-wrap">
-                          {conflict.documents.map((docName, i) => (
-                            <Badge key={i} variant="outline" className="text-xs">
-                              {docName}
+                {mergeResult.conflicts.map((conflict, index) => {
+                  const isExpanded = expandedConflicts.has(index);
+                  const isResolved = conflict.resolution !== 'unresolved';
+                  
+                  return (
+                    <Card key={index} className={isResolved ? 'border-green-200' : ''}>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleConflictExpansion(index)}
+                            className="h-auto p-0"
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                          </Button>
+                          {getSeverityIcon(conflict.severity)}
+                          <code className="font-mono text-xs bg-muted px-1 rounded">
+                            {conflict.path}
+                          </code>
+                          <Badge variant={getSeverityColor(conflict.severity)}>
+                            {conflict.severity}
+                          </Badge>
+                          {isResolved && (
+                            <Badge variant="default" className="ml-auto bg-green-600">
+                              {conflict.resolution?.toUpperCase()}
                             </Badge>
-                          ))}
-                        </div>
-                      </div>
+                          )}
+                        </CardTitle>
+                      </CardHeader>
+                      
+                      {isExpanded && (
+                        <CardContent className="pt-0">
+                          <p className="text-sm text-muted-foreground mb-4">{conflict.description}</p>
+                          
+                          <div className="space-y-4">
+                            <div className="text-xs font-medium">Conflicting Documents:</div>
+                            <div className="flex gap-1 flex-wrap mb-4">
+                              {conflict.documents.map((docName, i) => (
+                                <Badge key={i} variant="outline" className="text-xs">
+                                  {docName}
+                                </Badge>
+                              ))}
+                            </div>
 
-                      {conflict.values.length > 0 && (
-                        <div className="mt-3">
-                          <div className="text-xs font-medium mb-2">Conflicting Values:</div>
-                          <div className="grid gap-2">
-                            {conflict.values.map((value, i) => (
-                              <div key={i}>
-                                <div className="text-xs text-muted-foreground mb-1">
-                                  From: {conflict.documents[i] || 'Unknown'}
-                                </div>
+                            <div className="space-y-4">
+                              <div className="text-sm font-medium">Choose Resolution:</div>
+                              
+                              {/* Current Value Option */}
+                              <div className="space-y-2">
+                                <label className="flex items-center space-x-2 cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name={`conflict-${index}`}
+                                    checked={conflict.resolution === 'current'}
+                                    onChange={() => handleConflictResolve(index, 'current')}
+                                    className="w-4 h-4"
+                                  />
+                                  <span className="text-sm font-medium">Keep Current ({conflict.documents[0]})</span>
+                                </label>
                                 <pre className="bg-muted p-2 rounded text-xs overflow-auto max-h-20">
-                                  {formatJsonValue(value)}
+                                  {formatJsonValue(conflict.currentValue)}
                                 </pre>
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
 
-                      {conflict.suggestedResolution && (
-                        <div className="mt-3">
-                          <div className="text-xs font-medium mb-1">Suggested Resolution:</div>
-                          <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
-                            {conflict.suggestedResolution}
+                              {/* Incoming Value Option */}
+                              <div className="space-y-2">
+                                <label className="flex items-center space-x-2 cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name={`conflict-${index}`}
+                                    checked={conflict.resolution === 'incoming'}
+                                    onChange={() => handleConflictResolve(index, 'incoming')}
+                                    className="w-4 h-4"
+                                  />
+                                  <span className="text-sm font-medium">Use Incoming ({conflict.documents[1]})</span>
+                                </label>
+                                <pre className="bg-muted p-2 rounded text-xs overflow-auto max-h-20">
+                                  {formatJsonValue(conflict.incomingValue)}
+                                </pre>
+                              </div>
+
+                              {/* Custom Value Option */}
+                              <div className="space-y-2">
+                                <label className="flex items-center space-x-2 cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name={`conflict-${index}`}
+                                    checked={conflict.resolution === 'custom'}
+                                    onChange={() => handleConflictResolve(index, 'custom', conflict.customValue || '')}
+                                    className="w-4 h-4"
+                                  />
+                                  <span className="text-sm font-medium">Custom Value</span>
+                                </label>
+                                {conflict.resolution === 'custom' && (
+                                  <textarea
+                                    value={conflict.customValue || ''}
+                                    onChange={(e) => {
+                                      try {
+                                        const parsedValue = JSON.parse(e.target.value);
+                                        handleConflictResolve(index, 'custom', parsedValue);
+                                      } catch {
+                                        handleConflictResolve(index, 'custom', e.target.value);
+                                      }
+                                    }}
+                                    placeholder="Enter custom JSON value..."
+                                    className="w-full h-20 p-2 text-xs border rounded bg-muted resize-none"
+                                  />
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        </CardContent>
                       )}
-                    </CardContent>
-                  </Card>
-                ))}
+                    </Card>
+                  );
+                })}
               </div>
             </ScrollArea>
           )}

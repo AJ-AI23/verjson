@@ -39,6 +39,10 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [effectiveDocuments, setEffectiveDocuments] = useState<Document[]>([]);
 
+  const handleConflictResolve = (updatedResult: DocumentMergeResult) => {
+    setMergeResult(updatedResult);
+  };
+
   // Group documents by file type for easier selection
   const documentsByType = useMemo(() => {
     const groups: { [key: string]: Document[] } = {};
@@ -151,7 +155,7 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
             }],
             isCompatible: false,
             warnings: ['Analysis failed - please try with simpler document structures'],
-            summary: { addedProperties: 0, mergedComponents: 0, totalConflicts: 1 },
+            summary: { addedProperties: 0, mergedComponents: 0, totalConflicts: 1, resolvedConflicts: 0, unresolvedConflicts: 1 },
             mergeSteps: []
           });
         } finally {
@@ -221,6 +225,7 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
 
   const handleMergeConfirm = () => {
     if (mergeResult?.isCompatible && mergeResult.mergedSchema) {
+      // Use the final merged schema with all conflict resolutions applied
       onMergeConfirm(mergeResult.mergedSchema, resultName);
       onOpenChange(false);
     }
@@ -359,6 +364,7 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
                     documents={selectedDocumentObjects}
                     mergeResult={mergeResult}
                     resultName={resultName}
+                    onConflictResolve={handleConflictResolve}
                   />
                 </MergeErrorBoundary>
               ) : (
@@ -414,9 +420,18 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
         </div>
 
         <div className="flex justify-between pt-4 border-t">
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground flex items-center gap-2">
             {currentStep === 'selection' && `${selectedDocuments.length} of ${documents.length} documents selected`}
-            {currentStep === 'preview' && mergeResult && `${mergeResult.conflicts.length} conflicts detected`}
+            {currentStep === 'preview' && mergeResult && (
+              <>
+                <span>{mergeResult.conflicts.length} conflicts detected</span>
+                {mergeResult.summary.unresolvedConflicts > 0 && (
+                  <Badge variant="secondary">
+                    {mergeResult.summary.unresolvedConflicts} unresolved
+                  </Badge>
+                )}
+              </>
+            )}
             {currentStep === 'finalize' && 'Ready to create merged document'}
           </div>
           
