@@ -191,7 +191,7 @@ export function processSchemasWithGrouping(
   // Check if any schemas are already individually expanded
   const schemaEntries = Object.entries(schemas);
   const expandedSchemasCount = schemaEntries.filter(([schemaName]) => {
-    const schemaPath = parentPath ? `${parentPath}.${schemaName}` : schemaName;
+    const schemaPath = `${parentPath}.${schemaName}`;
     return collapsedPaths[schemaPath] === false; // explicitly expanded
   }).length;
   
@@ -203,7 +203,9 @@ export function processSchemasWithGrouping(
     expandedSchemasCount,
     totalSchemas: schemaEntries.length,
     shouldGroup,
-    maxIndividualSchemas
+    maxIndividualSchemas,
+    sampleSchemaPath: schemaEntries.length > 0 ? `${parentPath}.${schemaEntries[0][0]}` : 'none',
+    allCollapsedPaths: Object.keys(collapsedPaths).filter(path => collapsedPaths[path] === false)
   });
   
   return processPropertiesWithGrouping(
