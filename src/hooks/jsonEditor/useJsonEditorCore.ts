@@ -40,16 +40,19 @@ export const useJsonEditor = ({
   // Create a ref for the editor
   const editorRef = useRef<any>(null);
   
-  // Update master ref whenever collapsedPaths props changes
+  // Update master ref whenever collapsedPaths props changes - throttled
   useEffect(() => {
-    masterCollapsedPathsRef.current = { ...collapsedPaths };
-    console.log('Master collapsedPathsRef updated in useJsonEditor:', masterCollapsedPathsRef.current);
+    const timeoutId = setTimeout(() => {
+      masterCollapsedPathsRef.current = { ...collapsedPaths };
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
   }, [collapsedPaths]);
 
-  console.log('useJsonEditor hook running with:');
-  console.log('- collapsedPaths:', collapsedPaths);
-  console.log('- maxDepth:', maxDepth);
-  console.log('- onToggleCollapse handler present:', !!onToggleCollapse);
+  // Reduced logging - only log on significant changes
+  if (Object.keys(collapsedPaths).length <= 1) {
+    console.log('useJsonEditor:', { maxDepth, hasToggleHandler: !!onToggleCollapse });
+  }
 
   // Use our event handlers hook with the improved toggle logic
   const { createEditorEventHandlers, getPathState, collapsedPathsRef: eventsPathsRef } = useJsonEditorEvents({
@@ -104,12 +107,15 @@ export const useJsonEditor = ({
     editorRef, isInternalChange, previousValueRef, value, onChange 
   });
 
-  // Force update of editor fold state when collapsedPaths changes
+  // Force update of editor fold state when collapsedPaths changes - throttled
   useEffect(() => {
-    if (editorRef.current && initialSetupDone.current) {
-      console.log('Forcing update of editor fold state due to collapsedPaths change');
-      forceUpdateEditorFoldState();
-    }
+    const timeoutId = setTimeout(() => {
+      if (editorRef.current && initialSetupDone.current) {
+        forceUpdateEditorFoldState();
+      }
+    }, 200);
+    
+    return () => clearTimeout(timeoutId);
   }, [collapsedPaths, forceUpdateEditorFoldState]);
 
   // Bind editor -> props changes

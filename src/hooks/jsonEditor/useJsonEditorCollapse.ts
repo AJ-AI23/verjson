@@ -16,35 +16,31 @@ export const useJsonEditorCollapse = ({
   collapsedPaths,
   masterCollapsedPathsRef
 }: UseJsonEditorCollapseProps) => {
-  // Effect to apply collapsedPaths changes to the editor
+  // Effect to apply collapsedPaths changes to the editor - throttled
   useEffect(() => {
-    // Skip during initial setup
-    if (!editorRef.current || !initialSetupDone.current) return;
-    
-    try {
-      const editor = editorRef.current;
-      const pathsToUse = masterCollapsedPathsRef?.current || collapsedPaths;
+    const timeoutId = setTimeout(() => {
+      // Skip during initial setup
+      if (!editorRef.current || !initialSetupDone.current) return;
       
-      if (editor && editor.node) {
-        console.log('Applying collapsed paths to editor', pathsToUse);
+      try {
+        const editor = editorRef.current;
+        const pathsToUse = masterCollapsedPathsRef?.current || collapsedPaths;
         
-        // Handle root node's collapsed state
-        if (pathsToUse.root !== undefined) {
-          if (pathsToUse.root === true && !editor.node.collapsed) {
-            console.log('Collapsing root node based on collapsedPaths');
-            editor.collapseAll();
-          } else if (pathsToUse.root === false && editor.node.collapsed) {
-            console.log('Expanding root node based on collapsedPaths');
-            editor.expandAll();
+        if (editor && editor.node) {
+          // Handle root node's collapsed state only
+          if (pathsToUse.root !== undefined) {
+            if (pathsToUse.root === true && !editor.node.collapsed) {
+              editor.collapseAll();
+            } else if (pathsToUse.root === false && editor.node.collapsed) {
+              editor.expandAll();
+            }
           }
         }
-        
-        // Attempt to apply other path collapses
-        // This requires the editor to support path-based expansion/collapse
-        // If available, we'd iterate through collapsedPaths and apply each state
+      } catch (e) {
+        console.error('Error applying collapsed paths to editor:', e);
       }
-    } catch (e) {
-      console.error('Error applying collapsed paths to editor:', e);
-    }
+    }, 150); // 150ms throttle
+    
+    return () => clearTimeout(timeoutId);
   }, [collapsedPaths, editorRef, initialSetupDone, masterCollapsedPathsRef]);
 };

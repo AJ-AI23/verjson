@@ -24,10 +24,13 @@ export const useJsonEditorEvents = ({
   // Keep a reference to the latest collapsedPaths
   const collapsedPathsRef = useRef<Record<string, boolean>>(collapsedPaths);
   
-  // Update ref when props change
+  // Update ref when props change - throttled to prevent excessive updates
   useEffect(() => {
-    collapsedPathsRef.current = { ...collapsedPaths };
-    console.log('Updated collapsedPathsRef in useJsonEditorEvents:', collapsedPathsRef.current);
+    const timeoutId = setTimeout(() => {
+      collapsedPathsRef.current = { ...collapsedPaths };
+    }, 100); // 100ms throttle
+    
+    return () => clearTimeout(timeoutId);
   }, [collapsedPaths]);
   
   // Helper to normalize a path for diagram consumption
@@ -73,11 +76,10 @@ export const useJsonEditorEvents = ({
       const path = node.path.length > 0 ? node.path.join('.') : 'root';
       const normalizedPath = normalizePath(path);
       
-      console.log(`🟡 [DEBUG] onExpand called for path: ${normalizedPath}`);
-      console.log(`🟡 [DEBUG] Raw node.path:`, node.path);
-      console.log(`🟡 [DEBUG] Raw path before normalization:`, path);
-      console.log(`🟡 [DEBUG] Current maxDepth: ${maxDepth}`);
-      console.log(`🟡 [DEBUG] rootSchema available:`, !!rootSchema);
+      // Reduced logging - only log when necessary
+      if (path === 'root' || path.includes('properties')) {
+        console.log(`[DEBUG] onExpand: ${normalizedPath}`);
+      }
       
       // Force update the ref to latest state before reading
       collapsedPathsRef.current = { ...collapsedPaths };
@@ -90,8 +92,10 @@ export const useJsonEditorEvents = ({
       // If current state is false (expanded), new state is true (collapsed)
       const newCollapsedState = !currentlyCollapsed;
       
-      console.log(`[DEBUG] Path ${normalizedPath}: currently ${currentlyCollapsed ? 'collapsed' : 'expanded'}, 
-                  toggling to ${newCollapsedState ? 'collapsed' : 'expanded'}`);
+      // Only log significant state changes
+      if (path === 'root' || path.includes('properties')) {
+        console.log(`[DEBUG] ${normalizedPath}: ${currentlyCollapsed ? 'collapsed' : 'expanded'} → ${newCollapsedState ? 'collapsed' : 'expanded'}`);
+      }
       
       if (onToggleCollapse) {
         onToggleCollapse(normalizedPath, newCollapsedState);
@@ -103,14 +107,10 @@ export const useJsonEditorEvents = ({
           (normalizedPath.includes('.') && normalizedPath.split('.').length >= 2);
           
         if (shouldBulkExpand) {
-          console.log(`🟡 [DEBUG] Triggering bulk expand for path: ${normalizedPath} with maxDepth: ${maxDepth}`);
-          console.log(`🟡 [DEBUG] Root schema available:`, !!rootSchema);
-          console.log(`🟡 [DEBUG] Editor ref available:`, !!editorRef?.current);
-          
-          // Remove setTimeout and call immediately
-          bulkExpand(normalizedPath, rootSchema, true, editorRef, collapsedPathsRef);
-        } else {
-          console.log(`🟡 [DEBUG] Not triggering bulk expand - newCollapsedState: ${newCollapsedState}, rootSchema: ${!!rootSchema}, path: ${normalizedPath}, shouldBulkExpand: ${shouldBulkExpand}`);
+          // Throttle bulk expand operations
+          setTimeout(() => {
+            bulkExpand(normalizedPath, rootSchema, true, editorRef, collapsedPathsRef);
+          }, 50);
         }
       }
       
@@ -128,26 +128,17 @@ export const useJsonEditorEvents = ({
       // If we have access to the editor, apply the change directly to the specific node
       if (editorRef && editorRef.current) {
         try {
-          // Use the expand method with the specific path
-          // When newCollapsedState is true, we want to collapse (isExpand = false)
-          // When newCollapsedState is false, we want to expand (isExpand = true)
-          console.log(`Synchronizing JSONEditor node state for path: ${normalizedPath}`);
-          console.log(`Setting node to ${newCollapsedState ? 'collapsed' : 'expanded'}`);
-          
-          // Convert the path back to an array for the expand method
-          const pathArray = Array.isArray(node.path) ? node.path : path.split('.');
-          
-          // Use the expand method with the correct parameters:
-          // - pathArray: The path to the node
-          // - !newCollapsedState: true for expand, false for collapse
-          // - false: Don't do this recursively
-          editorRef.current.expand({
-            path: pathArray,
-            isExpand: !newCollapsedState,
-            recursive: false
-          });
-          
-          console.log(`JSONEditor expand() called with isExpand=${!newCollapsedState}, recursive=false`);
+          // Throttle editor synchronization to prevent excessive calls
+          setTimeout(() => {
+            if (!editorRef.current) return;
+            
+            const pathArray = Array.isArray(node.path) ? node.path : path.split('.');
+            editorRef.current.expand({
+              path: pathArray,
+              isExpand: !newCollapsedState,
+              recursive: false
+            });
+          }, 25);
         } catch (err) {
           console.error('Error synchronizing editor node state:', err);
         }
