@@ -57,15 +57,7 @@ export const useJsonEditorInitialization = ({
       // Set initial content
       try {
         editor.set(JSON.parse(value));
-        
-        // Start fully collapsed to match initial collapsedPaths state
-        setTimeout(() => {
-          try {
-            editor.collapseAll();
-          } catch (e) {
-            console.warn('Could not collapse editor on init:', e);
-          }
-        }, 100); // Small delay to ensure content is set
+        // No initial collapse - let collapsedPaths state control the display
       } catch (e) {
         // If parsing fails, just show the raw text
         editor.setText(value);

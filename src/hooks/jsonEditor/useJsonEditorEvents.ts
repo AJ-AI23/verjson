@@ -74,7 +74,7 @@ export const useJsonEditorEvents = ({
   const createEditorEventHandlers = useCallback(() => {
     // Remove debug toast that runs frequently
     
-    // Handle expand event from JSONEditor - user wants to expand this path
+    // Handle expand event from JSONEditor - user clicked to expand a path
     const onExpand = (node: any) => {
       const path = node.path.length > 0 ? node.path.join('.') : 'root';
       const normalizedPath = normalizePath(path);
@@ -82,8 +82,9 @@ export const useJsonEditorEvents = ({
       console.log(`🔧 JSONEditor onExpand event: ${normalizedPath} - user wants to expand`);
       
       // User clicked to expand, so set this path to expanded (false)
+      // According to tests, only explicitly expanded paths (false) show nodes
       if (onToggleCollapse) {
-        onToggleCollapse(normalizedPath, false); // false = expanded
+        onToggleCollapse(normalizedPath, false); // false = expanded = show nodes
       }
       
       // Update debug state if needed

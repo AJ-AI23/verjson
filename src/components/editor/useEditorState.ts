@@ -19,8 +19,8 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
   const { settings } = useEditorSettings();
   const { maxDepth } = settings;
   
-  // Set default collapsed state - everything collapsed from start for proper sync
-  const [collapsedPaths, setCollapsedPaths] = useState<CollapsedState>({ root: true });
+  // Set default collapsed state - start with empty object, nodes only appear on explicit expansion
+  const [collapsedPaths, setCollapsedPaths] = useState<CollapsedState>({});
   
   // Track which notation panels should be expanded based on JSON editor
   const [expandedNotationPaths, setExpandedNotationPaths] = useState<Set<string>>(new Set());
@@ -190,8 +190,8 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
   const handleSchemaTypeChange = (value: SchemaType) => {
     debugToast('Schema type changed to', value);
     setSchemaType(value);
-    // Reset collapsed paths when changing schema type - everything collapsed
-    setCollapsedPaths({ root: true });
+    // Reset collapsed paths when changing schema type - start fresh with no expansions
+    setCollapsedPaths({});
   };
 
   const handleAddNotation = useCallback((nodeId: string, user: string, message: string) => {
@@ -227,7 +227,7 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
     setParsedSchema(null);
     setError(null);
     setSchemaType('json-schema');
-    setCollapsedPaths({ root: true });
+    setCollapsedPaths({});
     setExpandedNotationPaths(new Set());
     clearVersionState(); // Also clear version history state
   }, [defaultSchema, clearVersionState, debugToast]);
