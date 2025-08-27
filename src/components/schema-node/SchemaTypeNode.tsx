@@ -37,6 +37,7 @@ interface SchemaTypeNodeProps {
     isRoot?: boolean;
     isGroup?: boolean;
     isGrouped?: boolean; // For grouped property nodes
+    isGroupedProperties?: boolean; // Special flag for enhanced styling of grouped properties
     reference?: string;
     propertyDetails?: PropertyDetail[];
     hasMoreLevels?: boolean;
@@ -102,19 +103,23 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
 
   // Memoize the node container classes to prevent recalculation
   const nodeContainerClasses = useMemo(() => {
+    const isGroupedProperties = data.isGroupedProperties || type === 'grouped-properties';
+    
     return cn(
       'px-3 py-2 rounded-md shadow-sm border min-w-[160px] w-fit',
-      (isGroup || isGrouped) ? 'max-w-[420px]' : 'max-w-[280px]',
+      (isGroup || isGrouped || isGroupedProperties) ? 'max-w-[420px]' : 'max-w-[280px]',
       `node-${type}`,
       required && 'node-required',
       isRoot && 'border-2 border-blue-500 bg-blue-50',
       isGroup && 'border-2 border-slate-300 bg-slate-50',
-      isGrouped && 'border-2 border-orange-300 bg-orange-50',
+      isGrouped && !isGroupedProperties && 'border-2 border-orange-300 bg-orange-50',
+      // Enhanced styling for grouped properties - more distinct
+      isGroupedProperties && 'border-2 border-purple-400 bg-gradient-to-br from-purple-50 to-indigo-50',
       isCollapsed && 'border-dashed bg-slate-50',
       hasMoreLevels && !isCollapsed && 'border-dashed',
       hasNotations && 'border-l-2 border-l-amber-400'
     );
-  }, [type, required, isRoot, isGroup, isGrouped, isCollapsed, hasMoreLevels, hasNotations]);
+  }, [type, required, isRoot, isGroup, isGrouped, data.isGroupedProperties, isCollapsed, hasMoreLevels, hasNotations]);
 
   return (
     <div className={nodeContainerClasses}>

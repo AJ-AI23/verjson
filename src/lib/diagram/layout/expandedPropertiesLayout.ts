@@ -8,6 +8,7 @@ import {
   createGroupedPropertiesNode 
 } from '../nodeGenerator';
 import { createEdge } from '../edgeGenerator';
+import { processPropertiesWithGrouping } from '../utils/propertyGroupingUtils';
 
 export const generateExpandedLayout = (
   schema: any, 
@@ -108,20 +109,27 @@ function processProperties(
   // Determine if we need to group properties
   const shouldGroupProperties = totalProperties > maxPropertiesLimit;
   
-  // If grouping, show first 4 individual properties + 1 grouped node
-  // If not grouping, show all properties
-  const individualProperties = shouldGroupProperties 
-    ? propertyEntries.slice(0, maxPropertiesLimit - 1)
-    : propertyEntries;
-  
-  const groupedProperties = shouldGroupProperties 
-    ? propertyEntries.slice(maxPropertiesLimit - 1)
-    : [];
-  
-  // Calculate layout based on what we're actually showing
-  const nodesToShow = shouldGroupProperties ? maxPropertiesLimit : totalProperties;
-  const totalWidth = nodesToShow * xSpacing;
-  const startXOffset = xOffset - totalWidth / 2 + xSpacing / 2;
+  if (shouldGroupProperties) {
+    console.log(`Using shared property grouping utility for ${totalProperties} properties`);
+    
+    // Use the shared property grouping utility
+    const groupingResult = processPropertiesWithGrouping(
+      propertyEntries,
+      requiredProps,
+      result,
+      {
+        maxIndividualProperties: maxPropertiesLimit,
+        xSpacing,
+        parentId,
+        parentPath: currentPath,
+        yPosition: yOffset,
+        startXPosition: xOffset
+      }
+    );
+    
+    console.log(`Property grouping created ${groupingResult.totalNodesCreated} nodes for ${groupingResult.nodesProcessed} properties`);
+    return;
+  }
   
   // Helper function to check if any ancestor path is collapsed
   const isAnyAncestorCollapsed = (path: string): boolean => {
@@ -144,10 +152,10 @@ function processProperties(
   console.log(`Processing properties at path: ${currentPath}`);
   console.log(`Parent properties path: ${parentPropertiesPath}, collapsed: ${isParentPropertiesCollapsed}`);
   console.log(`Should group properties: ${shouldGroupProperties} (${totalProperties} > ${maxPropertiesLimit})`);
-  console.log(`Individual properties: ${individualProperties.length}, Grouped: ${groupedProperties.length}`);
+  console.log(`Processing ${totalProperties} properties individually (no grouping needed)`);
   
-  // Process individual properties
-  individualProperties.forEach(([propName, propSchema]: [string, any], index) => {
+  // Process all properties individually (no grouping)
+  propertyEntries.forEach(([propName, propSchema]: [string, any], index) => {
     console.log(`[DEBUG] Processing property ${index}: ${propName}`);
     console.log(`[DEBUG] Schema type: ${propSchema?.type}`);
     console.log(`[DEBUG] Current path: ${currentPath}`);
@@ -159,7 +167,7 @@ function processProperties(
       return;
     }
     
-    const xPos = startXOffset + index * xSpacing;
+    const xPos = xOffset - (totalProperties - 1) * xSpacing / 2 + index * xSpacing;
     
     // Build paths correctly based on whether we're at root level or nested
     // JSON editor uses: root.properties.propName, root.properties.propName.properties.nestedProp
@@ -380,93 +388,4 @@ function processProperties(
       }
     }
   });
-
-  // Create grouped properties node if needed
-  if (shouldGroupProperties && groupedProperties.length > 0) {
-    const groupedIndex = individualProperties.length; // Position after individual properties
-    const groupedXPos = startXOffset + groupedIndex * xSpacing;
-    
-    // Check if the grouped node should be expanded (showing individual properties)
-    const groupedNodePath = currentPath === 'root' ? 
-      'root.properties._grouped' : 
-      `${currentPath}._grouped`;
-    const isGroupedExpanded = collapsedPaths[groupedNodePath] === false;
-    
-    if (isGroupedExpanded) {
-      // Show individual nodes for each grouped property
-      groupedProperties.forEach(([propName, propSchema]: [string, any], groupedIdx) => {
-        const individualIndex = groupedIndex + groupedIdx;
-        const individualXPos = startXOffset + individualIndex * xSpacing;
-        
-        // Build paths correctly
-        const diagramPath = currentPath === 'root' ? propName : `${currentPath}.${propName}`;
-        const jsonEditorPath = currentPath === 'root' ? 
-          `root.properties.${propName}` : 
-          `${currentPath}.${propName}`;
-        
-        // Check collapse state
-        const pathValue = collapsedPaths[diagramPath] || collapsedPaths[jsonEditorPath];
-        const isPathExplicitlyCollapsed = pathValue !== false && 
-          !(typeof pathValue === 'object' && pathValue !== null);
-        
-        try {
-          const propNode = createPropertyNode(propName, propSchema, requiredProps, individualXPos, yOffset, isPathExplicitlyCollapsed);
-          const edge = createEdge(parentId, propNode.id);
-          
-          result.nodes.push(propNode);
-          result.edges.push(edge);
-          
-          // Process nested properties if needed (same logic as individual properties above)
-          if (expandedNodeDepth < maxDepth && !isPathExplicitlyCollapsed) {
-            if (propSchema.type === 'object' && propSchema.properties) {
-              const nestedProps = propSchema.properties;
-              const nestedRequired = propSchema.required || [];
-              const nestedYOffset = yOffset + 150;
-              
-              propNode.data.properties = Object.keys(nestedProps).length;
-              
-              const jsonEditorPropertiesPath = `${jsonEditorPath}.properties`;
-              const isThisPropertiesExplicitlyExpanded = collapsedPaths[jsonEditorPropertiesPath] === false;
-              const isParentNodeCollapsed = collapsedPaths[jsonEditorPath] === true;
-              
-              if (isThisPropertiesExplicitlyExpanded && !isParentNodeCollapsed) {
-                processProperties(
-                  nestedProps, 
-                  nestedRequired, 
-                  individualXPos, 
-                  nestedYOffset, 
-                  xSpacing * 0.8, 
-                  result, 
-                  propNode.id, 
-                  currentDepth + 1, 
-                  maxDepth,
-                  collapsedPaths,
-                  jsonEditorPath,
-                  0, // Reset expandedNodeDepth for explicitly expanded
-                  maxPropertiesLimit
-                );
-              }
-            }
-          }
-        } catch (error) {
-          console.error(`Error creating grouped property node for ${propName}:`, error);
-        }
-      });
-    } else {
-      // Show single grouped node
-      const groupedNodeId = `grouped-${parentId}-properties`;
-      const groupedNode = createGroupedPropertiesNode(
-        groupedNodeId,
-        groupedProperties,
-        requiredProps,
-        groupedXPos,
-        yOffset
-      );
-      
-      const groupedEdge = createEdge(parentId, groupedNodeId);
-      
-      result.nodes.push(groupedNode);
-      result.edges.push(groupedEdge);
-    }
-  }
 }

@@ -462,11 +462,13 @@ export const createGroupedPropertiesNode = (
     position: { x: xPos, y: yOffset },
     data: {
       label: `${properties.length} More Properties`,
-      type: 'object',
+      type: 'grouped-properties',
       isGrouped: true,
+      isGroupedProperties: true, // Special flag for enhanced styling
       propertyDetails: propertyDetails,
       hasCollapsibleContent: true,
-      isCollapsed: true // Grouped nodes start collapsed by default
+      isCollapsed: true, // Grouped nodes start collapsed by default
+      description: `View details of ${properties.length} grouped properties`
     }
   };
 };

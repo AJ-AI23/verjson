@@ -14,6 +14,7 @@ import {
   createGroupedPropertiesNode
 } from '../nodeGenerator';
 import { createEdge } from '../edgeGenerator';
+import { processSchemasWithGrouping } from '../utils/propertyGroupingUtils';
 
 // OpenAPI 3.1 required structure properties
 const OPENAPI_REQUIRED_PROPERTIES = ['openapi', 'info', 'paths'];
@@ -259,148 +260,21 @@ function processComponentsSchemas(
   collapsedPaths: CollapsedState,
   parentPath: string
 ) {
-  const schemaNames = Object.keys(schemas);
-  const maxSchemasToShow = 4; // Show max 4 individual schemas, group the rest
+  console.log(`[OPENAPI LAYOUT] Processing ${Object.keys(schemas).length} schemas with grouping`);
   
-  // Group schemas if there are more than the limit
-  if (schemaNames.length > maxSchemasToShow) {
-    const visibleSchemas = schemaNames.slice(0, maxSchemasToShow);
-    const groupedSchemas = schemaNames.slice(maxSchemasToShow);
-    
-    const startX = xPos - (visibleSchemas.length + 1) * xSpacing / 2 + xSpacing / 2;
-    
-    // Create individual nodes for first N schemas
-    visibleSchemas.forEach((schemaName, index) => {
-      const schemaValue = schemas[schemaName];
-      const schemaPath = `${parentPath}.${schemaName}`;
-      const schemaX = startX + index * xSpacing;
-      
-      const schemaNode = createPropertyNode(
-        schemaName,
-        schemaValue,
-        [],
-        schemaX,
-        yPos,
-        false
-      );
-      
-      const edge = createEdge(parentNodeId, schemaNode.id, undefined, false, {}, 'structure');
-      result.nodes.push(schemaNode);
-      result.edges.push(edge);
-    });
-    
-    // Create grouped node for remaining schemas
-    const groupedPropertiesData: [string, any][] = groupedSchemas.map(name => [name, schemas[name]]);
-    const groupedNode = createGroupedPropertiesNode(
-      `${parentNodeId}-grouped-schemas`,
-      groupedPropertiesData,
-      [],
-      startX + maxSchemasToShow * xSpacing,
-      yPos
-    );
-    
-    groupedNode.data.label = `${groupedSchemas.length} More Schemas`;
-    
-    const groupedEdge = createEdge(parentNodeId, groupedNode.id, undefined, false, {}, 'structure');
-    result.nodes.push(groupedNode);
-    result.edges.push(groupedEdge);
-    
-    return;
-  }
+  const groupingResult = processSchemasWithGrouping(
+    schemas,
+    parentNodeId,
+    xPos,
+    yPos,
+    xSpacing,
+    result,
+    5 // Max individual schemas before grouping
+  );
   
-  // If schemas count is within limit, show all individually
-  const startX = xPos - (schemaNames.length * xSpacing) / 2 + xSpacing / 2;
+  console.log(`[OPENAPI LAYOUT] Created ${groupingResult.totalNodesCreated} nodes for ${groupingResult.nodesProcessed} schemas`);
   
-  // First pass: Calculate which schemas have expanded properties and their heights
-  const schemaLayoutInfo = schemaNames.map((schemaName, index) => {
-    const schemaValue = schemas[schemaName];
-    const schemaPath = `${parentPath}.${schemaName}`;
-    const isSchemaCollapsed = collapsedPaths[schemaPath] === true;
-    
-    let hasExpandedProperties = false;
-    let propertiesCount = 0;
-    
-    if (!isSchemaCollapsed && schemaValue?.type === 'object' && schemaValue?.properties && maxDepth > 1) {
-      const schemaPropertiesPath = `${schemaPath}.properties`;
-      const schemaPropertiesExpanded = collapsedPaths[schemaPropertiesPath] === false;
-      
-      if (schemaPropertiesExpanded) {
-        hasExpandedProperties = true;
-        propertiesCount = Object.keys(schemaValue.properties).length;
-      }
-    }
-    
-    return {
-      name: schemaName,
-      value: schemaValue,
-      path: schemaPath,
-      index,
-      isCollapsed: isSchemaCollapsed,
-      hasExpandedProperties,
-      propertiesCount,
-      // Calculate estimated height needed for this schema if properties are expanded
-      estimatedHeight: hasExpandedProperties ? Math.max(150, propertiesCount * 80) : 0
-    };
-  });
-  
-  // Second pass: Calculate cumulative Y positions to avoid overlaps
-  let currentYOffset = 0;
-  const schemaPositions = schemaLayoutInfo.map((schema, index) => {
-    const schemaX = startX + index * xSpacing;
-    const schemaY = yPos + currentYOffset;
-    
-    // If this schema has expanded properties, we need to add extra space for the next schema
-    if (schema.hasExpandedProperties) {
-      currentYOffset += schema.estimatedHeight + 50; // Add some padding between schemas
-    }
-    
-    return {
-      ...schema,
-      x: schemaX,
-      y: schemaY
-    };
-  });
-  
-  // Third pass: Create nodes and edges with calculated positions
-  schemaPositions.forEach((schema) => {
-    console.log(`🔥 [OPENAPI LAYOUT] Processing schema ${schema.name}, path: ${schema.path}, collapsed: ${schema.isCollapsed}, hasExpandedProps: ${schema.hasExpandedProperties}`);
-    
-    // Always create schema node when showing components.schemas structure (regardless of individual collapse state)
-    const schemaNode = createPropertyNode(
-      schema.name,
-      schema.value,
-      [],
-      schema.x,
-      schema.y,
-      false // Don't mark as collapsed since we're already checking
-    );
-    
-    const edge = createEdge(parentNodeId, schemaNode.id, undefined, false, {}, 'structure');
-    
-    result.nodes.push(schemaNode);
-    result.edges.push(edge);
-    
-    console.log(`🔥 [OPENAPI LAYOUT] Created schema node for ${schema.name} at position (${schema.x}, ${schema.y})`);
-    
-    // Only process schema properties if the schema is explicitly expanded
-    if (schema.hasExpandedProperties) {
-      console.log(`🔥 [OPENAPI LAYOUT] Creating properties for ${schema.name} with ${schema.propertiesCount} properties`);
-      
-      processJsonSchemaProperties(
-        schema.value.properties,
-        schema.value.required || [],
-        schemaNode.id,
-        schema.x,
-        schema.y + 150, // Properties positioned below the schema node
-        xSpacing * 0.8,
-        result,
-        maxDepth - 1,
-        collapsedPaths,
-        schema.path,
-        schemas // Pass all schemas for reference detection
-      );
-    }
-  });
+  return;
 }
 
 // Process regular JSON schema properties (used for components.schemas)
