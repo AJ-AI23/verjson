@@ -51,7 +51,7 @@ interface WorkspacePanelProps {
 export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDocument, isCollapsed }: WorkspacePanelProps) {
   const { debugToast } = useDebug();
   const { user } = useAuth();
-  const { workspaces, createWorkspace, deleteWorkspace } = useWorkspaces();
+  const { workspaces, createWorkspace, updateWorkspace, deleteWorkspace } = useWorkspaces();
   const [selectedWorkspace, setSelectedWorkspace] = useState<string>('');
   const { documents, createDocument, deleteDocument } = useDocuments(selectedWorkspace);
   const { inviteToWorkspace, inviteBulkDocuments } = useWorkspacePermissions(selectedWorkspace);
@@ -76,6 +76,12 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   const [showBulkExportDialog, setShowBulkExportDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showMergeDialog, setShowMergeDialog] = useState(false);
+  
+  // Workspace edit dialog state
+  const [showWorkspaceEditDialog, setShowWorkspaceEditDialog] = useState(false);
+  const [workspaceToEdit, setWorkspaceToEdit] = useState<any>(null);
+  const [editWorkspaceName, setEditWorkspaceName] = useState('');
+  const [editWorkspaceDesc, setEditWorkspaceDesc] = useState('');
   
   // PIN security dialog states
   const [showPinSetupDialog, setShowPinSetupDialog] = useState(false);
@@ -343,6 +349,23 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
     }
   };
 
+  const handleEditWorkspace = async () => {
+    if (!editWorkspaceName.trim() || !workspaceToEdit) return;
+    
+    const updated = await updateWorkspace(workspaceToEdit.id, {
+      name: editWorkspaceName,
+      description: editWorkspaceDesc,
+    });
+    
+    if (updated) {
+      setShowWorkspaceEditDialog(false);
+      setWorkspaceToEdit(null);
+      setEditWorkspaceName('');
+      setEditWorkspaceDesc('');
+      toast.success('Workspace updated successfully');
+    }
+  };
+
   // Don't render content if collapsed
   if (isCollapsed) {
     return null;
@@ -419,8 +442,10 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                         variant="ghost"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // TODO: Implement workspace edit functionality
-                          toast.info('Workspace editing coming soon!');
+                          setWorkspaceToEdit(workspace);
+                          setEditWorkspaceName(workspace.name);
+                          setEditWorkspaceDesc(workspace.description || '');
+                          setShowWorkspaceEditDialog(true);
                         }}
                         className="h-6 w-6 p-0 hover:bg-accent hover:text-accent-foreground flex-shrink-0"
                       >
@@ -699,6 +724,42 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
         onMergeConfirm={handleDocumentMerge}
         workspaceName={workspaces.find(w => w.id === selectedWorkspace)?.name}
       />
+
+      <Dialog open={showWorkspaceEditDialog} onOpenChange={setShowWorkspaceEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Workspace</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-workspace-name">Name</Label>
+              <Input
+                id="edit-workspace-name"
+                value={editWorkspaceName}
+                onChange={(e) => setEditWorkspaceName(e.target.value)}
+                placeholder="Workspace name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-workspace-desc">Description (optional)</Label>
+              <Textarea
+                id="edit-workspace-desc"
+                value={editWorkspaceDesc}
+                onChange={(e) => setEditWorkspaceDesc(e.target.value)}
+                placeholder="Workspace description..."
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowWorkspaceEditDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditWorkspace} disabled={!editWorkspaceName.trim()}>
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
