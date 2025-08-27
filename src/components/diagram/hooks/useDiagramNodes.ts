@@ -86,18 +86,21 @@ export const useDiagramNodes = (
       return;
     }
     
-    // Only update if something important has changed using efficient comparison
-    const schemaChanged = !deepEqual(schema, prevSchemaRef.current);
-    const groupSettingChanged = prevGroupPropertiesRef.current !== groupProperties;
-    const collapsedPathsChanged = !deepEqual(collapsedPaths, prevCollapsedPathsRef.current);
-    
-    // Force update on initial render to make sure root node is always shown
-    const forceUpdate = isInitialRender;
-    
-    if (schemaChanged || groupSettingChanged || collapsedPathsChanged || forceUpdate) {
-      // Update refs with current values
+  // Only update if something important has changed using safe comparison
+  const schemaChanged = prevSchemaRef.current === null || !deepEqual(schema, prevSchemaRef.current);
+  const groupSettingChanged = prevGroupPropertiesRef.current !== groupProperties;
+  const collapsedPathsChanged = !deepEqual(collapsedPaths, prevCollapsedPathsRef.current);
+  
+  // Force update on initial render to make sure root node is always shown
+  const forceUpdate = isInitialRender;
+  
+  // Add safety check for schema structure
+  const hasValidSchema = schema && (typeof schema === 'object');
+  
+  if ((schemaChanged || groupSettingChanged || collapsedPathsChanged || forceUpdate) && hasValidSchema) {
+      // Update refs with current values - use deep cloning to prevent reference issues  
       prevSchemaRef.current = schema;
-      prevCollapsedPathsRef.current = collapsedPaths;
+      prevCollapsedPathsRef.current = { ...collapsedPaths };
       prevGroupPropertiesRef.current = groupProperties;
       lastUpdateTimeRef.current = Date.now();
       
@@ -112,7 +115,7 @@ export const useDiagramNodes = (
       // Use simple counter for schema key
       setSchemaKey(prev => prev + 1);
       
-      // Generate diagram elements with unlimited depth - let collapsed paths control visibility
+      // Generate diagram elements with valid schema
       const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(
         schema, 
         groupProperties, 
@@ -130,6 +133,10 @@ export const useDiagramNodes = (
       // Reset the processing flag
       updateTimeoutRef.current = null;
       processingUpdateRef.current = false;
+    } else if (!hasValidSchema) {
+      // Clear nodes/edges if schema is invalid
+      setNodes([]);
+      setEdges([]);
     }
 
     // Update group properties setting when it changes
