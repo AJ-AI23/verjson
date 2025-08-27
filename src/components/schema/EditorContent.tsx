@@ -5,6 +5,7 @@ import { JsonEditorWrapper } from '@/components/JsonEditorWrapper';
 import { SchemaDiagram } from '@/components/diagram/SchemaDiagram';
 import { VersionControls } from '@/components/VersionControls';
 import { CollapsedState } from '@/lib/diagram/types';
+import { DocumentVersionComparison } from '@/lib/importVersionUtils';
 import { Version, VersionTier } from '@/lib/versionUtils';
 
 interface EditorContentProps {
@@ -23,6 +24,8 @@ interface EditorContentProps {
   expandedNotationPaths?: Set<string>;
   documentId?: string;
   patches?: any[];
+  onImportVersion?: (importedSchema: any, comparison: DocumentVersionComparison, sourceDocumentName: string) => void;
+  currentFileType?: string;
 }
 
 export const EditorContent: React.FC<EditorContentProps> = ({
@@ -41,6 +44,8 @@ export const EditorContent: React.FC<EditorContentProps> = ({
   expandedNotationPaths,
   documentId,
   patches,
+  onImportVersion,
+  currentFileType,
 }) => {
   return (
     <SplitPane>
@@ -60,6 +65,9 @@ export const EditorContent: React.FC<EditorContentProps> = ({
           isModified={isModified}
           schema={schema}
           patches={patches}
+          onImportVersion={onImportVersion}
+          documentId={documentId}
+          currentFileType={currentFileType}
         />
       </div>
       <SchemaDiagram 
