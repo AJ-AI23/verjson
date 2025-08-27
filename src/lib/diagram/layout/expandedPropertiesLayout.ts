@@ -120,7 +120,7 @@ function processProperties(
       {
         maxIndividualProperties: maxPropertiesLimit,
         xSpacing,
-        parentId,
+        parentNodeId: parentId,
         parentPath: currentPath,
         yPosition: yOffset,
         startXPosition: xOffset
