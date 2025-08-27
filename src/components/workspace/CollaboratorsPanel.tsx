@@ -22,6 +22,7 @@ import { useDocumentPermissions, DocumentPermission } from '@/hooks/useDocumentP
 import { InviteCollaboratorDialog } from './InviteCollaboratorDialog';
 import { ChangeAccessDialog } from './ChangeAccessDialog';
 import { Document } from '@/types/workspace';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CollaboratorsPanelProps {
   document: Document | null;
@@ -29,6 +30,7 @@ interface CollaboratorsPanelProps {
 }
 
 export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProps) {
+  const { user } = useAuth();
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [showChangeAccessDialog, setShowChangeAccessDialog] = useState(false);
   const [selectedPermission, setSelectedPermission] = useState<DocumentPermission | null>(null);
@@ -39,6 +41,9 @@ export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProp
     updatePermission, 
     removePermission 
   } = useDocumentPermissions(document?.id);
+
+  // Filter out the current user from collaborators since they're shown as owner
+  const collaboratorPermissions = permissions.filter(permission => permission.user_id !== user?.id);
 
   if (!document) {
     return (
@@ -114,7 +119,7 @@ export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProp
               <Users className="h-5 w-5" />
               Collaborators
               <Badge variant="secondary" className="ml-2">
-                {permissions.length + 1}
+                {collaboratorPermissions.length + 1}
               </Badge>
             </div>
           </AccordionTrigger>
@@ -140,7 +145,7 @@ export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProp
                   </div>
 
                   {/* Collaborators */}
-                  {permissions.map((permission) => (
+                  {collaboratorPermissions.map((permission) => (
                     <div key={permission.id} className="flex items-start justify-between p-3 border rounded-lg gap-3">
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div className="flex items-center gap-2 min-w-0">
@@ -191,7 +196,7 @@ export function CollaboratorsPanel({ document, isOwner }: CollaboratorsPanelProp
                     </div>
                   ))}
 
-                  {permissions.length === 0 && (
+                  {collaboratorPermissions.length === 0 && (
                     <p className="text-sm text-muted-foreground text-center py-4">
                       No collaborators yet. {isOwner ? 'Invite someone to get started!' : ''}
                     </p>
