@@ -1,6 +1,7 @@
-
 import React, { useState, useMemo } from 'react';
 import { SchemaPatch, formatVersion, applySelectedPatches } from '@/lib/versionUtils';
+import { DocumentVersionComparison } from '@/lib/importVersionUtils';
+import { ImportVersionDialog } from './ImportVersionDialog';
 import { useDocumentVersions } from '@/hooks/useDocumentVersions';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -23,19 +24,31 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Package, Tag, Trash2, Eye } from 'lucide-react';
+import { Package, Tag, Trash2, Eye, Download } from 'lucide-react';
 
 interface VersionHistoryProps {
   documentId: string;
   onToggleSelection?: (patchId: string) => void;
   onMarkAsReleased?: (patchId: string) => void;
   onDeleteVersion?: (patchId: string) => void;
+  onImportVersion?: (importedSchema: any, comparison: DocumentVersionComparison, sourceDocumentName: string) => void;
+  currentSchema?: any;
+  currentFileType?: string;
 }
 
-export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onToggleSelection, onMarkAsReleased, onDeleteVersion }) => {
+export const VersionHistory: React.FC<VersionHistoryProps> = ({ 
+  documentId, 
+  onToggleSelection, 
+  onMarkAsReleased, 
+  onDeleteVersion,
+  onImportVersion,
+  currentSchema,
+  currentFileType
+}) => {
   
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewPatches, setPreviewPatches] = useState<SchemaPatch[]>([]);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   
   // Fetch document versions directly from database - use versions state directly for reactivity
   const { versions, loading, error } = useDocumentVersions(documentId);
@@ -100,7 +113,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
   
   
   // Calculate current schema based on selected patches from database
-  const currentSchema = useMemo(() => {
+  const calculatedCurrentSchema = useMemo(() => {
     try {
       return applySelectedPatches(patches);
     } catch (err) {
@@ -131,6 +144,12 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
     }
   }, [previewPatches]);
   
+  // Handle import version
+  const handleImportVersion = (importedSchema: any, comparison: DocumentVersionComparison, sourceDocumentName: string) => {
+    onImportVersion?.(importedSchema, comparison, sourceDocumentName);
+    setImportDialogOpen(false);
+  };
+
   // Get summary of schema for display
   const getSchemaSummary = (schema: any) => {
     if (!schema || typeof schema !== 'object') return 'Empty schema';
@@ -151,6 +170,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
     
     return summary.length > 0 ? summary.join(', ') : `${keys.length} top-level properties`;
   };
+  
   if (patches.length === 0) {
     return (
       <div className="text-sm text-slate-500 p-4 text-center">
@@ -240,7 +260,28 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
           </div>
         </div>
       )}
+
+      {/* Version Actions */}
+      {(onToggleSelection || onMarkAsReleased || onDeleteVersion || onImportVersion) && (
+        <div className="mb-4 flex justify-between items-center">
+          <h4 className="font-medium text-foreground">Version Actions</h4>
+          <div className="flex gap-2">
+            {onImportVersion && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setImportDialogOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Import Version
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
       
+      {/* Version History Table */}
       <table className="min-w-full divide-y divide-slate-200 text-sm">
         <thead>
           <tr className="bg-slate-50">
@@ -501,6 +542,18 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({ documentId, onTo
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Import Version Dialog */}
+      {onImportVersion && (currentSchema || calculatedCurrentSchema) && currentFileType && (
+        <ImportVersionDialog
+          isOpen={importDialogOpen}
+          onOpenChange={setImportDialogOpen}
+          currentSchema={currentSchema || calculatedCurrentSchema}
+          onImportConfirm={handleImportVersion}
+          currentDocumentId={documentId}
+          currentFileType={currentFileType}
+        />
+      )}
     </div>
   );
 };

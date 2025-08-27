@@ -15,6 +15,7 @@ import {
 } from '@/lib/versionUtils';
 import { useDocumentVersions } from '@/hooks/useDocumentVersions';
 import { supabase } from '@/integrations/supabase/client';
+import { DocumentVersionComparison } from '@/lib/importVersionUtils';
 import { useDebug } from '@/contexts/DebugContext';
 
 interface UseVersioningProps {
@@ -330,6 +331,30 @@ export const useVersioning = ({
     setIsVersionHistoryOpen(false);
   };
 
+  const handleImportVersion = (
+    importedSchema: any, 
+    comparison: DocumentVersionComparison, 
+    sourceDocumentName: string
+  ) => {
+    debugToast('📥 Versioning: Handling import version', { sourceDocumentName, comparison });
+    
+    if (!comparison || !importedSchema) {
+      console.error('Invalid import data provided');
+      return;
+    }
+
+    // Create a new version with the imported schema
+    const importDescription = `Imported from "${sourceDocumentName}" (${comparison.recommendedVersionTier} update)`;
+    const currentLatestVersion = calculateLatestVersion(patches);
+    const newVersion = {
+      major: comparison.recommendedVersionTier === 'major' ? currentLatestVersion.major + 1 : currentLatestVersion.major,
+      minor: comparison.recommendedVersionTier === 'minor' ? currentLatestVersion.minor + 1 : currentLatestVersion.minor,
+      patch: comparison.recommendedVersionTier === 'patch' ? currentLatestVersion.patch + 1 : currentLatestVersion.patch
+    };
+    
+    handleVersionBump(newVersion, comparison.recommendedVersionTier, importDescription, false);
+  };
+
   return {
     patches,
     isVersionHistoryOpen,
@@ -340,7 +365,8 @@ export const useVersioning = ({
     handleMarkAsReleased,
     handleDeleteVersion,
     toggleVersionHistory,
-    loading, // Add loading state from database operations
+    loading,
     clearVersionState,
+    handleImportVersion,
   };
 };

@@ -13,6 +13,9 @@ interface EditorVersionDialogProps {
   onToggleSelection: (patchId: string) => void;
   onMarkAsReleased: (patchId: string) => void;
   onDeleteVersion: (patchId: string) => void;
+  onImportVersion?: (importedSchema: any, comparison: any, sourceDocumentName: string) => void;
+  currentSchema?: any;
+  currentFileType?: string;
 }
 
 export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({
@@ -21,7 +24,10 @@ export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({
   documentId,
   onToggleSelection,
   onMarkAsReleased,
-  onDeleteVersion
+  onDeleteVersion,
+  onImportVersion,
+  currentSchema,
+  currentFileType
 }) => {
   const { debugToast } = useDebug();
   
@@ -38,6 +44,9 @@ export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({
           onToggleSelection={onToggleSelection}
           onMarkAsReleased={onMarkAsReleased}
           onDeleteVersion={onDeleteVersion}
+          onImportVersion={onImportVersion}
+          currentSchema={currentSchema}
+          currentFileType={currentFileType}
         />
       </DialogContent>
     </Dialog>
