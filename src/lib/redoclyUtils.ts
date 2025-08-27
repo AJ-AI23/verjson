@@ -25,15 +25,25 @@ export const loadRedocly = async (): Promise<void> => {
   redoclyPromise = new Promise((resolve, reject) => {
     // Create script element for Redocly standalone
     const script = document.createElement('script');
-    script.src = 'https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js';
+    script.src = 'https://cdn.jsdelivr.net/npm/redoc@2.1.3/bundles/redoc.standalone.js';
     script.async = true;
+    script.crossOrigin = 'anonymous';
 
     script.onload = () => {
-      redoclyLoaded = true;
-      resolve();
+      // Wait a bit for the global to be available
+      setTimeout(() => {
+        if (window.RedocStandalone) {
+          redoclyLoaded = true;
+          resolve();
+        } else {
+          redoclyPromise = null;
+          reject(new Error('Redocly library loaded but RedocStandalone not available'));
+        }
+      }, 100);
     };
 
-    script.onerror = () => {
+    script.onerror = (error) => {
+      console.error('Script loading error:', error);
       redoclyPromise = null;
       reject(new Error('Failed to load Redocly library from CDN'));
     };

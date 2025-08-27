@@ -65,8 +65,11 @@ export const RedoclyDialog: React.FC<RedoclyDialogProps> = ({
       // Initialize Redocly
       const RedocStandalone = (window as any).RedocStandalone;
       if (!RedocStandalone) {
-        throw new Error('Redocly library failed to load');
+        console.error('RedocStandalone not found on window object. Available keys:', Object.keys(window).filter(k => k.toLowerCase().includes('redoc')));
+        throw new Error('Redocly library failed to load - RedocStandalone not available');
       }
+
+      console.log('Initializing Redocly with schema:', parsedSchema.info?.title || 'Untitled API');
 
       RedocStandalone.init(parsedSchema, {
         scrollYOffset: 0,
@@ -76,12 +79,12 @@ export const RedoclyDialog: React.FC<RedoclyDialogProps> = ({
         theme: {
           colors: {
             primary: {
-              main: 'hsl(var(--primary))',
+              main: '#3b82f6', // Use a standard blue color instead of CSS variable
             },
           },
           typography: {
             fontSize: '14px',
-            fontFamily: 'Inter, system-ui, sans-serif',
+            fontFamily: 'system-ui, -apple-system, sans-serif',
           },
         },
         options: {
