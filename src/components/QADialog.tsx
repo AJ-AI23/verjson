@@ -100,8 +100,8 @@ export const QADialog: React.FC<QADialogProps> = ({
           break;
         case 'value':
         default:
-          // Group by identical values (truncate long values for display)
-          groupKey = entry.value.length > 50 ? `${entry.value.substring(0, 50)}...` : entry.value;
+          // Group by the entire value (no truncation)
+          groupKey = entry.value;
           break;
       }
       
@@ -121,20 +121,17 @@ export const QADialog: React.FC<QADialogProps> = ({
         
         switch (groupingStrategy) {
           case 'property':
-            // Filter by partial match on property name
+            // Filter by partial match anywhere within the property name
             shouldInclude = groupKey.toLowerCase().includes(lowerFilter);
             break;
           case 'value':
           default:
-            // Filter by partial match on the actual string values
-            shouldInclude = entries.some(entry => 
-              entry.value.toLowerCase().includes(lowerFilter)
-            );
+            // Filter by partial match anywhere within the actual string value
+            shouldInclude = groupKey.toLowerCase().includes(lowerFilter);
             break;
         }
         
         if (shouldInclude) {
-          // For value filtering, include the whole group but highlight the matching entries
           filteredGroups[groupKey] = entries;
         }
       });
@@ -335,7 +332,11 @@ export const QADialog: React.FC<QADialogProps> = ({
                           <CardHeader className="pb-3">
                             <CardTitle className="text-sm flex items-center justify-between">
                               <div className="min-w-0 flex-1">
-                                <div className="truncate font-medium">{group}</div>
+                                <div className="truncate font-medium">
+                                  {groupingStrategy === 'value' && group.length > 60 
+                                    ? `${group.substring(0, 60)}...` 
+                                    : group}
+                                </div>
                                 {groupingStrategy === 'property' && (
                                   <div className="text-xs text-muted-foreground mt-1">
                                     Property: {group}
