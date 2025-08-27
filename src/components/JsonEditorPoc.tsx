@@ -223,7 +223,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
         documentId={documentId}
       />
       <div className="p-2 border-b bg-muted/30 flex justify-between items-center">
-        <h2 className="font-semibold text-foreground">JSON Editor</h2>
+        
         <div className="flex items-center gap-3">
           <Dialog open={showCacheConfig} onOpenChange={setShowCacheConfig}>
             <DialogTrigger asChild>
