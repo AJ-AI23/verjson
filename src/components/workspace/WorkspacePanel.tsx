@@ -408,7 +408,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
             <SelectContent>
               {workspaces.map((workspace) => (
                 <SelectItem key={workspace.id} value={workspace.id}>
-                  <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center justify-between w-full pr-8">
                     <div className="flex items-center min-w-0 flex-1">
                       <Folder className="h-4 w-4 mr-2 flex-shrink-0" />
                       <span className="truncate">{workspace.name}</span>
@@ -422,7 +422,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                           setWorkspaceToDelete(workspace);
                           setWorkspaceDeleteDialogOpen(true);
                         }}
-                        className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground flex-shrink-0 ml-2"
+                        className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground flex-shrink-0"
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
