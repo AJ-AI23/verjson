@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Copy, Download, Languages, FileText, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractStringValues, createTranslationIndex, downloadJsonFile, TranslationEntry, detectSchemaType, SchemaType } from '@/lib/translationUtils';
@@ -24,6 +25,7 @@ export const QADialog: React.FC<QADialogProps> = ({
   const [open, setOpen] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+  const [groupingStrategy, setGroupingStrategy] = useState<'path' | 'property' | 'value'>('path');
 
   const translationData = useMemo(() => {
     try {
@@ -86,14 +88,42 @@ export const QADialog: React.FC<QADialogProps> = ({
     const groups: Record<string, TranslationEntry[]> = {};
     
     translationData.entries.forEach(entry => {
-      const topLevel = entry.path[0] || 'root';
-      if (!groups[topLevel]) {
-        groups[topLevel] = [];
+      let groupKey: string;
+      
+      switch (groupingStrategy) {
+        case 'property':
+          // Group by the last property name in the path
+          groupKey = entry.path.length > 0 ? entry.path[entry.path.length - 1] : 'root';
+          break;
+        case 'value':
+          // Group by identical values (truncate long values for display)
+          groupKey = entry.value.length > 50 ? `${entry.value.substring(0, 50)}...` : entry.value;
+          break;
+        case 'path':
+        default:
+          // Group by top-level path (original behavior)
+          groupKey = entry.path[0] || 'root';
+          break;
       }
-      groups[topLevel].push(entry);
+      
+      if (!groups[groupKey]) {
+        groups[groupKey] = [];
+      }
+      groups[groupKey].push(entry);
     });
     
     return groups;
+  }, [translationData.entries, groupingStrategy]);
+
+  // Get available property names for grouping
+  const availableProperties = useMemo(() => {
+    const props = new Set<string>();
+    translationData.entries.forEach(entry => {
+      if (entry.path.length > 0) {
+        props.add(entry.path[entry.path.length - 1]);
+      }
+    });
+    return Array.from(props).sort();
   }, [translationData.entries]);
 
   const handleValidateSchema = async () => {
@@ -211,35 +241,81 @@ export const QADialog: React.FC<QADialogProps> = ({
                 </div>
               
                 <TabsContent value="grouped" className="flex-1 min-h-0 mt-4 data-[state=active]:flex data-[state=active]:flex-col">
+                  <div className="mb-4 flex items-center gap-2">
+                    <span className="text-sm font-medium">Group by:</span>
+                    <Select value={groupingStrategy} onValueChange={(value: 'path' | 'property' | 'value') => setGroupingStrategy(value)}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="path">Top-level Path</SelectItem>
+                        <SelectItem value="property">Property Name</SelectItem>
+                        <SelectItem value="value">Identical Values</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {groupingStrategy === 'property' && availableProperties.length > 0 && (
+                      <div className="ml-2">
+                        <Badge variant="outline" className="text-xs">
+                          {availableProperties.length} unique properties
+                        </Badge>
+                      </div>
+                    )}
+                    {groupingStrategy === 'value' && (
+                      <div className="ml-2">
+                        <Badge variant="outline" className="text-xs">
+                          {Object.keys(groupedEntries).length} unique values
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
                   <ScrollArea className="flex-1 min-h-0 w-full">
-                <div className="space-y-4">
-                  {Object.entries(groupedEntries).map(([group, entries]) => (
-                    <Card key={group}>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-sm flex items-center justify-between">
-                          <span className="truncate min-w-0">{group}</span>
-                          <Badge variant="secondary" className="shrink-0">{entries.length} strings</Badge>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="pt-0">
-                        <div className="space-y-2">
-                          {entries.map((entry, index) => (
-                            <div key={index} className="p-2 bg-muted/30 rounded text-sm">
-                              <div className="min-w-0">
-                                <div className="font-mono text-xs text-muted-foreground mb-1 break-all">
-                                  {entry.key}
-                                </div>
-                                <div className="text-foreground break-words">
-                                  "{entry.value}"
-                                </div>
+                    <div className="space-y-4">
+                      {Object.entries(groupedEntries)
+                        .sort(([, a], [, b]) => b.length - a.length) // Sort by group size, largest first
+                        .map(([group, entries]) => (
+                        <Card key={group}>
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-sm flex items-center justify-between">
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate font-medium">{group}</div>
+                                {groupingStrategy === 'property' && (
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    Property: {group}
+                                  </div>
+                                )}
+                                {groupingStrategy === 'value' && entries.length > 1 && (
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    Duplicate value found in {entries.length} places
+                                  </div>
+                                )}
                               </div>
+                              <Badge variant="secondary" className="shrink-0">{entries.length} strings</Badge>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <div className="space-y-2">
+                              {entries.map((entry, index) => (
+                                <div key={index} className="p-2 bg-muted/30 rounded text-sm">
+                                  <div className="min-w-0">
+                                    <div className="font-mono text-xs text-muted-foreground mb-1 break-all">
+                                      {entry.key}
+                                    </div>
+                                    <div className="text-foreground break-words">
+                                      "{entry.value}"
+                                    </div>
+                                    {groupingStrategy !== 'path' && (
+                                      <div className="text-xs text-muted-foreground mt-1">
+                                        Path: {entry.path.join(' → ')}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
               </ScrollArea>
                 </TabsContent>
               
