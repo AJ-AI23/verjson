@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
   Version,
@@ -42,6 +42,8 @@ export const useVersioning = ({
   
   // Track if we've already attempted to create initial version for this document
   const initialVersionAttempted = useRef<string | null>(null);
+  // Track the last processed patch signature to prevent unnecessary processing
+  const lastPatchSignature = useRef<string>('');
   
   // Use database operations for document versions
   const {
@@ -62,21 +64,43 @@ export const useVersioning = ({
   const currentVersion = calculateLatestVersion(patches);
 
   // Update patches when database versions change and set database version on load
-  useEffect(() => {
+  const processVersions = useCallback(() => {
+    // Only process if we have versions and they're not loading
+    if (loading || !versions.length) {
+      if (!loading && !versions.length) {
+        // Clear patches if no versions exist
+        setPatches([]);
+        setDatabaseVersion('');
+        lastPatchSignature.current = '';
+      }
+      return;
+    }
+
     const schemaPatches = getSchemaPatches();
+    
+    // Only update if patches actually changed (deep comparison of IDs and selection states)
+    const newPatchSignature = schemaPatches.map(p => `${p.id}:${p.isSelected}`).join(',');
+    
+    if (lastPatchSignature.current === newPatchSignature) {
+      return; // No changes, skip processing
+    }
+    
+    lastPatchSignature.current = newPatchSignature;
     setPatches(schemaPatches);
     
-    // Set database version from the current merged state of selected versions when versions load
-    if (schemaPatches.length > 0 && !loading) {
-      try {
-        const currentMergedSchema = applySelectedPatches(schemaPatches);
-        const mergedSchemaString = JSON.stringify(currentMergedSchema, null, 2);
-        setDatabaseVersion(mergedSchemaString);
-      } catch (err) {
-        console.error('Failed to calculate database version from patches:', err);
-      }
+    // Set database version from the current merged state of selected versions
+    try {
+      const currentMergedSchema = applySelectedPatches(schemaPatches);
+      const mergedSchemaString = JSON.stringify(currentMergedSchema, null, 2);
+      setDatabaseVersion(mergedSchemaString);
+    } catch (err) {
+      console.error('Failed to calculate database version from patches:', err);
     }
-  }, [versions, loading]); // Removed getSchemaPatches from dependencies to prevent continuous calls
+  }, [versions, loading, getSchemaPatches]);
+
+  useEffect(() => {
+    processVersions();
+  }, [processVersions]);
 
   // Create initial version when document is loaded (only once per document)
   useEffect(() => {
@@ -319,6 +343,7 @@ export const useVersioning = ({
     setPatches([]);
     setDatabaseVersion('');
     initialVersionAttempted.current = null;
+    lastPatchSignature.current = '';
     setIsVersionHistoryOpen(false);
   };
 

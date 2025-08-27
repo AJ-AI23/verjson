@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -228,6 +228,11 @@ export function useDocumentVersions(documentId?: string) {
     };
   }, [user, documentId]);
 
+  // Memoize getSchemaPatches to prevent unnecessary re-processing
+  const getSchemaPatches = useCallback(() => {
+    return convertToSchemaPatches(versions);
+  }, [versions]);
+
   return {
     versions,
     loading,
@@ -236,11 +241,6 @@ export function useDocumentVersions(documentId?: string) {
     updateVersion,
     deleteVersion,
     refetch: fetchVersions,
-    // Helper to get patches in the expected format
-    getSchemaPatches: () => {
-      const patches = convertToSchemaPatches(versions);
-      // Removed continuous debug logging that was causing performance issues
-      return patches;
-    },
+    getSchemaPatches,
   };
 }
