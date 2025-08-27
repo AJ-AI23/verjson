@@ -46,6 +46,22 @@ export const useEditorHistory = ({
     return `editor-history-${docId || 'default'}`;
   }, []);
 
+  // Reset state when documentId changes
+  useEffect(() => {
+    // Clear any pending debounced operations when switching documents
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+      debounceTimeoutRef.current = null;
+    }
+    
+    // Reset initialization state to allow re-initialization with new document
+    setIsInitialized(false);
+    setHistory([]);
+    setCurrentIndex(-1);
+    lastSavedContentRef.current = '';
+    currentVersionInfoRef.current = null;
+  }, [documentId]);
+
   // Load history from localStorage and check version conflicts
   useEffect(() => {
     // Skip initialization if we don't have the necessary data yet
@@ -111,7 +127,7 @@ export const useEditorHistory = ({
         setCurrentIndex(-1);
       }
     };
-    
+
     // Only initialize once when we have all necessary data
     if (!isInitialized) {
       initializeHistory();
@@ -202,6 +218,13 @@ export const useEditorHistory = ({
       const newIndex = currentIndex - 1;
       const entry = history[newIndex];
       
+      // Validate that the entry belongs to the current document
+      if (entry.documentId && entry.documentId !== documentId) {
+        console.warn('Undo entry belongs to different document, skipping');
+        toast.error('Cannot undo: history mismatch');
+        return null;
+      }
+      
       setCurrentIndex(newIndex);
       lastSavedContentRef.current = entry.content;
       
@@ -219,13 +242,20 @@ export const useEditorHistory = ({
       toast.info('Nothing to undo');
       return null;
     }
-  }, [currentIndex, history, onContentChange]);
+  }, [currentIndex, history, onContentChange, documentId]);
 
   // Redo functionality
   const redo = useCallback(() => {
     if (currentIndex < history.length - 1) {
       const newIndex = currentIndex + 1;
       const entry = history[newIndex];
+      
+      // Validate that the entry belongs to the current document
+      if (entry.documentId && entry.documentId !== documentId) {
+        console.warn('Redo entry belongs to different document, skipping');
+        toast.error('Cannot redo: history mismatch');
+        return null;
+      }
       
       setCurrentIndex(newIndex);
       lastSavedContentRef.current = entry.content;
@@ -244,14 +274,21 @@ export const useEditorHistory = ({
       toast.info('Nothing to redo');
       return null;
     }
-  }, [currentIndex, history, onContentChange]);
+  }, [currentIndex, history, onContentChange, documentId]);
 
   // Clear history for current document
   const clearHistory = useCallback(() => {
+    // Clear any pending debounced operations
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+      debounceTimeoutRef.current = null;
+    }
+    
     setHistory([]);
     setCurrentIndex(-1);
     const storageKey = getStorageKey(documentId);
     localStorage.removeItem(storageKey);
+    lastSavedContentRef.current = '';
     toast.success('History cleared');
   }, [documentId, getStorageKey]);
 
