@@ -279,7 +279,7 @@ function processComponentsSchemas(
     shouldGroup
   });
   
-  const groupingResult = processSchemasWithGrouping(
+  const groupingResult = processWithGrouping(
     schemas,
     parentNodeId,
     xPos,
@@ -288,7 +288,8 @@ function processComponentsSchemas(
     result,
     5, // Max individual schemas before grouping
     collapsedPaths,
-    parentPath
+    parentPath,
+    [] // schemas don't have required props
   );
   
   console.log(`[OPENAPI LAYOUT] Created ${groupingResult.totalNodesCreated} nodes for ${groupingResult.nodesProcessed} schemas`);
