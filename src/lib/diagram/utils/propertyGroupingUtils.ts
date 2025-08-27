@@ -107,9 +107,25 @@ export function processPropertiesWithGrouping(
       yPosition
     );
     
-    // Enhanced grouped node data
-    groupedNode.data.label = `${groupedProperties.length} More Properties`;
-    groupedNode.data.isGroupedProperties = true; // Special flag for styling
+    // Enhanced grouped node data with proper PropertyDetails format
+    const propertyDetails = groupedProperties.map(([propName, propSchema]) => ({
+      name: propName,
+      type: propSchema?.type || 'any',
+      required: requiredProps.includes(propName),
+      format: propSchema?.format,
+      description: propSchema?.description,
+      reference: propSchema?.$ref
+    }));
+    
+    groupedNode.data = {
+      ...groupedNode.data,
+      label: `${groupedProperties.length} More Properties`,
+      isGroupedProperties: true, // Special flag for styling
+      propertyDetails: propertyDetails,
+      hasCollapsibleContent: true,
+      isCollapsed: false, // Grouped nodes show their content by default to display bullet points
+      description: `View details of ${groupedProperties.length} grouped properties`
+    };
     
     console.log('🔧 DEBUG [PROPERTY GROUPING] Creating grouped node:', {
       nodeId: groupedNode.id,
@@ -117,7 +133,9 @@ export function processPropertiesWithGrouping(
       position: { x: groupedXPos, y: yPosition },
       propertyCount: groupedProperties.length,
       hasPropertyDetails: !!groupedNode.data.propertyDetails,
-      isCollapsed: groupedNode.data.isCollapsed
+      propertyDetailsCount: propertyDetails.length,
+      isCollapsed: groupedNode.data.isCollapsed,
+      samplePropertyDetail: propertyDetails[0]
     });
     
     const groupedEdge = createEdge(parentNodeId, groupedNode.id, undefined, false, {}, 'structure');

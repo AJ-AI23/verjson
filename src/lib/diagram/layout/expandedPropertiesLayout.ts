@@ -114,8 +114,24 @@ function processProperties(
                               currentPath.endsWith('.components') ||
                               (currentDepth === 1 && currentPath.includes('properties'));
   
-  // Determine if we need to group properties (only for container expansions)
-  const shouldGroupProperties = isContainerExpansion && totalProperties > maxPropertiesLimit;
+  // Count how many properties are already individually expanded
+  const expandedPropertiesCount = propertyEntries.filter(([propName]) => {
+    const propPath = `${currentPath}.${propName}`;
+    return collapsedPaths[propPath] === false; // explicitly expanded
+  }).length;
+  
+  // Only group if this is a container expansion AND we're not showing individual expanded properties
+  const shouldGroupProperties = isContainerExpansion && 
+                               expandedPropertiesCount === 0 && 
+                               totalProperties > maxPropertiesLimit;
+  
+  console.log('🔧 DEBUG [EXPANDED LAYOUT] Grouping decision:', {
+    currentPath,
+    isContainerExpansion,
+    expandedPropertiesCount,
+    totalProperties,
+    shouldGroupProperties
+  });
   
   if (shouldGroupProperties) {
     console.log(`Using property grouping for container expansion: ${currentPath} with ${totalProperties} properties`);
