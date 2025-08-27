@@ -16,9 +16,14 @@ interface NodeRendererProps {
 }
 
 export const NodeRenderer = memo(({ data, id, isConnectable, onAddNotation, expandedNotationPaths }: NodeRendererProps) => {
+  // Check if this is a grouped properties node first
+  if (data.isGroupedProperties || id.includes('grouped')) {
+    return <SchemaTypeNode data={data} id={id} isConnectable={isConnectable} onAddNotation={onAddNotation} expandedNotationPaths={expandedNotationPaths} />;
+  }
+  
   const nodeType = data.nodeType || (id.includes('info') ? 'info' : 
                    id.includes('endpoint') ? 'endpoint' :
-                   id.includes('components') ? 'components' :
+                   id.includes('components') && !id.includes('grouped') ? 'components' :
                    id.includes('method') ? 'method' :
                    id.includes('response') ? 'response' :
                    id.includes('request-body') ? 'requestBody' :
