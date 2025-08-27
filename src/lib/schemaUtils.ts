@@ -232,40 +232,33 @@ const validateJsonSchemaSyntax = async (schema: any): Promise<ValidationResult> 
   };
 
   try {
-    // Check if schema has $schema property and load appropriate meta-schema
-    if (schema.$schema) {
-      const schemaUrl = schema.$schema;
-      
-      // Try to ensure the meta-schema is loaded
-      if (!ajv.getSchema(schemaUrl)) {
-        try {
-          const response = await fetch(schemaUrl);
-          if (response.ok) {
-            const metaSchema = await response.json();
-            ajv.addMetaSchema(metaSchema, schemaUrl);
-          }
-        } catch (error) {
-          result.warnings.push({
-            path: '$schema',
-            message: `Could not load meta-schema from ${schemaUrl}`,
-            suggestion: 'The schema validation will use basic JSON Schema validation'
-          });
-        }
-      }
-    }
+    // Check schema version and handle accordingly
+    const schemaVersion = schema.$schema;
     
-    // Validate against JSON Schema meta-schema
-    const isValid = ajv.validateSchema(schema);
-    
-    if (!isValid && ajv.errors) {
-      result.isValid = false;
-      ajv.errors.forEach(error => {
-        result.errors.push({
-          path: error.instancePath || error.schemaPath || 'root',
-          message: `${error.message}`,
-          severity: 'error'
-        });
+    if (schemaVersion && schemaVersion.includes('2020-12')) {
+      // For JSON Schema 2020-12, use basic validation since the meta-schema is complex
+      result.warnings.push({
+        path: '$schema',
+        message: 'Using basic validation for JSON Schema 2020-12',
+        suggestion: 'Full 2020-12 meta-schema validation requires complex reference resolution'
       });
+      
+      // Perform basic structural validation
+      return validateBasicJsonSchemaStructure(schema);
+    } else {
+      // For older versions (draft-07 and earlier), use AJV validation
+      const isValid = ajv.validateSchema(schema);
+      
+      if (!isValid && ajv.errors) {
+        result.isValid = false;
+        ajv.errors.forEach(error => {
+          result.errors.push({
+            path: error.instancePath || error.schemaPath || 'root',
+            message: `${error.message}`,
+            severity: 'error'
+          });
+        });
+      }
     }
 
     // Additional JSON Schema best practices checks
@@ -309,6 +302,92 @@ const validateJsonSchemaSyntax = async (schema: any): Promise<ValidationResult> 
       message: `JSON Schema validation error: ${error instanceof Error ? error.message : 'Unknown error'}`,
       severity: 'error'
     });
+  }
+
+  return result;
+};
+
+// Basic structural validation for JSON Schema 2020-12
+const validateBasicJsonSchemaStructure = (schema: any): ValidationResult => {
+  const result: ValidationResult = {
+    isValid: true,
+    errors: [],
+    warnings: []
+  };
+
+  // Check basic JSON Schema structure
+  if (typeof schema !== 'object' || schema === null) {
+    result.isValid = false;
+    result.errors.push({
+      path: 'root',
+      message: 'Schema must be an object',
+      severity: 'error'
+    });
+    return result;
+  }
+
+  // Check for valid type values
+  if (schema.type) {
+    const validTypes = ['null', 'boolean', 'object', 'array', 'number', 'string', 'integer'];
+    const types = Array.isArray(schema.type) ? schema.type : [schema.type];
+    
+    types.forEach((type: string) => {
+      if (!validTypes.includes(type)) {
+        result.errors.push({
+          path: 'type',
+          message: `Invalid type "${type}". Valid types are: ${validTypes.join(', ')}`,
+          severity: 'error'
+        });
+      }
+    });
+  }
+
+  // Check properties structure
+  if (schema.properties && typeof schema.properties !== 'object') {
+    result.errors.push({
+      path: 'properties',
+      message: 'Properties must be an object',
+      severity: 'error'
+    });
+  }
+
+  // Check required array
+  if (schema.required && !Array.isArray(schema.required)) {
+    result.errors.push({
+      path: 'required',
+      message: 'Required must be an array',
+      severity: 'error'
+    });
+  }
+
+  // Check items structure
+  if (schema.items && typeof schema.items !== 'object' && typeof schema.items !== 'boolean') {
+    result.errors.push({
+      path: 'items',
+      message: 'Items must be an object or boolean',
+      severity: 'error'
+    });
+  }
+
+  // Add best practice warnings
+  if (!schema.title) {
+    result.warnings.push({
+      path: 'root',
+      message: 'Missing title property',
+      suggestion: 'Add a "title" property to describe what this schema represents'
+    });
+  }
+
+  if (!schema.description) {
+    result.warnings.push({
+      path: 'root',
+      message: 'Missing description property',
+      suggestion: 'Add a "description" property to explain the purpose of this schema'
+    });
+  }
+
+  if (result.errors.length > 0) {
+    result.isValid = false;
   }
 
   return result;
