@@ -40,7 +40,7 @@ export const useEditorHistory = ({
         const parsed = JSON.parse(savedHistory);
         setHistory(parsed.history || []);
         setCurrentIndex(parsed.currentIndex ?? -1);
-        console.log(`Loaded editor history for document ${documentId}:`, parsed.history.length, 'entries');
+        
       } catch (error) {
         console.error('Failed to load editor history:', error);
         setHistory([]);

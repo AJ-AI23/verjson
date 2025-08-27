@@ -45,12 +45,8 @@ export const useDiagramNodes = (
     }
   }, [collapsedPaths]);
 
-  // Log changes to collapsedPaths for debugging
+  // Update schemaKey when collapsedPaths changes
   useEffect(() => {
-    const pathsCount = Object.keys(collapsedPaths).length;
-    console.log(`useDiagramNodes: collapsedPaths updated with ${pathsCount} entries`);
-    console.log('Collapsed paths:', collapsedPaths);
-    
     // Force schemaKey increment to trigger redraw when collapsedPaths changes
     if (!initialRenderRef.current) {
       setSchemaKey(prev => prev + 1);
@@ -71,9 +67,8 @@ export const useDiagramNodes = (
     // Check if this is the initial render before changing the flag
     const isInitialRender = initialRenderRef.current;
     
-    // For the first render or if there's an error, log but continue
+    // Mark initial render as done
     if (isInitialRender) {
-      console.log('Initial useDiagramNodes render');
       initialRenderRef.current = false;
     }
 
@@ -84,7 +79,6 @@ export const useDiagramNodes = (
     
     // Skip if there's an error or no schema
     if (error) {
-      console.log('Skipping diagram generation due to error');
       if (nodes.length > 0 || edges.length > 0) {
         setNodes([]);
         setEdges([]);
@@ -93,7 +87,6 @@ export const useDiagramNodes = (
     }
     
     if (!schema) {
-      console.log('Skipping diagram generation due to no schema');
       if (nodes.length > 0 || edges.length > 0) {
         setNodes([]);
         setEdges([]);
@@ -110,15 +103,6 @@ export const useDiagramNodes = (
     const forceUpdate = isInitialRender;
     
     if (schemaChanged || groupSettingChanged || collapsedPathsChanged || forceUpdate) {
-      console.log('🔵 Schema or settings changed, generating new diagram', {
-        schemaChanged,
-        groupSettingChanged,
-        collapsedPathsChanged,
-        forceUpdate,
-        rootCollapsed: collapsedPaths.root === true,
-        collapsedPathsString: collapsedPathsString.substring(0, 100) + '...'
-      });
-      
       // Update refs with current values
       schemaStringRef.current = schemaString;
       collapsedPathsRef.current = {...collapsedPaths};
@@ -136,7 +120,6 @@ export const useDiagramNodes = (
       setSchemaKey(prev => prev + 1);
       
       // Generate diagram elements with unlimited depth - let collapsed paths control visibility
-      console.log(`Generating nodes and edges with unlimited depth`);
       const { nodes: newNodes, edges: newEdges } = generateNodesAndEdges(
         schema, 
         groupProperties, 
@@ -146,7 +129,6 @@ export const useDiagramNodes = (
       
       // Apply saved positions to new nodes where possible
       const positionedNodes = applyStoredPositions(newNodes);
-      console.log(`Generated ${positionedNodes.length} nodes and ${newEdges.length} edges`);
       
       // Set the new nodes and edges
       setNodes(positionedNodes);
@@ -159,7 +141,6 @@ export const useDiagramNodes = (
 
     // Update group properties setting when it changes
     if (prevGroupSetting !== groupProperties) {
-      console.log('Group properties setting changed');
       setPrevGroupSetting(groupProperties);
     }
     

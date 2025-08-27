@@ -94,14 +94,12 @@ export const generatePatch = (
 export const savePatches = async (patches: SchemaPatch[], documentId?: string): Promise<void> => {
   // This function is now handled by useDocumentVersions hook
   // Keeping for backward compatibility but it's a no-op
-  console.log('savePatches called - now handled by database operations');
 };
 
 // Load patches from database instead of localStorage  
 export const loadPatches = (documentId?: string): SchemaPatch[] => {
   // This function is now handled by useDocumentVersions hook
   // Keeping for backward compatibility but returns empty array
-  console.log('loadPatches called - now handled by database operations');
   return [];
 };
 
@@ -145,19 +143,6 @@ const reverseOperation = (op: Operation): Operation => {
 
 // Apply selected patches to build the current schema
 export const applySelectedPatches = (patches: SchemaPatch[]): any => {
-  console.log('🔍 applySelectedPatches called with:', {
-    totalPatches: patches.length,
-    patchDetails: patches.map(p => ({ 
-      id: p.id, 
-      description: p.description, 
-      isSelected: p.isSelected,
-      isReleased: p.isReleased,
-      hasFullDocument: !!p.fullDocument,
-      hasPatches: !!p.patches,
-      timestamp: p.timestamp,
-      version: formatVersion(p.version)
-    }))
-  });
   
   // Validate that we have patches to work with
   if (!patches || patches.length === 0) {
@@ -179,15 +164,9 @@ export const applySelectedPatches = (patches: SchemaPatch[]): any => {
       if (patch.fullDocument) {
         baseSchema = JSON.parse(JSON.stringify(patch.fullDocument)); // Deep clone
         startIndex = i + 1;
-        console.log(`Using released version ${formatVersion(patch.version)} as base with fullDocument:`, {
-          keys: Object.keys(patch.fullDocument),
-          hasContent: Object.keys(patch.fullDocument).length > 0,
-          preview: JSON.stringify(patch.fullDocument).substring(0, 200)
-        });
         break;
       } else {
         // For initial version without fullDocument, apply all patches from beginning
-        console.log(`Using released version ${formatVersion(patch.version)} as base, applying all patches`);
         startIndex = 0;
         break;
       }
@@ -195,14 +174,9 @@ export const applySelectedPatches = (patches: SchemaPatch[]): any => {
   }
   
   // If no released version found, start with empty object
-  if (startIndex === 0 && Object.keys(baseSchema).length === 0) {
-    console.log('No released version found, starting with empty schema');
-  }
   
   // If we only have the base schema and no more patches to apply, return it
   if (startIndex >= sortedPatches.length) {
-    console.log('No additional patches to apply, returning base schema with keys:', Object.keys(baseSchema));
-    
     // Validate that the base schema is not empty
     if (Object.keys(baseSchema).length === 0) {
       console.error('Base schema is empty, this indicates a problem with document loading');
@@ -219,7 +193,6 @@ export const applySelectedPatches = (patches: SchemaPatch[]): any => {
     const patch = sortedPatches[i];
     if (patch.isSelected && patch.patches && patch.patches.length > 0) {
       try {
-        console.log(`Applying patch ${formatVersion(patch.version)}:`, patch.description);
         schema = applyPatch(schema, patch.patches).newDocument;
       } catch (err) {
         console.error('Failed to apply patch:', patch, err);
@@ -229,7 +202,7 @@ export const applySelectedPatches = (patches: SchemaPatch[]): any => {
     }
   }
   
-  console.log('Final schema has keys:', Object.keys(schema));
+  
   
   // Final validation - ensure the resulting schema is not empty
   if (!schema || (typeof schema === 'object' && Object.keys(schema).length === 0)) {
