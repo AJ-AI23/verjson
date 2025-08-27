@@ -114,7 +114,7 @@ export const QADialog: React.FC<QADialogProps> = ({
           <span>QA</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh] p-0 flex flex-col">
+      <DialogContent className="max-w-4xl h-[80vh] p-0 flex flex-col">
         <DialogHeader className="p-6 pb-2 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Languages className="h-5 w-5" />
@@ -127,8 +127,8 @@ export const QADialog: React.FC<QADialogProps> = ({
           </DialogTitle>
         </DialogHeader>
         
-        <div className="flex-1 min-h-0 p-6 pt-2">
-          <div className="space-y-4 h-full flex flex-col">
+        <div className="flex-1 min-h-0 p-6 pt-2 overflow-hidden">
+          <div className="space-y-4 h-full flex flex-col max-h-full">
             {/* Summary Card */}
             <Card className="shrink-0">
               <CardHeader className="pb-3">
@@ -168,17 +168,18 @@ export const QADialog: React.FC<QADialogProps> = ({
             </Card>
 
             {/* Tabs for different views */}
-            <Tabs defaultValue="grouped" className="flex-1 min-h-0 flex flex-col">
-              <div className="overflow-x-auto shrink-0">
-                <TabsList className="inline-flex w-auto min-w-full">
-                  <TabsTrigger value="grouped" className="flex-shrink-0">Grouped View</TabsTrigger>
-                  <TabsTrigger value="flat" className="flex-shrink-0">Flat Index</TabsTrigger>
-                  <TabsTrigger value="syntax" className="flex-shrink-0">Syntax</TabsTrigger>
-                </TabsList>
-              </div>
-            
-              <TabsContent value="grouped" className="flex-1 min-h-0 mt-4">
-                <ScrollArea className="h-full w-full">
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <Tabs defaultValue="grouped" className="h-full flex flex-col">
+                <div className="overflow-x-auto shrink-0">
+                  <TabsList className="inline-flex w-auto min-w-full">
+                    <TabsTrigger value="grouped" className="flex-shrink-0">Grouped View</TabsTrigger>
+                    <TabsTrigger value="flat" className="flex-shrink-0">Flat Index</TabsTrigger>
+                    <TabsTrigger value="syntax" className="flex-shrink-0">Syntax</TabsTrigger>
+                  </TabsList>
+                </div>
+              
+                <TabsContent value="grouped" className="flex-1 min-h-0 mt-4 data-[state=active]:flex data-[state=active]:flex-col">
+                  <ScrollArea className="flex-1 min-h-0 w-full">
                 <div className="space-y-4">
                   {Object.entries(groupedEntries).map(([group, entries]) => (
                     <Card key={group}>
@@ -208,10 +209,10 @@ export const QADialog: React.FC<QADialogProps> = ({
                   ))}
                 </div>
               </ScrollArea>
-            </TabsContent>
-            
-              <TabsContent value="flat" className="flex-1 min-h-0 mt-4">
-                <ScrollArea className="h-full w-full">
+                </TabsContent>
+              
+                <TabsContent value="flat" className="flex-1 min-h-0 mt-4 data-[state=active]:flex data-[state=active]:flex-col">
+                  <ScrollArea className="flex-1 min-h-0 w-full">
                 <div className="space-y-2">
                   {translationData.entries.map((entry, index) => (
                     <div key={index} className="p-3 border rounded text-sm">
@@ -227,10 +228,10 @@ export const QADialog: React.FC<QADialogProps> = ({
                   ))}
                 </div>
               </ScrollArea>
-            </TabsContent>
-            
-              <TabsContent value="syntax" className="flex-1 min-h-0 mt-4">
-                <div className="space-y-4 h-full flex flex-col">
+                </TabsContent>
+              
+                <TabsContent value="syntax" className="flex-1 min-h-0 mt-4 data-[state=active]:flex data-[state=active]:flex-col">
+                  <div className="space-y-4 flex-1 min-h-0 flex flex-col">
                   <div className="flex items-center justify-between shrink-0">
                     <h3 className="text-sm font-medium truncate">Schema Validation</h3>
                     <Button 
@@ -249,10 +250,10 @@ export const QADialog: React.FC<QADialogProps> = ({
                       )}
                     </Button>
                   </div>
-                
-                  {validationResult && (
-                    <div className="flex-1 min-h-0">
-                      <ScrollArea className="h-full w-full">
+                  
+                    {validationResult && (
+                      <div className="flex-1 min-h-0">
+                        <ScrollArea className="h-full w-full">
                     <div className="space-y-4">
                       {/* Validation Summary */}
                       <Card>
@@ -344,27 +345,28 @@ export const QADialog: React.FC<QADialogProps> = ({
                           </CardContent>
                         </Card>
                       )}
+                        </div>
+                        </ScrollArea>
                       </div>
-                      </ScrollArea>
-                    </div>
-                  )}
-                
-                  {!validationResult && (
-                    <div className="flex-1 min-h-0 flex items-center justify-center">
-                      <Card className="w-full max-w-md">
-                        <CardContent className="pt-4">
-                          <div className="text-center py-8">
-                            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                            <h3 className="text-lg font-medium text-muted-foreground mb-2">Ready to Validate</h3>
-                            <p className="text-muted-foreground text-sm">Click the Validate button to check your schema for syntax errors and best practices.</p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-            </Tabs>
+                    )}
+                  
+                    {!validationResult && (
+                      <div className="flex-1 min-h-0 flex items-center justify-center">
+                        <Card className="w-full max-w-md">
+                          <CardContent className="pt-4">
+                            <div className="text-center py-8">
+                              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                              <h3 className="text-lg font-medium text-muted-foreground mb-2">Ready to Validate</h3>
+                              <p className="text-muted-foreground text-sm">Click the Validate button to check your schema for syntax errors and best practices.</p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
           </div>
         </div>
       </DialogContent>
