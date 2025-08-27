@@ -74,27 +74,20 @@ export const useJsonEditorEvents = ({
   const createEditorEventHandlers = useCallback(() => {
     // Remove debug toast that runs frequently
     
-    // Handle expand event from JSONEditor - we use this to toggle the collapsed state
+    // Handle expand event from JSONEditor - read the actual node state
     const onExpand = (node: any) => {
       const path = node.path.length > 0 ? node.path.join('.') : 'root';
       const normalizedPath = normalizePath(path);
       
+      // Read the actual collapsed state from the JSONEditor node
+      // JSONEditor sets node.collapsed to true when collapsed, false when expanded
+      const actualCollapsedState = node.collapsed === true;
+      
       console.log(`🔧 JSONEditor onExpand event: ${normalizedPath}`);
-      console.log(`🔧 Current collapsedPaths:`, collapsedPaths);
-      
-      // Get the current state from the most up-to-date source
-      const currentlyCollapsed = collapsedPaths[normalizedPath] !== undefined ? 
-        collapsedPaths[normalizedPath] : false; // Default to expanded
-      
-      console.log(`🔧 Current state for ${normalizedPath}: ${currentlyCollapsed ? 'collapsed' : 'expanded'}`);
-      
-      // User clicked expand/collapse, so we want to toggle the current state
-      const newCollapsedState = !currentlyCollapsed;
-      
-      console.log(`🔧 Toggling ${normalizedPath} to: ${newCollapsedState ? 'collapsed' : 'expanded'}`);
+      console.log(`🔧 Node actual state: ${actualCollapsedState ? 'collapsed' : 'expanded'}`);
       
       if (onToggleCollapse) {
-        onToggleCollapse(normalizedPath, newCollapsedState);
+        onToggleCollapse(normalizedPath, actualCollapsedState);
       }
       
       // Update debug state if needed
@@ -102,9 +95,9 @@ export const useJsonEditorEvents = ({
         setFoldingDebug({
           timestamp: Date.now(),
           path: normalizedPath,
-          lastOperation: newCollapsedState ? 'collapse' : 'expand',
-          isCollapsed: newCollapsedState,
-          previousState: currentlyCollapsed
+          lastOperation: actualCollapsedState ? 'collapse' : 'expand',
+          isCollapsed: actualCollapsedState,
+          previousState: !actualCollapsedState // Previous state was opposite
         });
       }
       
