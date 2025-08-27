@@ -492,6 +492,43 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
               </Dialog>
             </div>
 
+            {/* Workspace Management Actions */}
+            {isWorkspaceOwner && (
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const workspace = workspaces.find(w => w.id === selectedWorkspace);
+                    if (workspace) {
+                      setWorkspaceToEdit(workspace);
+                      setEditWorkspaceName(workspace.name);
+                      setEditWorkspaceDesc(workspace.description || '');
+                      setShowWorkspaceEditDialog(true);
+                    }
+                  }}
+                  className="flex-1"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Workspace
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const workspace = workspaces.find(w => w.id === selectedWorkspace);
+                    if (workspace) {
+                      setWorkspaceToDelete(workspace);
+                      setWorkspaceDeleteDialogOpen(true);
+                    }
+                  }}
+                  className="hover:bg-destructive hover:text-destructive-foreground"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+
             {/* Document List */}
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
