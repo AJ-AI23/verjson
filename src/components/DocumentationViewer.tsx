@@ -21,7 +21,7 @@ Welcome to the JSON Schema Editor! This powerful tool helps you create, visualiz
 ## Quick Start
 
 1. **Create a new schema**: Start with a blank schema or use one of our templates
-2. **Edit your schema**: Use the JSON editor with full JSON Schema validation
+2. **Edit your schema**: Use the Monaco editor with full JSON Schema validation
 3. **Visualize**: Switch to diagram view to see your schema structure
 4. **Collaborate**: Share your schemas with team members
 

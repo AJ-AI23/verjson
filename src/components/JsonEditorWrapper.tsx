@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { JsonEditorComponent } from './JsonEditorComponent';
+import { JsonEditorPoc } from './JsonEditorPoc';
 import { CollapsedState } from '@/lib/diagram/types';
 
 interface JsonEditorWrapperProps {
@@ -23,7 +23,7 @@ export const JsonEditorWrapper: React.FC<JsonEditorWrapperProps> = ({
   documentId
 }) => {
   return (
-    <JsonEditorComponent
+    <JsonEditorPoc
       value={value}
       onChange={onChange}
       error={error}

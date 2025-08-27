@@ -57,8 +57,7 @@ export const useJsonEditorEvents = ({
   const getPathState = useCallback((path: string): boolean => {
     const normalizedPath = normalizePath(path);
     const valueInRef = collapsedPathsRef.current[normalizedPath];
-    // Default to expanded (false) if not specified, so diagram shows child nodes
-    const currentState = valueInRef !== undefined ? valueInRef : false;
+    const currentState = valueInRef !== undefined ? valueInRef : true; // Default to collapsed if not specified
     
     return currentState;
   }, [normalizePath, collapsedPathsRef]);
@@ -68,23 +67,53 @@ export const useJsonEditorEvents = ({
     onToggleCollapse,
     maxDepth
   });
-  // Remove debug toast that runs on every initialization
+  debugToast('useJsonEditorEvents initialized', { maxDepth });
 
   // Create event handlers for JSONEditor
   const createEditorEventHandlers = useCallback(() => {
-    // Remove debug toast that runs frequently
+    debugToast('Creating JSONEditor event handlers with toggle logic');
     
-    // Handle expand event from JSONEditor - user clicked to expand a path
+    // Handle expand event from JSONEditor - we use this to toggle the collapsed state
     const onExpand = (node: any) => {
       const path = node.path.length > 0 ? node.path.join('.') : 'root';
       const normalizedPath = normalizePath(path);
       
-      console.log(`🔧 JSONEditor onExpand event: ${normalizedPath} - user wants to expand`);
+      // Reduced logging - only log when necessary
+      if (path === 'root' || path.includes('properties')) {
+        debugToast(`onExpand: ${normalizedPath}`);
+      }
       
-      // User clicked to expand, so set this path to expanded (false)
-      // According to tests, only explicitly expanded paths (false) show nodes
+      // Force update the ref to latest state before reading
+      collapsedPathsRef.current = { ...collapsedPaths };
+      
+      // Get the current state (default to true/collapsed if not set)
+      const currentlyCollapsed = getPathState(normalizedPath);
+      
+      // Toggle the state - inverse of current state
+      // If current state is true (collapsed), new state is false (expanded)
+      // If current state is false (expanded), new state is true (collapsed)
+      const newCollapsedState = !currentlyCollapsed;
+      
+      // Only log significant state changes
+      if (path === 'root' || path.includes('properties')) {
+        debugToast(`${normalizedPath}: ${currentlyCollapsed ? 'collapsed' : 'expanded'} → ${newCollapsedState ? 'collapsed' : 'expanded'}`);
+      }
+      
       if (onToggleCollapse) {
-        onToggleCollapse(normalizedPath, false); // false = expanded = show nodes
+        onToggleCollapse(normalizedPath, newCollapsedState);
+        
+        // If we're expanding a node and have rootSchema, perform bulk expand
+        // Only allow bulk expansion for specific paths, not root or very shallow paths
+        const shouldBulkExpand = !newCollapsedState && rootSchema && 
+          normalizedPath !== 'root' && 
+          (normalizedPath.includes('.') && normalizedPath.split('.').length >= 2);
+          
+        if (shouldBulkExpand) {
+          // Throttle bulk expand operations
+          setTimeout(() => {
+            bulkExpand(normalizedPath, rootSchema, true, editorRef, collapsedPathsRef);
+          }, 50);
+        }
       }
       
       // Update debug state if needed
@@ -92,14 +121,30 @@ export const useJsonEditorEvents = ({
         setFoldingDebug({
           timestamp: Date.now(),
           path: normalizedPath,
-          lastOperation: 'expand',
-          isCollapsed: false,
-          previousState: true // was collapsed
+          lastOperation: newCollapsedState ? 'collapse' : 'expand',
+          isCollapsed: newCollapsedState,
+          previousState: currentlyCollapsed
         });
       }
       
-      // Remove the manual editor sync that fights with user actions
-      // Let React handle the state updates through normal flow
+      // If we have access to the editor, apply the change directly to the specific node
+      if (editorRef && editorRef.current) {
+        try {
+          // Throttle editor synchronization to prevent excessive calls
+          setTimeout(() => {
+            if (!editorRef.current) return;
+            
+            const pathArray = Array.isArray(node.path) ? node.path : path.split('.');
+            editorRef.current.expand({
+              path: pathArray,
+              isExpand: !newCollapsedState,
+              recursive: false
+            });
+          }, 25);
+        } catch (err) {
+          console.error('Error synchronizing editor node state:', err);
+        }
+      }
     };
     
     return { 

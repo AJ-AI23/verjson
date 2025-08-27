@@ -19,7 +19,7 @@ export const useJsonEditorInitialization = ({
     const editor = editorRef.current;
     if (!editor) return;
     
-    
+    console.log('[DEBUG] Updating JSONEditor event handlers with new maxDepth');
     
     // Update the event handlers on the existing editor
     const newEventHandlers = createEditorEventHandlers();
@@ -35,6 +35,8 @@ export const useJsonEditorInitialization = ({
     try {
       // Get event handlers from our events hook
       const eventHandlers = createEditorEventHandlers();
+      
+      console.log('Initializing JSONEditor with event handlers', eventHandlers);
       
       // JSONEditor options
       const options = {
@@ -55,22 +57,15 @@ export const useJsonEditorInitialization = ({
       // Set initial content
       try {
         editor.set(JSON.parse(value));
-        
-        // Start collapsed to match empty collapsedPaths state - nodes only show on explicit expansion
-        setTimeout(() => {
-          try {
-            editor.collapseAll();
-          } catch (e) {
-            console.error('Could not collapse editor on init:', e);
-          }
-        }, 50); // Small delay to ensure content is set
       } catch (e) {
         // If parsing fails, just show the raw text
         editor.setText(value);
+        console.error('Failed to parse initial JSON:', e);
       }
 
       // Store the editor instance in the ref
       editorRef.current = editor;
+      console.log('JSONEditor initialized with toggle event handler');
       
       return editor;
     } catch (err) {

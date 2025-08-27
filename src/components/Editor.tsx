@@ -77,8 +77,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
       const schemaString = JSON.stringify(initialSchema, null, 2);
       setSchema(schemaString);
       setSavedSchema(schemaString);
-      // Start with root expanded to show child nodes by default
-      setCollapsedPaths({ root: false });
+      setCollapsedPaths({ root: true });
       lastLoadedSchemaRef.current = initialSchema;
     }
   }, [initialSchema, setSchema, setSavedSchema, setCollapsedPaths, schemaType, handleSchemaTypeChange]);

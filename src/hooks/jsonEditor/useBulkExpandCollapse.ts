@@ -37,7 +37,7 @@ export const useBulkExpandCollapse = ({
     return current;
   }, []);
 
-  // Optimized bulk expand function with limits for performance
+  // Bulk expand function - focuses on structural depth levels
   const bulkExpand = useCallback((
     basePath: string, 
     rootSchema: any,
@@ -46,12 +46,12 @@ export const useBulkExpandCollapse = ({
     collapsedPathsRef?: React.MutableRefObject<CollapsedState>
   ) => {
     if (!editorRef?.current || !onToggleCollapse) {
+      debugToast('Missing editor or onToggleCollapse callback');
       return;
     }
 
-    // Limit bulk expansion to prevent performance issues with large objects like 227 properties
-    const MAX_BULK_PATHS = 15; // Limit to 15 paths maximum
-    const LARGE_OBJECT_THRESHOLD = 20; // If object has more than 20 properties, be more selective
+    debugToast(`Starting bulk expand for: ${basePath}`);
+    debugToast(`bulkExpand received maxDepth: ${maxDepth}`);
 
     // Before expanding new paths, collapse any existing paths that are deeper than maxDepth
     if (collapsedPathsRef?.current) {
@@ -62,6 +62,7 @@ export const useBulkExpandCollapse = ({
         if (!isCollapsed && path.startsWith(basePath) && path !== basePath) {
           const pathDepth = path === 'root' ? 0 : path.split('.').length - 1;
           if (pathDepth > maxAllowedDepth) {
+            debugToast(`Collapsing deep path: ${path} (depth ${pathDepth} > max ${maxAllowedDepth})`);
             onToggleCollapse(path, true); // true = collapsed
           }
         }
@@ -72,77 +73,67 @@ export const useBulkExpandCollapse = ({
     const pathsToExpand: string[] = [];
     const baseDepth = basePath === 'root' ? 0 : basePath.split('.').length - 1;
 
-    // If maxDepth is 1, don't bulk expand any children
+    // If maxDepth is 1, don't bulk expand any children - just let JSONEditor handle the natural expansion
     if (maxDepth <= 1) {
+      debugToast(`maxDepth is ${maxDepth}, skipping bulk expansion`);
       return;
     }
 
-    // Optimized path generation with limits to prevent processing 227+ properties
+    // Recursively generate all possible paths from the schema
     const generatePaths = (currentSchema: any, currentPath: string) => {
       const currentDepth = currentPath === 'root' ? 0 : currentPath.split('.').length - 1;
       
-      // Stop if we've reached max depth or max paths
-      if (currentDepth >= baseDepth + (maxDepth - 1) || 
-          pathsToExpand.length >= MAX_BULK_PATHS ||
-          !currentSchema || 
-          typeof currentSchema !== 'object') {
-        return;
-      }
+      // For maxDepth > 1, expand up to baseDepth + (maxDepth - 1) levels
+      if (currentDepth >= baseDepth + (maxDepth - 1) || !currentSchema || typeof currentSchema !== 'object') return;
 
-      const keys = Object.keys(currentSchema);
-      
-      // If this is a large object (like 227 properties), only expand the first few properties
-      const keysToProcess = keys.length > LARGE_OBJECT_THRESHOLD 
-        ? keys.slice(0, Math.min(10, MAX_BULK_PATHS - pathsToExpand.length))
-        : keys.slice(0, MAX_BULK_PATHS - pathsToExpand.length);
-
-      keysToProcess.forEach(propName => {
+      // For any object, iterate through all its keys as potential expandable paths
+      Object.keys(currentSchema).forEach(propName => {
         const propPath = currentPath === 'root' ? `root.${propName}` : `${currentPath}.${propName}`;
         const propDepth = propPath.split('.').length - 1;
         
-        if (propDepth <= baseDepth + (maxDepth - 1) && pathsToExpand.length < MAX_BULK_PATHS) {
+        if (propDepth <= baseDepth + (maxDepth - 1)) {
           pathsToExpand.push(propPath);
-          
-          // Only recurse if we haven't hit our limits
-          if (pathsToExpand.length < MAX_BULK_PATHS) {
-            generatePaths(currentSchema[propName], propPath);
-          }
+          generatePaths(currentSchema[propName], propPath);
         }
       });
     };
 
     // Get the schema for the clicked path and generate expansion paths
     const schemaAtPath = getSchemaAtPath(rootSchema, basePath);
+    debugToast(`Schema at path ${basePath}`, schemaAtPath);
     
     if (schemaAtPath) {
       generatePaths(schemaAtPath, basePath);
+    } else {
+      debugToast(`No schema found at path: ${basePath}`);
     }
+
+    debugToast(`Generated ${pathsToExpand.length} paths for baseDepth ${baseDepth} + (maxDepth-1) ${maxDepth-1}`, pathsToExpand);
     
-    // Process each path with throttling for better performance
+    // Process each path using JSONEditor API directly
     pathsToExpand.forEach((path, index) => {
-      // Stagger the operations to prevent UI blocking
-      setTimeout(() => {
-        try {
-          const pathArray = convertPathToArray(path);
-          
-          // Call JSONEditor expand method directly
-          editorRef.current?.expand({
-            path: pathArray,
-            isExpand: true,
-            recursive: false
-          });
-          
-          // Update the diagram state by calling onToggleCollapse
-          if (onToggleCollapse) {
-            onToggleCollapse(path, false); // false = expanded
-          }
-          
-        } catch (error) {
-          console.error(`Error expanding path ${path}:`, error);
+      try {
+        const pathArray = convertPathToArray(path);
+        debugToast(`Expanding ${index + 1}/${pathsToExpand.length}: ${path} -> [${pathArray.join(', ')}]`);
+        
+        // Call JSONEditor expand method directly
+        editorRef.current.expand({
+          path: pathArray,
+          isExpand: true,
+          recursive: false
+        });
+        
+        // Update the diagram state by calling onToggleCollapse
+        if (onToggleCollapse) {
+          onToggleCollapse(path, false); // false = expanded
         }
-      }, index * 10); // 10ms delay between each operation to prevent UI blocking
+        
+      } catch (error) {
+        console.error(`[BULK-DIRECT] Error expanding path ${path}:`, error);
+      }
     });
     
+    debugToast(`Completed processing ${pathsToExpand.length} paths`);
   }, [onToggleCollapse, maxDepth, getSchemaAtPath, convertPathToArray]);
 
   return {

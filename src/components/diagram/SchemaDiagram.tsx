@@ -2,7 +2,6 @@ import React, { memo } from 'react';
 import '@xyflow/react/dist/style.css';
 import { DiagramContainer } from './DiagramContainer';
 import { CollapsedState } from '@/lib/diagram/types';
-import { deepEqual } from '@/lib/utils/deepEqual';
 
 interface SchemaDiagramProps {
   schema: any;
@@ -37,17 +36,24 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
     </div>
   );
 }, (prevProps, nextProps) => {
-  // Simplified comparison - only check if props are exactly the same
-  // This allows React to handle updates more naturally when collapsedPaths changes
-  return (
-    prevProps.schema === nextProps.schema &&
-    prevProps.error === nextProps.error &&
-    prevProps.groupProperties === nextProps.groupProperties &&
-    prevProps.collapsedPaths === nextProps.collapsedPaths &&
-    prevProps.maxDepth === nextProps.maxDepth &&
-    prevProps.onAddNotation === nextProps.onAddNotation &&
-    prevProps.expandedNotationPaths === nextProps.expandedNotationPaths
-  );
+  try {
+    // Custom comparison function for memoization
+    const schemaEqual = JSON.stringify(prevProps.schema) === JSON.stringify(nextProps.schema);
+    const collapsedEqual = JSON.stringify(prevProps.collapsedPaths) === JSON.stringify(nextProps.collapsedPaths);
+    const result = (
+      schemaEqual &&
+      prevProps.error === nextProps.error &&
+      prevProps.groupProperties === nextProps.groupProperties &&
+      collapsedEqual &&
+      prevProps.maxDepth === nextProps.maxDepth
+    );
+    
+    return result;
+  } catch (error) {
+    console.error('Error in SchemaDiagram memo comparison:', error);
+    // If there's an error in comparison, force a re-render to be safe
+    return false;
+  }
 });
 
 SchemaDiagram.displayName = 'SchemaDiagram';

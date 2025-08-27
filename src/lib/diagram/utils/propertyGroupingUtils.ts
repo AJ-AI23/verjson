@@ -27,6 +27,12 @@ export function processPropertiesWithGrouping(
   result: DiagramElements,
   options: PropertyGroupingOptions
 ): PropertyGroupingResult {
+  console.log('🔧 DEBUG [PROPERTY GROUPING] Called with:', {
+    propertiesCount: Array.isArray(properties) ? properties.length : Object.keys(properties).length,
+    maxIndividualProperties: options.maxIndividualProperties,
+    parentNodeId: options.parentNodeId,
+    parentPath: options.parentPath
+  });
   
   const { maxIndividualProperties, parentNodeId, yPosition, startXPosition, xSpacing } = options;
   
@@ -53,6 +59,7 @@ export function processPropertiesWithGrouping(
   });
   
   if (shouldGroupProperties) {
+    console.log('🔧 DEBUG [PROPERTY GROUPING] Entering grouping logic');
     
     // Prioritize expanded properties for individual display
     const { collapsedPaths, parentPath } = options;
@@ -87,6 +94,15 @@ export function processPropertiesWithGrouping(
     // Combine for display: expanded first, then individual non-expanded
     const individualProperties = [...expandedProperties, ...individualNonExpanded];
     
+    console.log('🔧 DEBUG [PROPERTY GROUPING] Property prioritization:', {
+      expandedCount,
+      individualSlots,
+      remainingSlotsForNonExpanded,
+      individualPropertiesCount: individualProperties.length,
+      groupedPropertiesCount: groupedProperties.length,
+      expandedPropertyNames: expandedProperties.map(([name]) => name),
+      individualNonExpandedNames: individualNonExpanded.map(([name]) => name)
+    });
     
     // Calculate positions
     const totalNodesToShow = maxIndividualProperties;
@@ -220,9 +236,17 @@ export function processWithGrouping(
   const totalItems = itemEntries.length;
   const expandedCount = expandedItems.length;
   
+  console.log('🔧 DEBUG [GENERIC GROUPING] Analyzing items:', {
+    parentPath,
+    totalItems,
+    expandedCount,
+    maxIndividualItems,
+    expandedPaths: expandedItems.map(([name]) => `${parentPath}.${name}`)
+  });
   
   // If total items <= maxIndividualItems + 1, show all individually
   if (totalItems <= maxIndividualItems + 1) {
+    console.log('🔧 DEBUG [GENERIC GROUPING] Showing all items individually (count within limit)');
     return processPropertiesWithGrouping(
       items,
       requiredProps,
@@ -281,6 +305,7 @@ export function processWithGrouping(
   }
   
   // Default grouping behavior - no items are expanded
+  console.log('🔧 DEBUG [GENERIC GROUPING] Default grouping behavior');
   return processPropertiesWithGrouping(
     items,
     requiredProps,

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -228,11 +228,6 @@ export function useDocumentVersions(documentId?: string) {
     };
   }, [user, documentId]);
 
-  // Memoize getSchemaPatches to prevent unnecessary re-processing
-  const getSchemaPatches = useCallback(() => {
-    return convertToSchemaPatches(versions);
-  }, [versions]);
-
   return {
     versions,
     loading,
@@ -241,6 +236,21 @@ export function useDocumentVersions(documentId?: string) {
     updateVersion,
     deleteVersion,
     refetch: fetchVersions,
-    getSchemaPatches,
+    // Helper to get patches in the expected format
+    getSchemaPatches: () => {
+      const patches = convertToSchemaPatches(versions);
+      debugToast('🔔 getSchemaPatches: Converting versions to patches', {
+        versionsCount: versions.length,
+        patchesCount: patches.length,
+        patches: patches.map(p => ({
+          id: p.id,
+          description: p.description,
+          isSelected: p.isSelected,
+          isReleased: p.isReleased,
+          version: `${p.version.major}.${p.version.minor}.${p.version.patch}`
+        }))
+      });
+      return patches;
+    },
   };
 }

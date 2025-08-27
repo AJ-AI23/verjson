@@ -19,8 +19,8 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
   const { settings } = useEditorSettings();
   const { maxDepth } = settings;
   
-  // Set default collapsed state - start with empty object, nodes only appear on explicit expansion
-  const [collapsedPaths, setCollapsedPaths] = useState<CollapsedState>({});
+  // Set default collapsed state - initially collapsed
+  const [collapsedPaths, setCollapsedPaths] = useState<CollapsedState>({ root: true });
   
   // Track which notation panels should be expanded based on JSON editor
   const [expandedNotationPaths, setExpandedNotationPaths] = useState<Set<string>>(new Set());
@@ -82,9 +82,6 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
   
   // Function to handle toggling collapsed state of a path
   const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
-    console.log(`🔧 handleToggleCollapse: ${path} -> isCollapsed: ${isCollapsed}`);
-    console.log(`🔧 Current collapsedPaths:`, collapsedPaths);
-    
     debugToast(`Editor: Toggle collapse event for ${path}, isCollapsed: ${isCollapsed}`);
     
     // Check if this is a $notations path expansion/collapse
@@ -113,8 +110,6 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
       // Set the current path's state
       updated[path] = isCollapsed;
       
-      console.log(`🔧 Setting ${path} = ${isCollapsed} in collapsedPaths`);
-      
       // If collapsing an ancestor, clear all descendant collapsed states
       // since they should inherit the collapsed state from their ancestor
       if (isCollapsed) {
@@ -127,7 +122,6 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
         });
       }
       
-      console.log(`🔧 New collapsedPaths:`, updated);
       debugToast('Updated collapsedPaths', updated);
       return updated;
     });
@@ -144,7 +138,7 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
         duration: 1500 // 1.5 seconds
       });
     }
-  }, [collapsedPaths]); // Add collapsedPaths as dependency to get current state
+  }, []);
 
   // Debounced schema validation to avoid excessive processing
   const validateSchema = useCallback((schemaText: string, type: SchemaType) => {
@@ -190,8 +184,8 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
   const handleSchemaTypeChange = (value: SchemaType) => {
     debugToast('Schema type changed to', value);
     setSchemaType(value);
-    // Reset collapsed paths when changing schema type - start fresh with no expansions
-    setCollapsedPaths({});
+    // Reset collapsed paths when changing schema type
+    setCollapsedPaths({ root: true });
   };
 
   const handleAddNotation = useCallback((nodeId: string, user: string, message: string) => {
@@ -227,7 +221,7 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
     setParsedSchema(null);
     setError(null);
     setSchemaType('json-schema');
-    setCollapsedPaths({});
+    setCollapsedPaths({ root: true });
     setExpandedNotationPaths(new Set());
     clearVersionState(); // Also clear version history state
   }, [defaultSchema, clearVersionState, debugToast]);

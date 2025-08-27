@@ -1,5 +1,5 @@
 
-import React, { useCallback, useEffect, useRef, memo, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, memo } from 'react';
 import { ReactFlow, Background, Controls, Node, Edge, ReactFlowInstance, OnNodesChange, OnEdgesChange } from '@xyflow/react';
 import { NodeRenderer } from '@/components/schema-node/NodeRenderer';
 
@@ -93,17 +93,15 @@ export const DiagramFlow = memo(({
     }
   }, [nodes]);
 
-  // Memoize nodes with notation callbacks to prevent recreation on every render
-  const nodesWithNotationCallback = useMemo(() => {
-    return nodes.map(node => ({
-      ...node,
-      data: {
-        ...node.data,
-        onAddNotation,
-        expandedNotationPaths
-      }
-    }));
-  }, [nodes, onAddNotation, expandedNotationPaths]);
+  // Add onAddNotation and expandedNotationPaths to all nodes
+  const nodesWithNotationCallback = nodes.map(node => ({
+    ...node,
+    data: {
+      ...node.data,
+      onAddNotation,
+      expandedNotationPaths
+    }
+  }));
 
   return (
     <div className="flex-1 min-h-0 diagram-container" data-testid="diagram-flow">

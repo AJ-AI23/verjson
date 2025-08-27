@@ -52,7 +52,7 @@ export const useJsonEditor = ({
   }, [collapsedPaths]);
 
   // Reduced logging - only log on significant changes
-  if (Object.keys(collapsedPaths).length === 0) {
+  if (Object.keys(collapsedPaths).length <= 1) {
     debugToast('useJsonEditor initialized', { maxDepth, hasToggleHandler: !!onToggleCollapse });
   }
 

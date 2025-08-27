@@ -27,42 +27,14 @@ export const useJsonEditorCollapse = ({
         const pathsToUse = masterCollapsedPathsRef?.current || collapsedPaths;
         
         if (editor && editor.node) {
-          // Handle individual path collapses
-          Object.entries(pathsToUse).forEach(([path, isCollapsed]) => {
-            if (path === 'root') {
-              // Handle root level collapse/expand
-              if (isCollapsed === true && !editor.node.collapsed) {
-                editor.collapseAll();
-              } else if (isCollapsed === false && editor.node.collapsed) {
-                editor.expandAll();
-              }
-            } else {
-              // Handle individual path collapses by finding the node
-              const pathParts = path.replace('root.', '').split('.');
-              try {
-                let currentNode = editor.node;
-                
-                // Navigate to the target node
-                for (const part of pathParts) {
-                  if (currentNode && currentNode.childs) {
-                    currentNode = currentNode.childs.find((child: any) => child.field === part);
-                  }
-                  if (!currentNode) break;
-                }
-                
-                // Apply collapse/expand state if node found
-                if (currentNode && typeof currentNode.collapse === 'function' && typeof currentNode.expand === 'function') {
-                  if (isCollapsed === true && !currentNode.collapsed) {
-                    currentNode.collapse();
-                  } else if (isCollapsed === false && currentNode.collapsed) {
-                    currentNode.expand();
-                  }
-                }
-              } catch (e) {
-                // Silently ignore navigation errors for non-existent paths
-              }
+          // Handle root node's collapsed state only
+          if (pathsToUse.root !== undefined) {
+            if (pathsToUse.root === true && !editor.node.collapsed) {
+              editor.collapseAll();
+            } else if (pathsToUse.root === false && editor.node.collapsed) {
+              editor.expandAll();
             }
-          });
+          }
         }
       } catch (e) {
         console.error('Error applying collapsed paths to editor:', e);

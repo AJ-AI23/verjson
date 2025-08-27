@@ -6,7 +6,6 @@ import { DiagramFlow } from './DiagramFlow';
 import { useDiagramNodes } from './hooks/useDiagramNodes';
 import { toast } from 'sonner';
 import { CollapsedState } from '@/lib/diagram/types';
-import { deepEqual } from '@/lib/utils/deepEqual';
 
 interface DiagramContainerProps {
   schema: any;
@@ -62,9 +61,9 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     setIsFullscreen(!isFullscreen);
   };
 
-  // Memoize the schema and collapsedPaths with shallow reference checks for better update detection
-  const memoizedSchema = useMemo(() => schema, [schema]);
-  const memoizedCollapsedPaths = useMemo(() => ({ ...collapsedPaths }), [collapsedPaths]);
+  // Deep memoize the schema and collapsedPaths to prevent unnecessary re-renders
+  const memoizedSchema = useMemo(() => schema, [JSON.stringify(schema)]);
+  const memoizedCollapsedPaths = useMemo(() => collapsedPaths, [JSON.stringify(collapsedPaths)]);
 
   const {
     nodes,
