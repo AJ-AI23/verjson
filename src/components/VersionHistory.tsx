@@ -261,25 +261,6 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
         </div>
       )}
 
-      {/* Version Actions */}
-      {(onToggleSelection || onMarkAsReleased || onDeleteVersion || onImportVersion) && (
-        <div className="mb-4 flex justify-between items-center">
-          <h4 className="font-medium text-foreground">Version Actions</h4>
-          <div className="flex gap-2">
-            {onImportVersion && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setImportDialogOpen(true)}
-                className="flex items-center gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Import Version
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
       
       {/* Version History Table */}
       <table className="min-w-full divide-y divide-slate-200 text-sm">

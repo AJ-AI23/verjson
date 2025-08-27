@@ -1,10 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { formatVersion, Version, VersionTier, bumpVersion, applySelectedPatches } from '@/lib/versionUtils';
+import { DocumentVersionComparison } from '@/lib/importVersionUtils';
+import { ImportVersionDialog } from './ImportVersionDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { useDebug } from '@/contexts/DebugContext';
+import { Download } from 'lucide-react';
 
 interface VersionControlsProps {
   version: Version;
@@ -12,6 +15,9 @@ interface VersionControlsProps {
   isModified: boolean;
   schema?: string;
   patches?: any[];
+  onImportVersion?: (importedSchema: any, comparison: DocumentVersionComparison, sourceDocumentName: string) => void;
+  documentId?: string;
+  currentFileType?: string;
 }
 
 export const VersionControls: React.FC<VersionControlsProps> = ({ 
@@ -19,13 +25,17 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
   onVersionBump,
   isModified,
   schema,
-  patches
+  patches,
+  onImportVersion,
+  documentId,
+  currentFileType
 }) => {
   const { debugToast, errorToast } = useDebug();
   const [description, setDescription] = useState('');
   const [selectedTier, setSelectedTier] = useState<VersionTier>('patch');
   const [editableVersion, setEditableVersion] = useState<Version>(() => ({ ...version }));
   const [isReleased, setIsReleased] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   
   // Update editable version when the version prop changes (e.g., from history selection)
   useEffect(() => {
@@ -170,12 +180,38 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
       setSelectedTier(part);
     }
   };
+
+  const handleImportVersion = (importedSchema: any, comparison: DocumentVersionComparison, sourceDocumentName: string) => {
+    onImportVersion?.(importedSchema, comparison, sourceDocumentName);
+    setImportDialogOpen(false);
+  };
+
+  const currentSchemaObj = React.useMemo(() => {
+    try {
+      return schema ? JSON.parse(schema) : {};
+    } catch {
+      return {};
+    }
+  }, [schema]);
   
   return (
     <div className="border-t border-slate-200 p-3 bg-slate-50 space-y-2">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-slate-700">Current Version</h3>
-        {hasActualChanges && <span className="text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded-full">Modified</span>}
+        <div className="flex items-center gap-2">
+          {onImportVersion && documentId && currentFileType && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setImportDialogOpen(true)}
+              className="flex items-center gap-1 text-xs"
+            >
+              <Download className="h-3 w-3" />
+              Import
+            </Button>
+          )}
+          {hasActualChanges && <span className="text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded-full">Modified</span>}
+        </div>
       </div>
       
       <div className="flex flex-col gap-2">
@@ -254,6 +290,18 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
           Commit Changes {hasActualChanges ? '✓' : '✗'}
         </Button>
       </div>
+      
+      {/* Import Version Dialog */}
+      {onImportVersion && documentId && currentFileType && (
+        <ImportVersionDialog
+          isOpen={importDialogOpen}
+          onOpenChange={setImportDialogOpen}
+          currentSchema={currentSchemaObj}
+          onImportConfirm={handleImportVersion}
+          currentDocumentId={documentId}
+          currentFileType={currentFileType}
+        />
+      )}
     </div>
   );
 };
