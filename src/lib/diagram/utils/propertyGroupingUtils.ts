@@ -236,27 +236,28 @@ export function processWithGrouping(
     });
     
     const individualItemsToShow = Math.max(maxIndividualItems - expandedCount, 0);
-    const itemsToShowIndividually = [
-      ...expandedItems,
-      ...nonExpandedItems.slice(0, individualItemsToShow)
-    ];
+    const willHaveGroupedNode = nonExpandedItems.length > individualItemsToShow;
+    
+    // Calculate how many individual items we'll show total
+    const totalIndividualNodes = expandedCount + individualItemsToShow;
+    const maxPropertiesToProcess = totalIndividualNodes + (willHaveGroupedNode ? 1 : 0);
     
     console.log('🔧 DEBUG [GENERIC GROUPING] Mixed mode - expanded + grouped:', {
       expandedCount,
       individualItemsToShow,
-      totalIndividualItems: itemsToShowIndividually.length,
-      willHaveGroupedNode: nonExpandedItems.length > individualItemsToShow
+      totalIndividualNodes,
+      willHaveGroupedNode,
+      maxPropertiesToProcess,
+      nonExpandedCount: nonExpandedItems.length
     });
     
-    // Create a custom items object with the items we want to show individually
-    const individualItemsObj = Object.fromEntries(itemsToShowIndividually);
-    
+    // Pass ALL original items but set maxIndividualProperties to control grouping
     return processPropertiesWithGrouping(
-      individualItemsObj,
+      items, // Pass all items, not just individual ones
       requiredProps,
       result,
       {
-        maxIndividualProperties: itemsToShowIndividually.length + (nonExpandedItems.length > individualItemsToShow ? 1 : 0),
+        maxIndividualProperties: maxPropertiesToProcess,
         xSpacing,
         parentNodeId,
         parentPath,
