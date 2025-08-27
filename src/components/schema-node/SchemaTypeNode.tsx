@@ -168,7 +168,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
         {propertyDetails && propertyDetails.length > 0 && (
           <PropertyDetails 
             propertyDetails={propertyDetails} 
-            isGrouped={isGrouped}
+            isGrouped={data.isGroupedProperties || isGrouped}
             nodeId={id}
             onExpandProperty={onAddNotation ? (propName: string) => {
               // When expanding a property from a grouped node, we need to trigger the expansion
