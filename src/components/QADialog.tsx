@@ -117,22 +117,29 @@ export const QADialog: React.FC<QADialogProps> = ({
       const lowerFilter = filterValue.toLowerCase();
       
       Object.entries(groups).forEach(([groupKey, entries]) => {
-        let shouldInclude = false;
-        
-        switch (groupingStrategy) {
-          case 'property':
-            // Filter by partial match anywhere within the property name
-            shouldInclude = groupKey.toLowerCase().includes(lowerFilter);
-            break;
-          case 'value':
-          default:
-            // Filter by partial match anywhere within the actual string value
-            shouldInclude = groupKey.toLowerCase().includes(lowerFilter);
-            break;
-        }
-        
-        if (shouldInclude) {
-          filteredGroups[groupKey] = entries;
+        if (groupingStrategy === 'property') {
+          // For property grouping, check if any entry in the group matches the filter
+          const hasMatch = entries.some(entry => {
+            const fullPath = entry.path.join('.');
+            const lastProperty = entry.path.length > 0 ? entry.path[entry.path.length - 1] : 'root';
+            return fullPath.toLowerCase().includes(lowerFilter) || 
+                   lastProperty.toLowerCase().includes(lowerFilter);
+          });
+          
+          if (hasMatch) {
+            // Only include entries that match the filter
+            filteredGroups[groupKey] = entries.filter(entry => {
+              const fullPath = entry.path.join('.');
+              const lastProperty = entry.path.length > 0 ? entry.path[entry.path.length - 1] : 'root';
+              return fullPath.toLowerCase().includes(lowerFilter) || 
+                     lastProperty.toLowerCase().includes(lowerFilter);
+            });
+          }
+        } else {
+          // For value grouping, filter by the value itself
+          if (groupKey.toLowerCase().includes(lowerFilter)) {
+            filteredGroups[groupKey] = entries;
+          }
         }
       });
       
@@ -146,7 +153,7 @@ export const QADialog: React.FC<QADialogProps> = ({
   const getFilterPlaceholder = () => {
     switch (groupingStrategy) {
       case 'property':
-        return 'Filter by property name (e.g., description, title)...';
+        return 'Filter by property path (e.g., 200, responses, description)...';
       case 'value':
       default:
         return 'Filter by property value content...';
