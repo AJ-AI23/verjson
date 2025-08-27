@@ -1,4 +1,4 @@
-import { compare, Operation } from 'fast-json-patch';
+import { compare, Operation, applyPatch } from 'fast-json-patch';
 
 export interface DocumentVersionComparison {
   patches: Operation[];
@@ -196,7 +196,6 @@ export function applyImportPatches(currentSchema: any, patches: Operation[]): an
   
   // Apply patches using fast-json-patch
   try {
-    const { applyPatch } = require('fast-json-patch');
     const result = applyPatch(mergedSchema, patches, false, false);
     return result.newDocument;
   } catch (error) {

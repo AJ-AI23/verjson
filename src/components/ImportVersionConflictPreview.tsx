@@ -40,6 +40,42 @@ export const ImportVersionConflictPreview: React.FC<ImportVersionConflictPreview
     }
   };
 
+  // Extract version information with fallback logic
+  const getCurrentVersion = (schema: any) => {
+    // Try OpenAPI format first
+    if (schema?.info?.version) return schema.info.version;
+    // Try JSON Schema format
+    if (schema?.version) return schema.version;
+    // Try extracting from $schema or other common fields
+    if (schema?.$id?.includes('v')) {
+      const match = schema.$id.match(/v(\d+\.?\d*\.?\d*)/);
+      if (match) return match[1];
+    }
+    return 'Unknown';
+  };
+
+  const getCurrentTitle = (schema: any) => {
+    // Try OpenAPI format first
+    if (schema?.info?.title) return schema.info.title;
+    // Try JSON Schema format
+    if (schema?.title) return schema.title;
+    // Try extracting from $id
+    if (schema?.$id) {
+      const parts = schema.$id.split('/');
+      return parts[parts.length - 1] || 'Untitled';
+    }
+    return 'Untitled';
+  };
+
+  const getPropertiesCount = (schema: any) => {
+    // Try different property locations
+    if (schema?.properties) return Object.keys(schema.properties).length;
+    if (schema?.components?.schemas) return Object.keys(schema.components.schemas).length;
+    if (schema?.definitions) return Object.keys(schema.definitions).length;
+    if (schema?.paths) return Object.keys(schema.paths).length;
+    return 0;
+  };
+
   const formatJsonValue = (value: any): string => {
     if (value === null || value === undefined) {
       return 'null';
@@ -102,9 +138,9 @@ export const ImportVersionConflictPreview: React.FC<ImportVersionConflictPreview
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-sm">
-                  <div><strong>Title:</strong> {currentSchema?.info?.title || 'Untitled'}</div>
-                  <div><strong>Version:</strong> {currentSchema?.info?.version || 'Unknown'}</div>
-                  <div><strong>Properties:</strong> {Object.keys(currentSchema?.properties || {}).length}</div>
+                  <div><strong>Title:</strong> {getCurrentTitle(currentSchema)}</div>
+                  <div><strong>Version:</strong> {getCurrentVersion(currentSchema)}</div>
+                  <div><strong>Properties:</strong> {getPropertiesCount(currentSchema)}</div>
                 </div>
               </CardContent>
             </Card>
@@ -119,9 +155,9 @@ export const ImportVersionConflictPreview: React.FC<ImportVersionConflictPreview
               <CardContent>
                 <div className="space-y-2 text-sm">
                   <div><strong>Document:</strong> {sourceDocumentName}</div>
-                  <div><strong>Title:</strong> {importSchema?.info?.title || 'Untitled'}</div>
-                  <div><strong>Version:</strong> {importSchema?.info?.version || 'Unknown'}</div>
-                  <div><strong>Properties:</strong> {Object.keys(importSchema?.properties || {}).length}</div>
+                  <div><strong>Title:</strong> {getCurrentTitle(importSchema)}</div>
+                  <div><strong>Version:</strong> {getCurrentVersion(importSchema)}</div>
+                  <div><strong>Properties:</strong> {getPropertiesCount(importSchema)}</div>
                 </div>
               </CardContent>
             </Card>
