@@ -9,6 +9,7 @@ import { useDocuments } from "@/hooks/useDocuments";
 import { useDocumentVersions } from "@/hooks/useDocumentVersions";
 import { compareDocumentVersions, DocumentVersionComparison } from "@/lib/importVersionUtils";
 import { applySelectedPatches } from "@/lib/versionUtils";
+import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, FileText, Loader2 } from "lucide-react";
 
 interface ImportVersionDialogProps {
@@ -39,6 +40,7 @@ export const ImportVersionDialog: React.FC<ImportVersionDialogProps> = ({
   const [selectedDocumentId, setSelectedDocumentId] = useState<string>('');
   const [comparison, setComparison] = useState<DocumentVersionComparison | null>(null);
   const [isComparing, setIsComparing] = useState(false);
+  const [documentContent, setDocumentContent] = useState<any>(null);
 
   const { workspaces, loading: workspacesLoading } = useWorkspaces();
   const { documents, loading: documentsLoading } = useDocuments(selectedWorkspaceId);
@@ -54,102 +56,42 @@ export const ImportVersionDialog: React.FC<ImportVersionDialogProps> = ({
 
   // Calculate the current schema of the selected document based on its selected patches
   const selectedDocumentCurrentSchema = useMemo(() => {
-    if (!selectedDocVersions.length) return null;
+    if (!selectedDocVersions.length || !selectedDocumentId) return null;
     
     console.log('🔍 Calculating selected document schema from versions:', selectedDocVersions);
     
-    // Find the latest released version with full_document (this is our base)
-    const releasedVersions = selectedDocVersions
-      .filter(version => version.is_released && version.full_document)
-      .sort((a, b) => {
-        // Sort by version numbers (major.minor.patch)
-        if (a.version_major !== b.version_major) return b.version_major - a.version_major;
-        if (a.version_minor !== b.version_minor) return b.version_minor - a.version_minor;
-        return b.version_patch - a.version_patch;
-      });
-    
-    let baseSchema: any = null;
-    let baseVersionTimestamp = 0;
-    
-    if (releasedVersions.length > 0) {
-      // Use the latest released version as base
-      baseSchema = releasedVersions[0].full_document;
-      baseVersionTimestamp = new Date(releasedVersions[0].created_at).getTime();
-      console.log('🔍 Using released version as base:', releasedVersions[0]);
-    } else {
-      // No released versions, find the earliest full_document or fall back to empty schema
-      const fullDocVersions = selectedDocVersions
-        .filter(version => version.full_document)
-        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    try {
+      // Convert versions to patches format for applySelectedPatches
+      const patches = selectedDocVersions
+        .map(version => ({
+          id: version.id,
+          timestamp: new Date(version.created_at).getTime(),
+          version: {
+            major: version.version_major,
+            minor: version.version_minor,
+            patch: version.version_patch
+          },
+          description: version.description,
+          patches: version.patches ? (typeof version.patches === 'string' ? JSON.parse(version.patches) : version.patches) : undefined,
+          tier: version.tier as 'major' | 'minor' | 'patch',
+          isReleased: version.is_released,
+          fullDocument: version.full_document || undefined,
+          isSelected: version.is_selected,
+        }))
+        .sort((a, b) => a.timestamp - b.timestamp);
       
-      if (fullDocVersions.length > 0) {
-        baseSchema = fullDocVersions[0].full_document;
-        baseVersionTimestamp = new Date(fullDocVersions[0].created_at).getTime();
-        console.log('🔍 Using earliest full document as base:', fullDocVersions[0]);
-      } else {
-        baseSchema = {};
-        console.log('🔍 No full document found, using empty schema as base');
-      }
+      console.log('🔍 Converted patches for import calculation:', patches);
+      
+      // Use the applySelectedPatches function to get the current state
+      const result = applySelectedPatches(patches);
+      
+      console.log('🔍 Final calculated import schema:', JSON.stringify(result, null, 2));
+      return result;
+    } catch (error) {
+      console.error('Error calculating import schema:', error);
+      return {};
     }
-    
-    // Get all selected patches that came after the base version
-    const patchesToApply = selectedDocVersions
-      .filter(version => 
-        version.is_selected && 
-        version.patches && 
-        version.patches.length > 0 &&
-        new Date(version.created_at).getTime() > baseVersionTimestamp
-      )
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) // Apply in chronological order
-      .map(version => ({
-        id: version.id,
-        version: {
-          major: version.version_major,
-          minor: version.version_minor,
-          patch: version.version_patch
-        },
-        description: version.description,
-        patches: version.patches || [],
-        timestamp: new Date(version.created_at).getTime(),
-        isSelected: version.is_selected,
-        isReleased: version.is_released,
-        fullDocument: version.full_document,
-        tier: version.tier as 'major' | 'minor' | 'patch'
-      }));
-    
-    console.log('🔍 Base schema:', JSON.stringify(baseSchema, null, 2));
-    console.log('🔍 Patches to apply after base:', patchesToApply);
-    
-    // Apply the patches to the base schema
-    let result = baseSchema;
-    if (patchesToApply.length > 0) {
-      // Create a full patches array that includes the base version if needed
-      const allPatches = [...patchesToApply];
-      
-      // If we have a base schema but no released version in the patches, 
-      // we need to create a synthetic base patch
-      if (Object.keys(baseSchema).length > 0 && !patchesToApply.some(p => p.isReleased)) {
-        const basePatch = {
-          id: 'base-' + Date.now(),
-          version: { major: 0, minor: 0, patch: 0 },
-          description: 'Base version',
-          patches: [],
-          timestamp: baseVersionTimestamp,
-          isSelected: true,
-          isReleased: true,
-          fullDocument: baseSchema,
-          tier: 'major' as const
-        };
-        allPatches.unshift(basePatch);
-      }
-      
-      result = applySelectedPatches(allPatches);
-    }
-    
-    console.log('🔍 Final calculated import schema:', JSON.stringify(result, null, 2));
-    
-    return result;
-  }, [selectedDocVersions]);
+  }, [selectedDocVersions, selectedDocumentId]);
 
   // Reset state when dialog opens/closes
   useEffect(() => {
@@ -158,19 +100,65 @@ export const ImportVersionDialog: React.FC<ImportVersionDialogProps> = ({
       setSelectedWorkspaceId('');
       setSelectedDocumentId('');
       setComparison(null);
+      setDocumentContent(null);
     }
   }, [isOpen]);
 
+  // Fetch document content directly when a document is selected
+  useEffect(() => {
+    if (selectedDocumentId) {
+      const fetchDocumentContent = async () => {
+        try {
+          const { data: document, error } = await supabase
+            .from('documents')
+            .select('content')
+            .eq('id', selectedDocumentId)
+            .single();
+          
+          if (error) {
+            console.warn('Could not fetch document content:', error);
+            setDocumentContent(null);
+          } else if (document?.content) {
+            console.log('🔍 Fetched direct document content for import:', document.content);
+            setDocumentContent(document.content);
+          }
+        } catch (error) {
+          console.warn('Error fetching document content:', error);
+          setDocumentContent(null);
+        }
+      };
+      
+      fetchDocumentContent();
+    } else {
+      setDocumentContent(null);
+    }
+  }, [selectedDocumentId]);
+
+  // Use document content if available, otherwise use calculated schema
+  const finalImportSchema = useMemo(() => {
+    if (documentContent) {
+      console.log('🔍 Using direct document content for import');
+      return documentContent;
+    }
+    
+    if (selectedDocumentCurrentSchema) {
+      console.log('🔍 Using calculated schema from versions for import');
+      return selectedDocumentCurrentSchema;
+    }
+    
+    return null;
+  }, [documentContent, selectedDocumentCurrentSchema]);
+
   // Perform comparison when we have both schemas
   useEffect(() => {
-    if (currentStep === 'preview' && selectedDocumentCurrentSchema && currentSchema) {
+    if (currentStep === 'preview' && finalImportSchema && currentSchema) {
       setIsComparing(true);
       console.log('🔍 Import Comparison Debug:');
       console.log('Current Schema:', JSON.stringify(currentSchema, null, 2));
-      console.log('Import Schema:', JSON.stringify(selectedDocumentCurrentSchema, null, 2));
+      console.log('Import Schema:', JSON.stringify(finalImportSchema, null, 2));
       
       try {
-        const comparisonResult = compareDocumentVersions(currentSchema, selectedDocumentCurrentSchema);
+        const comparisonResult = compareDocumentVersions(currentSchema, finalImportSchema);
         console.log('Comparison Result:', comparisonResult);
         setComparison(comparisonResult);
       } catch (error) {
@@ -179,7 +167,17 @@ export const ImportVersionDialog: React.FC<ImportVersionDialogProps> = ({
         setIsComparing(false);
       }
     }
-  }, [currentStep, selectedDocumentCurrentSchema, currentSchema]);
+  }, [currentStep, finalImportSchema, currentSchema]);
+
+  const handleBack = () => {
+    if (currentStep === 'document') {
+      setCurrentStep('workspace');
+      setSelectedDocumentId('');
+    } else if (currentStep === 'preview') {
+      setCurrentStep('document');
+      setComparison(null);
+    }
+  };
 
   const handleWorkspaceSelect = (workspaceId: string) => {
     setSelectedWorkspaceId(workspaceId);
@@ -192,20 +190,10 @@ export const ImportVersionDialog: React.FC<ImportVersionDialogProps> = ({
     setCurrentStep('preview');
   };
 
-  const handleBack = () => {
-    if (currentStep === 'document') {
-      setCurrentStep('workspace');
-      setSelectedDocumentId('');
-    } else if (currentStep === 'preview') {
-      setCurrentStep('document');
-      setComparison(null);
-    }
-  };
-
   const handleImportConfirm = () => {
-    if (comparison && selectedDocumentCurrentSchema) {
+    if (comparison && finalImportSchema) {
       const selectedDoc = compatibleDocuments.find(doc => doc.id === selectedDocumentId);
-      onImportConfirm(selectedDocumentCurrentSchema, comparison, selectedDoc?.name || 'Unknown Document');
+      onImportConfirm(finalImportSchema, comparison, selectedDoc?.name || 'Unknown Document');
       onOpenChange(false);
     }
   };
@@ -317,7 +305,7 @@ export const ImportVersionDialog: React.FC<ImportVersionDialogProps> = ({
               ) : comparison ? (
                 <ImportVersionConflictPreview
                   currentSchema={currentSchema}
-                  importSchema={selectedDocumentCurrentSchema}
+                  importSchema={finalImportSchema}
                   comparison={comparison}
                   sourceDocumentName={selectedDocument?.name || 'Unknown Document'}
                 />
