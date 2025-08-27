@@ -9,6 +9,7 @@ export interface PropertyGroupingOptions {
   parentPath: string;
   yPosition: number;
   startXPosition: number;
+  collapsedPaths?: Record<string, boolean>;
 }
 
 export interface PropertyGroupingResult {
@@ -59,14 +60,48 @@ export function processPropertiesWithGrouping(
   
   if (shouldGroupProperties) {
     console.log('🔧 DEBUG [PROPERTY GROUPING] Entering grouping logic');
-    // Show first (maxIndividualProperties - 1) individual properties + 1 grouped node
-    const individualProperties = propertyEntries.slice(0, maxIndividualProperties - 1);
-    const groupedProperties = propertyEntries.slice(maxIndividualProperties - 1);
     
-    console.log('🔧 DEBUG [PROPERTY GROUPING] Property slicing:', {
-      individualCount: individualProperties.length,
-      groupedCount: groupedProperties.length,
-      totalEntries: propertyEntries.length
+    // Prioritize expanded properties for individual display
+    const { collapsedPaths, parentPath } = options;
+    
+    let expandedProperties: [string, any][] = [];
+    let nonExpandedProperties: [string, any][] = [];
+    
+    if (collapsedPaths && parentPath) {
+      // Separate expanded and non-expanded properties
+      propertyEntries.forEach(([propName, propSchema]) => {
+        const propPath = `${parentPath}.${propName}`;
+        if (collapsedPaths[propPath] === false) {
+          expandedProperties.push([propName, propSchema]);
+        } else {
+          nonExpandedProperties.push([propName, propSchema]);
+        }
+      });
+    } else {
+      // Fallback: no expansion info, use original order
+      nonExpandedProperties = propertyEntries;
+    }
+    
+    // Calculate how many individual slots we have (reserving 1 for grouped node)
+    const individualSlots = maxIndividualProperties - 1;
+    const expandedCount = expandedProperties.length;
+    
+    // Take expanded properties first, then fill remaining slots with non-expanded
+    const remainingSlotsForNonExpanded = Math.max(0, individualSlots - expandedCount);
+    const individualNonExpanded = nonExpandedProperties.slice(0, remainingSlotsForNonExpanded);
+    const groupedProperties = nonExpandedProperties.slice(remainingSlotsForNonExpanded);
+    
+    // Combine for display: expanded first, then individual non-expanded
+    const individualProperties = [...expandedProperties, ...individualNonExpanded];
+    
+    console.log('🔧 DEBUG [PROPERTY GROUPING] Property prioritization:', {
+      expandedCount,
+      individualSlots,
+      remainingSlotsForNonExpanded,
+      individualPropertiesCount: individualProperties.length,
+      groupedPropertiesCount: groupedProperties.length,
+      expandedPropertyNames: expandedProperties.map(([name]) => name),
+      individualNonExpandedNames: individualNonExpanded.map(([name]) => name)
     });
     
     // Calculate positions
@@ -222,7 +257,8 @@ export function processWithGrouping(
         parentNodeId,
         parentPath,
         yPosition: yPos,
-        startXPosition: xPos
+        startXPosition: xPos,
+        collapsedPaths
       }
     );
   }
@@ -262,7 +298,8 @@ export function processWithGrouping(
         parentNodeId,
         parentPath,
         yPosition: yPos,
-        startXPosition: xPos
+        startXPosition: xPos,
+        collapsedPaths
       }
     );
   }
@@ -279,7 +316,8 @@ export function processWithGrouping(
       parentNodeId,
       parentPath,
       yPosition: yPos,
-      startXPosition: xPos
+      startXPosition: xPos,
+      collapsedPaths
     }
   );
 }
