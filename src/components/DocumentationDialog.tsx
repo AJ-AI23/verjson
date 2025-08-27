@@ -49,13 +49,6 @@ const documentationItems: DocumentationItem[] = [
     description: 'Working with teams and sharing documents'
   },
   {
-    id: 'api-reference',
-    title: 'API Reference',
-    category: 'Advanced',
-    path: '/docs/api-reference.md',
-    description: 'Complete API documentation'
-  },
-  {
     id: 'confluence-integration',
     title: 'Confluence Plugin',
     category: 'Integrations',
