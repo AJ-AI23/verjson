@@ -58,9 +58,16 @@ export function processPropertiesWithGrouping(
   });
   
   if (shouldGroupProperties) {
+    console.log('🔧 DEBUG [PROPERTY GROUPING] Entering grouping logic');
     // Show first (maxIndividualProperties - 1) individual properties + 1 grouped node
     const individualProperties = propertyEntries.slice(0, maxIndividualProperties - 1);
     const groupedProperties = propertyEntries.slice(maxIndividualProperties - 1);
+    
+    console.log('🔧 DEBUG [PROPERTY GROUPING] Property slicing:', {
+      individualCount: individualProperties.length,
+      groupedCount: groupedProperties.length,
+      totalEntries: propertyEntries.length
+    });
     
     // Calculate positions
     const totalNodesToShow = maxIndividualProperties;
