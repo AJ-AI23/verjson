@@ -197,6 +197,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   // Check if a patch can be deselected
   const canDeselect = (patch: SchemaPatch) => {
     if (isInitialVersion(patch)) return false; // Cannot deselect initial version
+    if (patch.isReleased) return false; // Cannot deselect released versions
     return !(isBeforeReleased(patch) && patch.isSelected);
   };
   
