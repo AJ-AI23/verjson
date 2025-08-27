@@ -333,6 +333,293 @@ Work effectively with your team using the built-in collaboration features.
 - Branch-based workflows
 `,
 
+  '/docs/confluence-integration.md': `# Confluence Plugin Integration
+
+Embed your schema documents directly into Confluence pages with our Atlassian Forge plugin.
+
+## Overview
+
+The Schema Document Confluence Plugin allows you to seamlessly integrate your JSON schemas into Confluence documentation. This powerful integration enables teams to:
+
+- **Embed Live Schemas**: Display up-to-date schema content in Confluence pages
+- **Multiple Display Formats**: Choose between formatted, raw JSON, or compact views
+- **Automatic Updates**: Schema changes are reflected immediately in Confluence
+- **Team Collaboration**: Share schemas in context with your documentation
+
+## Installation
+
+### Method 1: Using Forge CLI (Recommended for Development)
+
+1. **Install the Forge CLI:**
+   \`\`\`bash
+   npm install -g @forge/cli
+   \`\`\`
+
+2. **Create a new Forge app:**
+   \`\`\`bash
+   forge create --template custom-ui
+   \`\`\`
+
+3. **Replace the generated files** with the files from the \`public/confluence/\` directory
+
+4. **Deploy and install:**
+   \`\`\`bash
+   forge deploy
+   forge install
+   \`\`\`
+
+### Method 2: Self-Hosted Installation
+
+1. **Host the plugin files** on your domain (they're already in your public folder)
+2. **Create a Forge app manifest** that points to your hosted files
+3. **Use the plugin configuration endpoint** for dynamic setup
+
+## Configuration
+
+### Environment Variables
+
+Set these in your Supabase edge functions:
+
+- \`APP_BASE_URL\`: Your application's base URL
+- \`SUPABASE_URL\`: Your Supabase project URL  
+- \`SUPABASE_SERVICE_ROLE_KEY\`: Service role key for database access
+
+### Plugin Endpoints
+
+The plugin uses these API endpoints:
+
+- \`GET /functions/v1/public-document?id={documentId}&format=confluence&metadata=true\`
+- \`GET /functions/v1/plugin-config?type=manifest\`
+- \`GET /functions/v1/plugin-config?type=endpoints\`
+
+## Usage in Confluence
+
+### Adding the Macro
+
+1. **Edit a Confluence page** or create a new one
+2. **Type \`/\` to open the macro browser** or use the insert menu
+3. **Search for "Schema Document"** and select it
+4. **Configure the macro** with your desired settings
+
+### Macro Configuration
+
+#### Required Settings
+- **Document ID**: The unique identifier of your schema document
+  - Find this in your schema document URL
+  - Format: \`doc_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx\`
+
+#### Display Options
+- **Display Format**:
+  - \`formatted\`: Styled JSON with syntax highlighting
+  - \`raw\`: Plain text JSON
+  - \`compact\`: Condensed view for large schemas
+
+- **Show Metadata**: Include document name, workspace, and last updated date
+
+### Example Configuration
+
+\`\`\`json
+{
+  "documentId": "doc_12345678-1234-1234-1234-123456789012",
+  "displayFormat": "formatted",
+  "showMetadata": true
+}
+\`\`\`
+
+## Features
+
+### Display Formats
+
+#### Formatted View
+- **Syntax highlighting** for JSON schema elements
+- **Collapsible sections** for nested objects
+- **Type indicators** with color coding
+- **Validation rules** displayed inline
+
+#### Raw JSON View
+- **Plain text** JSON schema
+- **Copy-to-clipboard** functionality
+- **Ideal for developers** who need to copy schema content
+
+#### Compact View
+- **Condensed display** for large schemas
+- **Summary information** without full details
+- **Perfect for overviews** in documentation
+
+### Metadata Display
+
+When enabled, shows:
+- **Document title** and description
+- **Workspace** information
+- **Last updated** timestamp
+- **Direct link** to edit in the schema editor
+
+### Error Handling
+
+- **Graceful fallbacks** for missing documents
+- **Clear error messages** for configuration issues
+- **Timeout handling** for slow network connections
+- **Retry mechanisms** for temporary failures
+
+## Customization
+
+### Styling
+
+Modify \`public/confluence/styles.css\` to customize appearance:
+
+\`\`\`css
+.schema-document-container {
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fafbfc;
+}
+
+.schema-content {
+  font-family: 'Monaco', 'Consolas', monospace;
+  font-size: 14px;
+  line-height: 1.4;
+}
+\`\`\`
+
+### Functionality
+
+Extend \`public/confluence/macro.js\` for additional features:
+
+\`\`\`javascript
+// Add custom display formats
+function renderCustomFormat(schemaData) {
+  // Your custom rendering logic
+  return customFormattedHTML;
+}
+
+// Add interactive features
+function addSchemaInteractivity() {
+  // Add click handlers, tooltips, etc.
+}
+\`\`\`
+
+## Troubleshooting
+
+### Common Issues
+
+#### Document Not Loading
+**Symptoms**: Macro shows "Document not found" or loading spinner
+**Solutions**:
+- Verify the document ID is correct
+- Check that the document exists and is accessible
+- Ensure Supabase edge functions are deployed
+- Verify network connectivity
+
+#### Plugin Not Appearing
+**Symptoms**: Cannot find "Schema Document" in macro browser
+**Solutions**:
+- Confirm the Forge app is properly installed
+- Check the manifest configuration
+- Verify external fetch permissions are granted
+- Review Confluence admin settings
+
+#### Styling Issues
+**Symptoms**: Poor formatting or layout problems
+**Solutions**:
+- Check that \`styles.css\` is properly loaded
+- Use more specific CSS selectors (Confluence may override styles)
+- Test in different browsers
+- Validate CSS syntax
+
+### Debug Mode
+
+Enable debug logging by adding to your macro:
+
+\`\`\`javascript
+window.SCHEMA_PLUGIN_DEBUG = true;
+\`\`\`
+
+This will output detailed logging to the browser console.
+
+### Network Issues
+
+Check these endpoints directly:
+1. \`{APP_BASE_URL}/functions/v1/plugin-config?type=manifest\`
+2. \`{APP_BASE_URL}/functions/v1/public-document?id={TEST_DOC_ID}\`
+
+## Security Considerations
+
+### Data Access
+- Only **public documents** are accessible via the plugin
+- **Private documents** require authentication and won't display
+- **Workspace permissions** are respected
+
+### CORS Configuration
+- Plugin endpoints include proper **CORS headers**
+- **Origin validation** prevents unauthorized access
+- **Rate limiting** protects against abuse
+
+### Content Security
+- **HTML sanitization** prevents XSS attacks
+- **Input validation** on all parameters
+- **Safe rendering** of user-generated content
+
+## Analytics and Monitoring
+
+### Usage Tracking
+- Document access logs in Supabase analytics
+- Plugin usage metrics via Confluence
+- Performance monitoring for load times
+
+### Performance Optimization
+- **Caching** of document content
+- **Lazy loading** for large schemas
+- **Optimized payload** sizes
+
+## Best Practices
+
+### Document Management
+1. **Use descriptive titles** for better searchability
+2. **Keep schemas well-structured** for better display
+3. **Update documentation** when schemas change
+4. **Archive old versions** to avoid confusion
+
+### Confluence Integration
+1. **Group related schemas** in single pages
+2. **Use clear headings** above embedded schemas
+3. **Add context** around schema embeds
+4. **Link to full editor** for modifications
+
+### Team Workflow
+1. **Establish naming conventions** for schemas
+2. **Define approval processes** for schema changes
+3. **Use workspaces** to organize team schemas
+4. **Train team members** on macro usage
+
+## Future Enhancements
+
+### Planned Features
+- **Interactive schema exploration** within Confluence
+- **Diff views** for schema version comparisons
+- **Bulk embedding** of multiple schemas
+- **Custom templates** for different schema types
+
+### Integration Roadmap
+- **Jira integration** for requirements traceability
+- **Slack notifications** for schema updates
+- **Microsoft Teams** connector
+- **GitHub integration** for version control
+
+## Support and Resources
+
+### Getting Help
+- Check **Supabase edge function logs** for backend issues
+- Use **Confluence developer console** for frontend debugging
+- Monitor **network requests** in browser dev tools
+- Review **plugin documentation** for configuration
+
+### Community
+- Join our **Discord community** for real-time support
+- Browse **GitHub discussions** for common solutions
+- Follow our **blog** for integration tutorials
+- Attend **webinars** for advanced usage patterns`,
+
   '/docs/api-reference.md': `# API Reference
 
 Complete reference for the JSON Schema Editor API.

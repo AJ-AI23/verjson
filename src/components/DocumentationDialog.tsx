@@ -8,7 +8,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { Search, FileText, BookOpen, Settings, HelpCircle } from 'lucide-react';
+import { Search, FileText, BookOpen, Settings, HelpCircle, Plug } from 'lucide-react';
 import { DocumentationViewer } from './DocumentationViewer';
 
 interface DocumentationItem {
@@ -54,6 +54,13 @@ const documentationItems: DocumentationItem[] = [
     category: 'Advanced',
     path: '/docs/api-reference.md',
     description: 'Complete API documentation'
+  },
+  {
+    id: 'confluence-integration',
+    title: 'Confluence Plugin',
+    category: 'Integrations',
+    path: '/docs/confluence-integration.md',
+    description: 'Embed schema documents in Confluence pages'
   }
 ];
 
@@ -92,6 +99,8 @@ export const DocumentationDialog: React.FC<DocumentationDialogProps> = ({
         return <Settings className="h-4 w-4" />;
       case 'Advanced':
         return <HelpCircle className="h-4 w-4" />;
+      case 'Integrations':
+        return <Plug className="h-4 w-4" />;
       default:
         return <FileText className="h-4 w-4" />;
     }
