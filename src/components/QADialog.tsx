@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Copy, Download, Languages, FileText, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { extractStringValues, createTranslationIndex, downloadJsonFile, TranslationEntry } from '@/lib/translationUtils';
+import { extractStringValues, createTranslationIndex, downloadJsonFile, TranslationEntry, detectSchemaType, SchemaType } from '@/lib/translationUtils';
 import { validateSyntax, ValidationResult } from '@/lib/schemaUtils';
 
 interface QADialogProps {
@@ -28,20 +28,23 @@ export const QADialog: React.FC<QADialogProps> = ({
   const translationData = useMemo(() => {
     try {
       const parsedSchema = JSON.parse(schema);
+      const schemaType = detectSchemaType(parsedSchema);
       const entries = extractStringValues(parsedSchema);
       const index = createTranslationIndex(entries);
       
       return {
         entries,
         index,
-        totalStrings: entries.length
+        totalStrings: entries.length,
+        schemaType
       };
     } catch (error) {
       console.error('Failed to parse schema for translations:', error);
       return {
         entries: [],
         index: {},
-        totalStrings: 0
+        totalStrings: 0,
+        schemaType: 'unknown' as SchemaType
       };
     }
   }, [schema]);
@@ -65,6 +68,19 @@ export const QADialog: React.FC<QADialogProps> = ({
       toast.error('Failed to download translation index');
     }
   };
+
+  const getSchemaTypeDisplay = (type: SchemaType) => {
+    switch (type) {
+      case 'openapi':
+        return { label: 'OpenAPI Specification', color: 'bg-blue-100 text-blue-800' };
+      case 'json-schema':
+        return { label: 'JSON Schema', color: 'bg-green-100 text-green-800' };
+      default:
+        return { label: 'Unknown Schema', color: 'bg-gray-100 text-gray-800' };
+    }
+  };
+
+  const schemaTypeInfo = getSchemaTypeDisplay(translationData.schemaType);
 
   const groupedEntries = useMemo(() => {
     const groups: Record<string, TranslationEntry[]> = {};
@@ -137,12 +153,28 @@ export const QADialog: React.FC<QADialogProps> = ({
                     <FileText className="h-4 w-4 shrink-0" />
                     <span className="truncate">Translation Summary</span>
                   </span>
-                  <Badge variant="outline" className="shrink-0">
-                    {translationData.totalStrings} strings found
-                  </Badge>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Badge variant="outline">
+                      {translationData.totalStrings} strings found
+                    </Badge>
+                    <Badge className={schemaTypeInfo.color}>
+                      {schemaTypeInfo.label}
+                    </Badge>
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
+                <div className="mb-3 text-xs text-muted-foreground">
+                  {translationData.schemaType === 'openapi' && 
+                    'Excludes OpenAPI keywords, HTTP methods, status codes, URLs, and technical identifiers.'
+                  }
+                  {translationData.schemaType === 'json-schema' && 
+                    'Excludes JSON Schema keywords, $-prefixed properties, enum values, and technical identifiers.'
+                  }
+                  {translationData.schemaType === 'unknown' && 
+                    'Basic filtering applied - excludes $-prefixed properties and common technical patterns.'
+                  }
+                </div>
                 <div className="flex gap-2 flex-wrap">
                   <Button 
                     size="sm" 
