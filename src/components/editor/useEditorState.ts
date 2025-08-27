@@ -19,7 +19,7 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
   const { settings } = useEditorSettings();
   const { maxDepth } = settings;
   
-  // Set default collapsed state - initially collapsed
+  // Set default collapsed state - everything collapsed from start for proper sync
   const [collapsedPaths, setCollapsedPaths] = useState<CollapsedState>({ root: true });
   
   // Track which notation panels should be expanded based on JSON editor
@@ -190,7 +190,7 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
   const handleSchemaTypeChange = (value: SchemaType) => {
     debugToast('Schema type changed to', value);
     setSchemaType(value);
-    // Reset collapsed paths when changing schema type
+    // Reset collapsed paths when changing schema type - everything collapsed
     setCollapsedPaths({ root: true });
   };
 

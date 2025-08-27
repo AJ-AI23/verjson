@@ -74,24 +74,16 @@ export const useJsonEditorEvents = ({
   const createEditorEventHandlers = useCallback(() => {
     // Remove debug toast that runs frequently
     
-    // Handle expand event from JSONEditor - determine user intent and update collapsedPaths
+    // Handle expand event from JSONEditor - user wants to expand this path
     const onExpand = (node: any) => {
       const path = node.path.length > 0 ? node.path.join('.') : 'root';
       const normalizedPath = normalizePath(path);
       
-      console.log(`🔧 JSONEditor onExpand event: ${normalizedPath}`);
+      console.log(`🔧 JSONEditor onExpand event: ${normalizedPath} - user wants to expand`);
       
-      // Determine user intent: if currently collapsed in our state, user wants to expand (false)
-      // If currently expanded in our state, user wants to collapse (true)
-      const currentlyCollapsed = collapsedPaths[normalizedPath] !== undefined ? 
-        collapsedPaths[normalizedPath] : false; // Default to expanded
-      
-      const userWantsToCollapse = !currentlyCollapsed;
-      
-      console.log(`🔧 User wants to: ${userWantsToCollapse ? 'collapse' : 'expand'} ${normalizedPath}`);
-      
+      // User clicked to expand, so set this path to expanded (false)
       if (onToggleCollapse) {
-        onToggleCollapse(normalizedPath, userWantsToCollapse);
+        onToggleCollapse(normalizedPath, false); // false = expanded
       }
       
       // Update debug state if needed
@@ -99,9 +91,9 @@ export const useJsonEditorEvents = ({
         setFoldingDebug({
           timestamp: Date.now(),
           path: normalizedPath,
-          lastOperation: userWantsToCollapse ? 'collapse' : 'expand',
-          isCollapsed: userWantsToCollapse,
-          previousState: currentlyCollapsed
+          lastOperation: 'expand',
+          isCollapsed: false,
+          previousState: true // was collapsed
         });
       }
       
