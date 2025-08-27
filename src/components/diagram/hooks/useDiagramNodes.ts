@@ -36,12 +36,11 @@ export const useDiagramNodes = (
     return createStableHash(collapsedPaths);
   }, [collapsedPaths]);
 
-  // Update schemaKey when collapsedPaths changes
+  // Update schemaKey when collapsedPaths changes - ensure this always triggers
   useEffect(() => {
-    // Force schemaKey increment to trigger redraw when collapsedPaths changes
-    if (!initialRenderRef.current && !deepEqual(collapsedPaths, prevCollapsedPathsRef.current)) {
+    if (!deepEqual(collapsedPaths, prevCollapsedPathsRef.current)) {
       setSchemaKey(prev => prev + 1);
-      prevCollapsedPathsRef.current = collapsedPaths;
+      prevCollapsedPathsRef.current = { ...collapsedPaths };
     }
   }, [collapsedPathsHash, collapsedPaths]);
 

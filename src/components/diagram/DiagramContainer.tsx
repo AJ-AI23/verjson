@@ -62,9 +62,9 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     setIsFullscreen(!isFullscreen);
   };
 
-  // Memoize the schema and collapsedPaths with stable references
+  // Memoize the schema and collapsedPaths with shallow reference checks for better update detection
   const memoizedSchema = useMemo(() => schema, [schema]);
-  const memoizedCollapsedPaths = useMemo(() => collapsedPaths, [collapsedPaths]);
+  const memoizedCollapsedPaths = useMemo(() => ({ ...collapsedPaths }), [collapsedPaths]);
 
   const {
     nodes,

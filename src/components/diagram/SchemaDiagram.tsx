@@ -37,31 +37,17 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
     </div>
   );
 }, (prevProps, nextProps) => {
-  try {
-    // Custom comparison function for memoization using efficient deep equality
-    const schemaEqual = deepEqual(prevProps.schema, nextProps.schema);
-    const collapsedEqual = deepEqual(prevProps.collapsedPaths, nextProps.collapsedPaths);
-    const notationPathsEqual = prevProps.expandedNotationPaths === nextProps.expandedNotationPaths ||
-      (prevProps.expandedNotationPaths && nextProps.expandedNotationPaths &&
-       prevProps.expandedNotationPaths.size === nextProps.expandedNotationPaths.size &&
-       [...prevProps.expandedNotationPaths].every(path => nextProps.expandedNotationPaths!.has(path)));
-    
-    const result = (
-      schemaEqual &&
-      prevProps.error === nextProps.error &&
-      prevProps.groupProperties === nextProps.groupProperties &&
-      collapsedEqual &&
-      prevProps.maxDepth === nextProps.maxDepth &&
-      prevProps.onAddNotation === nextProps.onAddNotation &&
-      notationPathsEqual
-    );
-    
-    return result;
-  } catch (error) {
-    console.error('Error in SchemaDiagram memo comparison:', error);
-    // If there's an error in comparison, force a re-render to be safe
-    return false;
-  }
+  // Simplified comparison - only check if props are exactly the same
+  // This allows React to handle updates more naturally when collapsedPaths changes
+  return (
+    prevProps.schema === nextProps.schema &&
+    prevProps.error === nextProps.error &&
+    prevProps.groupProperties === nextProps.groupProperties &&
+    prevProps.collapsedPaths === nextProps.collapsedPaths &&
+    prevProps.maxDepth === nextProps.maxDepth &&
+    prevProps.onAddNotation === nextProps.onAddNotation &&
+    prevProps.expandedNotationPaths === nextProps.expandedNotationPaths
+  );
 });
 
 SchemaDiagram.displayName = 'SchemaDiagram';
