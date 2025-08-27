@@ -10,7 +10,8 @@ import {
   createMethodNode,
   createResponseNode,
   createRequestBodyNode,
-  createConsolidatedResponseNode
+  createConsolidatedResponseNode,
+  createGroupedPropertiesNode
 } from '../nodeGenerator';
 import { createEdge } from '../edgeGenerator';
 
@@ -259,6 +260,55 @@ function processComponentsSchemas(
   parentPath: string
 ) {
   const schemaNames = Object.keys(schemas);
+  const maxSchemasToShow = 4; // Show max 4 individual schemas, group the rest
+  
+  // Group schemas if there are more than the limit
+  if (schemaNames.length > maxSchemasToShow) {
+    const visibleSchemas = schemaNames.slice(0, maxSchemasToShow);
+    const groupedSchemas = schemaNames.slice(maxSchemasToShow);
+    
+    const startX = xPos - (visibleSchemas.length + 1) * xSpacing / 2 + xSpacing / 2;
+    
+    // Create individual nodes for first N schemas
+    visibleSchemas.forEach((schemaName, index) => {
+      const schemaValue = schemas[schemaName];
+      const schemaPath = `${parentPath}.${schemaName}`;
+      const schemaX = startX + index * xSpacing;
+      
+      const schemaNode = createPropertyNode(
+        schemaName,
+        schemaValue,
+        [],
+        schemaX,
+        yPos,
+        false
+      );
+      
+      const edge = createEdge(parentNodeId, schemaNode.id, undefined, false, {}, 'structure');
+      result.nodes.push(schemaNode);
+      result.edges.push(edge);
+    });
+    
+    // Create grouped node for remaining schemas
+    const groupedPropertiesData: [string, any][] = groupedSchemas.map(name => [name, schemas[name]]);
+    const groupedNode = createGroupedPropertiesNode(
+      `${parentNodeId}-grouped-schemas`,
+      groupedPropertiesData,
+      [],
+      startX + maxSchemasToShow * xSpacing,
+      yPos
+    );
+    
+    groupedNode.data.label = `${groupedSchemas.length} More Schemas`;
+    
+    const groupedEdge = createEdge(parentNodeId, groupedNode.id, undefined, false, {}, 'structure');
+    result.nodes.push(groupedNode);
+    result.edges.push(groupedEdge);
+    
+    return;
+  }
+  
+  // If schemas count is within limit, show all individually
   const startX = xPos - (schemaNames.length * xSpacing) / 2 + xSpacing / 2;
   
   // First pass: Calculate which schemas have expanded properties and their heights
