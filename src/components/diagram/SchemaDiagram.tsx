@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import '@xyflow/react/dist/style.css';
 import { DiagramContainer } from './DiagramContainer';
 import { CollapsedState } from '@/lib/diagram/types';
+import { deepEqual } from '@/lib/utils/deepEqual';
 
 interface SchemaDiagramProps {
   schema: any;
@@ -37,15 +38,22 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   );
 }, (prevProps, nextProps) => {
   try {
-    // Custom comparison function for memoization
-    const schemaEqual = JSON.stringify(prevProps.schema) === JSON.stringify(nextProps.schema);
-    const collapsedEqual = JSON.stringify(prevProps.collapsedPaths) === JSON.stringify(nextProps.collapsedPaths);
+    // Custom comparison function for memoization using efficient deep equality
+    const schemaEqual = deepEqual(prevProps.schema, nextProps.schema);
+    const collapsedEqual = deepEqual(prevProps.collapsedPaths, nextProps.collapsedPaths);
+    const notationPathsEqual = prevProps.expandedNotationPaths === nextProps.expandedNotationPaths ||
+      (prevProps.expandedNotationPaths && nextProps.expandedNotationPaths &&
+       prevProps.expandedNotationPaths.size === nextProps.expandedNotationPaths.size &&
+       [...prevProps.expandedNotationPaths].every(path => nextProps.expandedNotationPaths!.has(path)));
+    
     const result = (
       schemaEqual &&
       prevProps.error === nextProps.error &&
       prevProps.groupProperties === nextProps.groupProperties &&
       collapsedEqual &&
-      prevProps.maxDepth === nextProps.maxDepth
+      prevProps.maxDepth === nextProps.maxDepth &&
+      prevProps.onAddNotation === nextProps.onAddNotation &&
+      notationPathsEqual
     );
     
     return result;

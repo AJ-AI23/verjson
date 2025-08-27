@@ -4,6 +4,7 @@ import { Node, Edge, useNodesState, useEdgesState } from '@xyflow/react';
 import { generateNodesAndEdges } from '@/lib/diagram';
 import { useNodePositions } from './useNodePositions';
 import { CollapsedState } from '@/lib/diagram/types';
+import { deepEqual, createStableHash } from '@/lib/utils/deepEqual';
 
 export const useDiagramNodes = (
   schema: any, 
@@ -17,41 +18,32 @@ export const useDiagramNodes = (
   const [schemaKey, setSchemaKey] = useState(0);
   const { nodePositionsRef, applyStoredPositions } = useNodePositions(nodes);
   
-  // Track schema changes
-  const schemaStringRef = useRef<string>('');
-  const collapsedPathsRef = useRef<CollapsedState>(collapsedPaths);
+  // Track schema changes with stable references
+  const prevSchemaRef = useRef<any>(null);
+  const prevCollapsedPathsRef = useRef<CollapsedState>({});
+  const prevGroupPropertiesRef = useRef<boolean>(groupProperties);
   const updateTimeoutRef = useRef<number | null>(null);
   const processingUpdateRef = useRef<boolean>(false);
   const lastUpdateTimeRef = useRef<number>(Date.now());
   const initialRenderRef = useRef<boolean>(true);
 
-  // Memoize the schema JSON string for comparison
-  const schemaString = useMemo(() => {
-    try {
-      return schema ? JSON.stringify(schema) : '';
-    } catch (e) {
-      console.error('Failed to stringify schema:', e);
-      return '';
-    }
+  // Create stable hashes for efficient comparison
+  const schemaHash = useMemo(() => {
+    return schema ? createStableHash(schema) : '';
   }, [schema]);
 
-  // Memoize the collapsedPaths JSON string for comparison
-  const collapsedPathsString = useMemo(() => {
-    try {
-      return JSON.stringify(collapsedPaths);
-    } catch (e) {
-      console.error('Failed to stringify collapsedPaths:', e);
-      return '';
-    }
+  const collapsedPathsHash = useMemo(() => {
+    return createStableHash(collapsedPaths);
   }, [collapsedPaths]);
 
   // Update schemaKey when collapsedPaths changes
   useEffect(() => {
     // Force schemaKey increment to trigger redraw when collapsedPaths changes
-    if (!initialRenderRef.current) {
+    if (!initialRenderRef.current && !deepEqual(collapsedPaths, prevCollapsedPathsRef.current)) {
       setSchemaKey(prev => prev + 1);
+      prevCollapsedPathsRef.current = collapsedPaths;
     }
-  }, [collapsedPathsString]);
+  }, [collapsedPathsHash, collapsedPaths]);
 
   // Throttle updates to prevent excessive rendering, but be more permissive for schema changes
   const throttleUpdates = useCallback((schemaChanged: boolean) => {
@@ -94,18 +86,19 @@ export const useDiagramNodes = (
       return;
     }
     
-    // Only update if something important has changed
-    const schemaChanged = schemaString !== schemaStringRef.current;
-    const groupSettingChanged = prevGroupSetting !== groupProperties;
-    const collapsedPathsChanged = collapsedPathsString !== JSON.stringify(collapsedPathsRef.current);
+    // Only update if something important has changed using efficient comparison
+    const schemaChanged = !deepEqual(schema, prevSchemaRef.current);
+    const groupSettingChanged = prevGroupPropertiesRef.current !== groupProperties;
+    const collapsedPathsChanged = !deepEqual(collapsedPaths, prevCollapsedPathsRef.current);
     
     // Force update on initial render to make sure root node is always shown
     const forceUpdate = isInitialRender;
     
     if (schemaChanged || groupSettingChanged || collapsedPathsChanged || forceUpdate) {
       // Update refs with current values
-      schemaStringRef.current = schemaString;
-      collapsedPathsRef.current = {...collapsedPaths};
+      prevSchemaRef.current = schema;
+      prevCollapsedPathsRef.current = collapsedPaths;
+      prevGroupPropertiesRef.current = groupProperties;
       lastUpdateTimeRef.current = Date.now();
       
       // Mark that we're processing an update
@@ -145,12 +138,10 @@ export const useDiagramNodes = (
     }
     
   }, [
-    schema, 
-    schemaString, 
+    schemaHash,
     error, 
     groupProperties, 
-    collapsedPaths,
-    collapsedPathsString, 
+    collapsedPathsHash,
     setNodes, 
     setEdges, 
     applyStoredPositions,
