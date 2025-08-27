@@ -239,17 +239,7 @@ export function useDocumentVersions(documentId?: string) {
     // Helper to get patches in the expected format
     getSchemaPatches: () => {
       const patches = convertToSchemaPatches(versions);
-      debugToast('🔔 getSchemaPatches: Converting versions to patches', {
-        versionsCount: versions.length,
-        patchesCount: patches.length,
-        patches: patches.map(p => ({
-          id: p.id,
-          description: p.description,
-          isSelected: p.isSelected,
-          isReleased: p.isReleased,
-          version: `${p.version.major}.${p.version.minor}.${p.version.patch}`
-        }))
-      });
+      // Removed continuous debug logging that was causing performance issues
       return patches;
     },
   };

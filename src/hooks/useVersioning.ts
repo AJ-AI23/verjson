@@ -56,15 +56,7 @@ export const useVersioning = ({
   // Calculate if the schema has been modified since last database commit
   const isModified = schema !== databaseVersion;
   
-  // Debug logging for isModified calculation
-  debugToast('Version Debug', {
-    isModified,
-    schemaLength: schema?.length,
-    databaseVersionLength: databaseVersion?.length,
-    documentId,
-    schemaHash: schema?.substring(0, 100),
-    databaseVersionHash: databaseVersion?.substring(0, 100)
-  });
+  // Removed continuous debug logging that was causing performance issues
   
   // Get the current version based on patches
   const currentVersion = calculateLatestVersion(patches);
@@ -80,12 +72,11 @@ export const useVersioning = ({
         const currentMergedSchema = applySelectedPatches(schemaPatches);
         const mergedSchemaString = JSON.stringify(currentMergedSchema, null, 2);
         setDatabaseVersion(mergedSchemaString);
-        debugToast('Database version set from selected patches', mergedSchemaString.substring(0, 100));
       } catch (err) {
         console.error('Failed to calculate database version from patches:', err);
       }
     }
-  }, [versions, getSchemaPatches, loading]);
+  }, [versions, loading]); // Removed getSchemaPatches from dependencies to prevent continuous calls
 
   // Create initial version when document is loaded (only once per document)
   useEffect(() => {

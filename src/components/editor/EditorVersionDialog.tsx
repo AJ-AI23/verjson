@@ -29,9 +29,7 @@ export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({
   currentSchema,
   currentFileType
 }) => {
-  const { debugToast } = useDebug();
-  
-  debugToast('🔍 EditorVersionDialog: Rendering with documentId', documentId);
+  // Removed continuous debug logging that was causing performance issues
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
