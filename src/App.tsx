@@ -11,8 +11,8 @@ function App() {
   return (
     <>
       <AuthProvider>
-        <EditorSettingsProvider>
-          <DebugProvider>
+        <DebugProvider>
+          <EditorSettingsProvider>
             <Router>
               <Routes>
                 <Route path="/" element={<Index />} />
@@ -20,8 +20,8 @@ function App() {
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Router>
-          </DebugProvider>
-        </EditorSettingsProvider>
+          </EditorSettingsProvider>
+        </DebugProvider>
       </AuthProvider>
     </>
   );
