@@ -56,12 +56,41 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   const [showVersionMismatch, setShowVersionMismatch] = useState(false);
   const [baseContentForVersion, setBaseContentForVersion] = useState<any>(null);
   
-  // Cache configuration state
+  // Cache configuration state with localStorage persistence
   const [showCacheConfig, setShowCacheConfig] = useState(false);
-  const [cacheEnabled, setCacheEnabled] = useState(true);
-  const [serverSyncEnabled, setServerSyncEnabled] = useState(true);
-  const [syncInterval, setSyncInterval] = useState(30);
-  const [maxHistorySize, setMaxHistorySize] = useState(50);
+  const [cacheEnabled, setCacheEnabled] = useState(() => {
+    const saved = localStorage.getItem('editor-cache-enabled');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  const [serverSyncEnabled, setServerSyncEnabled] = useState(() => {
+    const saved = localStorage.getItem('editor-server-sync-enabled');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  const [syncInterval, setSyncInterval] = useState(() => {
+    const saved = localStorage.getItem('editor-sync-interval');
+    return saved !== null ? JSON.parse(saved) : 30;
+  });
+  const [maxHistorySize, setMaxHistorySize] = useState(() => {
+    const saved = localStorage.getItem('editor-max-history-size');
+    return saved !== null ? JSON.parse(saved) : 50;
+  });
+
+  // Persist cache configuration changes to localStorage
+  useEffect(() => {
+    localStorage.setItem('editor-cache-enabled', JSON.stringify(cacheEnabled));
+  }, [cacheEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('editor-server-sync-enabled', JSON.stringify(serverSyncEnabled));
+  }, [serverSyncEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('editor-sync-interval', JSON.stringify(syncInterval));
+  }, [syncInterval]);
+
+  useEffect(() => {
+    localStorage.setItem('editor-max-history-size', JSON.stringify(maxHistorySize));
+  }, [maxHistorySize]);
   
   // Get base content for version comparison (only once per document)
   useEffect(() => {
