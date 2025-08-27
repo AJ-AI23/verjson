@@ -1,11 +1,16 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { getDocumentVersionInfo, compareVersionInfo, DocumentVersionInfo } from '@/lib/documentVersionUtils';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface HistoryEntry {
+  id?: string;
   content: string;
   timestamp: number;
   documentId?: string;
+  sequenceNumber?: number;
+  synced?: boolean;
 }
 
 interface CachedHistoryData {
@@ -13,6 +18,8 @@ interface CachedHistoryData {
   currentIndex: number;
   lastUpdated: number;
   versionInfo?: DocumentVersionInfo;
+  lastServerSync?: number;
+  maxSequenceNumber?: number;
 }
 
 interface UseEditorHistoryProps {
@@ -23,6 +30,8 @@ interface UseEditorHistoryProps {
   initialContent?: string;
   baseContent?: any;
   onVersionMismatch?: (hasConflict: boolean) => void;
+  enableServerSync?: boolean;
+  syncIntervalMs?: number;
 }
 
 export const useEditorHistory = ({
@@ -32,19 +41,129 @@ export const useEditorHistory = ({
   debounceMs = 1000,
   initialContent,
   baseContent,
-  onVersionMismatch
+  onVersionMismatch,
+  enableServerSync = true,
+  syncIntervalMs = 30000 // 30 seconds
 }: UseEditorHistoryProps) => {
+  const { user } = useAuth();
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedContentRef = useRef<string>('');
   const currentVersionInfoRef = useRef<DocumentVersionInfo | null>(null);
+  const maxSequenceNumberRef = useRef<number>(0);
+  const pendingSyncRef = useRef<HistoryEntry[]>([]);
   
   // Generate storage key for the current document
   const getStorageKey = useCallback((docId?: string) => {
     return `editor-history-${docId || 'default'}`;
   }, []);
+
+  // Generate content hash client-side
+  const generateContentHash = useCallback(async (content: string): Promise<string> => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(content);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }, []);
+
+  // Fetch history from server
+  const fetchServerHistory = useCallback(async (): Promise<HistoryEntry[]> => {
+    if (!user || !documentId || !enableServerSync) return [];
+    
+    try {
+      const { data, error } = await supabase
+        .from('editor_history')
+        .select('*')
+        .eq('document_id', documentId)
+        .eq('user_id', user.id)
+        .order('sequence_number', { ascending: true })
+        .limit(maxHistorySize);
+
+      if (error) throw error;
+
+      return data.map(entry => ({
+        id: entry.id,
+        content: entry.content,
+        timestamp: new Date(entry.created_at).getTime(),
+        documentId: entry.document_id,
+        sequenceNumber: entry.sequence_number,
+        synced: true
+      }));
+    } catch (error) {
+      console.error('Failed to fetch server history:', error);
+      return [];
+    }
+  }, [user, documentId, enableServerSync, maxHistorySize]);
+
+  // Merge server and local histories intelligently
+  const mergeHistories = useCallback((serverHistory: HistoryEntry[], localHistory: HistoryEntry[]): HistoryEntry[] => {
+    const merged = new Map<string, HistoryEntry>();
+    
+    // Add server history first (these are authoritative)
+    serverHistory.forEach(entry => {
+      const key = `${entry.content}-${entry.timestamp}`;
+      merged.set(key, entry);
+    });
+    
+    // Add local history that's not already in server
+    localHistory.forEach(entry => {
+      const key = `${entry.content}-${entry.timestamp}`;
+      if (!merged.has(key)) {
+        merged.set(key, { ...entry, synced: false });
+      }
+    });
+    
+    // Sort merged history by timestamp
+    return Array.from(merged.values()).sort((a, b) => a.timestamp - b.timestamp);
+  }, []);
+
+  // Sync entries to server
+  const syncToServer = useCallback(async (entries: HistoryEntry[]) => {
+    if (!user || !documentId || !enableServerSync || entries.length === 0) return;
+
+    try {
+      setIsSyncing(true);
+      
+      for (const entry of entries) {
+        if (entry.synced) continue; // Skip already synced entries
+        
+        const sequenceNumber = ++maxSequenceNumberRef.current;
+        
+        const { data, error } = await supabase
+          .from('editor_history')
+          .insert({
+            document_id: documentId,
+            user_id: user.id,
+            content: entry.content,
+            content_hash: await generateContentHash(entry.content),
+            sequence_number: sequenceNumber
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Mark entry as synced
+        entry.id = data.id;
+        entry.sequenceNumber = sequenceNumber;
+        entry.synced = true;
+      }
+
+      // Update local storage with synced entries
+      setHistory(prevHistory => [...prevHistory]);
+      
+    } catch (error) {
+      console.error('Failed to sync to server:', error);
+      toast.error('Failed to sync history to server');
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [user, documentId, enableServerSync, generateContentHash]);
 
   // Reset state when documentId changes
   useEffect(() => {
@@ -69,48 +188,102 @@ export const useEditorHistory = ({
       return;
     }
 
-    const initializeHistory = async () => {
-      const storageKey = getStorageKey(documentId);
-      const savedHistory = localStorage.getItem(storageKey);
-      
-      // Get current document version info if we have the necessary data
-      let currentVersionInfo: DocumentVersionInfo | null = null;
-      if (documentId && baseContent) {
-        try {
-          currentVersionInfo = await getDocumentVersionInfo(documentId, baseContent);
-          currentVersionInfoRef.current = currentVersionInfo;
-        } catch (error) {
-          console.error('Error getting document version info:', error);
-        }
-      }
-      
-      if (savedHistory) {
-        try {
-          const parsed: CachedHistoryData = JSON.parse(savedHistory);
-          const cachedVersionInfo = parsed.versionInfo;
-          
-          // Check for version mismatch
-          const hasVersionMismatch = currentVersionInfo && cachedVersionInfo ? 
-            compareVersionInfo(cachedVersionInfo, currentVersionInfo) : false;
-          
-          if (hasVersionMismatch && onVersionMismatch) {
-            onVersionMismatch(true);
+      const initializeHistory = async () => {
+        // Get current document version info if we have the necessary data
+        let currentVersionInfo: DocumentVersionInfo | null = null;
+        if (documentId && baseContent) {
+          try {
+            currentVersionInfo = await getDocumentVersionInfo(documentId, baseContent);
+            currentVersionInfoRef.current = currentVersionInfo;
+          } catch (error) {
+            console.error('Error getting document version info:', error);
           }
-          
-          // Load cached history regardless of version mismatch (user can choose what to do)
-          setHistory(parsed.history || []);
-          setCurrentIndex(parsed.currentIndex ?? -1);
-          
-        } catch (error) {
-          console.error('Failed to load editor history:', error);
+        }
+
+        // Try server sync first if enabled
+        if (enableServerSync && user) {
+          try {
+            const serverHistory = await fetchServerHistory();
+            
+            // Update max sequence number
+            if (serverHistory.length > 0) {
+              const maxSeq = Math.max(...serverHistory.map(entry => entry.sequenceNumber || 0));
+              maxSequenceNumberRef.current = maxSeq;
+            }
+            
+            const storageKey = getStorageKey(documentId);
+            const savedHistory = localStorage.getItem(storageKey);
+            
+            if (savedHistory) {
+              try {
+                const parsed: CachedHistoryData = JSON.parse(savedHistory);
+                const localHistory = parsed.history || [];
+                
+                // Merge server and local histories
+                const mergedHistory = mergeHistories(serverHistory, localHistory);
+                setHistory(mergedHistory);
+                
+                // Find appropriate current index
+                const currentContentIndex = mergedHistory.findIndex(entry => 
+                  entry.content === lastSavedContentRef.current
+                );
+                setCurrentIndex(currentContentIndex >= 0 ? currentContentIndex : mergedHistory.length - 1);
+                
+                // Sync any unsynced local entries
+                const unsyncedEntries = localHistory.filter(entry => !entry.synced);
+                if (unsyncedEntries.length > 0) {
+                  pendingSyncRef.current = unsyncedEntries;
+                }
+                
+              } catch (error) {
+                console.error('Failed to parse local history:', error);
+                setHistory(serverHistory);
+                setCurrentIndex(serverHistory.length - 1);
+              }
+            } else {
+              setHistory(serverHistory);
+              setCurrentIndex(serverHistory.length - 1);
+            }
+            
+            setIsInitialized(true);
+            return;
+          } catch (error) {
+            console.error('Failed to initialize with server sync:', error);
+            // Fall back to local-only initialization
+          }
+        }
+        
+        // Fall back to local-only initialization
+        const storageKey = getStorageKey(documentId);
+        const savedHistory = localStorage.getItem(storageKey);
+        
+        if (savedHistory) {
+          try {
+            const parsed: CachedHistoryData = JSON.parse(savedHistory);
+            const cachedVersionInfo = parsed.versionInfo;
+            
+            // Check for version mismatch
+            const hasVersionMismatch = currentVersionInfo && cachedVersionInfo ? 
+              compareVersionInfo(cachedVersionInfo, currentVersionInfo) : false;
+            
+            if (hasVersionMismatch && onVersionMismatch) {
+              onVersionMismatch(true);
+            }
+            
+            // Load cached history regardless of version mismatch (user can choose what to do)
+            setHistory(parsed.history || []);
+            setCurrentIndex(parsed.currentIndex ?? -1);
+            
+          } catch (error) {
+            console.error('Failed to load editor history:', error);
+            initializeWithInitialContent();
+          }
+        } else {
           initializeWithInitialContent();
         }
-      } else {
-        initializeWithInitialContent();
-      }
-      
-      setIsInitialized(true);
-    };
+        
+        setIsInitialized(true);
+      };
     
     const initializeWithInitialContent = () => {
       if (initialContent) {
@@ -132,7 +305,7 @@ export const useEditorHistory = ({
     if (!isInitialized) {
       initializeHistory();
     }
-  }, [documentId, getStorageKey, initialContent, baseContent, onVersionMismatch, isInitialized]);
+  }, [documentId, getStorageKey, initialContent, baseContent, onVersionMismatch, isInitialized, enableServerSync, user, fetchServerHistory, mergeHistories]);
 
   // Save history to localStorage with version info
   const saveHistoryToStorage = useCallback((historyEntries: HistoryEntry[], index: number) => {
@@ -142,13 +315,52 @@ export const useEditorHistory = ({
         history: historyEntries,
         currentIndex: index,
         lastUpdated: Date.now(),
-        versionInfo: currentVersionInfoRef.current || undefined
+        versionInfo: currentVersionInfoRef.current || undefined,
+        lastServerSync: Date.now(),
+        maxSequenceNumber: maxSequenceNumberRef.current
       };
       localStorage.setItem(storageKey, JSON.stringify(cacheData));
     } catch (error) {
       console.error('Failed to save editor history:', error);
     }
   }, [documentId, getStorageKey]);
+
+
+
+  // Periodic sync to server
+  useEffect(() => {
+    if (!enableServerSync || !user || !documentId) return;
+    
+    const setupPeriodicSync = () => {
+      syncTimeoutRef.current = setTimeout(async () => {
+        // Sync pending entries
+        if (pendingSyncRef.current.length > 0) {
+          await syncToServer([...pendingSyncRef.current]);
+          pendingSyncRef.current = [];
+        }
+        
+        // Sync any unsynced entries in current history
+        const unsyncedEntries = history.filter(entry => !entry.synced);
+        if (unsyncedEntries.length > 0) {
+          await syncToServer(unsyncedEntries);
+        }
+        
+        // Schedule next sync
+        setupPeriodicSync();
+      }, syncIntervalMs);
+    };
+    
+    if (isInitialized) {
+      setupPeriodicSync();
+    }
+    
+    return () => {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+        syncTimeoutRef.current = null;
+      }
+    };
+  }, [enableServerSync, user, documentId, isInitialized, history, syncToServer, syncIntervalMs]);
 
   // Add content to history (with debouncing) - only after initialization
   const addToHistory = useCallback((content: string) => {
@@ -183,7 +395,8 @@ export const useEditorHistory = ({
         const newEntry: HistoryEntry = {
           content,
           timestamp: Date.now(),
-          documentId
+          documentId,
+          synced: false
         };
         
         newHistory.push(newEntry);
@@ -202,8 +415,19 @@ export const useEditorHistory = ({
       });
       
       lastSavedContentRef.current = content;
+      
+      // Add to pending sync if server sync is enabled
+      if (enableServerSync && user) {
+        const newEntry: HistoryEntry = {
+          content,
+          timestamp: Date.now(),
+          documentId,
+          synced: false
+        };
+        pendingSyncRef.current.push(newEntry);
+      }
     }, debounceMs);
-  }, [currentIndex, debounceMs, documentId, maxHistorySize, isInitialized]);
+  }, [currentIndex, debounceMs, documentId, maxHistorySize, isInitialized, enableServerSync, user]);
 
   // Save to localStorage when history changes (only after initialization)
   useEffect(() => {
@@ -343,6 +567,8 @@ export const useEditorHistory = ({
     historySize,
     currentIndex: currentIndex + 1, // Display as 1-based
     totalEntries: historySize,
-    isInitialized
+    isInitialized,
+    isSyncing,
+    enableServerSync
   };
 };
