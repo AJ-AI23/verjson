@@ -32,6 +32,7 @@ interface UseEditorHistoryProps {
   onVersionMismatch?: (hasConflict: boolean) => void;
   enableServerSync?: boolean;
   syncIntervalMs?: number;
+  disabled?: boolean;
 }
 
 export const useEditorHistory = ({
@@ -43,7 +44,8 @@ export const useEditorHistory = ({
   baseContent,
   onVersionMismatch,
   enableServerSync = true,
-  syncIntervalMs = 30000 // 30 seconds
+  syncIntervalMs = 30000, // 30 seconds
+  disabled = false
 }: UseEditorHistoryProps) => {
   const { user } = useAuth();
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -183,8 +185,8 @@ export const useEditorHistory = ({
 
   // Load history from localStorage and check version conflicts
   useEffect(() => {
-    // Skip initialization if we don't have the necessary data yet
-    if (documentId && !baseContent) {
+    // Skip initialization if caching is disabled or we don't have the necessary data yet
+    if (disabled || (documentId && !baseContent)) {
       return;
     }
 
@@ -301,11 +303,11 @@ export const useEditorHistory = ({
       }
     };
 
-    // Only initialize once when we have all necessary data
-    if (!isInitialized) {
+    // Only initialize once when we have all necessary data and caching is enabled
+    if (!isInitialized && !disabled) {
       initializeHistory();
     }
-  }, [documentId, getStorageKey, initialContent, baseContent, onVersionMismatch, isInitialized, enableServerSync, user, fetchServerHistory, mergeHistories]);
+  }, [documentId, getStorageKey, initialContent, baseContent, onVersionMismatch, isInitialized, enableServerSync, user, fetchServerHistory, mergeHistories, disabled]);
 
   // Save history to localStorage with version info
   const saveHistoryToStorage = useCallback((historyEntries: HistoryEntry[], index: number) => {
@@ -329,7 +331,7 @@ export const useEditorHistory = ({
 
   // Periodic sync to server
   useEffect(() => {
-    if (!enableServerSync || !user || !documentId) return;
+    if (disabled || !enableServerSync || !user || !documentId) return;
     
     const setupPeriodicSync = () => {
       syncTimeoutRef.current = setTimeout(async () => {
@@ -360,12 +362,12 @@ export const useEditorHistory = ({
         syncTimeoutRef.current = null;
       }
     };
-  }, [enableServerSync, user, documentId, isInitialized, history, syncToServer, syncIntervalMs]);
+  }, [disabled, enableServerSync, user, documentId, isInitialized, history, syncToServer, syncIntervalMs]);
 
   // Add content to history (with debouncing) - only after initialization
   const addToHistory = useCallback((content: string) => {
-    // Don't add to history if not initialized yet
-    if (!isInitialized) {
+    // Don't add to history if disabled or not initialized yet
+    if (disabled || !isInitialized) {
       return;
     }
 
@@ -427,14 +429,14 @@ export const useEditorHistory = ({
         pendingSyncRef.current.push(newEntry);
       }
     }, debounceMs);
-  }, [currentIndex, debounceMs, documentId, maxHistorySize, isInitialized, enableServerSync, user]);
+  }, [currentIndex, debounceMs, documentId, maxHistorySize, isInitialized, enableServerSync, user, disabled]);
 
-  // Save to localStorage when history changes (only after initialization)
+  // Save to localStorage when history changes (only after initialization and when caching is enabled)
   useEffect(() => {
-    if (isInitialized && history.length > 0) {
+    if (!disabled && isInitialized && history.length > 0) {
       saveHistoryToStorage(history, currentIndex);
     }
-  }, [history, currentIndex, saveHistoryToStorage, isInitialized]);
+  }, [history, currentIndex, saveHistoryToStorage, isInitialized, disabled]);
 
   // Undo functionality
   const undo = useCallback(() => {

@@ -11,6 +11,7 @@ interface EditorHistoryControlsProps {
   onClearHistory: () => void;
   currentIndex: number;
   totalEntries: number;
+  disabled?: boolean;
 }
 
 export const EditorHistoryControls: React.FC<EditorHistoryControlsProps> = ({
@@ -20,7 +21,8 @@ export const EditorHistoryControls: React.FC<EditorHistoryControlsProps> = ({
   onRedo,
   onClearHistory,
   currentIndex,
-  totalEntries
+  totalEntries,
+  disabled = false
 }) => {
   return (
     <div className="flex items-center gap-2">
@@ -29,8 +31,8 @@ export const EditorHistoryControls: React.FC<EditorHistoryControlsProps> = ({
           size="sm"
           variant="outline"
           onClick={onUndo}
-          disabled={!canUndo}
-          title="Undo (Ctrl+Z)"
+          disabled={disabled || !canUndo}
+          title={disabled ? "Caching disabled" : "Undo (Ctrl+Z)"}
           className="h-8 px-2"
         >
           <Undo2 className="h-3 w-3" />
@@ -40,21 +42,27 @@ export const EditorHistoryControls: React.FC<EditorHistoryControlsProps> = ({
           size="sm"
           variant="outline"
           onClick={onRedo}
-          disabled={!canRedo}
-          title="Redo (Ctrl+Y)"
+          disabled={disabled || !canRedo}
+          title={disabled ? "Caching disabled" : "Redo (Ctrl+Y)"}
           className="h-8 px-2"
         >
           <Redo2 className="h-3 w-3" />
         </Button>
       </div>
       
-      {totalEntries > 0 && (
+      {!disabled && totalEntries > 0 && (
         <Badge variant="secondary" className="text-xs">
           {currentIndex}/{totalEntries}
         </Badge>
       )}
       
-      {totalEntries > 0 && (
+      {disabled && (
+        <Badge variant="outline" className="text-xs text-muted-foreground">
+          Cache Off
+        </Badge>
+      )}
+      
+      {!disabled && totalEntries > 0 && (
         <Button
           size="sm"
           variant="ghost"

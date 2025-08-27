@@ -102,6 +102,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     syncIntervalMs: syncInterval * 1000,
     maxHistorySize: maxHistorySize,
     debounceMs: 1000,
+    disabled: !cacheEnabled, // Completely disable history when caching is off
     onContentChange: (content) => {
       // When restoring from history, don't trigger addToHistory again
       isRestoringFromHistory.current = true;
@@ -300,13 +301,14 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
           </Dialog>
           
           <EditorHistoryControls
-            canUndo={canUndo}
-            canRedo={canRedo}
+            canUndo={cacheEnabled && canUndo}
+            canRedo={cacheEnabled && canRedo}
             onUndo={undo}
             onRedo={redo}
             onClearHistory={clearHistory}
-            currentIndex={currentIndex}
-            totalEntries={totalEntries}
+            currentIndex={cacheEnabled ? currentIndex : 0}
+            totalEntries={cacheEnabled ? totalEntries : 0}
+            disabled={!cacheEnabled}
           />
           <div className="w-px h-4 bg-border" />
           <div className="flex gap-2">
