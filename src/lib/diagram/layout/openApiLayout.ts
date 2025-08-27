@@ -35,8 +35,8 @@ export const generateOpenApiLayout = (
     return result;
   }
 
-  // Check if root itself is collapsed
-  const rootCollapsed = collapsedPaths['root'] !== false;
+  // Check if root itself is collapsed - it should default to expanded (false) if not set
+  const rootCollapsed = collapsedPaths['root'] === true;
   
   // If root is collapsed, we should skip generating child nodes
   if (rootCollapsed) {

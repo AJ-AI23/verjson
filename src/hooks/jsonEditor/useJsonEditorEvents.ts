@@ -74,20 +74,24 @@ export const useJsonEditorEvents = ({
   const createEditorEventHandlers = useCallback(() => {
     // Remove debug toast that runs frequently
     
-    // Handle expand event from JSONEditor - read the actual node state
+    // Handle expand event from JSONEditor - determine user intent and update collapsedPaths
     const onExpand = (node: any) => {
       const path = node.path.length > 0 ? node.path.join('.') : 'root';
       const normalizedPath = normalizePath(path);
       
-      // Read the actual collapsed state from the JSONEditor node
-      // JSONEditor sets node.collapsed to true when collapsed, false when expanded
-      const actualCollapsedState = node.collapsed === true;
-      
       console.log(`🔧 JSONEditor onExpand event: ${normalizedPath}`);
-      console.log(`🔧 Node actual state: ${actualCollapsedState ? 'collapsed' : 'expanded'}`);
+      
+      // Determine user intent: if currently collapsed in our state, user wants to expand (false)
+      // If currently expanded in our state, user wants to collapse (true)
+      const currentlyCollapsed = collapsedPaths[normalizedPath] !== undefined ? 
+        collapsedPaths[normalizedPath] : false; // Default to expanded
+      
+      const userWantsToCollapse = !currentlyCollapsed;
+      
+      console.log(`🔧 User wants to: ${userWantsToCollapse ? 'collapse' : 'expand'} ${normalizedPath}`);
       
       if (onToggleCollapse) {
-        onToggleCollapse(normalizedPath, actualCollapsedState);
+        onToggleCollapse(normalizedPath, userWantsToCollapse);
       }
       
       // Update debug state if needed
@@ -95,9 +99,9 @@ export const useJsonEditorEvents = ({
         setFoldingDebug({
           timestamp: Date.now(),
           path: normalizedPath,
-          lastOperation: actualCollapsedState ? 'collapse' : 'expand',
-          isCollapsed: actualCollapsedState,
-          previousState: !actualCollapsedState // Previous state was opposite
+          lastOperation: userWantsToCollapse ? 'collapse' : 'expand',
+          isCollapsed: userWantsToCollapse,
+          previousState: currentlyCollapsed
         });
       }
       
