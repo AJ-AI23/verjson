@@ -8,6 +8,19 @@ import { EditorHistoryControls } from '@/components/editor/EditorHistoryControls
 import { VersionMismatchRibbon } from '@/components/editor/VersionMismatchRibbon';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 import { getEffectiveDocumentContentForEditor } from '@/lib/documentUtils';
+import { Button } from '@/components/ui/button';
+import { Settings } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent, 
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface JsonEditorPocProps {
   value: string;
@@ -43,6 +56,13 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   const [showVersionMismatch, setShowVersionMismatch] = useState(false);
   const [baseContentForVersion, setBaseContentForVersion] = useState<any>(null);
   
+  // Cache configuration state
+  const [showCacheConfig, setShowCacheConfig] = useState(false);
+  const [cacheEnabled, setCacheEnabled] = useState(true);
+  const [serverSyncEnabled, setServerSyncEnabled] = useState(true);
+  const [syncInterval, setSyncInterval] = useState(30);
+  const [maxHistorySize, setMaxHistorySize] = useState(50);
+  
   // Get base content for version comparison (only once per document)
   useEffect(() => {
     const getBaseContent = async () => {
@@ -77,11 +97,11 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     documentId,
     initialContent: value,
     baseContent: baseContentForVersion,
-    // 🎛️ Cache Strategy Configuration
-    enableServerSync: true,        // Set to false for local-only mode
-    syncIntervalMs: 30000,         // Sync every 30 seconds (adjust as needed)
-    maxHistorySize: 50,            // Max entries to keep (default: 50)
-    debounceMs: 1000,              // Debounce delay for saving (default: 1000ms)
+    // 🎛️ Cache Strategy Configuration - Now controlled by UI
+    enableServerSync: cacheEnabled && serverSyncEnabled,
+    syncIntervalMs: syncInterval * 1000,
+    maxHistorySize: maxHistorySize,
+    debounceMs: 1000,
     onContentChange: (content) => {
       // When restoring from history, don't trigger addToHistory again
       isRestoringFromHistory.current = true;
@@ -175,6 +195,110 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
       <div className="p-2 border-b bg-muted/30 flex justify-between items-center">
         <h2 className="font-semibold text-foreground">JSON Editor</h2>
         <div className="flex items-center gap-3">
+          <Dialog open={showCacheConfig} onOpenChange={setShowCacheConfig}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="p-2">
+                <Settings className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Editor Cache Configuration</DialogTitle>
+                <DialogDescription>
+                  Configure how the editor saves and syncs your edit history.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-6">
+                {/* Cache Enabled Toggle */}
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label htmlFor="cache-enabled">Enable Editor Caching</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Store edit history for undo/redo functionality
+                    </p>
+                  </div>
+                  <Switch
+                    id="cache-enabled"
+                    checked={cacheEnabled}
+                    onCheckedChange={setCacheEnabled}
+                  />
+                </div>
+
+                {/* Server Sync Toggle */}
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label htmlFor="server-sync">Server Synchronization</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Sync history across devices and sessions
+                    </p>
+                  </div>
+                  <Switch
+                    id="server-sync"
+                    checked={serverSyncEnabled}
+                    onCheckedChange={setServerSyncEnabled}
+                    disabled={!cacheEnabled}
+                  />
+                </div>
+
+                {/* Sync Interval */}
+                <div className="space-y-3">
+                  <Label htmlFor="sync-interval">Sync Interval</Label>
+                  <Select 
+                    value={syncInterval.toString()} 
+                    onValueChange={(value) => setSyncInterval(Number(value))}
+                    disabled={!cacheEnabled || !serverSyncEnabled}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select sync interval" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">Every 5 seconds (Real-time)</SelectItem>
+                      <SelectItem value="15">Every 15 seconds</SelectItem>
+                      <SelectItem value="30">Every 30 seconds (Default)</SelectItem>
+                      <SelectItem value="60">Every minute</SelectItem>
+                      <SelectItem value="120">Every 2 minutes (Battery saving)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* History Size */}
+                <div className="space-y-3">
+                  <Label htmlFor="history-size">Max History Entries</Label>
+                  <Select 
+                    value={maxHistorySize.toString()} 
+                    onValueChange={(value) => setMaxHistorySize(Number(value))}
+                    disabled={!cacheEnabled}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select history size" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="20">20 entries (Low memory)</SelectItem>
+                      <SelectItem value="30">30 entries</SelectItem>
+                      <SelectItem value="50">50 entries (Default)</SelectItem>
+                      <SelectItem value="100">100 entries</SelectItem>
+                      <SelectItem value="200">200 entries (High memory)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Current Strategy Display */}
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="text-sm font-medium">Current Strategy:</p>
+                  <p className="text-sm text-muted-foreground">
+                    {!cacheEnabled 
+                      ? "❌ Caching Disabled - No history saved"
+                      : serverSyncEnabled 
+                        ? `🔄 Server-Side with Local Cache (${syncInterval}s sync)`
+                        : "💾 Local-Only Mode"
+                    }
+                  </p>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+          
           <EditorHistoryControls
             canUndo={canUndo}
             canRedo={canRedo}
