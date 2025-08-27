@@ -146,11 +146,13 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
               severity: 'high',
               description: `Failed to analyze documents: ${error.message || 'Unknown error'}`,
               documents: selectedDocumentObjects.map(d => d.name),
-              values: []
+              values: [],
+              suggestedResolution: 'Please try with simpler document structures'
             }],
             isCompatible: false,
             warnings: ['Analysis failed - please try with simpler document structures'],
-            summary: { addedProperties: 0, mergedComponents: 0, totalConflicts: 1 }
+            summary: { addedProperties: 0, mergedComponents: 0, totalConflicts: 1 },
+            mergeSteps: []
           });
         } finally {
           setIsAnalyzing(false);

@@ -1,4 +1,6 @@
 import { Document } from '@/types/workspace';
+import { compareDocumentVersions, applyImportPatches } from '@/lib/importVersionUtils';
+import { compare } from 'fast-json-patch';
 
 export interface MergeConflict {
   path: string;
@@ -20,6 +22,12 @@ export interface DocumentMergeResult {
     mergedComponents: number;
     totalConflicts: number;
   };
+  mergeSteps: Array<{
+    stepNumber: number;
+    fromDocument: string;
+    patches: any[];
+    conflicts: number;
+  }>;
 }
 
 export interface DocumentCompatibilityCheck {
@@ -69,7 +77,7 @@ export class DocumentMergeEngine {
   }
 
   /**
-   * Merge multiple documents into a single document
+   * Merge multiple documents sequentially like import version process
    */
   static mergeDocuments(documents: Document[], resultName: string): DocumentMergeResult {
     const compatibility = this.checkCompatibility(documents);
@@ -87,15 +95,133 @@ export class DocumentMergeEngine {
         }],
         isCompatible: false,
         warnings: [compatibility.reason || 'Incompatible documents'],
-        summary: { addedProperties: 0, mergedComponents: 0, totalConflicts: 1 }
+        summary: { addedProperties: 0, mergedComponents: 0, totalConflicts: 1 },
+        mergeSteps: []
       };
     }
 
-    const fileType = documents[0].file_type;
+    return this.mergeDocumentsSequentially(documents, resultName);
+  }
+
+  /**
+   * Sequential merge using import version comparison approach
+   */
+  private static mergeDocumentsSequentially(documents: Document[], resultName: string): DocumentMergeResult {
+    console.log('🔄 Starting sequential merge of', documents.length, 'documents');
     
-    return fileType === 'json-schema' 
-      ? this.mergeJsonSchemas(documents, resultName)
-      : this.mergeOpenApiSpecs(documents, resultName);
+    const allConflicts: MergeConflict[] = [];
+    const mergeSteps: Array<{stepNumber: number; fromDocument: string; patches: any[]; conflicts: number}> = [];
+    let currentResult = documents[0].content; // Start with first document
+    let totalAddedProperties = 0;
+    let totalMergedComponents = 0;
+
+    // Sequentially merge each additional document
+    for (let i = 1; i < documents.length; i++) {
+      const currentDoc = documents[i];
+      console.log(`🔄 Step ${i}: Merging ${currentDoc.name} into accumulated result`);
+
+      try {
+        // Use the same comparison logic as import version
+        const comparison = compareDocumentVersions(currentResult, currentDoc.content);
+        console.log(`📊 Step ${i} comparison:`, comparison);
+
+        // Apply patches to get merged result
+        const stepResult = applyImportPatches(currentResult, comparison.patches);
+        
+        // Convert import conflicts to merge conflicts
+        const stepConflicts = comparison.mergeConflicts.map(conflict => ({
+          path: conflict.path,
+          type: this.mapConflictType(conflict.conflictType),
+          severity: conflict.severity,
+          description: `Step ${i} (${currentDoc.name}): ${conflict.description}`,
+          documents: [i === 1 ? documents[0].name : 'Previous merge result', currentDoc.name],
+          values: [conflict.currentValue, conflict.importValue],
+          suggestedResolution: 'Manual review required'
+        }));
+
+        allConflicts.push(...stepConflicts);
+        
+        // Track merge step
+        mergeSteps.push({
+          stepNumber: i,
+          fromDocument: currentDoc.name,
+          patches: comparison.patches,
+          conflicts: stepConflicts.length
+        });
+
+        // Update accumulated result
+        currentResult = stepResult;
+        
+        // Count properties/components added in this step
+        const addedInStep = comparison.patches.filter(p => p.op === 'add').length;
+        totalAddedProperties += addedInStep;
+
+        console.log(`✅ Step ${i} completed. Added ${addedInStep} properties, ${stepConflicts.length} conflicts`);
+
+      } catch (error) {
+        console.error(`❌ Error in merge step ${i}:`, error);
+        allConflicts.push({
+          path: '/',
+          type: 'incompatible_schema',
+          severity: 'high',
+          description: `Failed to merge ${currentDoc.name}: ${error.message}`,
+          documents: [documents[0].name, currentDoc.name],
+          values: [],
+          suggestedResolution: 'Review document structure and try again'
+        });
+      }
+    }
+
+    // Set final result properties
+    const finalResult = {
+      ...currentResult,
+      title: resultName,
+      description: `Merged schema from: ${documents.map(d => d.name).join(', ')}`
+    };
+
+    // Handle different schema formats
+    if (finalResult.info) {
+      finalResult.info = {
+        ...finalResult.info,
+        title: resultName,
+        description: `Merged API specification from: ${documents.map(d => d.name).join(', ')}`
+      };
+    }
+
+    console.log('🎯 Sequential merge completed:', {
+      steps: mergeSteps.length,
+      totalConflicts: allConflicts.length,
+      totalAddedProperties
+    });
+
+    return {
+      mergedSchema: finalResult,
+      conflicts: allConflicts,
+      isCompatible: true,
+      warnings: allConflicts.length > 0 ? [`${allConflicts.length} conflicts detected during merge`] : [],
+      summary: {
+        addedProperties: totalAddedProperties,
+        mergedComponents: totalMergedComponents,
+        totalConflicts: allConflicts.length
+      },
+      mergeSteps
+    };
+  }
+
+  /**
+   * Map import conflict types to merge conflict types
+   */
+  private static mapConflictType(importConflictType: string): MergeConflict['type'] {
+    switch (importConflictType) {
+      case 'property_removed':
+      case 'property_added':
+      case 'value_changed':
+        return 'duplicate_key';
+      case 'type_changed':
+        return 'type_mismatch';
+      default:
+        return 'structure_conflict';
+    }
   }
 
   /**
@@ -192,7 +318,8 @@ export class DocumentMergeEngine {
         addedProperties,
         mergedComponents,
         totalConflicts: conflicts.length
-      }
+      },
+      mergeSteps: [] // Legacy merge method doesn't track steps
     };
   }
 
@@ -295,7 +422,8 @@ export class DocumentMergeEngine {
         addedProperties,
         mergedComponents,
         totalConflicts: conflicts.length
-      }
+      },
+      mergeSteps: [] // Legacy merge method doesn't track steps
     };
   }
 

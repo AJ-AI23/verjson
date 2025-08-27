@@ -112,8 +112,11 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
       </Alert>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="summary">Summary</TabsTrigger>
+          <TabsTrigger value="steps">
+            Steps ({mergeResult.mergeSteps.length})
+          </TabsTrigger>
           <TabsTrigger value="conflicts">
             Conflicts ({mergeResult.conflicts.length})
           </TabsTrigger>
@@ -196,6 +199,56 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
                 </ul>
               </CardContent>
             </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="steps" className="space-y-3">
+          {mergeResult.mergeSteps.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <GitMerge className="h-8 w-8 mx-auto mb-2 text-blue-500" />
+              <p>No sequential merge steps tracked.</p>
+              <p className="text-xs mt-1">Using bulk merge approach</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {mergeResult.mergeSteps.map((step, index) => (
+                <Card key={index}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        Step {step.stepNumber}
+                      </Badge>
+                      <span>Merge {step.fromDocument}</span>
+                      {step.conflicts > 0 && (
+                        <Badge variant="secondary" className="ml-auto">
+                          {step.conflicts} conflicts
+                        </Badge>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="grid grid-cols-3 gap-4 text-xs">
+                      <div>
+                        <div className="font-medium">Changes Applied</div>
+                        <div className="text-muted-foreground">{step.patches.length} patches</div>
+                      </div>
+                      <div>
+                        <div className="font-medium">Additions</div>
+                        <div className="text-muted-foreground">
+                          {step.patches.filter(p => p.op === 'add').length}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-medium">Modifications</div>
+                        <div className="text-muted-foreground">
+                          {step.patches.filter(p => p.op === 'replace').length}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
         </TabsContent>
 
