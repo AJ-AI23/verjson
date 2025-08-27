@@ -5,8 +5,10 @@ import { CollapsedState } from '@/lib/diagram/types';
 import { useVersioning } from '@/hooks/useVersioning';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 import { addNotationToSchema, getPropertyPathFromNodeId } from '@/lib/diagram/schemaNotationUtils';
+import { useDebug } from '@/contexts/DebugContext';
 
 export const useEditorState = (defaultSchema: string, documentId?: string) => {
+  const { debugToast } = useDebug();
   const [schema, setSchema] = useState(defaultSchema);
   const [savedSchema, setSavedSchema] = useState(defaultSchema);
   const [parsedSchema, setParsedSchema] = useState<any>(null);
@@ -37,7 +39,7 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
       }
     });
     
-    console.log(`[DEBUG] Cleaned up collapsed paths for maxDepth ${maxDepth}:`, cleaned);
+    debugToast(`Cleaned up collapsed paths for maxDepth ${maxDepth}`, cleaned);
     return cleaned;
   }, []);
 
@@ -72,14 +74,14 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
   
   // Debug collapsedPaths when it changes
   useEffect(() => {
-    console.log('Editor: collapsedPaths updated:', collapsedPaths);
-    console.log('Root collapsed:', collapsedPaths.root === true);
-    console.log('Collapsed paths count:', Object.keys(collapsedPaths).length);
-  }, [collapsedPaths]);
+    debugToast('Editor: collapsedPaths updated', collapsedPaths);
+    debugToast('Root collapsed', collapsedPaths.root === true);
+    debugToast('Collapsed paths count', Object.keys(collapsedPaths).length);
+  }, [collapsedPaths, debugToast]);
   
   // Function to handle toggling collapsed state of a path
   const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
-    console.log(`Editor: Toggle collapse event for ${path}, isCollapsed: ${isCollapsed}`);
+    debugToast(`Editor: Toggle collapse event for ${path}, isCollapsed: ${isCollapsed}`);
     
     // Check if this is a $notations path expansion/collapse
     if (path.includes('.$notations') && !path.includes('.$notations.')) {
@@ -87,7 +89,7 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
       const basePath = path.replace('.$notations', '');
       const actualNodePath = basePath === 'root' ? 'root' : basePath;
       
-      console.log(`Notation path ${path} ${isCollapsed ? 'collapsed' : 'expanded'} for node ${actualNodePath}`);
+      debugToast(`Notation path ${path} ${isCollapsed ? 'collapsed' : 'expanded'} for node ${actualNodePath}`);
       
       setExpandedNotationPaths(prev => {
         const newSet = new Set(prev);
@@ -96,7 +98,7 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
         } else {
           newSet.add(actualNodePath);
         }
-        console.log('Updated expanded notation paths:', Array.from(newSet));
+        debugToast('Updated expanded notation paths', Array.from(newSet));
         return newSet;
       });
     }
@@ -113,13 +115,13 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
         const pathPrefix = path + '.';
         Object.keys(updated).forEach(existingPath => {
           if (existingPath.startsWith(pathPrefix)) {
-            console.log(`Clearing descendant path state: ${existingPath}`);
+            debugToast(`Clearing descendant path state: ${existingPath}`);
             delete updated[existingPath];
           }
         });
       }
       
-      console.log('Updated collapsedPaths:', updated);
+      debugToast('Updated collapsedPaths', updated);
       return updated;
     });
     
@@ -140,15 +142,15 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
   // Debounced schema validation to avoid excessive processing
   const validateSchema = useCallback((schemaText: string, type: SchemaType) => {
     try {
-      console.log('Validating schema text:', schemaText?.substring(0, 50) + '...');
+      debugToast('Validating schema text', schemaText?.substring(0, 50) + '...');
       
       // Parse and validate the schema based on the selected type
       const parsed = validateJsonSchema(schemaText, type);
-      console.log('Schema validation successful');
+      debugToast('Schema validation successful');
       
       // Extract the relevant schema components for visualization
       const schemaForDiagram = extractSchemaComponents(parsed, type);
-      console.log('Schema components extracted:', schemaForDiagram?.type);
+      debugToast('Schema components extracted', schemaForDiagram?.type);
       
       setParsedSchema(schemaForDiagram);
       setError(null);
@@ -163,23 +165,23 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
   }, []);
 
   useEffect(() => {
-    console.log('Editor: schema or schemaType changed, validating schema');
+    debugToast('Editor: schema or schemaType changed, validating schema');
     validateSchema(schema, schemaType);
-  }, [schema, schemaType, validateSchema]);
+  }, [schema, schemaType, validateSchema, debugToast]);
 
   // Debug log whenever parsedSchema changes
   useEffect(() => {
-    console.log('Parsed schema updated:', parsedSchema ? 
+    debugToast('Parsed schema updated', parsedSchema ? 
       { type: parsedSchema.type, hasProperties: !!parsedSchema.properties } : 'null');
-  }, [parsedSchema]);
+  }, [parsedSchema, debugToast]);
 
   const handleEditorChange = (value: string) => {
-    console.log('Editor content changed');
+    debugToast('Editor content changed');
     setSchema(value);
   };
 
   const handleSchemaTypeChange = (value: SchemaType) => {
-    console.log('Schema type changed to:', value);
+    debugToast('Schema type changed to', value);
     setSchemaType(value);
     // Reset collapsed paths when changing schema type
     setCollapsedPaths({ root: true });
@@ -212,7 +214,7 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
 
   // Clear all editor state when document is deleted
   const clearEditorState = useCallback(() => {
-    console.log('🧹 Editor: Clearing all editor and version state');
+    debugToast('🧹 Editor: Clearing all editor and version state');
     setSchema(defaultSchema);
     setSavedSchema(defaultSchema);
     setParsedSchema(null);
@@ -221,7 +223,7 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
     setCollapsedPaths({ root: true });
     setExpandedNotationPaths(new Set());
     clearVersionState(); // Also clear version history state
-  }, [defaultSchema, clearVersionState]);
+  }, [defaultSchema, clearVersionState, debugToast]);
 
   return {
     schema,

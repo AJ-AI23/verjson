@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { VersionHistory } from '@/components/VersionHistory';
 import { Operation } from 'fast-json-patch'; // Changed from JsonPatch to Operation
 import { SchemaPatch } from '@/lib/versionUtils'; // Added import for SchemaPatch
+import { useDebug } from '@/contexts/DebugContext';
 
 interface EditorVersionDialogProps {
   isOpen: boolean;
@@ -22,7 +23,9 @@ export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({
   onMarkAsReleased,
   onDeleteVersion
 }) => {
-  console.log('🔍 EditorVersionDialog: Rendering with documentId:', documentId);
+  const { debugToast } = useDebug();
+  
+  debugToast('🔍 EditorVersionDialog: Rendering with documentId', documentId);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>

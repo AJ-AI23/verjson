@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { NotationComment } from '@/types/notations';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useDebug } from '@/contexts/DebugContext';
 
 interface GroupedNotation {
   path: string;
@@ -29,6 +30,7 @@ export const NotationsPanel = memo(({
   onAddNotation,
   onReplyToNotation 
 }: NotationsPanelProps) => {
+  const { debugToast } = useDebug();
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyUser, setReplyUser] = useState('');
   const [replyMessage, setReplyMessage] = useState('');
@@ -36,13 +38,13 @@ export const NotationsPanel = memo(({
   const totalNotations = groupedNotations.reduce((sum, group) => sum + group.notations.length, 0);
 
   const handleResolve = (nodeId: string) => {
-    console.log('Resolving notation for nodeId:', nodeId);
+    debugToast('Resolving notation for nodeId', nodeId);
     onReplyToNotation(nodeId, 'System', 'Resolved - Closed');
   };
 
   const handleReply = (nodeId: string) => {
     if (replyUser.trim() && replyMessage.trim()) {
-      console.log('Adding reply for nodeId:', nodeId);
+      debugToast('Adding reply for nodeId', nodeId);
       onReplyToNotation(nodeId, replyUser.trim(), replyMessage.trim());
       setReplyingTo(null);
       setReplyUser('');

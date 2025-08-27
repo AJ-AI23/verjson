@@ -21,6 +21,7 @@ import { WorkspaceInviteDialog } from './WorkspaceInviteDialog';
 import { DocumentPinSetupDialog } from './DocumentPinSetupDialog';
 import { useWorkspacePermissions } from '@/hooks/useWorkspacePermissions';
 import { useDocumentPinSecurity } from '@/hooks/useDocumentPinSecurity';
+import { useDebug } from '@/contexts/DebugContext';
 import { 
   Plus, 
   FolderPlus, 
@@ -46,6 +47,7 @@ interface WorkspacePanelProps {
 }
 
 export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDocument, isCollapsed }: WorkspacePanelProps) {
+  const { debugToast } = useDebug();
   const { user } = useAuth();
   const { workspaces, createWorkspace, deleteWorkspace } = useWorkspaces();
   const [selectedWorkspace, setSelectedWorkspace] = useState<string>('');
@@ -151,10 +153,10 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   };
 
   const handleDocumentExport = (doc: any) => {
-    console.log('🔽 Export button clicked, document:', doc);
-    console.log('🔽 Document content:', doc?.content);
-    console.log('🔽 Document name:', doc?.name);
-    console.log('🔽 Document ID:', doc?.id);
+    debugToast('🔽 Export button clicked, document', doc);
+    debugToast('🔽 Document content', doc?.content);
+    debugToast('🔽 Document name', doc?.name);
+    debugToast('🔽 Document ID', doc?.id);
     
     if (!doc) {
       console.error('❌ Export failed: Document is null/undefined');
@@ -181,41 +183,41 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
     }
     
     try {
-      console.log('🔽 Starting JSON stringify...');
+      debugToast('🔽 Starting JSON stringify...');
       const dataStr = JSON.stringify(doc.content, null, 2);
-      console.log('🔽 JSON stringify completed, length:', dataStr.length);
+      debugToast('🔽 JSON stringify completed, length', dataStr.length);
       
-      console.log('🔽 Creating blob...');
+      debugToast('🔽 Creating blob...');
       const dataBlob = new Blob([dataStr], { type: 'application/json' });
-      console.log('🔽 Blob created, size:', dataBlob.size);
+      debugToast('🔽 Blob created, size', dataBlob.size);
       
-      console.log('🔽 Creating object URL...');
+      debugToast('🔽 Creating object URL...');
       const url = URL.createObjectURL(dataBlob);
-      console.log('🔽 Object URL created:', url);
+      debugToast('🔽 Object URL created', url);
       
-      console.log('🔽 Creating download link...');
+      debugToast('🔽 Creating download link...');
       const link = document.createElement('a');
       link.href = url;
       link.download = `${doc.name}_${doc.id}.json`;
       link.style.display = 'none'; // Hide the link
       
-      console.log('🔽 Download filename:', link.download);
-      console.log('🔽 Download href:', link.href);
+      debugToast('🔽 Download filename', link.download);
+      debugToast('🔽 Download href', link.href);
       
       // Append to body to ensure it works in all browsers
       document.body.appendChild(link);
-      console.log('🔽 Link appended to body');
+      debugToast('🔽 Link appended to body');
       
-      console.log('🔽 Triggering click...');
+      debugToast('🔽 Triggering click...');
       link.click();
-      console.log('🔽 Click triggered');
+      debugToast('🔽 Click triggered');
       
-      console.log('🔽 Cleaning up...');
+      debugToast('🔽 Cleaning up...');
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      console.log('🔽 Cleanup completed');
+      debugToast('🔽 Cleanup completed');
       
-      console.log('✅ Export completed successfully');
+      debugToast('✅ Export completed successfully');
       toast.success(`Document exported: ${doc.name}_${doc.id}.json`);
     } catch (error) {
       console.error('❌ Export error details:', error);
@@ -519,11 +521,11 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                          <Button
                            size="sm"
                            variant="ghost"
-                           onClick={(e) => {
-                             e.stopPropagation();
-                             console.log('🔽 Export button clicked for document:', doc.name);
-                             handleDocumentExport(doc);
-                           }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              debugToast('🔽 Export button clicked for document', doc.name);
+                              handleDocumentExport(doc);
+                            }}
                            className="h-6 w-6 p-0 hover:bg-accent-foreground/10 hover:text-accent-foreground transition-colors"
                            title="Export"
                          >

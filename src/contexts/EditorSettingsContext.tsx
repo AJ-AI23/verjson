@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { useDebug } from '@/contexts/DebugContext';
 
 interface EditorSettings {
   maxDepth: number;
@@ -18,13 +19,14 @@ interface EditorSettingsProviderProps {
 }
 
 export const EditorSettingsProvider: React.FC<EditorSettingsProviderProps> = ({ children }) => {
+  const { debugToast } = useDebug();
   const [settings, setSettings] = useState<EditorSettings>({
     maxDepth: 1,
     groupProperties: false
   });
 
   const updateMaxDepth = (depth: number) => {
-    console.log('[DEBUG] EditorSettingsContext updating maxDepth to:', depth);
+    debugToast('[DEBUG] EditorSettingsContext updating maxDepth to', depth);
     setSettings(prev => ({ ...prev, maxDepth: depth }));
   };
 

@@ -15,6 +15,7 @@ import { DebugToggle } from '@/components/DebugToggle';
 import { SchemaType } from '@/lib/schemaUtils';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 import { useNotationsManager } from '@/hooks/useNotationsManager';
+import { useDebug } from '@/contexts/DebugContext';
 
 interface EditorToolbarProps {
   schema: string;
@@ -47,6 +48,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   selectedDocument,
   onClose,
 }) => {
+  const { debugToast } = useDebug();
   const { updateMaxDepth } = useEditorSettings();
   const [isNotationsPanelOpen, setIsNotationsPanelOpen] = useState(false);
   const { groupedNotations, activeNotationCount } = useNotationsManager(schema);
@@ -224,7 +226,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                     step={1}
                     value={[maxDepth]}
                     onValueChange={([value]) => {
-                      console.log('[DEBUG] Slider changed to:', value);
+                      debugToast('[DEBUG] Slider changed to', value);
                       updateMaxDepth(value);
                     }}
                     className="w-28"

@@ -7,6 +7,7 @@ import { useJsonEditorEvents } from './useJsonEditorEvents';
 import { useJsonEditorInitialization } from './useJsonEditorInitialization';
 import { useJsonEditorSetup } from './useJsonEditorSetup';
 import { useJsonEditorCollapse } from './useJsonEditorCollapse';
+import { useDebug } from '@/contexts/DebugContext';
 
 export const useJsonEditor = ({
   value,
@@ -15,6 +16,7 @@ export const useJsonEditor = ({
   onToggleCollapse,
   maxDepth
 }: UseJsonEditorProps): JsonEditorResult => {
+  const { debugToast } = useDebug();
   // Parse the schema from the value for bulk expand operations
   const parsedSchema = useMemo(() => {
     try {
@@ -51,7 +53,7 @@ export const useJsonEditor = ({
 
   // Reduced logging - only log on significant changes
   if (Object.keys(collapsedPaths).length <= 1) {
-    console.log('useJsonEditor:', { maxDepth, hasToggleHandler: !!onToggleCollapse });
+    debugToast('useJsonEditor initialized', { maxDepth, hasToggleHandler: !!onToggleCollapse });
   }
 
   // Use our event handlers hook with the improved toggle logic
