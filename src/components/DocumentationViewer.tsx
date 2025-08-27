@@ -637,7 +637,7 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col min-h-0">
       <div className="border-b p-4 bg-muted/30">
         <div className="flex items-center gap-2">
           <FileText className="h-5 w-5 text-muted-foreground" />
@@ -645,7 +645,7 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({
         </div>
       </div>
       
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="p-6 max-w-4xl">
           <div className="prose prose-sm max-w-none dark:prose-invert">
             <ReactMarkdown
