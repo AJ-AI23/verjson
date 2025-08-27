@@ -57,7 +57,8 @@ export const useJsonEditorEvents = ({
   const getPathState = useCallback((path: string): boolean => {
     const normalizedPath = normalizePath(path);
     const valueInRef = collapsedPathsRef.current[normalizedPath];
-    const currentState = valueInRef !== undefined ? valueInRef : true; // Default to collapsed if not specified
+    // Default to expanded (false) if not specified, so diagram shows child nodes
+    const currentState = valueInRef !== undefined ? valueInRef : false;
     
     return currentState;
   }, [normalizePath, collapsedPathsRef]);
@@ -67,18 +68,18 @@ export const useJsonEditorEvents = ({
     onToggleCollapse,
     maxDepth
   });
-  debugToast('useJsonEditorEvents initialized', { maxDepth });
+  // Remove debug toast that runs on every initialization
 
   // Create event handlers for JSONEditor
   const createEditorEventHandlers = useCallback(() => {
-    debugToast('Creating JSONEditor event handlers with toggle logic');
+    // Remove debug toast that runs frequently
     
     // Handle expand event from JSONEditor - we use this to toggle the collapsed state
     const onExpand = (node: any) => {
       const path = node.path.length > 0 ? node.path.join('.') : 'root';
       const normalizedPath = normalizePath(path);
       
-      // Reduced logging - only log when necessary
+      // Reduced logging - only log when necessary for root/properties
       if (path === 'root' || path.includes('properties')) {
         debugToast(`onExpand: ${normalizedPath}`);
       }
@@ -94,7 +95,7 @@ export const useJsonEditorEvents = ({
       // If current state is false (expanded), new state is true (collapsed)
       const newCollapsedState = !currentlyCollapsed;
       
-      // Only log significant state changes
+      // Only log significant state changes for debugging
       if (path === 'root' || path.includes('properties')) {
         debugToast(`${normalizedPath}: ${currentlyCollapsed ? 'collapsed' : 'expanded'} → ${newCollapsedState ? 'collapsed' : 'expanded'}`);
       }
