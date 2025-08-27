@@ -124,6 +124,9 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   
   // Handle preview of what schema would look like with different selections
   const handlePreview = (patchId: string, wouldBeSelected: boolean) => {
+    const targetPatch = patches.find(p => p.id === patchId);
+    if (!targetPatch) return;
+    
     const updatedPatches = patches.map(p => 
       p.id === patchId ? { ...p, isSelected: wouldBeSelected } : p
     );
@@ -132,17 +135,21 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
     setPreviewOpen(true);
   };
   
-  // Calculate preview schema - fetch directly from database
+  // Calculate preview schema - only apply patches up to the target timestamp
   const previewSchema = useMemo(() => {
     if (previewPatches.length === 0) return {};
     
+    // Find the target patch timestamp
+    const targetPatch = previewPatches.find(p => p.isSelected !== patches.find(orig => orig.id === p.id)?.isSelected);
+    const targetTimestamp = targetPatch?.timestamp;
+    
     try {
-      return applySelectedPatches(previewPatches);
+      return applySelectedPatches(previewPatches, targetTimestamp);
     } catch (err) {
       console.error('🚨 VersionHistory: Error calculating preview schema:', err);
       return {};
     }
-  }, [previewPatches]);
+  }, [previewPatches, patches]);
   
   // Handle import version
   const handleImportVersion = (importedSchema: any, comparison: DocumentVersionComparison, sourceDocumentName: string) => {

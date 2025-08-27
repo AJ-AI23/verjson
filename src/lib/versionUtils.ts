@@ -142,7 +142,7 @@ const reverseOperation = (op: Operation): Operation => {
 };
 
 // Apply selected patches to build the current schema
-export const applySelectedPatches = (patches: SchemaPatch[]): any => {
+export const applySelectedPatches = (patches: SchemaPatch[], upToTimestamp?: number): any => {
   
   // Validate that we have patches to work with
   if (!patches || patches.length === 0) {
@@ -153,13 +153,18 @@ export const applySelectedPatches = (patches: SchemaPatch[]): any => {
   // Sort patches by timestamp, oldest first
   const sortedPatches = [...patches].sort((a, b) => a.timestamp - b.timestamp);
   
+  // Filter patches up to the target timestamp if specified
+  const filteredPatches = upToTimestamp 
+    ? sortedPatches.filter(patch => patch.timestamp <= upToTimestamp)
+    : sortedPatches;
+  
   // Find the latest selected released version as our base
   let baseSchema = {};
   let startIndex = 0;
   
   // Look through patches in reverse order to find the latest selected released version
-  for (let i = sortedPatches.length - 1; i >= 0; i--) {
-    const patch = sortedPatches[i];
+  for (let i = filteredPatches.length - 1; i >= 0; i--) {
+    const patch = filteredPatches[i];
     if (patch.isReleased && patch.isSelected) {
       if (patch.fullDocument) {
         baseSchema = JSON.parse(JSON.stringify(patch.fullDocument)); // Deep clone
@@ -176,7 +181,7 @@ export const applySelectedPatches = (patches: SchemaPatch[]): any => {
   // If no released version found, start with empty object
   
   // If we only have the base schema and no more patches to apply, return it
-  if (startIndex >= sortedPatches.length) {
+  if (startIndex >= filteredPatches.length) {
     // Validate that the base schema is not empty
     if (Object.keys(baseSchema).length === 0) {
       console.error('Base schema is empty, this indicates a problem with document loading');
@@ -189,8 +194,8 @@ export const applySelectedPatches = (patches: SchemaPatch[]): any => {
   // Apply all selected patches after the base in chronological order
   let schema = baseSchema;
   
-  for (let i = startIndex; i < sortedPatches.length; i++) {
-    const patch = sortedPatches[i];
+  for (let i = startIndex; i < filteredPatches.length; i++) {
+    const patch = filteredPatches[i];
     if (patch.isSelected && patch.patches && patch.patches.length > 0) {
       try {
         schema = applyPatch(schema, patch.patches).newDocument;

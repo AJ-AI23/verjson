@@ -277,14 +277,22 @@ export const useVersioning = ({
 
   const handleMarkAsReleased = async (patchId: string) => {
     try {
-      const parsedCurrentSchema = JSON.parse(schema);
-      const updatedPatches = markAsReleased(patches, patchId, parsedCurrentSchema);
+      // Find the patch being released
+      const targetPatch = patches.find(p => p.id === patchId);
+      if (!targetPatch) {
+        toast.error('Version not found');
+        return;
+      }
+      
+      // Calculate schema up to this version's timestamp
+      const schemaForRelease = applySelectedPatches(patches, targetPatch.timestamp);
+      const updatedPatches = markAsReleased(patches, patchId, schemaForRelease);
       const patchToUpdate = updatedPatches.find(p => p.id === patchId);
       
       if (patchToUpdate) {
         await updateVersion(patchId, {
           is_released: true,
-          full_document: parsedCurrentSchema,
+          full_document: schemaForRelease,
           patches: null, // Remove patches as we now store full document
         });
       }
