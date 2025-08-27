@@ -104,7 +104,7 @@ export const ImportVersionDialog: React.FC<ImportVersionDialogProps> = ({
     }
   }, [isOpen]);
 
-  // Fetch document content directly when a document is selected
+      // Fetch document content directly when a document is selected
   useEffect(() => {
     if (selectedDocumentId) {
       const fetchDocumentContent = async () => {
@@ -119,8 +119,11 @@ export const ImportVersionDialog: React.FC<ImportVersionDialogProps> = ({
             console.warn('Could not fetch document content:', error);
             setDocumentContent(null);
           } else if (document?.content) {
-            console.log('🔍 Fetched direct document content for import:', document.content);
-            setDocumentContent(document.content);
+            // Use the import-specific function to get only released version content
+            const { getEffectiveDocumentContentForImport } = await import('@/lib/documentUtils');
+            const effectiveContent = await getEffectiveDocumentContentForImport(selectedDocumentId, document.content);
+            console.log('🔍 Fetched effective document content for import:', effectiveContent);
+            setDocumentContent(effectiveContent);
           }
         } catch (error) {
           console.warn('Error fetching document content:', error);
