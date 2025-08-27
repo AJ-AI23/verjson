@@ -206,15 +206,14 @@ const validateJsonSchemaSyntax = (schema: any): ValidationResult => {
   };
 
   try {
-    // Validate against JSON Schema meta-schema
-    const validate = ajv.compile(metaSchema);
-    const isValid = validate(schema);
+    // Validate against JSON Schema meta-schema using its URL
+    const isValid = ajv.validateSchema(schema);
     
-    if (!isValid && validate.errors) {
+    if (!isValid && ajv.errors) {
       result.isValid = false;
-      validate.errors.forEach(error => {
+      ajv.errors.forEach(error => {
         result.errors.push({
-          path: error.instancePath || 'root',
+          path: error.instancePath || error.schemaPath || 'root',
           message: `${error.message}`,
           severity: 'error'
         });
