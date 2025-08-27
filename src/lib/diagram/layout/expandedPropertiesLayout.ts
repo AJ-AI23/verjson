@@ -106,11 +106,19 @@ function processProperties(
   const propertyEntries = Object.entries(properties);
   const totalProperties = propertyEntries.length;
   
-  // Determine if we need to group properties
-  const shouldGroupProperties = totalProperties > maxPropertiesLimit;
+  // Only apply grouping logic for top-level container expansions
+  // Check if this is a direct expansion of a container node (like schemas, not a property within a schema)
+  const isContainerExpansion = currentPath.endsWith('.schemas') || 
+                              currentPath.endsWith('.parameters') || 
+                              currentPath.endsWith('.responses') ||
+                              currentPath.endsWith('.components') ||
+                              (currentDepth === 1 && currentPath.includes('properties'));
+  
+  // Determine if we need to group properties (only for container expansions)
+  const shouldGroupProperties = isContainerExpansion && totalProperties > maxPropertiesLimit;
   
   if (shouldGroupProperties) {
-    console.log(`Using shared property grouping utility for ${totalProperties} properties`);
+    console.log(`Using property grouping for container expansion: ${currentPath} with ${totalProperties} properties`);
     
     // Use the shared property grouping utility
     const groupingResult = processPropertiesWithGrouping(
