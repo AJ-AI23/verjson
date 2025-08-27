@@ -25,6 +25,13 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   maxDepth,
   documentId
 }) => {
+  console.log('🔧 JsonEditorPoc rendering with:', { 
+    hasValue: !!value, 
+    hasOnChange: !!onChange, 
+    collapsedPathsKeys: Object.keys(collapsedPaths),
+    maxDepth 
+  });
+  
   // Create a ref to the editor container DOM element
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -92,20 +99,34 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     maxDepth
   });
 
+  console.log('🔧 useJsonEditor hook returned:', { 
+    hasInitialize: !!initializeEditor,
+    hasDestroy: !!destroyEditor 
+  });
+
   // Initialize the editor once the component mounts
   useEffect(() => {
-    if (!containerRef.current) return;
+    console.log('🔧 JsonEditorPoc useEffect triggered, containerRef.current:', !!containerRef.current);
     
+    if (!containerRef.current) {
+      console.log('🔧 No container ref, returning early');
+      return;
+    }
+    
+    console.log('🔧 Calling initializeEditor...');
     // Initialize the editor
     initializeEditor(containerRef.current);
+    console.log('🔧 initializeEditor call completed');
     
     // Mark as mounted after a small delay to let initial setup complete
     setTimeout(() => {
       isMountedRef.current = true;
+      console.log('🔧 Component marked as mounted');
     }, 500);
     
     // Cleanup on unmount
     return () => {
+      console.log('🔧 JsonEditorPoc cleanup, calling destroyEditor');
       isMountedRef.current = false;
       destroyEditor();
     };
