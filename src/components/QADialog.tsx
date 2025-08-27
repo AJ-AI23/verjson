@@ -166,11 +166,13 @@ export const QADialog: React.FC<QADialogProps> = ({
 
           {/* Tabs for different views */}
           <Tabs defaultValue="grouped" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="grouped">Grouped View</TabsTrigger>
-              <TabsTrigger value="flat">Flat Index</TabsTrigger>
-              <TabsTrigger value="syntax">Syntax</TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto">
+              <TabsList className="inline-flex w-auto min-w-full">
+                <TabsTrigger value="grouped" className="flex-shrink-0">Grouped View</TabsTrigger>
+                <TabsTrigger value="flat" className="flex-shrink-0">Flat Index</TabsTrigger>
+                <TabsTrigger value="syntax" className="flex-shrink-0">Syntax</TabsTrigger>
+              </TabsList>
+            </div>
             
             <TabsContent value="grouped" className="mt-4">
               <ScrollArea className="h-[400px] w-full">
