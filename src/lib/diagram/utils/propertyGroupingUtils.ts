@@ -184,17 +184,37 @@ export function processSchemasWithGrouping(
   yPos: number,
   xSpacing: number,
   result: DiagramElements,
-  maxIndividualSchemas: number = 4
+  maxIndividualSchemas: number = 4,
+  collapsedPaths: Record<string, boolean> = {},
+  parentPath: string = ''
 ): PropertyGroupingResult {
+  // Check if any schemas are already individually expanded
+  const schemaEntries = Object.entries(schemas);
+  const expandedSchemasCount = schemaEntries.filter(([schemaName]) => {
+    const schemaPath = parentPath ? `${parentPath}.${schemaName}` : schemaName;
+    return collapsedPaths[schemaPath] === false; // explicitly expanded
+  }).length;
+  
+  // Don't group if we have individual schemas already expanded
+  const shouldGroup = expandedSchemasCount === 0;
+  
+  console.log('🔧 DEBUG [SCHEMAS WITH GROUPING] Grouping decision:', {
+    parentPath,
+    expandedSchemasCount,
+    totalSchemas: schemaEntries.length,
+    shouldGroup,
+    maxIndividualSchemas
+  });
+  
   return processPropertiesWithGrouping(
     schemas,
     [], // schemas don't have required props in the same way
     result,
     {
-      maxIndividualProperties: maxIndividualSchemas,
+      maxIndividualProperties: shouldGroup ? maxIndividualSchemas : schemaEntries.length, // Show all individually if some are expanded
       xSpacing,
       parentNodeId,
-      parentPath: '',
+      parentPath,
       yPosition: yPos,
       startXPosition: xPos
     }

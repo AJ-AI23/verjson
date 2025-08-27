@@ -262,6 +262,23 @@ function processComponentsSchemas(
 ) {
   console.log(`[OPENAPI LAYOUT] Processing ${Object.keys(schemas).length} schemas with grouping`);
   
+  // Count how many schemas are already individually expanded
+  const schemaEntries = Object.entries(schemas);
+  const expandedSchemasCount = schemaEntries.filter(([schemaName]) => {
+    const schemaPath = `${parentPath}.${schemaName}`;
+    return collapsedPaths[schemaPath] === false; // explicitly expanded
+  }).length;
+  
+  // Only group if we're not showing individual expanded schemas
+  const shouldGroup = expandedSchemasCount === 0 && schemaEntries.length > 5;
+  
+  console.log('🔥 [OPENAPI LAYOUT] Schema grouping decision:', {
+    parentPath,
+    expandedSchemasCount,
+    totalSchemas: schemaEntries.length,
+    shouldGroup
+  });
+  
   const groupingResult = processSchemasWithGrouping(
     schemas,
     parentNodeId,
@@ -269,7 +286,9 @@ function processComponentsSchemas(
     yPos,
     xSpacing,
     result,
-    5 // Max individual schemas before grouping
+    5, // Max individual schemas before grouping
+    collapsedPaths,
+    parentPath
   );
   
   console.log(`[OPENAPI LAYOUT] Created ${groupingResult.totalNodesCreated} nodes for ${groupingResult.nodesProcessed} schemas`);
