@@ -82,6 +82,9 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
   
   // Function to handle toggling collapsed state of a path
   const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
+    console.log(`🔧 handleToggleCollapse: ${path} -> isCollapsed: ${isCollapsed}`);
+    console.log(`🔧 Current collapsedPaths:`, collapsedPaths);
+    
     debugToast(`Editor: Toggle collapse event for ${path}, isCollapsed: ${isCollapsed}`);
     
     // Check if this is a $notations path expansion/collapse
@@ -110,6 +113,8 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
       // Set the current path's state
       updated[path] = isCollapsed;
       
+      console.log(`🔧 Setting ${path} = ${isCollapsed} in collapsedPaths`);
+      
       // If collapsing an ancestor, clear all descendant collapsed states
       // since they should inherit the collapsed state from their ancestor
       if (isCollapsed) {
@@ -122,6 +127,7 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
         });
       }
       
+      console.log(`🔧 New collapsedPaths:`, updated);
       debugToast('Updated collapsedPaths', updated);
       return updated;
     });
@@ -138,7 +144,7 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
         duration: 1500 // 1.5 seconds
       });
     }
-  }, []);
+  }, [collapsedPaths]); // Add collapsedPaths as dependency to get current state
 
   // Debounced schema validation to avoid excessive processing
   const validateSchema = useCallback((schemaText: string, type: SchemaType) => {
