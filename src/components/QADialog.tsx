@@ -6,7 +6,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Copy, Download, Languages, FileText, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Copy, Download, Languages, FileText, CheckCircle, AlertTriangle, XCircle, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractStringValues, createTranslationIndex, downloadJsonFile, TranslationEntry, detectSchemaType, SchemaType } from '@/lib/translationUtils';
 import { validateSyntax, ValidationResult } from '@/lib/schemaUtils';
@@ -26,6 +27,7 @@ export const QADialog: React.FC<QADialogProps> = ({
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [groupingStrategy, setGroupingStrategy] = useState<'path' | 'property' | 'value'>('path');
+  const [filterValue, setFilterValue] = useState('');
 
   const translationData = useMemo(() => {
     try {
@@ -87,6 +89,7 @@ export const QADialog: React.FC<QADialogProps> = ({
   const groupedEntries = useMemo(() => {
     const groups: Record<string, TranslationEntry[]> = {};
     
+    // First, group the entries based on strategy
     translationData.entries.forEach(entry => {
       let groupKey: string;
       
@@ -112,10 +115,68 @@ export const QADialog: React.FC<QADialogProps> = ({
       groups[groupKey].push(entry);
     });
     
+    // Then, filter the groups based on the filter value
+    if (filterValue.trim()) {
+      const filteredGroups: Record<string, TranslationEntry[]> = {};
+      const lowerFilter = filterValue.toLowerCase();
+      
+      Object.entries(groups).forEach(([groupKey, entries]) => {
+        let shouldInclude = false;
+        
+        switch (groupingStrategy) {
+          case 'property':
+            // Filter by property name
+            shouldInclude = groupKey.toLowerCase().includes(lowerFilter);
+            break;
+          case 'value':
+            // Filter by the actual string values in the group
+            shouldInclude = entries.some(entry => 
+              entry.value.toLowerCase().includes(lowerFilter)
+            );
+            break;
+          case 'path':
+          default:
+            // Filter by path name
+            shouldInclude = groupKey.toLowerCase().includes(lowerFilter);
+            break;
+        }
+        
+        if (shouldInclude) {
+          // For value filtering, also filter individual entries within the group
+          if (groupingStrategy === 'value') {
+            filteredGroups[groupKey] = entries.filter(entry => 
+              entry.value.toLowerCase().includes(lowerFilter)
+            );
+          } else {
+            filteredGroups[groupKey] = entries;
+          }
+        }
+      });
+      
+      return filteredGroups;
+    }
+    
     return groups;
-  }, [translationData.entries, groupingStrategy]);
+  }, [translationData.entries, groupingStrategy, filterValue]);
 
-  // Get available property names for grouping
+  // Get filter placeholder text based on strategy
+  const getFilterPlaceholder = () => {
+    switch (groupingStrategy) {
+      case 'property':
+        return 'Filter by property name (e.g., description, title)...';
+      case 'value':
+        return 'Filter by string content...';
+      case 'path':
+      default:
+        return 'Filter by path name...';
+    }
+  };
+
+  // Reset filter when grouping strategy changes
+  const handleGroupingChange = (value: 'path' | 'property' | 'value') => {
+    setGroupingStrategy(value);
+    setFilterValue(''); // Clear filter when switching strategies
+  };
   const availableProperties = useMemo(() => {
     const props = new Set<string>();
     translationData.entries.forEach(entry => {
@@ -241,30 +302,44 @@ export const QADialog: React.FC<QADialogProps> = ({
                 </div>
               
                 <TabsContent value="grouped" className="flex-1 min-h-0 mt-4 data-[state=active]:flex data-[state=active]:flex-col">
-                  <div className="mb-4 flex items-center gap-2">
-                    <span className="text-sm font-medium">Group by:</span>
-                    <Select value={groupingStrategy} onValueChange={(value: 'path' | 'property' | 'value') => setGroupingStrategy(value)}>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="path">Top-level Path</SelectItem>
-                        <SelectItem value="property">Property Name</SelectItem>
-                        <SelectItem value="value">Identical Values</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {groupingStrategy === 'property' && availableProperties.length > 0 && (
-                      <div className="ml-2">
+                  <div className="mb-4 space-y-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium">Group by:</span>
+                      <Select value={groupingStrategy} onValueChange={handleGroupingChange}>
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="path">Top-level Path</SelectItem>
+                          <SelectItem value="property">Property Name</SelectItem>
+                          <SelectItem value="value">Identical Values</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {groupingStrategy === 'property' && availableProperties.length > 0 && (
                         <Badge variant="outline" className="text-xs">
                           {availableProperties.length} unique properties
                         </Badge>
-                      </div>
-                    )}
-                    {groupingStrategy === 'value' && (
-                      <div className="ml-2">
+                      )}
+                      {groupingStrategy === 'value' && (
                         <Badge variant="outline" className="text-xs">
                           {Object.keys(groupedEntries).length} unique values
                         </Badge>
+                      )}
+                    </div>
+                    
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder={getFilterPlaceholder()}
+                        value={filterValue}
+                        onChange={(e) => setFilterValue(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                    
+                    {filterValue && Object.keys(groupedEntries).length === 0 && (
+                      <div className="text-sm text-muted-foreground">
+                        No matches found for "{filterValue}"
                       </div>
                     )}
                   </div>
