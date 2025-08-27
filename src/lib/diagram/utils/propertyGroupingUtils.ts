@@ -79,6 +79,12 @@ export function processPropertiesWithGrouping(
         false
       );
       
+      console.log('🔧 DEBUG [PROPERTY GROUPING] Creating individual node:', {
+        propName,
+        nodeId: propNode.id,
+        position: { x: xPos, y: yPosition }
+      });
+      
       const edge = createEdge(parentNodeId, propNode.id, undefined, false, {}, 'structure');
       result.nodes.push(propNode);
       result.edges.push(edge);
@@ -97,6 +103,15 @@ export function processPropertiesWithGrouping(
     // Enhanced grouped node data
     groupedNode.data.label = `${groupedProperties.length} More Properties`;
     groupedNode.data.isGroupedProperties = true; // Special flag for styling
+    
+    console.log('🔧 DEBUG [PROPERTY GROUPING] Creating grouped node:', {
+      nodeId: groupedNode.id,
+      label: groupedNode.data.label,
+      position: { x: groupedXPos, y: yPosition },
+      propertyCount: groupedProperties.length,
+      hasPropertyDetails: !!groupedNode.data.propertyDetails,
+      isCollapsed: groupedNode.data.isCollapsed
+    });
     
     const groupedEdge = createEdge(parentNodeId, groupedNode.id, undefined, false, {}, 'structure');
     result.nodes.push(groupedNode);
