@@ -1,0 +1,48 @@
+modules:
+  confluence:macro:
+    - key: schema-document-macro
+      function: main
+      title:
+        value: Schema Document
+      description:
+        value: Display a schema document from your application
+      parameters:
+        - identifier: documentId
+          type: string
+          displayName: Document ID
+          description: The ID of the document to display
+          required: true
+        - identifier: format
+          type: enum
+          displayName: Display Format
+          description: How to display the document
+          defaultValue: formatted
+          values:
+            - label: Formatted View
+              value: formatted
+            - label: Raw JSON
+              value: raw
+            - label: Compact
+              value: compact
+        - identifier: showMetadata
+          type: boolean
+          displayName: Show Metadata
+          description: Include document metadata
+          defaultValue: true
+
+resources:
+  - key: main
+    path: macro.js
+  - key: viewer-styles
+    path: styles.css
+
+permissions:
+  scopes:
+    - read:confluence-content.summary
+  external:
+    fetch:
+      backend:
+        - "https://swghcmyqracwifpdfyap.supabase.co/functions/*"
+
+app:
+  id: schema-document-viewer
