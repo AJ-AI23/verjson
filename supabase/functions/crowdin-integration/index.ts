@@ -424,6 +424,7 @@ serve(async (req) => {
         headers: {
           'Authorization': `Bearer ${apiToken}`,
           'Content-Type': 'application/json',
+          'Crowdin-API-FileName': filename,
         },
         body: JSON.stringify(fileRequestBody),
       });
