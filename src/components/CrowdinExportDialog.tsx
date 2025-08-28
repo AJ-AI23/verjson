@@ -63,37 +63,38 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       console.log('🔍 Checking for existing token for workspace:', workspaceId);
       setError('');
 
-      // First, check if a token exists in the database
-      const { data: tokenData, error: tokenError } = await supabase.functions.invoke('crowdin-integration', {
-        body: { action: 'checkToken', workspaceId },
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      // Query the database directly instead of using edge function
+      const { data: tokenData, error: tokenError } = await supabase
+        .from('workspace_crowdin_settings')
+        .select('encrypted_api_token')
+        .eq('workspace_id', workspaceId)
+        .maybeSingle();
 
-      console.log('🔍 Check token response:', { tokenData, tokenError });
+      console.log('🔍 Database query result:', { tokenData, tokenError });
 
       if (tokenError) {
-        console.error('❌ Error checking token:', tokenError);
+        console.error('❌ Error querying database:', tokenError);
         setHasExistingToken(false);
         setShowTokenInput(true);
         return;
       }
 
-      if (!tokenData?.hasToken) {
-        console.log('❌ No token found, showing token input');
+      if (!tokenData || !tokenData.encrypted_api_token) {
+        console.log('❌ No token found in database');
         setHasExistingToken(false);
         setShowTokenInput(true);
         return;
       }
 
-      // Token exists, store obfuscated version and try to load projects
-      console.log('✅ Token found, setting up UI with obfuscated token:', tokenData.obfuscatedToken);
+      // Token exists, create obfuscated version for display
+      const obfuscatedToken = `****-****-****-${tokenData.encrypted_api_token.slice(-8)}`;
+      console.log('✅ Token found, setting up UI with obfuscated token:', obfuscatedToken);
+      
       setHasExistingToken(true);
-      setObfuscatedToken(tokenData.obfuscatedToken || '****-****-****-****');
+      setObfuscatedToken(obfuscatedToken);
       setShowTokenInput(false);
 
-      // Now try to load projects
+      // Now try to load projects using the edge function
       console.log('🔍 Loading projects...');
       await loadProjects();
     } catch (err) {
