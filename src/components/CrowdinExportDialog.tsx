@@ -109,6 +109,16 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       return;
     }
 
+    // Clear any previous errors
+    setError('');
+    
+    console.log('API Token being sent:', apiToken.substring(0, 10) + '...');
+
+    if (apiToken.includes('error') || apiToken.includes('Error')) {
+      setError('Please enter a valid Crowdin API token, not an error message');
+      return;
+    }
+
     try {
       setIsLoadingProjects(true);
       setError('');
@@ -298,7 +308,10 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
                           type="password"
                           placeholder="Enter your Crowdin API token"
                           value={apiToken}
-                          onChange={(e) => setApiToken(e.target.value)}
+                          onChange={(e) => {
+                            setApiToken(e.target.value);
+                            setError(''); // Clear error when user types
+                          }}
                         />
                       </div>
                       <Button
