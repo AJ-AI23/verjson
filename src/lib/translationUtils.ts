@@ -90,7 +90,7 @@ function isTranslatableProperty(
   }
 
   // Special handling for enum values - these are usually not translatable
-  if (path.length > 0 && path[path.length - 1] === 'enum') {
+  if (path.some(pathSegment => pathSegment === 'enum')) {
     return false;
   }
 
