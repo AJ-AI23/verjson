@@ -283,12 +283,16 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
 
   // Helper function to validate naming convention
   function validateNamingConvention(name: string, convention: any): { isValid: boolean; suggestion?: string } {
+    console.log('validateNamingConvention called with:', { name, convention });
+    
     if (!convention || convention.exclusions?.includes(name)) {
+      console.log('Convention not defined or name in exclusions, returning valid');
       return { isValid: true };
     }
 
     // Only validate if caseType is explicitly defined
     if (!convention.caseType) {
+      console.log('No caseType defined, returning valid');
       return { isValid: true };
     }
 
@@ -333,6 +337,14 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
     }
 
     const isValid = pattern.test(name);
+    console.log('Pattern test result:', { 
+      caseType, 
+      pattern: pattern.source, 
+      name, 
+      isValid, 
+      suggestion 
+    });
+    
     return { isValid, suggestion: isValid ? undefined : suggestion };
   }
 
@@ -362,7 +374,16 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
         
         // Only check if we have a configuration defined
         if (paramConfig) {
+          console.log('Parameter validation:', {
+            paramName,
+            paramType,
+            configType: paramConfig.caseType,
+            config: paramConfig
+          });
+          
           const validation = validateNamingConvention(paramName, paramConfig);
+          
+          console.log('Validation result:', validation);
           
           if (!validation.isValid) {
             issues.push({
