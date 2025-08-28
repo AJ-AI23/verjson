@@ -18,6 +18,20 @@ interface CrowdinProject {
   description?: string;
 }
 
+interface CrowdinBranch {
+  id: number;
+  name: string;
+  title: string;
+  createdAt: string;
+}
+
+interface CrowdinFolder {
+  id: number;
+  name: string;
+  path: string;
+  createdAt: string;
+}
+
 interface CrowdinExportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -36,9 +50,15 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
   const [apiToken, setApiToken] = useState('');
   const [showTokenInput, setShowTokenInput] = useState(false);
   const [projects, setProjects] = useState<CrowdinProject[]>([]);
+  const [branches, setBranches] = useState<CrowdinBranch[]>([]);
+  const [folders, setFolders] = useState<CrowdinFolder[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
+  const [selectedFolderId, setSelectedFolderId] = useState<string>('');
   const [filename, setFilename] = useState(`${documentName}-translations.json`);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+  const [isLoadingBranches, setIsLoadingBranches] = useState(false);
+  const [isLoadingFolders, setIsLoadingFolders] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string>('');
   const [exportSuccess, setExportSuccess] = useState(false);
@@ -162,6 +182,93 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
     }
   };
 
+  const loadBranches = async (projectId: string) => {
+    try {
+      setIsLoadingBranches(true);
+      setError('');
+
+      const requestBody = { action: 'listBranches', projectId: parseInt(projectId), workspaceId };
+      console.log('🔍 Loading branches for project:', projectId);
+
+      const { data, error } = await supabase.functions.invoke('crowdin-integration', {
+        body: requestBody
+      });
+
+      if (error || data.error) {
+        console.error('Error loading branches:', error || data.error);
+        setError(data?.error || 'Failed to load branches');
+        return;
+      }
+
+      setBranches(data.branches || []);
+      console.log('✅ Loaded branches:', data.branches?.length || 0);
+    } catch (err) {
+      console.error('Error loading branches:', err);
+      setError('Failed to load branches');
+    } finally {
+      setIsLoadingBranches(false);
+    }
+  };
+
+  const loadFolders = async (projectId: string, branchId?: string) => {
+    try {
+      setIsLoadingFolders(true);
+      setError('');
+
+      const requestBody = { 
+        action: 'listFolders', 
+        projectId: parseInt(projectId), 
+        workspaceId,
+        ...(branchId && { branchId: parseInt(branchId) })
+      };
+      console.log('🔍 Loading folders for project:', projectId, 'branch:', branchId || 'main');
+
+      const { data, error } = await supabase.functions.invoke('crowdin-integration', {
+        body: requestBody
+      });
+
+      if (error || data.error) {
+        console.error('Error loading folders:', error || data.error);
+        setError(data?.error || 'Failed to load folders');
+        return;
+      }
+
+      setFolders(data.folders || []);
+      console.log('✅ Loaded folders:', data.folders?.length || 0);
+    } catch (err) {
+      console.error('Error loading folders:', err);
+      setError('Failed to load folders');
+    } finally {
+      setIsLoadingFolders(false);
+    }
+  };
+
+  const handleProjectChange = async (projectId: string) => {
+    setSelectedProjectId(projectId);
+    setSelectedBranchId('');
+    setSelectedFolderId('');
+    setBranches([]);
+    setFolders([]);
+    
+    if (projectId) {
+      // Load branches for the selected project
+      await loadBranches(projectId);
+      // Load root folders (no branch selected)
+      await loadFolders(projectId);
+    }
+  };
+
+  const handleBranchChange = async (branchId: string) => {
+    setSelectedBranchId(branchId);
+    setSelectedFolderId('');
+    setFolders([]);
+    
+    if (selectedProjectId) {
+      // Load folders for the selected branch
+      await loadFolders(selectedProjectId, branchId || undefined);
+    }
+  };
+
   const loadProjects = async () => {
     try {
       setIsLoadingProjects(true);
@@ -209,6 +316,8 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
           filename: filename.trim(),
           translationData,
           workspaceId,
+          ...(selectedBranchId && { branchId: selectedBranchId }),
+          ...(selectedFolderId && { folderId: selectedFolderId }),
         }
       });
 
@@ -231,7 +340,11 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
     setApiToken('');
     setShowTokenInput(true);
     setProjects([]);
+    setBranches([]);
+    setFolders([]);
     setSelectedProjectId('');
+    setSelectedBranchId('');
+    setSelectedFolderId('');
     setError('');
   };
 
@@ -239,7 +352,11 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
     setApiToken('');
     setShowTokenInput(false);
     setProjects([]);
+    setBranches([]);
+    setFolders([]);
     setSelectedProjectId('');
+    setSelectedBranchId('');
+    setSelectedFolderId('');
     setError('');
     setExportSuccess(false);
     setHasExistingToken(false);
@@ -360,64 +477,144 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
                   <CardHeader>
                     <CardTitle className="text-sm">Select Project</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Crowdin Project</Label>
-                      <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a project" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {projects.map((project) => (
-                            <SelectItem key={project.id} value={project.id.toString()}>
-                              <div className="flex items-center gap-2">
-                                <span>{project.name}</span>
-                                <Badge variant="secondary" className="text-xs">
-                                  {project.identifier}
-                                </Badge>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Crowdin Project</Label>
+                        <Select value={selectedProjectId} onValueChange={handleProjectChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a project" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {projects.map((project) => (
+                              <SelectItem key={project.id} value={project.id.toString()}>
+                                <div className="flex items-center gap-2">
+                                  <span>{project.name}</span>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {project.identifier}
+                                  </Badge>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="filename">Filename</Label>
-                      <Input
-                        id="filename"
-                        value={filename}
-                        onChange={(e) => setFilename(e.target.value)}
-                        placeholder="translation-file.json"
-                      />
-                    </div>
-
-                    <Alert>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>
-                        This will upload {Object.keys(translationData).length} translation strings
-                        as a JSON file to your Crowdin project.
-                      </AlertDescription>
-                    </Alert>
-
-                    <Button
-                      onClick={handleExport}
-                      disabled={isExporting || !selectedProjectId || !filename.trim()}
-                      className="w-full"
-                    >
-                      {isExporting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Exporting...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="mr-2 h-4 w-4" />
-                          Export to Crowdin
-                        </>
+                      {/* Branch Selection (optional) */}
+                      {selectedProjectId && (
+                        <div className="space-y-2">
+                          <Label>Branch (Optional)</Label>
+                          <Select value={selectedBranchId} onValueChange={handleBranchChange}>
+                            <SelectTrigger>
+                              <SelectValue placeholder={isLoadingBranches ? "Loading branches..." : branches.length === 0 ? "No branches (use main)" : "Select a branch"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">
+                                <div className="flex items-center gap-2">
+                                  <span>Main Branch</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    default
+                                  </Badge>
+                                </div>
+                              </SelectItem>
+                              {branches.map((branch) => (
+                                <SelectItem key={branch.id} value={branch.id.toString()}>
+                                  <div className="flex items-center gap-2">
+                                    <span>{branch.name}</span>
+                                    {branch.title && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        {branch.title}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {isLoadingBranches && (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              Loading branches...
+                            </div>
+                          )}
+                        </div>
                       )}
-                    </Button>
-                  </CardContent>
+
+                      {/* Folder Selection (optional) */}
+                      {selectedProjectId && (
+                        <div className="space-y-2">
+                          <Label>Folder (Optional)</Label>
+                          <Select value={selectedFolderId} onValueChange={setSelectedFolderId}>
+                            <SelectTrigger>
+                              <SelectValue placeholder={isLoadingFolders ? "Loading folders..." : folders.length === 0 ? "Root folder" : "Select a folder"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">
+                                <div className="flex items-center gap-2">
+                                  <span>Root Folder</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    /
+                                  </Badge>
+                                </div>
+                              </SelectItem>
+                              {folders.map((folder) => (
+                                <SelectItem key={folder.id} value={folder.id.toString()}>
+                                  <div className="flex items-center gap-2">
+                                    <span>{folder.name}</span>
+                                    <Badge variant="secondary" className="text-xs">
+                                      {folder.path}
+                                    </Badge>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {isLoadingFolders && (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              Loading folders...
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        <Label htmlFor="filename">Filename</Label>
+                        <Input
+                          id="filename"
+                          value={filename}
+                          onChange={(e) => setFilename(e.target.value)}
+                          placeholder="translation-file.json"
+                        />
+                      </div>
+
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          This will upload {Object.keys(translationData).length} translation strings
+                          as a JSON file to your Crowdin project
+                          {selectedBranchId ? ` in branch "${branches.find(b => b.id.toString() === selectedBranchId)?.name || 'selected branch'}"` : ''}
+                          {selectedFolderId ? ` in folder "${folders.find(f => f.id.toString() === selectedFolderId)?.path || 'selected folder'}"` : ' in the root folder'}.
+                        </AlertDescription>
+                      </Alert>
+
+                      <Button
+                        onClick={handleExport}
+                        disabled={isExporting || !selectedProjectId || !filename.trim()}
+                        className="w-full"
+                      >
+                        {isExporting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Exporting...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Export to Crowdin
+                          </>
+                        )}
+                      </Button>
+                    </CardContent>
                 </Card>
               )}
             </>
