@@ -176,6 +176,7 @@ export function extractStringValues(obj: any, prefix = 'root', path: string[] = 
   if (schemaType === undefined) {
     schemaType = detectSchemaType(obj);
     rootObj = obj; // Set root object on first call
+    console.log('🔍 Starting translation extraction, schema type:', schemaType);
   }
   
   if (obj === null || obj === undefined) {
