@@ -54,9 +54,20 @@ serve(async (req) => {
 
     const url = new URL(req.url);
     const action = url.searchParams.get('action');
-    const workspaceId = url.searchParams.get('workspaceId');
+    let workspaceId = url.searchParams.get('workspaceId');
+    let requestBody: any = null;
+
+    // For actions that need request body, parse it once
+    if (action === 'saveToken' || action === 'export') {
+      requestBody = await req.json();
+      if (action === 'saveToken') {
+        workspaceId = requestBody.workspaceId;
+        console.log('SaveToken action - workspaceId from body:', workspaceId);
+      }
+    }
 
     if (!workspaceId) {
+      console.error('Missing workspaceId. Action:', action, 'Query workspaceId:', url.searchParams.get('workspaceId'));
       return new Response(JSON.stringify({ error: 'Workspace ID is required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -80,9 +91,12 @@ serve(async (req) => {
     }
 
     if (action === 'saveToken') {
-      const { apiToken } = await req.json();
+      const { apiToken } = requestBody;
+      
+      console.log('SaveToken action started. WorkspaceId:', workspaceId, 'Has apiToken:', !!apiToken);
       
       if (!apiToken) {
+        console.error('Missing apiToken in request body');
         return new Response(JSON.stringify({ error: 'API token is required' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -181,7 +195,7 @@ serve(async (req) => {
     }
 
     if (action === 'export') {
-      const { projectId, filename, translationData } = await req.json();
+      const { projectId, filename, translationData } = requestBody;
 
       if (!projectId || !filename || !translationData) {
         return new Response(JSON.stringify({ error: 'Missing required fields' }), {
