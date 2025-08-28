@@ -33,11 +33,13 @@ export function ConsistencyConfigDialog({ open, onOpenChange }: ConsistencyConfi
   const { toast } = useToast();
 
   const handleSave = () => {
+    console.log('Saving consistency config');
     updateConfig(localConfig);
     toast({
       title: "Configuration Saved",
       description: "Consistency configuration has been updated successfully.",
     });
+    console.log('Configuration saved toast should be visible');
     onOpenChange(false);
   };
 

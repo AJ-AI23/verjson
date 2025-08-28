@@ -74,7 +74,11 @@ export const QADialog: React.FC<QADialogProps> = ({
 
   // Show toast when consistency violations are detected
   React.useEffect(() => {
+    console.log('Consistency check result:', translationData.consistencyIssues.length, 'issues found');
+    console.log('Issues:', translationData.consistencyIssues);
+    
     if (translationData.consistencyIssues.length > 0) {
+      console.log('Showing consistency violations toast');
       showToast({
         title: "Consistency Violations Detected",
         description: `Found ${translationData.consistencyIssues.length} consistency issue${translationData.consistencyIssues.length === 1 ? '' : 's'} in your schema.`,
@@ -82,6 +86,20 @@ export const QADialog: React.FC<QADialogProps> = ({
       });
     }
   }, [translationData.consistencyIssues.length, showToast]);
+
+  // Also show toast when dialog opens if there are existing issues
+  React.useEffect(() => {
+    if (open && translationData.consistencyIssues.length > 0) {
+      setTimeout(() => {
+        console.log('Dialog opened with existing issues, showing toast');
+        showToast({
+          title: "Consistency Violations Found",
+          description: `Your schema has ${translationData.consistencyIssues.length} consistency issue${translationData.consistencyIssues.length === 1 ? '' : 's'}.`,
+          variant: "destructive",
+        });
+      }, 500); // Small delay to ensure dialog is fully rendered
+    }
+  }, [open, translationData.consistencyIssues.length, showToast]);
 
   const handleCopyIndex = async () => {
     try {

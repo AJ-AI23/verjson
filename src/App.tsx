@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { EditorSettingsProvider } from '@/contexts/EditorSettingsContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DebugProvider } from '@/contexts/DebugContext';
+import { Toaster } from '@/components/ui/toaster';
 import Index from '@/pages/Index';
 import Auth from '@/pages/Auth';
 import NotFound from '@/pages/NotFound';
@@ -23,6 +24,7 @@ function App() {
           </EditorSettingsProvider>
         </DebugProvider>
       </AuthProvider>
+      <Toaster />
     </>
   );
 }
