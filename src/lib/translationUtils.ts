@@ -285,7 +285,12 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
       return { isValid: true };
     }
 
-    const caseType = convention.caseType || 'kebab-case';
+    // Only validate if caseType is explicitly defined
+    if (!convention.caseType) {
+      return { isValid: true };
+    }
+
+    const caseType = convention.caseType;
     let pattern: RegExp;
     let suggestion = '';
 
@@ -343,17 +348,21 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
       // Check if this is a parameter object with a name property
       if (path.includes('parameters') && currentObj.name && typeof currentObj.name === 'string') {
         const paramName = currentObj.name;
-        const paramConfig = config?.parameterNaming || { caseType: 'kebab-case' };
-        const validation = validateNamingConvention(paramName, paramConfig);
+        const paramConfig = config?.parameterNaming;
         
-        if (!validation.isValid) {
-          issues.push({
-            type: 'parameter-naming',
-            path: [...path, 'name'].join('.'),
-            value: paramName,
-            suggestedName: validation.suggestion,
-            message: `Parameter name "${paramName}" should follow ${paramConfig.caseType} convention. Suggested: "${validation.suggestion}"`
-          });
+        // Only check if we have a configuration defined
+        if (paramConfig) {
+          const validation = validateNamingConvention(paramName, paramConfig);
+          
+          if (!validation.isValid) {
+            issues.push({
+              type: 'parameter-naming',
+              path: [...path, 'name'].join('.'),
+              value: paramName,
+              suggestedName: validation.suggestion,
+              message: `Parameter name "${paramName}" should follow ${paramConfig.caseType} convention${validation.suggestion ? `. Suggested: "${validation.suggestion}"` : ''}`
+            });
+          }
         }
       }
       
