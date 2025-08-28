@@ -92,8 +92,19 @@ function isTranslatableProperty(
 
   // Special handling for example/examples properties - exclude if same object has enum array
   if ((key === 'example' || key === 'examples') && parentObj && typeof parentObj === 'object') {
+    // Debug: log what we're seeing for example properties
+    console.log('🔍 EXAMPLE DEBUG:', {
+      key,
+      fullPath: path.join('.'),
+      parentObjKeys: Object.keys(parentObj),
+      hasEnum: 'enum' in parentObj,
+      enumValue: parentObj.enum,
+      isEnumArray: Array.isArray(parentObj.enum)
+    });
+    
     // Check if the parent object (which should contain both example and enum) has an enum property
     if (Array.isArray(parentObj.enum) && parentObj.enum.length > 0) {
+      console.log('✅ EXCLUDING example due to enum');
       return false;
     }
   }
