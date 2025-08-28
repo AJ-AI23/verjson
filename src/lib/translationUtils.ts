@@ -355,9 +355,9 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
         // Use different config based on parameter type
         let paramConfig;
         if (paramType === 'path') {
-          paramConfig = config?.endpointNaming; // Path parameters follow endpoint naming
+          paramConfig = config?.pathParameterNaming; // Path parameters have their own config
         } else {
-          paramConfig = config?.parameterNaming; // Query, header, cookie parameters
+          paramConfig = config?.queryParameterNaming; // Query, header, cookie parameters
         }
         
         // Only check if we have a configuration defined

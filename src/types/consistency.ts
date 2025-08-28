@@ -15,7 +15,8 @@ export interface SemanticRule {
 }
 
 export interface ConsistencyConfig {
-  parameterNaming: NamingConvention;
+  queryParameterNaming: NamingConvention;
+  pathParameterNaming: NamingConvention;
   componentNaming: NamingConvention;
   endpointNaming: NamingConvention;
   propertyNaming: NamingConvention;
@@ -84,7 +85,11 @@ export const DEFAULT_SEMANTIC_RULES: SemanticRule[] = [
 ];
 
 export const DEFAULT_CONFIG: ConsistencyConfig = {
-  parameterNaming: {
+  queryParameterNaming: {
+    caseType: 'kebab-case',
+    exclusions: []
+  },
+  pathParameterNaming: {
     caseType: 'kebab-case',
     exclusions: []
   },

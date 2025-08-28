@@ -45,7 +45,7 @@ export function ConsistencyConfigDialog({ open, onOpenChange }: ConsistencyConfi
   };
 
   const updateNamingConvention = (
-    type: 'parameterNaming' | 'componentNaming' | 'endpointNaming' | 'propertyNaming',
+    type: 'queryParameterNaming' | 'pathParameterNaming' | 'componentNaming' | 'endpointNaming' | 'propertyNaming',
     updates: Partial<NamingConvention>
   ) => {
     setLocalConfig(prev => ({
@@ -77,7 +77,7 @@ export function ConsistencyConfigDialog({ open, onOpenChange }: ConsistencyConfi
 
   const renderNamingSection = (
     title: string,
-    type: 'parameterNaming' | 'componentNaming' | 'endpointNaming' | 'propertyNaming',
+    type: 'queryParameterNaming' | 'pathParameterNaming' | 'componentNaming' | 'endpointNaming' | 'propertyNaming',
     convention: NamingConvention
   ) => (
     <div className="space-y-4">
@@ -170,7 +170,8 @@ export function ConsistencyConfigDialog({ open, onOpenChange }: ConsistencyConfi
 
             <TabsContent value="naming" className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2">
-                {renderNamingSection('Parameter Names', 'parameterNaming', localConfig.parameterNaming)}
+                {renderNamingSection('Query Parameters', 'queryParameterNaming', localConfig.queryParameterNaming)}
+                {renderNamingSection('Path Parameters', 'pathParameterNaming', localConfig.pathParameterNaming)}
                 {renderNamingSection('Component Names', 'componentNaming', localConfig.componentNaming)}
                 {renderNamingSection('Endpoint Paths', 'endpointNaming', localConfig.endpointNaming)}
                 {renderNamingSection('Property Names', 'propertyNaming', localConfig.propertyNaming)}

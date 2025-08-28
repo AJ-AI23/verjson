@@ -9,7 +9,8 @@ export const PRESET_CONFIGS: ConsistencyPreset[] = [
     description: 'Standard RESTful API conventions',
     config: {
       ...DEFAULT_CONFIG,
-      parameterNaming: { caseType: 'kebab-case', exclusions: [] },
+      queryParameterNaming: { caseType: 'kebab-case', exclusions: [] },
+      pathParameterNaming: { caseType: 'kebab-case', exclusions: [] },
       endpointNaming: { caseType: 'kebab-case', exclusions: [] },
       propertyNaming: { caseType: 'camelCase', exclusions: [] }
     }
@@ -19,7 +20,8 @@ export const PRESET_CONFIGS: ConsistencyPreset[] = [
     description: 'Google\'s API design patterns',
     config: {
       ...DEFAULT_CONFIG,
-      parameterNaming: { caseType: 'snake_case', exclusions: [] },
+      queryParameterNaming: { caseType: 'snake_case', exclusions: [] },
+      pathParameterNaming: { caseType: 'snake_case', exclusions: [] },
       endpointNaming: { caseType: 'snake_case', exclusions: [] },
       propertyNaming: { caseType: 'snake_case', exclusions: [] }
     }
@@ -29,7 +31,8 @@ export const PRESET_CONFIGS: ConsistencyPreset[] = [
     description: 'Microsoft\'s REST API guidelines',
     config: {
       ...DEFAULT_CONFIG,
-      parameterNaming: { caseType: 'camelCase', exclusions: [] },
+      queryParameterNaming: { caseType: 'camelCase', exclusions: [] },
+      pathParameterNaming: { caseType: 'camelCase', exclusions: [] },
       endpointNaming: { caseType: 'camelCase', exclusions: [] },
       propertyNaming: { caseType: 'camelCase', exclusions: [] }
     }
