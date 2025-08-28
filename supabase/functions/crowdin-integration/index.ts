@@ -482,7 +482,7 @@ serve(async (req) => {
     if (action === 'import') {
       console.log('🔍 Import action started');
       
-      const { fileId, documentId } = payload;
+      const { fileId, documentId, projectId } = payload;
       
       if (!fileId) {
         return new Response(JSON.stringify({ error: 'File ID is required' }), {
@@ -498,11 +498,18 @@ serve(async (req) => {
         });
       }
 
+      if (!projectId) {
+        return new Response(JSON.stringify({ error: 'Project ID is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       try {
-        // Download file content from Crowdin storage
-        console.log('🔍 Downloading file from Crowdin storage:', fileId);
+        // Download file content from Crowdin project file
+        console.log('🔍 Downloading file from Crowdin project:', projectId, 'file:', fileId);
         
-        const downloadResponse = await fetch(`${CROWDIN_API_BASE}/storages/${fileId}`, {
+        const downloadResponse = await fetch(`${CROWDIN_API_BASE}/projects/${projectId}/files/${fileId}/download`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${apiToken}`,

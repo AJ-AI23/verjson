@@ -50,6 +50,7 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
         body: {
           action: 'import',
           fileId: document.crowdin_file_id,
+          projectId: document.crowdin_project_id,
           documentId: document.id,
           workspaceId: document.workspace_id,
         }
