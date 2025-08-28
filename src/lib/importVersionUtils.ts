@@ -95,7 +95,13 @@ function pathsToNestedObject(pathData: any): any {
   
   for (const [key, value] of Object.entries(pathData)) {
     // Handle both "/path" and "path" formats
-    const cleanPath = key.startsWith('/') ? key.slice(1) : key;
+    let cleanPath = key.startsWith('/') ? key.slice(1) : key;
+    
+    // Remove "root." prefix if it exists - root refers to the document root
+    if (cleanPath.startsWith('root.')) {
+      cleanPath = cleanPath.slice(5); // Remove "root."
+    }
+    
     const pathParts = cleanPath.split('.');
     
     let current = result;
