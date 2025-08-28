@@ -72,7 +72,7 @@ function isTranslatableProperty(
   }
 
   // Exclude values inside "required" arrays - these are property references, not translatable text
-  if (path.length > 0 && path[path.length - 1] === 'required') {
+  if (path.some(pathSegment => pathSegment === 'required')) {
     return false;
   }
   
