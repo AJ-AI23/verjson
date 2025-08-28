@@ -380,22 +380,39 @@ serve(async (req) => {
       }
 
       // Step 1: Create storage
-      const jsonContent = JSON.stringify(translationData, null, 2);
-      console.log('📄 JSON content being uploaded:', jsonContent.substring(0, 200) + '...');
-      console.log('📏 Content length:', jsonContent.length);
-      
-      if (!jsonContent || jsonContent.length === 0) {
-        return new Response(JSON.stringify({ error: 'Translation data is empty' }), {
+      console.log('🔍 Raw translation data:', typeof translationData, Object.keys(translationData || {}));
+      console.log('🔍 Translation data sample:', JSON.stringify(translationData).substring(0, 500));
+
+      if (!translationData || typeof translationData !== 'object' || Object.keys(translationData).length === 0) {
+        return new Response(JSON.stringify({ error: 'Translation data is empty or invalid' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
-      const blob = new Blob([jsonContent], { type: 'application/json' });
-      const formData = new FormData();
-      formData.append('file', blob, filename);
+      const jsonContent = JSON.stringify(translationData, null, 2);
+      console.log('📄 JSON content being uploaded (first 500 chars):', jsonContent.substring(0, 500));
+      console.log('📏 Content length:', jsonContent.length);
+      console.log('🔍 Filename being used:', filename);
+      
+      if (!jsonContent || jsonContent.length === 0 || jsonContent === '{}') {
+        return new Response(JSON.stringify({ error: 'Generated JSON content is empty' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
-      console.log('🔍 Uploading to Crowdin with filename:', filename);
+      // Create file as plain text to avoid Blob issues
+      const encoder = new TextEncoder();
+      const fileData = encoder.encode(jsonContent);
+      
+      const formData = new FormData();
+      const file = new File([fileData], filename, { type: 'application/json' });
+      formData.append('file', file);
+
+      console.log('🔍 File size:', file.size);
+      console.log('🔍 File type:', file.type);
+      console.log('🔍 FormData created with file name:', filename);
 
       const storageResponse = await fetch(`${CROWDIN_API_BASE}/storages`, {
         method: 'POST',
