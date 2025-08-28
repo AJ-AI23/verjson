@@ -612,9 +612,8 @@ export const QADialog: React.FC<QADialogProps> = ({
                             </CardHeader>
                             <CardContent className="pt-0">
                               <p className="text-sm text-muted-foreground mb-3">
-                                The following example values match enum values found elsewhere in your schema, 
-                                but their parent objects are missing enum definitions. Consider adding enum 
-                                constraints for consistency.
+                                The following issues were found in your schema that may affect API consistency 
+                                and maintainability. Addressing these will improve schema quality.
                               </p>
                             </CardContent>
                           </Card>
@@ -626,7 +625,9 @@ export const QADialog: React.FC<QADialogProps> = ({
                                 <CardTitle className="text-sm flex items-center justify-between">
                                   <div className="flex items-center gap-2 min-w-0">
                                     <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0" />
-                                    <span className="truncate">Missing Enum Definition</span>
+                                    <span className="truncate">
+                                      {issue.type === 'missing-enum' ? 'Missing Enum Definition' : 'Parameter Naming Issue'}
+                                    </span>
                                   </div>
                                   <Badge variant="outline" className="shrink-0">
                                     {issue.type}
@@ -646,21 +647,34 @@ export const QADialog: React.FC<QADialogProps> = ({
                                   
                                   <div>
                                     <div className="text-xs font-medium text-muted-foreground mb-1">
-                                      Example Value:
+                                      {issue.type === 'missing-enum' ? 'Example Value:' : 'Current Name:'}
                                     </div>
                                     <div className="text-sm bg-orange-50 border border-orange-200 p-2 rounded">
                                       "{issue.value}"
                                     </div>
                                   </div>
                                   
-                                  <div>
-                                    <div className="text-xs font-medium text-muted-foreground mb-1">
-                                      Suggested Enum:
+                                  {issue.type === 'missing-enum' && issue.suggestedEnum && (
+                                    <div>
+                                      <div className="text-xs font-medium text-muted-foreground mb-1">
+                                        Suggested Enum:
+                                      </div>
+                                      <div className="text-sm bg-green-50 border border-green-200 p-2 rounded font-mono">
+                                        "enum": [{issue.suggestedEnum.map(val => `"${val}"`).join(', ')}]
+                                      </div>
                                     </div>
-                                    <div className="text-sm bg-green-50 border border-green-200 p-2 rounded font-mono">
-                                      "enum": [{issue.suggestedEnum.map(val => `"${val}"`).join(', ')}]
+                                  )}
+                                  
+                                  {issue.type === 'parameter-naming' && issue.suggestedName && (
+                                    <div>
+                                      <div className="text-xs font-medium text-muted-foreground mb-1">
+                                        Suggested Name (kebab-case):
+                                      </div>
+                                      <div className="text-sm bg-green-50 border border-green-200 p-2 rounded font-mono">
+                                        "{issue.suggestedName}"
+                                      </div>
                                     </div>
-                                  </div>
+                                  )}
                                   
                                   <div>
                                     <div className="text-xs font-medium text-muted-foreground mb-1">

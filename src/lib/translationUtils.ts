@@ -5,10 +5,11 @@ export interface TranslationEntry {
 }
 
 export interface ConsistencyIssue {
-  type: 'missing-enum';
+  type: 'missing-enum' | 'parameter-naming';
   path: string;
   value: string;
-  suggestedEnum: string[];
+  suggestedEnum?: string[];
+  suggestedName?: string;
   message: string;
 }
 
@@ -275,6 +276,47 @@ export function checkSchemaConsistency(obj: any): ConsistencyIssue[] {
     enumArray.forEach(val => allEnumValues.add(val));
   });
 
+  // Check for parameter naming consistency
+  function checkParameterNaming(currentObj: any, path: string[] = []) {
+    if (currentObj === null || currentObj === undefined) {
+      return;
+    }
+
+    if (Array.isArray(currentObj)) {
+      currentObj.forEach((item, index) => {
+        checkParameterNaming(item, [...path, index.toString()]);
+      });
+    } else if (typeof currentObj === 'object') {
+      // Check if this is a parameter object with a name property
+      if (path.includes('parameters') && currentObj.name && typeof currentObj.name === 'string') {
+        const paramName = currentObj.name;
+        const kebabCasePattern = /^[a-z]+(-[a-z]+)*$/;
+        
+        if (!kebabCasePattern.test(paramName)) {
+          // Generate kebab-case suggestion
+          const suggestedName = paramName
+            .replace(/([A-Z])/g, '-$1') // camelCase to kebab-case
+            .replace(/[_\s]+/g, '-')    // underscores and spaces to hyphens
+            .toLowerCase()
+            .replace(/^-+|-+$/g, '')   // remove leading/trailing hyphens
+            .replace(/-+/g, '-');      // collapse multiple hyphens
+          
+          issues.push({
+            type: 'parameter-naming',
+            path: [...path, 'name'].join('.'),
+            value: paramName,
+            suggestedName,
+            message: `Parameter name "${paramName}" should follow kebab-case convention. Suggested: "${suggestedName}"`
+          });
+        }
+      }
+      
+      Object.keys(currentObj).forEach(key => {
+        checkParameterNaming(currentObj[key], [...path, key]);
+      });
+    }
+  }
+
   // Recursively check for example values that match known enums but lack enum definition
   function checkExamples(currentObj: any, path: string[] = []) {
     if (currentObj === null || currentObj === undefined) {
@@ -321,7 +363,10 @@ export function checkSchemaConsistency(obj: any): ConsistencyIssue[] {
       });
     }
   }
-
+  
+  // Run both checks
+  checkParameterNaming(obj);
   checkExamples(obj);
+  
   return issues;
 }
