@@ -43,7 +43,6 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
   const [error, setError] = useState<string>('');
   const [exportSuccess, setExportSuccess] = useState(false);
   const [hasExistingToken, setHasExistingToken] = useState(false);
-  const [obfuscatedToken, setObfuscatedToken] = useState('');
 
   // Check for existing API token when dialog opens
   useEffect(() => {
@@ -86,12 +85,9 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
         return;
       }
 
-      // Token exists, create obfuscated version for display
-      const obfuscatedToken = `****-****-****-${tokenData.encrypted_api_token.slice(-8)}`;
-      console.log('✅ Token found, setting up UI with obfuscated token:', obfuscatedToken);
-      
+      // Token exists in database
+      console.log('✅ Token found in database');
       setHasExistingToken(true);
-      setObfuscatedToken(obfuscatedToken);
       setShowTokenInput(false);
 
       // Now try to load projects using the edge function
@@ -155,9 +151,6 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       // Token saved successfully, now load projects
       await loadProjects();
       
-      // Set the obfuscated token for display
-      const obfuscated = `****-****-****-${apiToken.trim().slice(-4)}`;
-      setObfuscatedToken(obfuscated);
       setShowTokenInput(false);
       setHasExistingToken(true);
       toast.success('Crowdin API token saved successfully');
@@ -249,7 +242,6 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
     setError('');
     setExportSuccess(false);
     setHasExistingToken(false);
-    setObfuscatedToken('');
   };
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -297,16 +289,9 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <CheckCircle className="h-4 w-4 text-green-600" />
-                          <div className="space-y-1">
-                            <span className="text-sm text-muted-foreground">
-                              Using saved API token
-                            </span>
-                            {obfuscatedToken && (
-                              <div className="text-xs text-muted-foreground font-mono">
-                                {obfuscatedToken}
-                              </div>
-                            )}
-                          </div>
+                          <span className="text-sm text-muted-foreground">
+                            Using saved API token
+                          </span>
                         </div>
                         <Button
                           variant="outline"

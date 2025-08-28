@@ -9,19 +9,58 @@ const corsHeaders = {
 
 const CROWDIN_API_BASE = 'https://api.crowdin.com/api/v2';
 
-// Simple encryption/decryption functions
-const encryptToken = (token: string): string => {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(token);
-  const encrypted = btoa(String.fromCharCode(...data));
-  return encrypted;
+// Proper encryption/decryption functions using AES-GCM
+const getEncryptionKey = async (): Promise<CryptoKey> => {
+  const keyString = Deno.env.get('CROWDIN_ENCRYPTION_KEY');
+  if (!keyString) {
+    throw new Error('Encryption key not configured');
+  }
+  
+  const keyData = new TextEncoder().encode(keyString.padEnd(32, '0').slice(0, 32));
+  return await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt', 'decrypt']
+  );
 };
 
-const decryptToken = (encryptedToken: string): string => {
+const encryptToken = async (token: string): Promise<string> => {
+  const key = await getEncryptionKey();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encoder = new TextEncoder();
+  const data = encoder.encode(token);
+  
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    data
+  );
+  
+  // Combine IV and encrypted data
+  const combined = new Uint8Array(iv.length + encrypted.byteLength);
+  combined.set(iv);
+  combined.set(new Uint8Array(encrypted), iv.length);
+  
+  return btoa(String.fromCharCode(...combined));
+};
+
+const decryptToken = async (encryptedToken: string): Promise<string> => {
   try {
-    const decoded = atob(encryptedToken);
-    const decoder = new TextDecoder();
-    return decoder.decode(new Uint8Array([...decoded].map(char => char.charCodeAt(0))));
+    const key = await getEncryptionKey();
+    const combined = new Uint8Array([...atob(encryptedToken)].map(char => char.charCodeAt(0)));
+    
+    const iv = combined.slice(0, 12);
+    const encrypted = combined.slice(12);
+    
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      encrypted
+    );
+    
+    return new TextDecoder().decode(decrypted);
   } catch (error) {
     console.error('Error decrypting token:', error);
     throw new Error('Failed to decrypt token');
@@ -192,14 +231,11 @@ serve(async (req) => {
           });
         }
 
-        // Return obfuscated token info without calling Crowdin API
-        const decryptedToken = decryptToken(settings.encrypted_api_token);
-        const obfuscatedToken = `****-****-****-${decryptedToken.slice(-4)}`;
+        // Return simple confirmation that token exists
         console.log('✅ Token found for workspace:', workspaceId);
         
         return new Response(JSON.stringify({ 
-          hasToken: true,
-          obfuscatedToken
+          hasToken: true
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -245,7 +281,7 @@ serve(async (req) => {
       }
 
       // Encrypt and save token to database
-      const encryptedToken = encryptToken(apiToken);
+      const encryptedToken = await encryptToken(apiToken);
       const { error: saveError } = await supabaseClient
         .from('workspace_crowdin_settings')
         .upsert({
@@ -299,7 +335,7 @@ serve(async (req) => {
     // Decrypt the token for API calls
     let apiToken: string;
     try {
-      apiToken = decryptToken(encryptedApiToken);
+      apiToken = await decryptToken(encryptedApiToken);
     } catch (error) {
       console.error('Failed to decrypt API token:', error);
       return new Response(JSON.stringify({ error: 'Invalid token configuration' }), {
