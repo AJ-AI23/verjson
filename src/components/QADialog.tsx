@@ -39,6 +39,7 @@ export const QADialog: React.FC<QADialogProps> = ({
   const [crowdinDialogOpen, setCrowdinDialogOpen] = useState(false);
   const [crowdinImportDialogOpen, setCrowdinImportDialogOpen] = useState(false);
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
+  const [isRunningConsistencyCheck, setIsRunningConsistencyCheck] = useState(false);
   
   const { workspaces } = useWorkspaces();
   const selectedWorkspace = workspaces?.[0]; // Use the first workspace for now
@@ -78,6 +79,43 @@ export const QADialog: React.FC<QADialogProps> = ({
       };
     }
   }, [schema, consistencyConfig]);
+
+  const handleManualConsistencyCheck = async () => {
+    setIsRunningConsistencyCheck(true);
+    console.log('=== Manual consistency check triggered ===');
+    
+    try {
+      const parsedSchema = JSON.parse(schema);
+      const newIssues = checkSchemaConsistency(parsedSchema, consistencyConfig);
+      console.log('Manual check found:', newIssues.length, 'issues');
+      
+      // Force a re-render by updating the translation data
+      // This will trigger the useMemo to recalculate
+      setTimeout(() => {
+        setIsRunningConsistencyCheck(false);
+        if (newIssues.length > 0) {
+          showToast({
+            title: "Consistency Check Complete",
+            description: `Found ${newIssues.length} consistency issue${newIssues.length === 1 ? '' : 's'}.`,
+            variant: "destructive",
+          });
+        } else {
+          showToast({
+            title: "Consistency Check Complete",
+            description: "No consistency issues found!",
+          });
+        }
+      }, 100);
+    } catch (error) {
+      console.error('Manual consistency check failed:', error);
+      setIsRunningConsistencyCheck(false);
+      showToast({
+        title: "Consistency Check Failed",
+        description: "Failed to run consistency check. Please check your schema format.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Show toast when consistency violations are detected
   React.useEffect(() => {
@@ -632,15 +670,33 @@ export const QADialog: React.FC<QADialogProps> = ({
                 <TabsContent value="consistency" className="flex-1 min-h-0 mt-4 data-[state=active]:flex data-[state=active]:flex-col">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">Consistency Checks</h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setConfigDialogOpen(true)}
-                      className="flex items-center gap-2"
-                    >
-                      <Settings className="h-4 w-4" />
-                      Configure Rules
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleManualConsistencyCheck}
+                        disabled={isRunningConsistencyCheck}
+                        className="flex items-center gap-2"
+                      >
+                        {isRunningConsistencyCheck ? (
+                          <>Running...</>
+                        ) : (
+                          <>
+                            <CheckCircle className="h-4 w-4" />
+                            Run Check
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setConfigDialogOpen(true)}
+                        className="flex items-center gap-2"
+                      >
+                        <Settings className="h-4 w-4" />
+                        Configure Rules
+                      </Button>
+                    </div>
                   </div>
                   <ScrollArea className="flex-1 min-h-0 w-full">
                     <div className="space-y-4">
