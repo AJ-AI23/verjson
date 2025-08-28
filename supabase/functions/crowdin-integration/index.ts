@@ -22,6 +22,10 @@ interface CrowdinStorage {
 }
 
 serve(async (req) => {
+  console.log('🚀 Crowdin integration function called');
+  console.log('Request method:', req.method);
+  console.log('Request URL:', req.url);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -51,6 +55,8 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    console.log('✅ User authenticated:', user.id);
 
     const url = new URL(req.url);
     let requestBody: any = null;
@@ -276,8 +282,12 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Error in crowdin-integration function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('💥 Error in crowdin-integration function:', error);
+    console.error('Error stack:', error.stack);
+    return new Response(JSON.stringify({ 
+      error: 'Internal server error',
+      details: error.message 
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
