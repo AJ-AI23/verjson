@@ -54,6 +54,11 @@ export function useConsistencyConfig() {
   const updateConfig = (newConfig: ConsistencyConfig) => {
     setConfig(newConfig);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
+    
+    // Dispatch a custom event to notify other components of config change
+    window.dispatchEvent(new CustomEvent('consistencyConfigUpdated', { 
+      detail: newConfig 
+    }));
   };
 
   const applyPreset = (preset: ConsistencyPreset) => {

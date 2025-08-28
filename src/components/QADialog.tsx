@@ -68,7 +68,7 @@ export const QADialog: React.FC<QADialogProps> = ({
         consistencyIssues: []
       };
     }
-  }, [schema]);
+  }, [schema, consistencyConfig]);
 
   const handleCopyIndex = async () => {
     try {

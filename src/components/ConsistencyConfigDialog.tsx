@@ -33,6 +33,10 @@ export function ConsistencyConfigDialog({ open, onOpenChange }: ConsistencyConfi
   const handleSave = () => {
     updateConfig(localConfig);
     onOpenChange(false);
+    // Force a small delay to ensure the config update propagates
+    setTimeout(() => {
+      // The QA dialog will automatically re-run consistency checks due to config change
+    }, 100);
   };
 
   const handleCancel = () => {
