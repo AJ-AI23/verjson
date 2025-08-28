@@ -56,6 +56,7 @@ export type Database = {
           granted_by: string
           id: string
           role: Database["public"]["Enums"]["permission_role"]
+          status: string | null
           updated_at: string
           user_id: string
         }
@@ -65,6 +66,7 @@ export type Database = {
           granted_by: string
           id?: string
           role?: Database["public"]["Enums"]["permission_role"]
+          status?: string | null
           updated_at?: string
           user_id: string
         }
@@ -74,6 +76,7 @@ export type Database = {
           granted_by?: string
           id?: string
           role?: Database["public"]["Enums"]["permission_role"]
+          status?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -223,8 +226,11 @@ export type Database = {
           created_at: string
           document_id: string
           id: string
+          invitation_data: Json | null
+          invitation_type: string | null
           message: string
           read_at: string | null
+          status: string | null
           title: string
           type: string
           updated_at: string
@@ -234,8 +240,11 @@ export type Database = {
           created_at?: string
           document_id: string
           id?: string
+          invitation_data?: Json | null
+          invitation_type?: string | null
           message: string
           read_at?: string | null
+          status?: string | null
           title: string
           type?: string
           updated_at?: string
@@ -245,8 +254,11 @@ export type Database = {
           created_at?: string
           document_id?: string
           id?: string
+          invitation_data?: Json | null
+          invitation_type?: string | null
           message?: string
           read_at?: string | null
+          status?: string | null
           title?: string
           type?: string
           updated_at?: string
@@ -293,6 +305,7 @@ export type Database = {
           granted_by: string
           id: string
           role: Database["public"]["Enums"]["permission_role"]
+          status: string | null
           updated_at: string
           user_id: string
           workspace_id: string
@@ -302,6 +315,7 @@ export type Database = {
           granted_by: string
           id?: string
           role?: Database["public"]["Enums"]["permission_role"]
+          status?: string | null
           updated_at?: string
           user_id: string
           workspace_id: string
@@ -311,6 +325,7 @@ export type Database = {
           granted_by?: string
           id?: string
           role?: Database["public"]["Enums"]["permission_role"]
+          status?: string | null
           updated_at?: string
           user_id?: string
           workspace_id?: string
@@ -349,9 +364,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_invitation: {
+        Args: { notification_id: string }
+        Returns: boolean
+      }
       cleanup_old_editor_history: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      create_invitation_notification: {
+        Args: {
+          inv_data: Json
+          inv_type: string
+          inviter_user_id: string
+          message: string
+          target_user_id: string
+          title: string
+        }
+        Returns: string
+      }
+      decline_invitation: {
+        Args: { notification_id: string }
+        Returns: boolean
       }
       generate_content_hash: {
         Args: { content: string }

@@ -2,257 +2,222 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "npm:resend@2.0.0";
 
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
 
-interface InviteRequest {
+interface InviteCollaboratorRequest {
   email: string;
   invitationType: 'document' | 'workspace' | 'bulk-documents';
-  resourceId?: string; // documentId or workspaceId
-  resourceIds?: string[]; // for bulk document invitations
+  resourceId?: string;
+  resourceIds?: string[];
   resourceName: string;
   role: 'editor' | 'viewer';
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { 
-      email, 
-      invitationType, 
-      resourceId, 
-      resourceIds, 
-      resourceName, 
-      role 
-    }: InviteRequest = await req.json();
-
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get the current user from the auth header
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       throw new Error("No authorization header");
     }
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      throw new Error("Invalid authentication");
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      {
+        global: {
+          headers: { Authorization: authHeader },
+        },
+      }
+    );
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error("Unauthorized");
     }
 
-    // Check if user exists by email
-    const { data: existingUser, error: userError } = await supabase
-      .from('profiles')
-      .select('user_id, email, full_name')
-      .eq('email', email)
+    const {
+      email,
+      invitationType,
+      resourceId,
+      resourceIds,
+      resourceName,
+      role,
+    }: InviteCollaboratorRequest = await req.json();
+
+    if (!email || !invitationType || !resourceName || !role) {
+      throw new Error("Missing required fields");
+    }
+
+    // Check if user exists, if not create an invitation notification anyway
+    const { data: targetUserProfile } = await supabaseClient
+      .from("profiles")
+      .select("user_id, email, full_name")
+      .eq("email", email)
       .single();
 
-    let targetUserId: string;
-    let isNewUser = false;
+    let invitationData: any = {
+      inviter_id: user.id,
+      inviter_email: user.email,
+      role: role,
+    };
 
-    if (userError || !existingUser) {
-      isNewUser = true;
-    } else {
-      targetUserId = existingUser.user_id;
-    }
-
-    // Handle different invitation types
-    let permissionsCreated = 0;
-    let resourceNames: string[] = [];
+    let notificationTitle = "";
+    let notificationMessage = "";
 
     if (invitationType === 'document' && resourceId) {
-      // Single document invitation
-      const { data: document, error: docError } = await supabase
-        .from('documents')
-        .select('*, workspaces(name)')
-        .eq('id', resourceId)
-        .single();
+      // Document invitation
+      invitationData.document_id = resourceId;
+      invitationData.document_name = resourceName;
+      
+      notificationTitle = `Invitation to collaborate on "${resourceName}"`;
+      notificationMessage = `You have been invited to collaborate on the document "${resourceName}" as ${role}.`;
 
-      if (docError || !document) {
-        throw new Error("Document not found or access denied");
-      }
-
-      // Check if user has permission to invite (owner of document or workspace)
-      const hasPermission = await checkDocumentPermission(supabase, user.id, resourceId);
-      if (!hasPermission) {
-        throw new Error("You don't have permission to invite users to this document");
-      }
-
-      if (!isNewUser) {
-        const { error: permError } = await supabase
-          .from('document_permissions')
+      if (targetUserProfile) {
+        // Create pending permission
+        const { error: permissionError } = await supabaseClient
+          .from("document_permissions")
           .insert({
             document_id: resourceId,
-            user_id: targetUserId,
+            user_id: targetUserProfile.user_id,
             role: role,
-            granted_by: user.id
+            granted_by: user.id,
+            status: 'pending'
           });
 
-        if (permError && !permError.message.includes('duplicate')) {
-          throw new Error(`Failed to create permission: ${permError.message}`);
+        if (permissionError) {
+          console.error("Permission error:", permissionError);
         }
-        if (!permError) permissionsCreated++;
       }
-
-      resourceNames = [document.name];
 
     } else if (invitationType === 'workspace' && resourceId) {
       // Workspace invitation
-      const { data: workspace, error: wsError } = await supabase
-        .from('workspaces')
-        .select('*')
-        .eq('id', resourceId)
-        .eq('user_id', user.id)
-        .single();
+      invitationData.workspace_id = resourceId;
+      invitationData.workspace_name = resourceName;
+      
+      notificationTitle = `Invitation to workspace "${resourceName}"`;
+      notificationMessage = `You have been invited to collaborate on the workspace "${resourceName}" as ${role}.`;
 
-      if (wsError || !workspace) {
-        throw new Error("Workspace not found or access denied");
-      }
-
-      if (!isNewUser) {
-        // Create workspace permission
-        const { error: wsPermError } = await supabase
-          .from('workspace_permissions')
+      if (targetUserProfile) {
+        // Create pending permission
+        const { error: permissionError } = await supabaseClient
+          .from("workspace_permissions")
           .insert({
             workspace_id: resourceId,
-            user_id: targetUserId,
+            user_id: targetUserProfile.user_id,
             role: role,
-            granted_by: user.id
+            granted_by: user.id,
+            status: 'pending'
           });
 
-        if (wsPermError && !wsPermError.message.includes('duplicate')) {
-          throw new Error(`Failed to create workspace permission: ${wsPermError.message}`);
-        }
-        if (!wsPermError) permissionsCreated++;
-
-        // Also create permissions for all documents in the workspace
-        const { data: documents } = await supabase
-          .from('documents')
-          .select('id, name')
-          .eq('workspace_id', resourceId);
-
-        if (documents) {
-          for (const doc of documents) {
-            const { error: docPermError } = await supabase
-              .from('document_permissions')
-              .insert({
-                document_id: doc.id,
-                user_id: targetUserId,
-                role: role,
-                granted_by: user.id
-              });
-
-            if (!docPermError) permissionsCreated++;
-          }
+        if (permissionError) {
+          console.error("Permission error:", permissionError);
         }
       }
-
-      resourceNames = [workspace.name];
 
     } else if (invitationType === 'bulk-documents' && resourceIds) {
-      // Bulk document invitation
-      const { data: documents, error: docsError } = await supabase
-        .from('documents')
-        .select('id, name, user_id')
-        .in('id', resourceIds);
+      // Bulk documents invitation
+      invitationData.document_ids = resourceIds;
+      invitationData.document_count = resourceIds.length;
+      
+      notificationTitle = `Invitation to ${resourceIds.length} documents`;
+      notificationMessage = `You have been invited to collaborate on ${resourceIds.length} documents as ${role}.`;
 
-      if (docsError || !documents) {
-        throw new Error("Documents not found");
-      }
+      if (targetUserProfile) {
+        // Create pending permissions for all documents
+        const permissions = resourceIds.map(docId => ({
+          document_id: docId,
+          user_id: targetUserProfile.user_id,
+          role: role,
+          granted_by: user.id,
+          status: 'pending'
+        }));
 
-      // Check permissions for all documents
-      for (const doc of documents) {
-        const hasPermission = await checkDocumentPermission(supabase, user.id, doc.id);
-        if (!hasPermission) {
-          throw new Error(`You don't have permission to invite users to document: ${doc.name}`);
+        const { error: permissionError } = await supabaseClient
+          .from("document_permissions")
+          .insert(permissions);
+
+        if (permissionError) {
+          console.error("Permission error:", permissionError);
         }
       }
+    }
 
-      if (!isNewUser) {
-        // Create permissions for all documents
-        for (const doc of documents) {
-          const { error: permError } = await supabase
-            .from('document_permissions')
-            .insert({
-              document_id: doc.id,
-              user_id: targetUserId,
-              role: role,
-              granted_by: user.id
-            });
+    // Create invitation notification if user exists
+    if (targetUserProfile) {
+      const { error: notificationError } = await supabaseClient
+        .rpc('create_invitation_notification', {
+          target_user_id: targetUserProfile.user_id,
+          inviter_user_id: user.id,
+          inv_type: invitationType.replace('-', '_'),
+          inv_data: invitationData,
+          title: notificationTitle,
+          message: notificationMessage
+        });
 
-          if (!permError) permissionsCreated++;
-        }
+      if (notificationError) {
+        console.error("Notification error:", notificationError);
       }
-
-      resourceNames = documents.map(d => d.name);
     }
 
-    // Send email
-    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-    
-    let emailSubject: string;
-    let emailHtml: string;
-    
-    if (isNewUser) {
-      emailSubject = `Invitation to collaborate via VerJSON`;
-      emailHtml = `
-        <h1>You've been invited to collaborate!</h1>
-        <p>Hello,</p>
-        <p>You've been invited to collaborate on ${invitationType === 'workspace' ? 'workspace' : 'document(s)'} via VerJSON:</p>
-        <ul>
-          ${resourceNames.map(name => `<li><strong>${name}</strong></li>`).join('')}
-        </ul>
-        <p>You'll have <strong>${role}</strong> access to ${invitationType === 'workspace' ? 'the workspace and all its documents' : 'the selected resources'}.</p>
-        <p>To get started:</p>
-        <ol>
-          <li>Create your free account at <a href="${supabaseUrl.replace('.supabase.co', '.supabase.app')}">VerJSON</a></li>
-          <li>Once registered, you'll automatically have access to the shared resources</li>
-        </ol>
-        <p>VerJSON is a powerful platform for creating and managing JSON Schema and OpenAPI specifications with visual diagrams and collaborative editing.</p>
-        <p>Best regards,<br>The VerJSON Team</p>
-      `;
-    } else {
-      emailSubject = `New ${invitationType === 'workspace' ? 'workspace' : 'document'} access via VerJSON`;
-      emailHtml = `
-        <h1>You've been granted access!</h1>
-        <p>Hello ${existingUser.full_name || existingUser.email},</p>
-        <p>You now have <strong>${role}</strong> access to the following ${invitationType === 'workspace' ? 'workspace' : 'resource(s)'}:</p>
-        <ul>
-          ${resourceNames.map(name => `<li><strong>${name}</strong></li>`).join('')}
-        </ul>
-        ${invitationType === 'workspace' ? '<p>This includes access to all current and future documents in this workspace.</p>' : ''}
-        <p>You can access them by logging into your VerJSON account at <a href="${supabaseUrl.replace('.supabase.co', '.supabase.app')}">VerJSON</a>.</p>
-        <p>Best regards,<br>The VerJSON Team</p>
-      `;
-    }
+    // Send email invitation
+    const emailContent = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">${notificationTitle}</h1>
+        
+        <p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+          ${notificationMessage}
+        </p>
+        
+        <p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
+          ${targetUserProfile ? 
+            'You can manage this invitation from your dashboard after logging in.' :
+            'To accept this invitation, please sign up for an account and the invitation will be waiting for you.'
+          }
+        </p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${Deno.env.get("SUPABASE_URL")?.replace('/v1', '') || 'https://your-app.com'}" 
+             style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500;">
+            ${targetUserProfile ? 'View Invitation' : 'Sign Up & Accept'}
+          </a>
+        </div>
+        
+        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+        
+        <p style="color: #999; font-size: 14px; text-align: center;">
+          This invitation was sent by ${user.email}
+        </p>
+      </div>
+    `;
 
     const emailResponse = await resend.emails.send({
-      from: "VerJSON <onboarding@resend.dev>",
+      from: "Workspace Invitations <onboarding@resend.dev>",
       to: [email],
-      subject: emailSubject,
-      html: emailHtml,
+      subject: notificationTitle,
+      html: emailContent,
     });
 
     console.log("Email sent successfully:", emailResponse);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: isNewUser 
-          ? "Invitation sent successfully" 
-          : `${permissionsCreated} permission(s) granted and user notified`,
-        permissionsCreated
+      JSON.stringify({
+        message: `Invitation sent successfully to ${email}`,
+        emailSent: true,
+        userExists: !!targetUserProfile,
       }),
       {
         status: 200,
@@ -273,29 +238,5 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 };
-
-// Helper function to check document permission
-async function checkDocumentPermission(supabase: any, userId: string, documentId: string): Promise<boolean> {
-  // Check if user owns the document
-  const { data: document } = await supabase
-    .from('documents')
-    .select('user_id')
-    .eq('id', documentId)
-    .eq('user_id', userId)
-    .single();
-
-  if (document) return true;
-
-  // Check if user has owner/editor permission on the document
-  const { data: permission } = await supabase
-    .from('document_permissions')
-    .select('role')
-    .eq('document_id', documentId)
-    .eq('user_id', userId)
-    .in('role', ['owner', 'editor'])
-    .single();
-
-  return !!permission;
-}
 
 serve(handler);
