@@ -401,28 +401,18 @@ serve(async (req) => {
         });
       }
 
-      // Try raw file upload with proper multipart boundary
-      const boundary = '----formdata-edge-function-' + Math.random().toString(36).substring(2);
+      // Send raw binary data with Crowdin-API-FileName header (not multipart/form-data)
       const encoder = new TextEncoder();
-      
-      const formDataBody = [
-        `--${boundary}`,
-        `Content-Disposition: form-data; name="file"; filename="${filename}"`,
-        `Content-Type: application/json`,
-        '',
-        jsonContent,
-        `--${boundary}--`,
-        ''
-      ].join('\r\n');
-      
-      const bodyData = encoder.encode(formDataBody);
-      console.log('🔍 Manual form data size:', bodyData.length);
+      const bodyData = encoder.encode(jsonContent);
+      console.log('🔍 Binary file data size:', bodyData.length);
+      console.log('🔍 Sending filename in header:', filename);
 
       const storageResponse = await fetch(`${CROWDIN_API_BASE}/storages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiToken}`,
-          'Content-Type': `multipart/form-data; boundary=${boundary}`,
+          'Content-Type': 'application/octet-stream',
+          'Crowdin-API-FileName': filename,
         },
         body: bodyData,
       });
