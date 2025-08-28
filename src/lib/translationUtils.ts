@@ -59,6 +59,7 @@ function isTranslatableProperty(
   value: string, 
   path: string[], 
   schemaType: SchemaType,
+  rootObj?: any,
   parentObj?: any
 ): boolean {
   // Exclude properties starting with $ and any nested properties under them
@@ -92,6 +93,31 @@ function isTranslatableProperty(
   // Special handling for enum values - these are usually not translatable
   if (path.some(pathSegment => pathSegment === 'enum')) {
     return false;
+  }
+
+  // Special handling for example properties that correspond to enum schema properties
+  if (rootObj && path.includes('example')) {
+    const exampleIndex = path.indexOf('example');
+    if (exampleIndex > 0) {
+      // Construct path to the corresponding schema property (everything before 'example')
+      const schemaPath = path.slice(0, exampleIndex);
+      
+      // Navigate to the schema property in the root object
+      let schemaProperty = rootObj;
+      for (const pathSegment of schemaPath) {
+        if (schemaProperty && typeof schemaProperty === 'object') {
+          schemaProperty = schemaProperty[pathSegment];
+        } else {
+          schemaProperty = null;
+          break;
+        }
+      }
+      
+      // Check if this schema property has an enum array
+      if (schemaProperty && typeof schemaProperty === 'object' && Array.isArray(schemaProperty.enum)) {
+        return false;
+      }
+    }
   }
 
   // Special handling for 'type' values - these have predefined values
@@ -150,12 +176,13 @@ function isTranslatableProperty(
   return true;
 }
 
-export function extractStringValues(obj: any, prefix = 'root', path: string[] = [], schemaType?: SchemaType): TranslationEntry[] {
+export function extractStringValues(obj: any, prefix = 'root', path: string[] = [], schemaType?: SchemaType, rootObj?: any): TranslationEntry[] {
   const entries: TranslationEntry[] = [];
   
-  // Detect schema type on first call
+  // Detect schema type on first call and set rootObj
   if (schemaType === undefined) {
     schemaType = detectSchemaType(obj);
+    rootObj = obj; // Set root object on first call
   }
   
   if (obj === null || obj === undefined) {
@@ -165,7 +192,7 @@ export function extractStringValues(obj: any, prefix = 'root', path: string[] = 
   if (typeof obj === 'string') {
     // Only add if it's a translatable property
     const key = path.length > 0 ? path[path.length - 1] : 'root';
-    if (isTranslatableProperty(key, obj, path, schemaType)) {
+    if (isTranslatableProperty(key, obj, path, schemaType, rootObj)) {
       entries.push({
         key: prefix,
         value: obj,
@@ -176,13 +203,13 @@ export function extractStringValues(obj: any, prefix = 'root', path: string[] = 
     obj.forEach((item, index) => {
       const newPrefix = `${prefix}.${index}`;
       const newPath = [...path, index.toString()];
-      entries.push(...extractStringValues(item, newPrefix, newPath, schemaType));
+      entries.push(...extractStringValues(item, newPrefix, newPath, schemaType, rootObj));
     });
   } else if (typeof obj === 'object') {
     Object.keys(obj).forEach(key => {
       const newPrefix = `${prefix}.${key}`;
       const newPath = [...path, key];
-      entries.push(...extractStringValues(obj[key], newPrefix, newPath, schemaType));
+      entries.push(...extractStringValues(obj[key], newPrefix, newPath, schemaType, rootObj));
     });
   }
 
