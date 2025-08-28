@@ -48,6 +48,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
   // Check for existing API token when dialog opens
   useEffect(() => {
     if (open && workspaceId) {
+      console.log('🔍 Dialog opened, checking for existing token for workspace:', workspaceId);
       checkExistingToken();
     }
   }, [open, workspaceId]);
@@ -59,6 +60,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
 
   const checkExistingToken = async () => {
     try {
+      console.log('🔍 Checking for existing token for workspace:', workspaceId);
       setError('');
 
       // First, check if a token exists in the database
@@ -69,32 +71,33 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
         },
       });
 
-      console.log('Check token response:', { tokenData, tokenError });
+      console.log('🔍 Check token response:', { tokenData, tokenError });
 
       if (tokenError) {
-        console.error('Error checking token:', tokenError);
+        console.error('❌ Error checking token:', tokenError);
         setHasExistingToken(false);
         setShowTokenInput(true);
         return;
       }
 
       if (!tokenData?.hasToken) {
-        console.log('No token found, showing token input');
+        console.log('❌ No token found, showing token input');
         setHasExistingToken(false);
         setShowTokenInput(true);
         return;
       }
 
       // Token exists, store obfuscated version and try to load projects
-      console.log('Token found, setting up UI');
+      console.log('✅ Token found, setting up UI with obfuscated token:', tokenData.obfuscatedToken);
       setHasExistingToken(true);
       setObfuscatedToken(tokenData.obfuscatedToken || '****-****-****-****');
       setShowTokenInput(false);
 
       // Now try to load projects
+      console.log('🔍 Loading projects...');
       await loadProjects();
     } catch (err) {
-      console.error('Error checking token:', err);
+      console.error('❌ Error checking token:', err);
       setError('Failed to check existing API token');
       setHasExistingToken(false);
       setShowTokenInput(true);
@@ -249,8 +252,10 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
   };
 
   const handleOpenChange = (newOpen: boolean) => {
+    console.log('🔍 Dialog open state changing to:', newOpen);
     onOpenChange(newOpen);
     if (!newOpen) {
+      console.log('🔍 Dialog closing, resetting state');
       resetDialog();
     }
   };
