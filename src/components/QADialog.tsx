@@ -40,16 +40,24 @@ export const QADialog: React.FC<QADialogProps> = ({
   const [crowdinImportDialogOpen, setCrowdinImportDialogOpen] = useState(false);
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [isRunningConsistencyCheck, setIsRunningConsistencyCheck] = useState(false);
+  const [consistencyRefreshKey, setConsistencyRefreshKey] = useState(0);
   
   const { workspaces } = useWorkspaces();
   const selectedWorkspace = workspaces?.[0]; // Use the first workspace for now
   const { config: consistencyConfig } = useConsistencyConfig();
   const { toast: showToast } = useToast();
 
+  // Force refresh when configuration changes
+  React.useEffect(() => {
+    console.log('Configuration changed, forcing consistency refresh:', consistencyConfig);
+    setConsistencyRefreshKey(prev => prev + 1);
+  }, [consistencyConfig]);
+
   const translationData = useMemo(() => {
     console.log('=== QADialog - Recalculating translation data ===');
     console.log('Schema length:', schema.length);
     console.log('Config:', consistencyConfig);
+    console.log('Refresh key:', consistencyRefreshKey);
     
     try {
       const parsedSchema = JSON.parse(schema);
@@ -78,25 +86,23 @@ export const QADialog: React.FC<QADialogProps> = ({
         consistencyIssues: []
       };
     }
-  }, [schema, consistencyConfig]);
+  }, [schema, consistencyConfig, consistencyRefreshKey]);
 
   const handleManualConsistencyCheck = async () => {
     setIsRunningConsistencyCheck(true);
     console.log('=== Manual consistency check triggered ===');
     
     try {
-      const parsedSchema = JSON.parse(schema);
-      const newIssues = checkSchemaConsistency(parsedSchema, consistencyConfig);
-      console.log('Manual check found:', newIssues.length, 'issues');
+      // Force a refresh by updating the key
+      setConsistencyRefreshKey(prev => prev + 1);
       
-      // Force a re-render by updating the translation data
-      // This will trigger the useMemo to recalculate
       setTimeout(() => {
         setIsRunningConsistencyCheck(false);
-        if (newIssues.length > 0) {
+        const issueCount = translationData.consistencyIssues.length;
+        if (issueCount > 0) {
           showToast({
             title: "Consistency Check Complete",
-            description: `Found ${newIssues.length} consistency issue${newIssues.length === 1 ? '' : 's'}.`,
+            description: `Found ${issueCount} consistency issue${issueCount === 1 ? '' : 's'}.`,
             variant: "destructive",
           });
         } else {
