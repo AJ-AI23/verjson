@@ -19,8 +19,6 @@ export const useJsonEditorInitialization = ({
     const editor = editorRef.current;
     if (!editor) return;
     
-    console.log('[DEBUG] Updating JSONEditor event handlers with new maxDepth');
-    
     // Update the event handlers on the existing editor
     const newEventHandlers = createEditorEventHandlers();
     if (editor.options) {
@@ -35,8 +33,6 @@ export const useJsonEditorInitialization = ({
     try {
       // Get event handlers from our events hook
       const eventHandlers = createEditorEventHandlers();
-      
-      console.log('Initializing JSONEditor with event handlers', eventHandlers);
       
       // JSONEditor options
       const options = {
@@ -65,7 +61,6 @@ export const useJsonEditorInitialization = ({
 
       // Store the editor instance in the ref
       editorRef.current = editor;
-      console.log('JSONEditor initialized with toggle event handler');
       
       return editor;
     } catch (err) {
