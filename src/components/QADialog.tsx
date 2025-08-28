@@ -7,12 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Copy, Download, Languages, FileText, CheckCircle, AlertTriangle, XCircle, Search, Upload } from 'lucide-react';
+import { Copy, Download, Languages, FileText, CheckCircle, AlertTriangle, XCircle, Search, Upload, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractStringValues, createTranslationIndex, downloadJsonFile, TranslationEntry, detectSchemaType, SchemaType, checkSchemaConsistency, ConsistencyIssue } from '@/lib/translationUtils';
 import { validateSyntax, ValidationResult } from '@/lib/schemaUtils';
 import { CrowdinExportDialog } from '@/components/CrowdinExportDialog';
 import { CrowdinImportDialog } from '@/components/CrowdinImportDialog';
+import { ConsistencyConfigDialog } from '@/components/ConsistencyConfigDialog';
+import { useConsistencyConfig } from '@/hooks/useConsistencyConfig';
 import { useWorkspaces } from '@/hooks/useWorkspaces';
 
 interface QADialogProps {
@@ -35,9 +37,11 @@ export const QADialog: React.FC<QADialogProps> = ({
   const [filterValue, setFilterValue] = useState('');
   const [crowdinDialogOpen, setCrowdinDialogOpen] = useState(false);
   const [crowdinImportDialogOpen, setCrowdinImportDialogOpen] = useState(false);
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
   
   const { workspaces } = useWorkspaces();
   const selectedWorkspace = workspaces?.[0]; // Use the first workspace for now
+  const { config: consistencyConfig } = useConsistencyConfig();
 
   const translationData = useMemo(() => {
     try {
@@ -45,7 +49,7 @@ export const QADialog: React.FC<QADialogProps> = ({
       const schemaType = detectSchemaType(parsedSchema);
       const entries = extractStringValues(parsedSchema);
       const index = createTranslationIndex(entries);
-      const consistencyIssues = checkSchemaConsistency(parsedSchema);
+      const consistencyIssues = checkSchemaConsistency(parsedSchema, consistencyConfig);
       
       return {
         entries,
@@ -588,6 +592,18 @@ export const QADialog: React.FC<QADialogProps> = ({
                 </TabsContent>
                 
                 <TabsContent value="consistency" className="flex-1 min-h-0 mt-4 data-[state=active]:flex data-[state=active]:flex-col">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold">Consistency Checks</h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfigDialogOpen(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <Settings className="h-4 w-4" />
+                      Configure Rules
+                    </Button>
+                  </div>
                   <ScrollArea className="flex-1 min-h-0 w-full">
                     <div className="space-y-4">
                       {translationData.consistencyIssues.length === 0 ? (
@@ -730,7 +746,13 @@ export const QADialog: React.FC<QADialogProps> = ({
               />
             )}
           </>
-        )}
-     </Dialog>
+         )}
+
+         {/* Consistency Configuration Dialog */}
+         <ConsistencyConfigDialog
+           open={configDialogOpen}
+           onOpenChange={setConfigDialogOpen}
+         />
+      </Dialog>
    );
  };

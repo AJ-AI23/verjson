@@ -5,12 +5,15 @@ export interface TranslationEntry {
 }
 
 export interface ConsistencyIssue {
-  type: 'missing-enum' | 'parameter-naming';
+  type: string;
   path: string;
-  value: string;
+  value?: string;
   suggestedEnum?: string[];
   suggestedName?: string;
   message: string;
+  suggestion?: string;
+  severity?: 'error' | 'warning' | 'info';
+  rule?: string;
 }
 
 // Schema type detection
@@ -265,8 +268,8 @@ export function collectEnumValues(obj: any, path: string[] = []): Record<string,
   return enumMap;
 }
 
-// Check for consistency issues in the schema
-export function checkSchemaConsistency(obj: any): ConsistencyIssue[] {
+// Check for consistency issues in the schema with configurable rules
+export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue[] {
   const issues: ConsistencyIssue[] = [];
   const enumMap = collectEnumValues(obj);
   const allEnumValues = new Set<string>();
@@ -275,6 +278,56 @@ export function checkSchemaConsistency(obj: any): ConsistencyIssue[] {
   Object.values(enumMap).forEach(enumArray => {
     enumArray.forEach(val => allEnumValues.add(val));
   });
+
+  // Helper function to validate naming convention
+  function validateNamingConvention(name: string, convention: any): { isValid: boolean; suggestion?: string } {
+    if (!convention || convention.exclusions?.includes(name)) {
+      return { isValid: true };
+    }
+
+    const caseType = convention.caseType || 'kebab-case';
+    let pattern: RegExp;
+    let suggestion = '';
+
+    switch (caseType) {
+      case 'kebab-case':
+        pattern = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+        suggestion = name.replace(/[A-Z]/g, (match, offset) => 
+          offset > 0 ? `-${match.toLowerCase()}` : match.toLowerCase()
+        ).replace(/[_]/g, '-').replace(/[^a-z0-9-]/g, '');
+        break;
+      case 'camelCase':
+        pattern = /^[a-z][a-zA-Z0-9]*$/;
+        suggestion = name.replace(/[-_]/g, ' ').replace(/\b\w/g, (match, offset) =>
+          offset === 0 ? match.toLowerCase() : match.toUpperCase()
+        ).replace(/\s/g, '');
+        break;
+      case 'snake_case':
+        pattern = /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/;
+        suggestion = name.replace(/[A-Z]/g, (match, offset) => 
+          offset > 0 ? `_${match.toLowerCase()}` : match.toLowerCase()
+        ).replace(/[-]/g, '_').replace(/[^a-z0-9_]/g, '');
+        break;
+      case 'PascalCase':
+        pattern = /^[A-Z][a-zA-Z0-9]*$/;
+        suggestion = name.replace(/[-_]/g, ' ').replace(/\b\w/g, match => 
+          match.toUpperCase()
+        ).replace(/\s/g, '');
+        break;
+      case 'custom':
+        if (convention.customPattern) {
+          pattern = new RegExp(convention.customPattern);
+        } else {
+          return { isValid: true };
+        }
+        break;
+      default:
+        return { isValid: true };
+    }
+
+    const isValid = pattern.test(name);
+    return { isValid, suggestion: isValid ? undefined : suggestion };
+  }
 
   // Check for parameter naming consistency
   function checkParameterNaming(currentObj: any, path: string[] = []) {
@@ -290,23 +343,16 @@ export function checkSchemaConsistency(obj: any): ConsistencyIssue[] {
       // Check if this is a parameter object with a name property
       if (path.includes('parameters') && currentObj.name && typeof currentObj.name === 'string') {
         const paramName = currentObj.name;
-        const kebabCasePattern = /^[a-z]+(-[a-z]+)*$/;
+        const paramConfig = config?.parameterNaming || { caseType: 'kebab-case' };
+        const validation = validateNamingConvention(paramName, paramConfig);
         
-        if (!kebabCasePattern.test(paramName)) {
-          // Generate kebab-case suggestion
-          const suggestedName = paramName
-            .replace(/([A-Z])/g, '-$1') // camelCase to kebab-case
-            .replace(/[_\s]+/g, '-')    // underscores and spaces to hyphens
-            .toLowerCase()
-            .replace(/^-+|-+$/g, '')   // remove leading/trailing hyphens
-            .replace(/-+/g, '-');      // collapse multiple hyphens
-          
+        if (!validation.isValid) {
           issues.push({
             type: 'parameter-naming',
             path: [...path, 'name'].join('.'),
             value: paramName,
-            suggestedName,
-            message: `Parameter name "${paramName}" should follow kebab-case convention. Suggested: "${suggestedName}"`
+            suggestedName: validation.suggestion,
+            message: `Parameter name "${paramName}" should follow ${paramConfig.caseType} convention. Suggested: "${validation.suggestion}"`
           });
         }
       }
@@ -364,9 +410,116 @@ export function checkSchemaConsistency(obj: any): ConsistencyIssue[] {
     }
   }
   
-  // Run both checks
+  // Add semantic rule checking based on configuration
+  function checkSemanticRules(currentObj: any, path: string[] = []) {
+    if (!config?.semanticRules) return;
+
+    config.semanticRules.forEach(rule => {
+      if (!rule.enabled) return;
+
+      switch (rule.id) {
+        case 'required-description':
+          if (currentObj && typeof currentObj === 'object') {
+            // Check for missing descriptions in various contexts
+            if (path.includes('paths') && currentObj.get && !currentObj.get.description) {
+              issues.push({
+                type: 'semantic-rule',
+                message: rule.message || 'Missing description field',
+                path: [...path, 'get', 'description'].join('.'),
+                severity: rule.severity,
+                rule: rule.name
+              });
+            }
+            if (path.includes('components') && path.includes('schemas') && currentObj.type && !currentObj.description) {
+              issues.push({
+                type: 'semantic-rule',
+                message: rule.message || 'Missing description field',
+                path: [...path, 'description'].join('.'),
+                severity: rule.severity,
+                rule: rule.name
+              });
+            }
+          }
+          break;
+          
+        case 'description-min-length':
+          if (currentObj && typeof currentObj === 'object' && currentObj.description && typeof currentObj.description === 'string') {
+            const pattern = rule.pattern ? new RegExp(rule.pattern) : /.{10,}/;
+            if (!pattern.test(currentObj.description)) {
+              issues.push({
+                type: 'semantic-rule',
+                message: rule.message || 'Description should be at least 10 characters',
+                path: [...path, 'description'].join('.'),
+                severity: rule.severity,
+                rule: rule.name
+              });
+            }
+          }
+          break;
+          
+        case 'version-format':
+          if (path.includes('info') && path[path.length - 1] === 'version' && typeof currentObj === 'string') {
+            const pattern = rule.pattern ? new RegExp(rule.pattern) : /^\d+\.\d+\.\d+$/;
+            if (!pattern.test(currentObj)) {
+              issues.push({
+                type: 'semantic-rule',
+                message: rule.message || 'Version should follow semantic versioning (e.g., 1.0.0)',
+                path: path.join('.'),
+                suggestion: '1.0.0',
+                severity: rule.severity,
+                rule: rule.name
+              });
+            }
+          }
+          break;
+          
+        case 'operationid-required':
+          if (currentObj && typeof currentObj === 'object' && path.includes('paths')) {
+            const httpMethods = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace'];
+            httpMethods.forEach(method => {
+              if (currentObj[method] && !currentObj[method].operationId) {
+                issues.push({
+                  type: 'semantic-rule',
+                  message: rule.message || 'Missing operationId field',
+                  path: [...path, method, 'operationId'].join('.'),
+                  severity: rule.severity,
+                  rule: rule.name
+                });
+              }
+            });
+          }
+          break;
+          
+        case 'http-status-codes':
+          if (path.includes('responses') && /^\d{3}$/.test(path[path.length - 1])) {
+            const statusCode = parseInt(path[path.length - 1]);
+            const validCodes = [200, 201, 202, 204, 300, 301, 302, 304, 400, 401, 403, 404, 409, 422, 429, 500, 501, 502, 503];
+            if (!validCodes.includes(statusCode)) {
+              issues.push({
+                type: 'semantic-rule',
+                message: rule.message || 'Non-standard HTTP status code',
+                path: path.join('.'),
+                severity: rule.severity,
+                rule: rule.name
+              });
+            }
+          }
+          break;
+      }
+    });
+
+    // Recursively check nested objects
+    if (currentObj && typeof currentObj === 'object') {
+      Object.keys(currentObj).forEach(key => {
+        checkSemanticRules(currentObj[key], [...path, key]);
+      });
+    }
+  }
+  
+  // Run all checks
   checkParameterNaming(obj);
   checkExamples(obj);
+  checkSemanticRules(obj);
   
   return issues;
 }
