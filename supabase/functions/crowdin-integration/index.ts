@@ -420,7 +420,7 @@ serve(async (req) => {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiToken}`,
-          'Crowdin-API-FileName': filename,
+          // Don't set Content-Type - let fetch handle it for FormData
         },
         body: formData,
       });
