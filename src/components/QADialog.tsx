@@ -669,22 +669,31 @@ export const QADialog: React.FC<QADialogProps> = ({
                           {translationData.consistencyIssues.map((issue, index) => (
                             <Card key={index}>
                               <CardHeader className="pb-3">
-                                <CardTitle className="text-sm flex items-center justify-between">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0" />
-                                    <span className="truncate">
-                                      {issue.type === 'missing-enum' ? 'Missing Enum Definition' : 
-                                       issue.type === 'parameter-naming' ? 
-                                         `${issue.parameterType === 'path' ? 'Path' : 'Query'} Parameter Naming Issue` :
-                                       issue.type === 'semantic-rule' ? 
-                                         `${issue.rule || 'Semantic Rule Violation'}` :
-                                       'Consistency Issue'}
-                                    </span>
-                                  </div>
-                                  <Badge variant="outline" className="shrink-0">
-                                    {issue.type}
-                                  </Badge>
-                                </CardTitle>
+                               <CardTitle className="text-sm flex items-center justify-between">
+                                   <div className="flex items-center gap-2 min-w-0">
+                                     <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0" />
+                                     <span className="truncate">
+                                       {issue.type === 'missing-enum' ? 'Missing Enum Definition' : 
+                                        issue.type === 'parameter-naming' ? 
+                                          `${issue.parameterType === 'path' ? 'Path' : issue.parameterType === 'query' ? 'Query' : issue.parameterType?.charAt(0).toUpperCase() + issue.parameterType?.slice(1) || 'Query'} Parameter Naming Issue` :
+                                        issue.type === 'semantic-rule' ? 
+                                          `${issue.rule || 'Semantic Rule Violation'}` :
+                                        'Consistency Issue'}
+                                     </span>
+                                   </div>
+                                   <div className="flex items-center gap-2">
+                                     {issue.type === 'parameter-naming' && issue.parameterType && (
+                                       <Badge variant="secondary" className="text-xs">
+                                         {issue.parameterType === 'path' ? 'Path' : 
+                                          issue.parameterType === 'query' ? 'Query' : 
+                                          issue.parameterType?.charAt(0).toUpperCase() + issue.parameterType?.slice(1)}
+                                       </Badge>
+                                     )}
+                                     <Badge variant="outline" className="shrink-0">
+                                       {issue.type}
+                                     </Badge>
+                                   </div>
+                                 </CardTitle>
                               </CardHeader>
                               <CardContent className="pt-0">
                                 <div className="space-y-3">
@@ -717,16 +726,16 @@ export const QADialog: React.FC<QADialogProps> = ({
                                     </div>
                                   )}
                                   
-                                  {issue.type === 'parameter-naming' && issue.suggestedName && (
-                                    <div>
-                                      <div className="text-xs font-medium text-muted-foreground mb-1">
-                                        Suggested Name ({issue.convention || 'configured convention'}):
-                                      </div>
-                                      <div className="text-sm bg-green-50 border border-green-200 p-2 rounded font-mono">
-                                        "{issue.suggestedName}"
-                                      </div>
-                                    </div>
-                                  )}
+                                   {issue.type === 'parameter-naming' && issue.suggestedName && (
+                                     <div>
+                                       <div className="text-xs font-medium text-muted-foreground mb-1">
+                                         Suggested Name ({issue.convention || 'configured convention'}) for {issue.parameterType === 'path' ? 'Path' : issue.parameterType === 'query' ? 'Query' : issue.parameterType?.charAt(0).toUpperCase() + issue.parameterType?.slice(1) || 'Query'} Parameter:
+                                       </div>
+                                       <div className="text-sm bg-green-50 border border-green-200 p-2 rounded font-mono">
+                                         "{issue.suggestedName}"
+                                       </div>
+                                     </div>
+                                   )}
                                   
                                   <div>
                                     <div className="text-xs font-medium text-muted-foreground mb-1">
