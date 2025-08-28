@@ -61,7 +61,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
     try {
       setError('');
 
-      // First, check if a token exists
+      // First, check if a token exists in the database
       const { data: tokenData, error: tokenError } = await supabase.functions.invoke('crowdin-integration', {
         body: { action: 'checkToken', workspaceId },
         headers: {
@@ -71,13 +71,22 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
 
       console.log('Check token response:', { tokenData, tokenError });
 
-      if (tokenError || !tokenData.hasToken) {
+      if (tokenError) {
+        console.error('Error checking token:', tokenError);
+        setHasExistingToken(false);
+        setShowTokenInput(true);
+        return;
+      }
+
+      if (!tokenData?.hasToken) {
+        console.log('No token found, showing token input');
         setHasExistingToken(false);
         setShowTokenInput(true);
         return;
       }
 
       // Token exists, store obfuscated version and try to load projects
+      console.log('Token found, setting up UI');
       setHasExistingToken(true);
       setObfuscatedToken(tokenData.obfuscatedToken || '****-****-****-****');
       setShowTokenInput(false);

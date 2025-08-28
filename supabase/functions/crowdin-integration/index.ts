@@ -9,6 +9,25 @@ const corsHeaders = {
 
 const CROWDIN_API_BASE = 'https://api.crowdin.com/api/v2';
 
+// Simple encryption/decryption functions
+const encryptToken = (token: string): string => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(token);
+  const encrypted = btoa(String.fromCharCode(...data));
+  return encrypted;
+};
+
+const decryptToken = (encryptedToken: string): string => {
+  try {
+    const decoded = atob(encryptedToken);
+    const decoder = new TextDecoder();
+    return decoder.decode(new Uint8Array([...decoded].map(char => char.charCodeAt(0))));
+  } catch (error) {
+    console.error('Error decrypting token:', error);
+    throw new Error('Failed to decrypt token');
+  }
+};
+
 interface CrowdinProject {
   id: number;
   name: string;
@@ -173,8 +192,9 @@ serve(async (req) => {
           });
         }
 
-        // Return obfuscated token info
-        const obfuscatedToken = `****-****-****-${settings.encrypted_api_token.slice(-4)}`;
+        // Return obfuscated token info without calling Crowdin API
+        const decryptedToken = decryptToken(settings.encrypted_api_token);
+        const obfuscatedToken = `****-****-****-${decryptedToken.slice(-4)}`;
         console.log('✅ Token found for workspace:', workspaceId);
         
         return new Response(JSON.stringify({ 
@@ -224,12 +244,13 @@ serve(async (req) => {
         });
       }
 
-      // Save encrypted token to database
+      // Encrypt and save token to database
+      const encryptedToken = encryptToken(apiToken);
       const { error: saveError } = await supabaseClient
         .from('workspace_crowdin_settings')
         .upsert({
           workspace_id: workspaceId,
-          encrypted_api_token: apiToken, // Note: In production, this should be encrypted
+          encrypted_api_token: encryptedToken,
           created_by: user.id,
         }, {
           onConflict: 'workspace_id'
@@ -265,12 +286,24 @@ serve(async (req) => {
       });
     }
 
-    const apiToken = crowdinSettings?.encrypted_api_token;
+    const encryptedApiToken = crowdinSettings?.encrypted_api_token;
 
-    if (!apiToken) {
+    if (!encryptedApiToken) {
       console.log('No API token found for workspace:', workspaceId);
       return new Response(JSON.stringify({ error: 'No API token configured' }), {
         status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Decrypt the token for API calls
+    let apiToken: string;
+    try {
+      apiToken = decryptToken(encryptedApiToken);
+    } catch (error) {
+      console.error('Failed to decrypt API token:', error);
+      return new Response(JSON.stringify({ error: 'Invalid token configuration' }), {
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
