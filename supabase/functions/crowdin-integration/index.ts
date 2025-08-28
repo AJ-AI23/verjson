@@ -188,6 +188,8 @@ serve(async (req) => {
           workspace_id: workspaceId,
           encrypted_api_token: apiToken, // Note: In production, this should be encrypted
           created_by: user.id,
+        }, {
+          onConflict: 'workspace_id'
         });
 
       if (saveError) {
@@ -197,6 +199,8 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+
+      console.log('✅ Successfully saved/updated Crowdin settings for workspace:', workspaceId);
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
