@@ -112,16 +112,6 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
           <DialogTitle className="flex items-center gap-2">
             <Download className="h-5 w-5" />
             Import from Crowdin
-            {step === 'preview' && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleBack}
-                className="ml-auto"
-              >
-                Back
-              </Button>
-            )}
           </DialogTitle>
         </DialogHeader>
 
