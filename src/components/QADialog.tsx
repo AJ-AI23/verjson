@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { extractStringValues, createTranslationIndex, downloadJsonFile, TranslationEntry, detectSchemaType, SchemaType } from '@/lib/translationUtils';
 import { validateSyntax, ValidationResult } from '@/lib/schemaUtils';
 import { CrowdinExportDialog } from '@/components/CrowdinExportDialog';
+import { CrowdinImportDialog } from '@/components/CrowdinImportDialog';
 import { useWorkspaces } from '@/hooks/useWorkspaces';
 
 interface QADialogProps {
@@ -33,6 +34,7 @@ export const QADialog: React.FC<QADialogProps> = ({
   const [groupingStrategy, setGroupingStrategy] = useState<'property' | 'value'>('property');
   const [filterValue, setFilterValue] = useState('');
   const [crowdinDialogOpen, setCrowdinDialogOpen] = useState(false);
+  const [crowdinImportDialogOpen, setCrowdinImportDialogOpen] = useState(false);
   
   const { workspaces } = useWorkspaces();
   const selectedWorkspace = workspaces?.[0]; // Use the first workspace for now
@@ -282,17 +284,32 @@ export const QADialog: React.FC<QADialogProps> = ({
                      <span className="hidden sm:inline">Download Index</span>
                      <span className="sm:hidden">Download</span>
                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      onClick={() => setCrowdinDialogOpen(true)}
-                      className="gap-2"
-                      disabled={!selectedWorkspace}
-                    >
-                      <Upload className="h-4 w-4" />
-                      <span className="hidden sm:inline">Crowdin Export</span>
-                      <span className="sm:hidden">Export</span>
-                    </Button>
+                     <Button 
+                       size="sm" 
+                       variant="outline" 
+                       onClick={() => setCrowdinDialogOpen(true)}
+                       className="gap-2"
+                       disabled={!selectedWorkspace}
+                     >
+                       <Upload className="h-4 w-4" />
+                       <span className="hidden sm:inline">Crowdin Export</span>
+                       <span className="sm:hidden">Export</span>
+                     </Button>
+                     
+                     {/* Crowdin Import Button - Show only if document has Crowdin file ID */}
+                     {selectedDocument?.crowdin_file_id && (
+                       <Button 
+                         size="sm" 
+                         variant="outline" 
+                         onClick={() => setCrowdinImportDialogOpen(true)}
+                         className="gap-2"
+                         disabled={!selectedWorkspace}
+                       >
+                         <Download className="h-4 w-4" />
+                         <span className="hidden sm:inline">Crowdin Import</span>
+                         <span className="sm:hidden">Import</span>
+                       </Button>
+                     )}
                  </div>
               </CardContent>
             </Card>
@@ -581,6 +598,19 @@ export const QADialog: React.FC<QADialogProps> = ({
                 }, 500);
               }}
             />
+            
+            {/* Crowdin Import Dialog */}
+            {selectedDocument?.crowdin_file_id && (
+              <CrowdinImportDialog
+                open={crowdinImportDialogOpen}
+                onOpenChange={setCrowdinImportDialogOpen}
+                document={selectedDocument}
+                onImportConfirm={(importedSchema: any, comparison: any, sourceDocumentName: string) => {
+                  // Handle the import confirmation if needed
+                  console.log('Import confirmed:', { importedSchema, comparison, sourceDocumentName });
+                }}
+              />
+            )}
           </>
         )}
      </Dialog>
