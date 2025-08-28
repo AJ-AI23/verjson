@@ -43,6 +43,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
   const [error, setError] = useState<string>('');
   const [exportSuccess, setExportSuccess] = useState(false);
   const [hasExistingToken, setHasExistingToken] = useState(false);
+  const [obfuscatedToken, setObfuscatedToken] = useState('');
 
   // Check for existing API token when dialog opens
   useEffect(() => {
@@ -58,48 +59,36 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
 
   const checkExistingToken = async () => {
     try {
-      setIsLoadingProjects(true);
       setError('');
 
-      const { data, error } = await supabase.functions.invoke('crowdin-integration', {
-        body: { action: 'listProjects', workspaceId },
+      // First, check if a token exists
+      const { data: tokenData, error: tokenError } = await supabase.functions.invoke('crowdin-integration', {
+        body: { action: 'checkToken', workspaceId },
         headers: {
           'Content-Type': 'application/json',
         },
       });
 
-      console.log('Check existing token response:', { data, error });
+      console.log('Check token response:', { tokenData, tokenError });
 
-      if (error) {
-        console.error('Error checking existing token:', error);
+      if (tokenError || !tokenData.hasToken) {
         setHasExistingToken(false);
         setShowTokenInput(true);
         return;
       }
 
-      if (data.error) {
-        if (data.error === 'No API token configured') {
-          setHasExistingToken(false);
-          setShowTokenInput(true);
-        } else {
-          setError(data.error);
-          setHasExistingToken(false);
-          setShowTokenInput(true);
-        }
-        return;
-      }
-
-      // Token exists and works
+      // Token exists, store obfuscated version and try to load projects
       setHasExistingToken(true);
-      setProjects(data.projects || []);
+      setObfuscatedToken(tokenData.obfuscatedToken || '****-****-****-****');
       setShowTokenInput(false);
+
+      // Now try to load projects
+      await loadProjects();
     } catch (err) {
       console.error('Error checking token:', err);
       setError('Failed to check existing API token');
       setHasExistingToken(false);
       setShowTokenInput(true);
-    } finally {
-      setIsLoadingProjects(false);
     }
   };
 
@@ -243,6 +232,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
     setError('');
     setExportSuccess(false);
     setHasExistingToken(false);
+    setObfuscatedToken('');
   };
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -283,21 +273,47 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
                   <CardTitle className="text-sm">Crowdin API Token</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {hasExistingToken && !showTokenInput ? (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                        <span className="text-sm text-muted-foreground">
-                          Using saved API token
-                        </span>
+                   {hasExistingToken && !showTokenInput ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <div className="space-y-1">
+                            <span className="text-sm text-muted-foreground">
+                              Using saved API token
+                            </span>
+                            {obfuscatedToken && (
+                              <div className="text-xs text-muted-foreground font-mono">
+                                {obfuscatedToken}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleUseNewToken}
+                        >
+                          Use Different Token
+                        </Button>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleUseNewToken}
-                      >
-                        Use Different Token
-                      </Button>
+                      {projects.length === 0 && !isLoadingProjects && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={loadProjects}
+                          className="w-full"
+                        >
+                          {isLoadingProjects ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Loading Projects...
+                            </>
+                          ) : (
+                            'Retry Loading Projects'
+                          )}
+                        </Button>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-3">

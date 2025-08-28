@@ -152,6 +152,49 @@ serve(async (req) => {
       });
     }
 
+    if (action === 'checkToken') {
+      console.log('CheckToken action started. WorkspaceId:', workspaceId);
+      
+      try {
+        // Check if token exists in database
+        const { data: settings, error: fetchError } = await supabaseClient
+          .from('workspace_crowdin_settings')
+          .select('encrypted_api_token')
+          .eq('workspace_id', workspaceId)
+          .single();
+
+        if (fetchError || !settings) {
+          console.log('❌ No token found for workspace:', workspaceId);
+          return new Response(JSON.stringify({ 
+            hasToken: false,
+            error: 'No API token configured' 
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Return obfuscated token info
+        const obfuscatedToken = `****-****-****-${settings.encrypted_api_token.slice(-4)}`;
+        console.log('✅ Token found for workspace:', workspaceId);
+        
+        return new Response(JSON.stringify({ 
+          hasToken: true,
+          obfuscatedToken
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (error) {
+        console.error('❌ Error checking token:', error);
+        return new Response(JSON.stringify({ 
+          hasToken: false,
+          error: 'Failed to check token' 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     if (action === 'saveToken') {
       const { apiToken } = requestBody;
       
