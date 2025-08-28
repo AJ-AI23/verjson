@@ -46,23 +46,22 @@ export const validateJsonSchema = (jsonString: string, schemaType: SchemaType = 
     // Parse JSON
     const parsedSchema = JSON.parse(jsonString);
     
-    // Validate based on schema type
-    if (schemaType === 'json-schema') {
+    // Auto-detect schema type if validation fails with provided type
+    const detectedType = detectSchemaType(parsedSchema);
+    const typeToUse = detectedType === 'openapi' ? 'openapi' : schemaType;
+    
+    // Validate based on the detected or provided schema type
+    if (typeToUse === 'json-schema') {
       // Check if it has the basic structure of a JSON Schema
-      if (!parsedSchema.type) {
-        console.warn('Schema is missing "type" property');
-        throw new Error('Schema is missing "type" property');
+      if (!parsedSchema.type && !parsedSchema.$schema && !parsedSchema.properties && !parsedSchema.definitions && !parsedSchema.$defs) {
+        console.warn('Schema is missing JSON Schema structure properties');
+        throw new Error('Schema is missing JSON Schema structure properties');
       }
-    } else if (schemaType === 'openapi') {
-      // Check if it has the basic structure of an OAS 3.1 document
-      if (!parsedSchema.openapi) {
-        console.warn('Schema is missing "openapi" property');
-        throw new Error('Schema is missing "openapi" property');
-      }
-      
-      if (!parsedSchema.components?.schemas) {
-        console.warn('Schema is missing "components.schemas" section');
-        throw new Error('Schema is missing "components.schemas" section');
+    } else if (typeToUse === 'openapi') {
+      // Check if it has the basic structure of an OAS document
+      if (!parsedSchema.openapi && !parsedSchema.swagger) {
+        console.warn('Schema is missing OpenAPI version property');
+        throw new Error('Schema is missing OpenAPI version property');
       }
     }
     
