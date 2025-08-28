@@ -208,9 +208,9 @@ serve(async (req) => {
       .from('workspace_crowdin_settings')
       .select('encrypted_api_token')
       .eq('workspace_id', workspaceId)
-      .single();
+      .maybeSingle();
 
-    if (settingsError && settingsError.code !== 'PGRST116') {
+    if (settingsError) {
       console.error('Error fetching Crowdin settings:', settingsError);
       return new Response(JSON.stringify({ error: 'Failed to fetch settings' }), {
         status: 500,
@@ -221,6 +221,7 @@ serve(async (req) => {
     const apiToken = crowdinSettings?.encrypted_api_token;
 
     if (!apiToken) {
+      console.log('No API token found for workspace:', workspaceId);
       return new Response(JSON.stringify({ error: 'No API token configured' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
