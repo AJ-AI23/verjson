@@ -71,6 +71,16 @@ function isTranslatableProperty(
     return false;
   }
 
+  // Exclude values inside "required" arrays - these are property references, not translatable text
+  if (path.length > 0 && path[path.length - 1] === 'required') {
+    return false;
+  }
+  
+  // Exclude version strings - these are technical metadata
+  if (key === 'version' || path.some(pathSegment => pathSegment === 'version')) {
+    return false;
+  }
+
   // Get appropriate keyword set based on schema type
   const keywords = schemaType === 'openapi' ? OPENAPI_KEYWORDS : JSON_SCHEMA_KEYWORDS;
   
