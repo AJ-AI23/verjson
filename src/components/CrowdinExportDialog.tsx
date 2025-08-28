@@ -141,6 +141,10 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
 
       // Token saved successfully, now load projects
       await loadProjects();
+      
+      // Set the obfuscated token for display
+      const obfuscated = `****-****-****-${apiToken.trim().slice(-4)}`;
+      setObfuscatedToken(obfuscated);
       setShowTokenInput(false);
       setHasExistingToken(true);
       toast.success('Crowdin API token saved successfully');
