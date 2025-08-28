@@ -25,10 +25,20 @@ serve(async (req) => {
   console.log('🚀 Crowdin integration function called');
   console.log('Request method:', req.method);
   console.log('Request URL:', req.url);
+  console.log('Request headers:', Object.fromEntries(req.headers.entries()));
   
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
+  }
+
+  if (req.method !== 'POST') {
+    console.log('Non-POST request received, returning 405');
+    return new Response(JSON.stringify({ error: 'Only POST requests are supported' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   try {
@@ -58,50 +68,54 @@ serve(async (req) => {
 
     console.log('✅ User authenticated:', user.id);
 
-    const url = new URL(req.url);
-    console.log('Request headers:', Object.fromEntries(req.headers.entries()));
-    
+    // Parse request body - check if body exists
     let requestBody: any = null;
-
-    // Parse request body for POST requests only
-    if (req.method === 'POST') {
-      try {
-        // Clone the request to avoid consuming the body stream
-        const requestClone = req.clone();
-        const bodyText = await requestClone.text();
-        console.log('Raw request body length:', bodyText.length);
-        console.log('Raw request body preview:', bodyText.substring(0, 200));
-        
-        if (bodyText.trim() === '') {
-          console.error('Empty request body received');
-          return new Response(JSON.stringify({ error: 'Request body is required for POST requests' }), {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-        
-        requestBody = JSON.parse(bodyText);
-        console.log('Successfully parsed request body:', { 
-          action: requestBody?.action, 
-          hasWorkspaceId: !!requestBody?.workspaceId,
-          hasApiToken: !!requestBody?.apiToken,
-          bodyKeys: Object.keys(requestBody || {})
-        });
-      } catch (error) {
-        console.error('Failed to parse request body:', error);
-        console.error('Error details:', error.message);
+    let bodyText = '';
+    
+    try {
+      bodyText = await req.text();
+      console.log('📥 Request body length:', bodyText.length);
+      console.log('📥 Request body content:', bodyText.substring(0, 500)); // First 500 chars
+      
+      if (!bodyText || bodyText.trim() === '') {
+        console.error('❌ Empty request body received');
         return new Response(JSON.stringify({ 
-          error: 'Invalid JSON in request body',
-          details: error.message 
+          error: 'Request body is required',
+          received: 'empty body' 
         }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-    } else {
-      console.log('Non-POST request, skipping body parsing');
-      return new Response(JSON.stringify({ error: 'Only POST requests are supported' }), {
-        status: 405,
+      
+      try {
+        requestBody = JSON.parse(bodyText);
+        console.log('✅ Successfully parsed JSON:', {
+          action: requestBody?.action,
+          hasWorkspaceId: !!requestBody?.workspaceId,
+          hasApiToken: !!requestBody?.apiToken,
+          bodyKeys: Object.keys(requestBody || {})
+        });
+      } catch (parseError) {
+        console.error('❌ JSON parse failed:', parseError.message);
+        console.error('❌ Body that failed to parse:', bodyText);
+        return new Response(JSON.stringify({ 
+          error: 'Invalid JSON in request body',
+          parseError: parseError.message,
+          receivedBody: bodyText.substring(0, 200)
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+    } catch (readError) {
+      console.error('❌ Failed to read request body:', readError.message);
+      return new Response(JSON.stringify({ 
+        error: 'Failed to read request body',
+        readError: readError.message 
+      }), {
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -109,11 +123,14 @@ serve(async (req) => {
     const action = requestBody?.action;
     const workspaceId = requestBody?.workspaceId;
 
-    console.log('Extracted action:', action, 'workspaceId:', workspaceId);
+    console.log('📋 Extracted values:', { action, workspaceId });
 
     if (!workspaceId) {
-      console.error('Missing workspaceId in request body');
-      return new Response(JSON.stringify({ error: 'Workspace ID is required' }), {
+      console.error('❌ Missing workspaceId in request body');
+      return new Response(JSON.stringify({ 
+        error: 'Workspace ID is required',
+        receivedBody: requestBody 
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
