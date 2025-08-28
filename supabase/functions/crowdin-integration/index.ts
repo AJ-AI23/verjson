@@ -53,21 +53,29 @@ serve(async (req) => {
     }
 
     const url = new URL(req.url);
-    const action = url.searchParams.get('action');
-    let workspaceId = url.searchParams.get('workspaceId');
     let requestBody: any = null;
 
-    // For actions that need request body, parse it once
-    if (action === 'saveToken' || action === 'export') {
+    // Parse request body for all actions
+    try {
       requestBody = await req.json();
-      if (action === 'saveToken') {
-        workspaceId = requestBody.workspaceId;
-        console.log('SaveToken action - workspaceId from body:', workspaceId);
-      }
+      console.log('Request body received:', { 
+        action: requestBody.action, 
+        hasWorkspaceId: !!requestBody.workspaceId,
+        hasApiToken: !!requestBody.apiToken 
+      });
+    } catch (error) {
+      console.error('Failed to parse request body:', error);
+      return new Response(JSON.stringify({ error: 'Invalid request body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
+    const action = requestBody.action;
+    const workspaceId = requestBody.workspaceId;
+
     if (!workspaceId) {
-      console.error('Missing workspaceId. Action:', action, 'Query workspaceId:', url.searchParams.get('workspaceId'));
+      console.error('Missing workspaceId in request body');
       return new Response(JSON.stringify({ error: 'Workspace ID is required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -141,7 +149,7 @@ serve(async (req) => {
       });
     }
 
-    // Get stored API token
+    // Get stored API token for other actions
     const { data: crowdinSettings, error: settingsError } = await supabaseClient
       .from('workspace_crowdin_settings')
       .select('encrypted_api_token')

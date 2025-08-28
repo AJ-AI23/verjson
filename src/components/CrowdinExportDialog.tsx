@@ -62,11 +62,13 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       setError('');
 
       const { data, error } = await supabase.functions.invoke('crowdin-integration', {
-        body: { action: 'listProjects' },
+        body: { action: 'listProjects', workspaceId },
         headers: {
           'Content-Type': 'application/json',
         },
       });
+
+      console.log('Check existing token response:', { data, error });
 
       if (error) {
         console.error('Error checking existing token:', error);
@@ -111,6 +113,12 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       setIsLoadingProjects(true);
       setError('');
 
+      console.log('Calling crowdin-integration with:', { 
+        action: 'saveToken',
+        apiToken: !!apiToken.trim(),
+        workspaceId 
+      });
+
       const { data, error } = await supabase.functions.invoke('crowdin-integration', {
         body: { 
           action: 'saveToken',
@@ -122,8 +130,17 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
         },
       });
 
-      if (error || data.error) {
-        setError(data?.error || 'Failed to save API token');
+      console.log('Edge function response:', { data, error });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        setError(`Edge function error: ${error.message}`);
+        return;
+      }
+
+      if (data?.error) {
+        console.error('API error:', data.error);
+        setError(data.error);
         return;
       }
 
