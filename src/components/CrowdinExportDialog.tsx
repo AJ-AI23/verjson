@@ -245,8 +245,8 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
 
   const handleProjectChange = async (projectId: string) => {
     setSelectedProjectId(projectId);
-    setSelectedBranchId('');
-    setSelectedFolderId('');
+    setSelectedBranchId('__main__'); // Default to main branch
+    setSelectedFolderId('__root__'); // Default to root folder
     setBranches([]);
     setFolders([]);
     
@@ -260,12 +260,13 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
 
   const handleBranchChange = async (branchId: string) => {
     setSelectedBranchId(branchId);
-    setSelectedFolderId('');
+    setSelectedFolderId('__root__'); // Reset to root folder when branch changes
     setFolders([]);
     
     if (selectedProjectId) {
-      // Load folders for the selected branch
-      await loadFolders(selectedProjectId, branchId || undefined);
+      // Load folders for the selected branch (use undefined for main branch)
+      const actualBranchId = branchId === '__main__' ? undefined : branchId;
+      await loadFolders(selectedProjectId, actualBranchId);
     }
   };
 
@@ -316,8 +317,8 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
           filename: filename.trim(),
           translationData,
           workspaceId,
-          ...(selectedBranchId && { branchId: selectedBranchId }),
-          ...(selectedFolderId && { folderId: selectedFolderId }),
+          ...(selectedBranchId && selectedBranchId !== '__main__' && { branchId: selectedBranchId }),
+          ...(selectedFolderId && selectedFolderId !== '__root__' && { folderId: selectedFolderId }),
         }
       });
 
@@ -343,8 +344,8 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
     setBranches([]);
     setFolders([]);
     setSelectedProjectId('');
-    setSelectedBranchId('');
-    setSelectedFolderId('');
+    setSelectedBranchId('__main__');
+    setSelectedFolderId('__root__');
     setError('');
   };
 
@@ -355,8 +356,8 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
     setBranches([]);
     setFolders([]);
     setSelectedProjectId('');
-    setSelectedBranchId('');
-    setSelectedFolderId('');
+    setSelectedBranchId('__main__');
+    setSelectedFolderId('__root__');
     setError('');
     setExportSuccess(false);
     setHasExistingToken(false);
@@ -508,7 +509,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
                               <SelectValue placeholder={isLoadingBranches ? "Loading branches..." : branches.length === 0 ? "No branches (use main)" : "Select a branch"} />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">
+                              <SelectItem value="__main__">
                                 <div className="flex items-center gap-2">
                                   <span>Main Branch</span>
                                   <Badge variant="outline" className="text-xs">
@@ -548,7 +549,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
                               <SelectValue placeholder={isLoadingFolders ? "Loading folders..." : folders.length === 0 ? "Root folder" : "Select a folder"} />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">
+                              <SelectItem value="__root__">
                                 <div className="flex items-center gap-2">
                                   <span>Root Folder</span>
                                   <Badge variant="outline" className="text-xs">
@@ -592,8 +593,8 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
                         <AlertDescription>
                           This will upload {Object.keys(translationData).length} translation strings
                           as a JSON file to your Crowdin project
-                          {selectedBranchId ? ` in branch "${branches.find(b => b.id.toString() === selectedBranchId)?.name || 'selected branch'}"` : ''}
-                          {selectedFolderId ? ` in folder "${folders.find(f => f.id.toString() === selectedFolderId)?.path || 'selected folder'}"` : ' in the root folder'}.
+                          {selectedBranchId && selectedBranchId !== '__main__' ? ` in branch "${branches.find(b => b.id.toString() === selectedBranchId)?.name || 'selected branch'}"` : ''}
+                          {selectedFolderId && selectedFolderId !== '__root__' ? ` in folder "${folders.find(f => f.id.toString() === selectedFolderId)?.path || 'selected folder'}"` : ' in the root folder'}.
                         </AlertDescription>
                       </Alert>
 
