@@ -59,32 +59,37 @@ serve(async (req) => {
     console.log('✅ User authenticated:', user.id);
 
     const url = new URL(req.url);
+    console.log('Request headers:', Object.fromEntries(req.headers.entries()));
+    
     let requestBody: any = null;
 
     // Parse request body for POST requests only
     if (req.method === 'POST') {
       try {
-        const bodyText = await req.text();
-        console.log('Raw request body:', bodyText);
+        // Clone the request to avoid consuming the body stream
+        const requestClone = req.clone();
+        const bodyText = await requestClone.text();
+        console.log('Raw request body length:', bodyText.length);
+        console.log('Raw request body preview:', bodyText.substring(0, 200));
         
         if (bodyText.trim() === '') {
           console.error('Empty request body received');
-          return new Response(JSON.stringify({ error: 'Request body is required' }), {
+          return new Response(JSON.stringify({ error: 'Request body is required for POST requests' }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
         
         requestBody = JSON.parse(bodyText);
-        console.log('Parsed request body:', { 
-          action: requestBody.action, 
-          hasWorkspaceId: !!requestBody.workspaceId,
-          hasApiToken: !!requestBody.apiToken,
+        console.log('Successfully parsed request body:', { 
+          action: requestBody?.action, 
+          hasWorkspaceId: !!requestBody?.workspaceId,
+          hasApiToken: !!requestBody?.apiToken,
           bodyKeys: Object.keys(requestBody || {})
         });
       } catch (error) {
         console.error('Failed to parse request body:', error);
-        console.error('Request body was:', await req.text().catch(() => 'Could not read body'));
+        console.error('Error details:', error.message);
         return new Response(JSON.stringify({ 
           error: 'Invalid JSON in request body',
           details: error.message 
@@ -101,8 +106,10 @@ serve(async (req) => {
       });
     }
 
-    const action = requestBody.action;
-    const workspaceId = requestBody.workspaceId;
+    const action = requestBody?.action;
+    const workspaceId = requestBody?.workspaceId;
+
+    console.log('Extracted action:', action, 'workspaceId:', workspaceId);
 
     if (!workspaceId) {
       console.error('Missing workspaceId in request body');
