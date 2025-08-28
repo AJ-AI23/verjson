@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { Settings, Download, Upload, RotateCcw } from 'lucide-react';
 import { useConsistencyConfig } from '@/hooks/useConsistencyConfig';
 import { ConsistencyConfig, NamingConvention, SemanticRule } from '@/types/consistency';
+import { useToast } from '@/hooks/use-toast';
 
 interface ConsistencyConfigDialogProps {
   open: boolean;
@@ -29,14 +30,15 @@ export function ConsistencyConfigDialog({ open, onOpenChange }: ConsistencyConfi
   const { config, updateConfig, applyPreset, resetToDefault, exportConfig, importConfig, presets } = useConsistencyConfig();
   const [localConfig, setLocalConfig] = useState<ConsistencyConfig>(config);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const { toast } = useToast();
 
   const handleSave = () => {
     updateConfig(localConfig);
+    toast({
+      title: "Configuration Saved",
+      description: "Consistency configuration has been updated successfully.",
+    });
     onOpenChange(false);
-    // Force a small delay to ensure the config update propagates
-    setTimeout(() => {
-      // The QA dialog will automatically re-run consistency checks due to config change
-    }, 100);
   };
 
   const handleCancel = () => {

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Copy, Download, Languages, FileText, CheckCircle, AlertTriangle, XCircle, Search, Upload, Settings } from 'lucide-react';
 import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 import { extractStringValues, createTranslationIndex, downloadJsonFile, TranslationEntry, detectSchemaType, SchemaType, checkSchemaConsistency, ConsistencyIssue } from '@/lib/translationUtils';
 import { validateSyntax, ValidationResult } from '@/lib/schemaUtils';
 import { CrowdinExportDialog } from '@/components/CrowdinExportDialog';
@@ -42,6 +43,7 @@ export const QADialog: React.FC<QADialogProps> = ({
   const { workspaces } = useWorkspaces();
   const selectedWorkspace = workspaces?.[0]; // Use the first workspace for now
   const { config: consistencyConfig } = useConsistencyConfig();
+  const { toast: showToast } = useToast();
 
   const translationData = useMemo(() => {
     try {
@@ -69,6 +71,17 @@ export const QADialog: React.FC<QADialogProps> = ({
       };
     }
   }, [schema, consistencyConfig]);
+
+  // Show toast when consistency violations are detected
+  React.useEffect(() => {
+    if (translationData.consistencyIssues.length > 0) {
+      showToast({
+        title: "Consistency Violations Detected",
+        description: `Found ${translationData.consistencyIssues.length} consistency issue${translationData.consistencyIssues.length === 1 ? '' : 's'} in your schema.`,
+        variant: "destructive",
+      });
+    }
+  }, [translationData.consistencyIssues.length, showToast]);
 
   const handleCopyIndex = async () => {
     try {
