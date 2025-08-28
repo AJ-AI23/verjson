@@ -131,7 +131,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       console.log('Request payload JSON:', JSON.stringify(requestPayload));
 
       const { data, error } = await supabase.functions.invoke('crowdin-integration', {
-        body: requestPayload,
+        body: requestPayload
       });
 
       console.log('Edge function response:', { data, error });
@@ -173,10 +173,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       console.log('📤 Sending request body:', JSON.stringify(requestBody));
 
       const { data, error } = await supabase.functions.invoke('crowdin-integration', {
-        body: requestBody,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        body: requestBody
       });
 
       console.log('📥 Response received:', { data, error });
@@ -212,10 +209,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
           filename: filename.trim(),
           translationData,
           workspaceId,
-        },
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        }
       });
 
       if (error || data.error) {
