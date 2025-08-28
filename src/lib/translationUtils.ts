@@ -90,6 +90,11 @@ function isTranslatableProperty(
     return false;
   }
 
+  // Exclude parameter names in OpenAPI specs - these are literal identifiers
+  if (key === 'name' && path.some(pathSegment => pathSegment === 'parameters')) {
+    return false;
+  }
+
   // Get appropriate keyword set based on schema type
   const keywords = schemaType === 'openapi' ? OPENAPI_KEYWORDS : JSON_SCHEMA_KEYWORDS;
   
