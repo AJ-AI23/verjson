@@ -6,6 +6,7 @@ export interface DocumentVersionComparison {
   recommendedVersionTier: 'major' | 'minor' | 'patch';
   hasBreakingChanges: boolean;
   mergeConflicts: MergeConflict[];
+  mergedSchema?: any; // For partial imports
 }
 
 export interface MergeConflict {
@@ -45,6 +46,78 @@ export function compareDocumentVersions(
   
   console.log('Comparison result:', result);
   return result;
+}
+
+/**
+ * Compare document schemas for partial imports (like Crowdin translations)
+ * Only considers properties that exist in the import schema, ignoring missing properties
+ */
+export function compareDocumentVersionsPartial(
+  currentSchema: any,
+  importSchema: any
+): DocumentVersionComparison {
+  console.log('🔍 compareDocumentVersionsPartial called for Crowdin import:');
+  console.log('Current Schema keys:', Object.keys(currentSchema || {}));
+  console.log('Import Schema keys:', Object.keys(importSchema || {}));
+  
+  // Create a merged schema that preserves existing properties and updates only imported ones
+  const mergedSchema = createPartialMerge(currentSchema, importSchema);
+  
+  // Compare current with the merged result to see actual changes
+  const patches = compare(currentSchema, mergedSchema);
+  console.log('Generated patches for partial import:', patches);
+  
+  // Filter out "remove" operations since we're doing a partial import
+  const filteredPatches = patches.filter(patch => patch.op !== 'remove');
+  
+  const mergeConflicts = generateMergeConflicts(filteredPatches, currentSchema, mergedSchema);
+  const hasBreakingChanges = detectBreakingChanges(filteredPatches);
+  const recommendedVersionTier = calculateImportVersionTier(filteredPatches, hasBreakingChanges);
+
+  const result = {
+    patches: filteredPatches,
+    conflictCount: mergeConflicts.length,
+    recommendedVersionTier,
+    hasBreakingChanges,
+    mergeConflicts,
+    mergedSchema, // Include the merged result for import
+  };
+  
+  console.log('Partial comparison result:', result);
+  return result;
+}
+
+/**
+ * Create a merged schema that preserves existing structure and updates only imported properties
+ */
+function createPartialMerge(currentSchema: any, importSchema: any): any {
+  if (!currentSchema || typeof currentSchema !== 'object') {
+    return importSchema;
+  }
+  
+  if (!importSchema || typeof importSchema !== 'object') {
+    return currentSchema;
+  }
+  
+  const merged = { ...currentSchema };
+  
+  // Recursively merge imported properties
+  for (const [key, value] of Object.entries(importSchema)) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      // If both are objects, recursively merge
+      if (merged[key] && typeof merged[key] === 'object' && !Array.isArray(merged[key])) {
+        merged[key] = createPartialMerge(merged[key], value);
+      } else {
+        // Replace with imported object
+        merged[key] = value;
+      }
+    } else {
+      // Replace primitive values directly
+      merged[key] = value;
+    }
+  }
+  
+  return merged;
 }
 
 /**
@@ -189,14 +262,19 @@ function getCurrentValue(obj: any, path: string): any {
 
 /**
  * Apply import patches to create merged schema
+ * For partial imports, use the merged schema result directly
  */
-export function applyImportPatches(currentSchema: any, patches: Operation[]): any {
-  // Create a deep copy to avoid mutating the original
-  const mergedSchema = JSON.parse(JSON.stringify(currentSchema));
+export function applyImportPatches(currentSchema: any, patches: Operation[], mergedSchema?: any): any {
+  if (mergedSchema) {
+    // If we have a merged schema from partial comparison, use it directly
+    return mergedSchema;
+  }
   
-  // Apply patches using fast-json-patch
+  // Otherwise apply patches normally
+  const targetSchema = JSON.parse(JSON.stringify(currentSchema));
+  
   try {
-    const result = applyPatch(mergedSchema, patches, false, false);
+    const result = applyPatch(targetSchema, patches, false, false);
     return result.newDocument;
   } catch (error) {
     console.error('Error applying import patches:', error);

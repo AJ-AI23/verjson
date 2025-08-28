@@ -506,30 +506,58 @@ serve(async (req) => {
       }
 
       try {
-        // Download file content from Crowdin project file
-        console.log('🔍 Downloading file from Crowdin project:', projectId, 'file:', fileId);
+        // Step 1: Get download URL from Crowdin
+        console.log('🔍 Getting download URL from Crowdin project:', projectId, 'file:', fileId);
         
-        const downloadResponse = await fetch(`${CROWDIN_API_BASE}/projects/${projectId}/files/${fileId}/download`, {
+        const downloadUrlResponse = await fetch(`${CROWDIN_API_BASE}/projects/${projectId}/files/${fileId}/download`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${apiToken}`,
           }
         });
 
-        if (!downloadResponse.ok) {
-          console.error('❌ Failed to download from Crowdin storage:', downloadResponse.status, downloadResponse.statusText);
-          const errorText = await downloadResponse.text();
+        if (!downloadUrlResponse.ok) {
+          console.error('❌ Failed to get download URL from Crowdin:', downloadUrlResponse.status, downloadUrlResponse.statusText);
+          const errorText = await downloadUrlResponse.text();
           console.error('❌ Crowdin error response:', errorText);
           return new Response(JSON.stringify({ 
-            error: `Failed to download file from Crowdin: ${downloadResponse.statusText}` 
+            error: `Failed to get download URL from Crowdin: ${downloadUrlResponse.statusText}` 
           }), {
-            status: downloadResponse.status,
+            status: downloadUrlResponse.status,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
-        const fileContent = await downloadResponse.text();
-        console.log('✅ Downloaded file content from Crowdin, length:', fileContent.length);
+        const downloadUrlData = await downloadUrlResponse.json();
+        console.log('✅ Got download URL from Crowdin:', downloadUrlData.data?.url ? 'URL received' : 'No URL');
+
+        // Step 2: Download actual file content from the URL
+        const fileUrl = downloadUrlData.data?.url;
+        if (!fileUrl) {
+          console.error('❌ No download URL received from Crowdin');
+          return new Response(JSON.stringify({ 
+            error: 'No download URL received from Crowdin' 
+          }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        console.log('🔍 Downloading actual file content from URL...');
+        const fileContentResponse = await fetch(fileUrl);
+
+        if (!fileContentResponse.ok) {
+          console.error('❌ Failed to download file from URL:', fileContentResponse.status, fileContentResponse.statusText);
+          return new Response(JSON.stringify({ 
+            error: `Failed to download file content: ${fileContentResponse.statusText}` 
+          }), {
+            status: fileContentResponse.status,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        const fileContent = await fileContentResponse.text();
+        console.log('✅ Downloaded file content, length:', fileContent.length);
 
         try {
           const parsedContent = JSON.parse(fileContent);

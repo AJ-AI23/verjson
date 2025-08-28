@@ -7,7 +7,7 @@ import { Loader2, Download, CheckCircle, AlertCircle, FileText } from 'lucide-re
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { ImportVersionConflictPreview } from '@/components/ImportVersionConflictPreview';
-import { compareDocumentVersions } from '@/lib/importVersionUtils';
+import { compareDocumentVersionsPartial } from '@/lib/importVersionUtils';
 
 interface CrowdinImportDialogProps {
   open: boolean;
@@ -63,8 +63,8 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
 
       setImportedContent(data.content);
       
-      // Compare current document content with imported content
-      const comparisonResult = await compareDocumentVersions(
+      // Compare current document content with imported content using partial comparison for Crowdin
+      const comparisonResult = compareDocumentVersionsPartial(
         document.content,
         data.content
       );
@@ -82,8 +82,10 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
   };
 
   const handleConfirmImport = () => {
-    if (importedContent && comparison) {
-      onImportConfirm(importedContent, comparison, `Crowdin: ${document.crowdin_filename || 'Unknown'}`);
+    if (comparison) {
+      // Use the mergedSchema if available (for partial imports) or fall back to importedContent
+      const finalSchema = comparison.mergedSchema || importedContent;
+      onImportConfirm(finalSchema, comparison, `Crowdin: ${document.crowdin_filename || 'Unknown'}`);
       handleClose();
     }
   };
@@ -220,7 +222,7 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
               <div className="flex-1 overflow-hidden">
                 <ImportVersionConflictPreview
                   currentSchema={document.content}
-                  importSchema={importedContent}
+                  importSchema={comparison.mergedSchema || importedContent}
                   comparison={comparison}
                   sourceDocumentName={`Crowdin: ${document.crowdin_filename || 'Unknown'}`}
                 />
