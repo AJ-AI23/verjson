@@ -62,8 +62,19 @@ const decryptToken = async (encryptedToken: string): Promise<string> => {
     
     return new TextDecoder().decode(decrypted);
   } catch (error) {
-    console.error('Error decrypting token:', error);
-    throw new Error('Failed to decrypt token');
+    console.error('AES decryption failed, trying legacy base64 decode:', error);
+    
+    // Fallback for legacy base64-encoded tokens
+    try {
+      const decoded = atob(encryptedToken);
+      const decoder = new TextDecoder();
+      const result = decoder.decode(new Uint8Array([...decoded].map(char => char.charCodeAt(0))));
+      console.log('✅ Successfully decoded legacy base64 token');
+      return result;
+    } catch (legacyError) {
+      console.error('Legacy base64 decode also failed:', legacyError);
+      throw new Error('Failed to decrypt token - token may be corrupted');
+    }
   }
 };
 
@@ -345,6 +356,9 @@ serve(async (req) => {
     }
 
     if (action === 'listProjects') {
+      console.log('🔍 ListProjects action started');
+      console.log('🔑 Attempting to decrypt token...');
+      console.log('🌐 Making Crowdin API request to fetch projects...');
       const response = await fetch(`${CROWDIN_API_BASE}/projects`, {
         headers: {
           'Authorization': `Bearer ${apiToken}`,
@@ -352,21 +366,28 @@ serve(async (req) => {
         },
       });
 
+      console.log('📊 Crowdin API response status:', response.status);
+      
       if (!response.ok) {
-        console.error('Crowdin projects fetch failed:', response.status, await response.text());
-        return new Response(JSON.stringify({ error: 'Failed to fetch projects' }), {
+        const errorText = await response.text();
+        console.error('❌ Crowdin projects fetch failed:', response.status, errorText);
+        return new Response(JSON.stringify({ error: 'Failed to fetch projects from Crowdin API' }), {
           status: response.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
       const data = await response.json();
+      console.log('📋 Raw Crowdin API response:', JSON.stringify(data, null, 2));
+      
       const projects: CrowdinProject[] = data.data.map((item: any) => ({
         id: item.data.id,
         name: item.data.name,
         identifier: item.data.identifier,
         description: item.data.description,
       }));
+
+      console.log('✅ Successfully processed projects:', projects.length, 'projects found');
 
       return new Response(JSON.stringify({ projects }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
