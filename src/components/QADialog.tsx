@@ -574,6 +574,12 @@ export const QADialog: React.FC<QADialogProps> = ({
               documentName={documentName}
               workspaceId={selectedWorkspace.id}
               documentId={selectedDocument.id}
+              onDocumentUpdated={() => {
+                // Force a small delay to ensure database has been updated
+                setTimeout(() => {
+                  window.location.reload();
+                }, 500);
+              }}
             />
           </>
         )}

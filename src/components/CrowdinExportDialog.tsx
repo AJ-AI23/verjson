@@ -39,6 +39,7 @@ interface CrowdinExportDialogProps {
   documentName: string;
   workspaceId: string;
   documentId?: string;
+  onDocumentUpdated?: () => void; // Add callback for when document is updated
 }
 
 export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
@@ -48,6 +49,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
   documentName,
   workspaceId,
   documentId,
+  onDocumentUpdated,
 }) => {
   const [apiToken, setApiToken] = useState('');
   const [showTokenInput, setShowTokenInput] = useState(false);
@@ -346,6 +348,10 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
             // Don't fail the entire export, just log the error
           } else {
             console.log('✅ Updated document with Crowdin file info');
+            // Notify parent that document was updated
+            if (onDocumentUpdated) {
+              onDocumentUpdated();
+            }
           }
         } catch (err) {
           console.error('Error updating document:', err);
