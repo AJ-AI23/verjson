@@ -88,6 +88,44 @@ export function compareDocumentVersionsPartial(
 }
 
 /**
+ * Convert objects with consecutive numeric keys to arrays
+ */
+function convertNumericObjectsToArrays(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map(convertNumericObjectsToArrays);
+  }
+  
+  if (obj && typeof obj === 'object') {
+    const keys = Object.keys(obj);
+    
+    // Check if all keys are numeric and consecutive starting from 0
+    const numericKeys = keys.filter(key => /^\d+$/.test(key)).map(Number).sort((a, b) => a - b);
+    const isConsecutiveArray = numericKeys.length === keys.length && 
+                               numericKeys.length > 0 && 
+                               numericKeys[0] === 0 && 
+                               numericKeys.every((num, idx) => num === idx);
+    
+    if (isConsecutiveArray) {
+      // Convert to array
+      const array = [];
+      for (let i = 0; i < numericKeys.length; i++) {
+        array[i] = convertNumericObjectsToArrays(obj[i.toString()]);
+      }
+      return array;
+    } else {
+      // Recursively process object properties
+      const result: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        result[key] = convertNumericObjectsToArrays(value);
+      }
+      return result;
+    }
+  }
+  
+  return obj;
+}
+
+/**
  * Convert path-based properties (like "/root.title") to nested JSON structure
  */
 function pathsToNestedObject(pathData: any): any {
@@ -120,7 +158,8 @@ function pathsToNestedObject(pathData: any): any {
     current[lastPart] = value;
   }
   
-  return result;
+  // Convert objects with numeric keys to arrays
+  return convertNumericObjectsToArrays(result);
 }
 
 /**
