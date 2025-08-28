@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -31,6 +31,11 @@ export function ConsistencyConfigDialog({ open, onOpenChange }: ConsistencyConfi
   const [localConfig, setLocalConfig] = useState<ConsistencyConfig>(config);
   const [importFile, setImportFile] = useState<File | null>(null);
   const { toast } = useToast();
+
+  // Keep local state in sync with global configuration
+  useEffect(() => {
+    setLocalConfig(config);
+  }, [config]);
 
   const handleSave = () => {
     console.log('Saving consistency config');

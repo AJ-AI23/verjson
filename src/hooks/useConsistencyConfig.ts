@@ -65,6 +65,18 @@ export function useConsistencyConfig() {
     }
   }, []);
 
+  // Listen for configuration updates from other components
+  useEffect(() => {
+    const handleUpdate = (event: Event) => {
+      const newConfig = (event as CustomEvent<ConsistencyConfig>).detail;
+      setConfig(newConfig);
+    };
+
+    window.addEventListener('consistencyConfigUpdated', handleUpdate as EventListener);
+    return () =>
+      window.removeEventListener('consistencyConfigUpdated', handleUpdate as EventListener);
+  }, []);
+
   const updateConfig = (newConfig: ConsistencyConfig) => {
     console.log('=== Updating consistency config ===');
     console.log('New config being saved:', newConfig);
