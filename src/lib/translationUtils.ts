@@ -90,12 +90,8 @@ function isTranslatableProperty(
     return false;
   }
 
-  // Special handling for enum values - these are usually not translatable
-  if (path.some(pathSegment => pathSegment === 'enum')) {
-    return false;
-  }
-
   // Special handling for example properties that correspond to enum schema properties
+  // This must come BEFORE the general enum exclusion check
   if (rootObj && (key === 'example' || key === 'examples')) {
     // Check if the parent object (which should be the schema property) has an enum
     if (parentObj && typeof parentObj === 'object' && Array.isArray(parentObj.enum)) {
@@ -104,6 +100,7 @@ function isTranslatableProperty(
   }
 
   // Alternative check using path navigation for nested examples
+  // This must also come BEFORE the general enum exclusion check
   if (rootObj && (path.includes('example') || path.includes('examples'))) {
     // Check for both 'example' and 'examples'
     const exampleIndex = path.indexOf('example');
@@ -141,6 +138,12 @@ function isTranslatableProperty(
         }
       }
     }
+  }
+
+  // Special handling for enum values - these are usually not translatable
+  // This comes AFTER the example property checks
+  if (path.some(pathSegment => pathSegment === 'enum')) {
+    return false;
   }
 
   // Special handling for 'type' values - these have predefined values
