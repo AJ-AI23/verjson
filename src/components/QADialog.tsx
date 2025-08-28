@@ -7,10 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Copy, Download, Languages, FileText, CheckCircle, AlertTriangle, XCircle, Search } from 'lucide-react';
+import { Copy, Download, Languages, FileText, CheckCircle, AlertTriangle, XCircle, Search, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractStringValues, createTranslationIndex, downloadJsonFile, TranslationEntry, detectSchemaType, SchemaType } from '@/lib/translationUtils';
 import { validateSyntax, ValidationResult } from '@/lib/schemaUtils';
+import { CrowdinExportDialog } from '@/components/CrowdinExportDialog';
+import { useWorkspaces } from '@/hooks/useWorkspaces';
 
 interface QADialogProps {
   schema: string;
@@ -28,6 +30,10 @@ export const QADialog: React.FC<QADialogProps> = ({
   const [isValidating, setIsValidating] = useState(false);
   const [groupingStrategy, setGroupingStrategy] = useState<'property' | 'value'>('property');
   const [filterValue, setFilterValue] = useState('');
+  const [crowdinDialogOpen, setCrowdinDialogOpen] = useState(false);
+  
+  const { workspaces } = useWorkspaces();
+  const selectedWorkspace = workspaces?.[0]; // Use the first workspace for now
 
   const translationData = useMemo(() => {
     try {
@@ -254,27 +260,38 @@ export const QADialog: React.FC<QADialogProps> = ({
                     'Basic filtering applied - excludes $-prefixed properties and common technical patterns.'
                   }
                 </div>
-                <div className="flex gap-2 flex-wrap">
-                  <Button 
-                    size="sm" 
-                    onClick={handleCopyIndex}
-                    className="gap-2"
-                  >
-                    <Copy className="h-4 w-4" />
-                    <span className="hidden sm:inline">Copy Index</span>
-                    <span className="sm:hidden">Copy</span>
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={handleDownloadIndex}
-                    className="gap-2"
-                  >
-                    <Download className="h-4 w-4" />
-                    <span className="hidden sm:inline">Download Index</span>
-                    <span className="sm:hidden">Download</span>
-                  </Button>
-                </div>
+                 <div className="flex gap-2 flex-wrap">
+                   <Button 
+                     size="sm" 
+                     onClick={handleCopyIndex}
+                     className="gap-2"
+                   >
+                     <Copy className="h-4 w-4" />
+                     <span className="hidden sm:inline">Copy Index</span>
+                     <span className="sm:hidden">Copy</span>
+                   </Button>
+                   <Button 
+                     size="sm" 
+                     variant="outline" 
+                     onClick={handleDownloadIndex}
+                     className="gap-2"
+                   >
+                     <Download className="h-4 w-4" />
+                     <span className="hidden sm:inline">Download Index</span>
+                     <span className="sm:hidden">Download</span>
+                   </Button>
+                   <Button 
+                     size="sm" 
+                     variant="outline" 
+                     onClick={() => setCrowdinDialogOpen(true)}
+                     className="gap-2"
+                     disabled={!selectedWorkspace}
+                   >
+                     <Upload className="h-4 w-4" />
+                     <span className="hidden sm:inline">Crowdin Export</span>
+                     <span className="sm:hidden">Export</span>
+                   </Button>
+                 </div>
               </CardContent>
             </Card>
 
@@ -541,9 +558,20 @@ export const QADialog: React.FC<QADialogProps> = ({
                 </TabsContent>
               </Tabs>
             </div>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-};
+           </div>
+         </div>
+       </DialogContent>
+       
+       {/* Crowdin Export Dialog */}
+       {selectedWorkspace && (
+         <CrowdinExportDialog
+           open={crowdinDialogOpen}
+           onOpenChange={setCrowdinDialogOpen}
+           translationData={translationData.index}
+           documentName={documentName}
+           workspaceId={selectedWorkspace.id}
+         />
+       )}
+     </Dialog>
+   );
+ };

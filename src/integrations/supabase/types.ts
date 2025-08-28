@@ -299,6 +299,33 @@ export type Database = {
         }
         Relationships: []
       }
+      workspace_crowdin_settings: {
+        Row: {
+          created_at: string
+          created_by: string
+          encrypted_api_token: string
+          id: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          encrypted_api_token: string
+          id?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          encrypted_api_token?: string
+          id?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       workspace_permissions: {
         Row: {
           created_at: string
