@@ -61,8 +61,13 @@ function isTranslatableProperty(
   schemaType: SchemaType,
   parentObj?: any
 ): boolean {
-  // Exclude properties starting with $
+  // Exclude properties starting with $ and any nested properties under them
   if (EXCLUDED_DOLLAR_PROPS.test(key)) {
+    return false;
+  }
+  
+  // Check if any parent in the path starts with $ - if so, exclude this property too
+  if (path.some(pathSegment => typeof pathSegment === 'string' && EXCLUDED_DOLLAR_PROPS.test(pathSegment))) {
     return false;
   }
 
