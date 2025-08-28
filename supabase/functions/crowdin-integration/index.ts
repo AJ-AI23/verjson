@@ -379,9 +379,9 @@ serve(async (req) => {
         });
       }
 
-      // Step 1: Create storage
-      console.log('🔍 Raw translation data:', typeof translationData, Object.keys(translationData || {}));
-      console.log('🔍 Translation data sample:', JSON.stringify(translationData).substring(0, 500));
+      // Step 1: Create storage - try raw binary upload instead of FormData
+      console.log('🔍 Raw translation data keys:', Object.keys(translationData || {}));
+      console.log('🔍 Translation data sample:', JSON.stringify(translationData).substring(0, 200));
 
       if (!translationData || typeof translationData !== 'object' || Object.keys(translationData).length === 0) {
         return new Response(JSON.stringify({ error: 'Translation data is empty or invalid' }), {
@@ -391,9 +391,8 @@ serve(async (req) => {
       }
 
       const jsonContent = JSON.stringify(translationData, null, 2);
-      console.log('📄 JSON content being uploaded (first 500 chars):', jsonContent.substring(0, 500));
-      console.log('📏 Content length:', jsonContent.length);
-      console.log('🔍 Filename being used:', filename);
+      console.log('📄 JSON content length:', jsonContent.length);
+      console.log('🔍 Filename:', filename);
       
       if (!jsonContent || jsonContent.length === 0 || jsonContent === '{}') {
         return new Response(JSON.stringify({ error: 'Generated JSON content is empty' }), {
@@ -402,37 +401,32 @@ serve(async (req) => {
         });
       }
 
-      // Create file as plain text to avoid Blob issues  
+      // Try raw file upload with proper multipart boundary
+      const boundary = '----formdata-edge-function-' + Math.random().toString(36).substring(2);
       const encoder = new TextEncoder();
-      const encodedContent = encoder.encode(jsonContent);
       
-      const formData = new FormData();
-      // Use Blob instead of File for better Deno compatibility
-      const fileBlob = new Blob([encodedContent], { type: 'application/json' });
-      formData.append('file', fileBlob, filename);
-
-      console.log('🔍 Blob size:', fileBlob.size);
-      console.log('🔍 Blob type:', fileBlob.type);
-      console.log('🔍 FormData created with filename:', filename);
-      console.log('🔍 Encoded content length:', encodedContent.length);
-      console.log('🔍 FormData entries:');
-      for (const [key, value] of formData.entries()) {
-        console.log(`  ${key}:`, typeof value, value instanceof Blob ? `Blob(${value.size} bytes)` : value);
-      }
+      const formDataBody = [
+        `--${boundary}`,
+        `Content-Disposition: form-data; name="file"; filename="${filename}"`,
+        `Content-Type: application/json`,
+        '',
+        jsonContent,
+        `--${boundary}--`,
+        ''
+      ].join('\r\n');
+      
+      const bodyData = encoder.encode(formDataBody);
+      console.log('🔍 Manual form data size:', bodyData.length);
 
       const storageResponse = await fetch(`${CROWDIN_API_BASE}/storages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiToken}`,
-          // Let fetch auto-set Content-Type for FormData with boundary
+          'Content-Type': `multipart/form-data; boundary=${boundary}`,
         },
-        body: formData,
+        body: bodyData,
       });
 
-      console.log('🔍 Request headers sent:', {
-        'Authorization': 'Bearer [hidden]',
-        'Content-Type': 'auto-generated for FormData'
-      });
       console.log('🔍 Storage response status:', storageResponse.status);
       console.log('🔍 Storage response headers:', Object.fromEntries(storageResponse.headers.entries()));
 
