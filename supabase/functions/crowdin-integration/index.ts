@@ -118,10 +118,42 @@ serve(async (req) => {
     );
   }
 
-  // Parse the request body once
+  // Debug request details
+  console.log('🔍 Request debugging:', {
+    method: req.method,
+    url: req.url,
+    contentType: req.headers.get('content-type'),
+    contentLength: req.headers.get('content-length'),
+    hasBody: req.body !== null,
+    headers: Object.fromEntries(req.headers.entries())
+  });
+
+  // Read the body as text first for debugging
+  let bodyText: string;
+  try {
+    bodyText = await req.text();
+    console.log('📝 Raw body text:', bodyText);
+    console.log('📏 Body length:', bodyText.length);
+  } catch (e) {
+    console.error('❌ Failed to read request body as text:', e);
+    return new Response(
+      JSON.stringify({ error: 'Failed to read request body', details: `${e}` }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
+
+  // Parse the body text as JSON
   let payload: any;
   try {
-    payload = await req.json();
+    if (!bodyText || bodyText.trim() === '') {
+      console.error('❌ Empty request body received');
+      return new Response(
+        JSON.stringify({ error: 'Empty request body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+    
+    payload = JSON.parse(bodyText);
     console.log('✅ Successfully parsed request body:', {
       action: payload?.action,
       hasWorkspaceId: !!payload?.workspaceId,
@@ -129,8 +161,9 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error('❌ Invalid JSON payload:', e);
+    console.error('❌ Raw body text that failed to parse:', bodyText);
     return new Response(
-      JSON.stringify({ error: 'Invalid JSON payload', details: `${e}` }),
+      JSON.stringify({ error: 'Invalid JSON payload', details: `${e}`, rawBody: bodyText }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
