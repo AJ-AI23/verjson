@@ -156,9 +156,7 @@ export const ImportVersionDialog: React.FC<ImportVersionDialogProps> = ({
   useEffect(() => {
     if (currentStep === 'preview' && finalImportSchema && currentSchema) {
       setIsComparing(true);
-      console.log('🔍 Import Comparison Debug:');
-      console.log('Current Schema:', JSON.stringify(currentSchema, null, 2));
-      console.log('Import Schema:', JSON.stringify(finalImportSchema, null, 2));
+      // Debug logging removed to prevent console spam when debug mode is off
       
       try {
         const comparisonResult = compareDocumentVersions(currentSchema, finalImportSchema);

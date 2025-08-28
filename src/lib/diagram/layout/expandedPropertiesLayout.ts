@@ -1,4 +1,3 @@
-
 import { Node, Edge } from '@xyflow/react';
 import { DiagramElements, CollapsedState } from '../types';
 import { 
@@ -15,16 +14,12 @@ export const generateExpandedLayout = (
   maxDepth: number,
   collapsedPaths: CollapsedState = {}
 ): DiagramElements => {
-  console.log(`[EXPANDED LAYOUT] Starting with maxDepth: ${maxDepth}`);
-  console.log(`[EXPANDED LAYOUT] CollapsedPaths:`, collapsedPaths);
-  
   const result: DiagramElements = {
     nodes: [],
     edges: []
   };
 
   if (!schema || !schema.type || schema.type !== 'object' || !schema.properties) {
-    console.log(`[EXPANDED LAYOUT] Early return - invalid schema`);
     return result;
   }
 
@@ -45,7 +40,6 @@ export const generateExpandedLayout = (
   
   // If root is collapsed, we should skip generating child nodes
   if (rootCollapsed) {
-    console.log('Root is collapsed, skipping property nodes generation');
     return result;
   }
   
@@ -54,14 +48,8 @@ export const generateExpandedLayout = (
   const rootPropertiesPath = 'root.properties';
   const rootPropertiesExpanded = collapsedPaths[rootPropertiesPath] === false;
   
-  console.log(`[EXPANDED LAYOUT] Root properties path: ${rootPropertiesPath}, expanded: ${rootPropertiesExpanded}`);
-  console.log(`[EXPANDED LAYOUT] Value in collapsedPaths:`, collapsedPaths[rootPropertiesPath]);
-  console.log(`[EXPANDED LAYOUT] Strict equality check:`, collapsedPaths[rootPropertiesPath] === false);
-  console.log(`[EXPANDED LAYOUT] Type of value:`, typeof collapsedPaths[rootPropertiesPath]);
-  
   // Only process first level properties if root.properties is explicitly expanded
   if (rootPropertiesExpanded) {
-    console.log('[EXPANDED LAYOUT] Root properties are explicitly expanded, processing first level properties');
     // Process the first level of properties (depth 1)
         processProperties(
           properties, 
@@ -78,11 +66,7 @@ export const generateExpandedLayout = (
           0, // Start with 0 expandedNodeDepth from root
           5 // Maximum properties limit before grouping
         );
-  } else {
-    console.log('[EXPANDED LAYOUT] Root properties are not explicitly expanded, skipping first level properties');
   }
-  
-  console.log(`[EXPANDED LAYOUT] Finished - generated ${result.nodes.length} nodes, ${result.edges.length} edges`);
   
   return result;
 };
@@ -125,17 +109,7 @@ function processProperties(
                                expandedPropertiesCount === 0 && 
                                totalProperties > maxPropertiesLimit;
   
-  console.log('🔧 DEBUG [EXPANDED LAYOUT] Grouping decision:', {
-    currentPath,
-    isContainerExpansion,
-    expandedPropertiesCount,
-    totalProperties,
-    shouldGroupProperties
-  });
-  
   if (shouldGroupProperties) {
-    console.log(`Using property grouping for container expansion: ${currentPath} with ${totalProperties} properties`);
-    
     // Use the shared property grouping utility
     const groupingResult = processPropertiesWithGrouping(
       propertyEntries,
@@ -151,7 +125,6 @@ function processProperties(
       }
     );
     
-    console.log(`Property grouping created ${groupingResult.totalNodesCreated} nodes for ${groupingResult.nodesProcessed} properties`);
     return;
   }
   
@@ -173,21 +146,10 @@ function processProperties(
   const parentPropertiesPath = `${currentPath}.properties`;
   const isParentPropertiesCollapsed = collapsedPaths[parentPropertiesPath] === true;
   
-  console.log(`Processing properties at path: ${currentPath}`);
-  console.log(`Parent properties path: ${parentPropertiesPath}, collapsed: ${isParentPropertiesCollapsed}`);
-  console.log(`Should group properties: ${shouldGroupProperties} (${totalProperties} > ${maxPropertiesLimit})`);
-  console.log(`Processing ${totalProperties} properties individually (no grouping needed)`);
-  
   // Process all properties individually (no grouping)
   propertyEntries.forEach(([propName, propSchema]: [string, any], index) => {
-    console.log(`[DEBUG] Processing property ${index}: ${propName}`);
-    console.log(`[DEBUG] Schema type: ${propSchema?.type}`);
-    console.log(`[DEBUG] Current path: ${currentPath}`);
-    console.log(`[DEBUG] Current depth: ${currentDepth}, Max depth: ${maxDepth}`);
-    
     // Skip if propSchema is null or undefined
     if (!propSchema) {
-      console.log(`[DEBUG] Skipping ${propName} - no schema`);
       return;
     }
     
@@ -206,22 +168,13 @@ function processProperties(
     const diagramPathValue = collapsedPaths[diagramPath];
     const jsonEditorPathValue = collapsedPaths[jsonEditorPath];
     
-    console.log(`Path checking for ${propName}:`);
-    console.log(`  - diagramPath: ${diagramPath}, value:`, diagramPathValue);
-    console.log(`  - jsonEditorPath: ${jsonEditorPath}, value:`, jsonEditorPathValue);
-    
     const isDiagramPathExpanded = diagramPathValue === false || 
       (typeof diagramPathValue === 'object' && diagramPathValue !== null);
     const isJsonEditorPathExpanded = jsonEditorPathValue === false || 
       (typeof jsonEditorPathValue === 'object' && jsonEditorPathValue !== null);
     
-    console.log(`  - isDiagramPathExpanded: ${isDiagramPathExpanded}`);
-    console.log(`  - isJsonEditorPathExpanded: ${isJsonEditorPathExpanded}`);
-    
     const isPathExplicitlyExpanded = isDiagramPathExpanded || isJsonEditorPathExpanded;
     const isPathExplicitlyCollapsed = !isPathExplicitlyExpanded;
-    
-    console.log(`  - Final: isPathExplicitlyExpanded: ${isPathExplicitlyExpanded}, isPathExplicitlyCollapsed: ${isPathExplicitlyCollapsed}`);
     
     // Check if any ancestor path is collapsed (this would hide this node)
     const hasCollapsedAncestor = isAnyAncestorCollapsed(jsonEditorPath);
@@ -231,52 +184,29 @@ function processProperties(
     // Individual property nodes always render (they show collapse indicators when collapsed)
     const shouldRenderNode = !isParentPropertiesCollapsed;
     
-    console.log(`Checking render for ${diagramPath}:`);
-    console.log(`  - Parent properties collapsed: ${isParentPropertiesCollapsed}`);
-    console.log(`  - Has collapsed ancestor: ${hasCollapsedAncestor}`);
-    console.log(`  - Should render: ${shouldRenderNode}`);
-    
     if (!shouldRenderNode) {
-      console.log(`Skipping node at path ${diagramPath}/${jsonEditorPath} (parent not expanded)`);
-      console.log(`  - Parent properties path: ${parentPropertiesPath}, collapsed: ${isParentPropertiesCollapsed}`);
-      console.log(`  - Has collapsed ancestor: ${hasCollapsedAncestor}`);
-      console.log(`  - Diagram path in collapsedPaths: ${collapsedPaths[diagramPath]}`);
-      console.log(`  - JSON editor path in collapsedPaths: ${collapsedPaths[jsonEditorPath]}`);
       return;
     }
-    
-    console.log(`Creating node for path: ${diagramPath}/${jsonEditorPath}, collapsed: ${isPathExplicitlyCollapsed}`);
     
     let propNode: Node;
     try {
       // Create node for property
       propNode = createPropertyNode(propName, propSchema, requiredProps, xPos, yOffset, isPathExplicitlyCollapsed);
-
-      console.log(`Successfully created node for ${propName}:`, propNode.id);
       
       // Add edge from parent to property
       const edge = createEdge(parentId, propNode.id);
       
       result.nodes.push(propNode);
       result.edges.push(edge);
-      
-      console.log(`Added node ${propNode.id} and edge to result`);
     } catch (error) {
-      console.error(`Error creating node for ${propName}:`, error);
       return; // Skip this property if creation fails
     }
     
     // Only process nested properties if:
     // 1. We haven't reached relative max depth from last expanded node AND
     // 2. This property is not explicitly collapsed
-    console.log(`Checking if should process nested for ${diagramPath}:`);
-    console.log(`  - expandedNodeDepth: ${expandedNodeDepth}, maxDepth: ${maxDepth}`);
-    console.log(`  - isPathExplicitlyCollapsed: ${isPathExplicitlyCollapsed}`);
-    console.log(`  - Should process: ${expandedNodeDepth < maxDepth && !isPathExplicitlyCollapsed}`);
-    
     if (expandedNodeDepth < maxDepth && !isPathExplicitlyCollapsed) {
       // If the property is an object with nested properties
-      console.log(`Processing deeper for ${diagramPath}, schema type: ${propSchema.type}`);
       if (propSchema.type === 'object' && propSchema.properties) {
         const nestedProps = propSchema.properties;
         const nestedRequired = propSchema.required || [];
@@ -293,17 +223,10 @@ function processProperties(
         const isThisPropertiesExplicitlyExpanded = collapsedPaths[jsonEditorPropertiesPath] === false;
         const isParentNodeCollapsed = collapsedPaths[jsonEditorPath] === true;
         
-        console.log(`Object ${diagramPath} - checking nested properties`);
-        console.log(`  - JSON editor properties path: ${jsonEditorPropertiesPath}, expanded: ${isThisPropertiesExplicitlyExpanded}`);
-        console.log(`  - Parent node collapsed: ${isParentNodeCollapsed}`);
-        console.log(`  - Available collapsed paths:`, Object.keys(collapsedPaths));
-        
         // Only process nested properties if this path's properties are explicitly expanded AND parent is not collapsed
         if (isThisPropertiesExplicitlyExpanded && !isParentNodeCollapsed) {
-          console.log(`Processing nested properties for ${diagramPath} because ${jsonEditorPropertiesPath} is expanded`);
           // Reset expandedNodeDepth to 0 since this object's properties are explicitly expanded
           const newExpandedNodeDepth = 0;
-          console.log(`  - Resetting expandedNodeDepth to ${newExpandedNodeDepth} for explicitly expanded node`);
           
           // Process nested properties (depth + 1)
               processProperties(
@@ -321,11 +244,6 @@ function processProperties(
                 newExpandedNodeDepth,
                 maxPropertiesLimit
               );
-        } else {
-          // If properties are not explicitly expanded but we're still processing
-          // (this happens when we're within the maxDepth limit but no explicit expand)
-          // In this case, increment the expandedNodeDepth normally
-          console.log(`Not processing nested properties for ${diagramPath} - properties path not explicitly expanded`);
         }
       }
       
@@ -365,7 +283,6 @@ function processProperties(
             if (itemPropertiesExplicitlyExpanded) {
               // Reset expandedNodeDepth for explicitly expanded array items
               const newExpandedNodeDepth = 0;
-              console.log(`  - Resetting expandedNodeDepth to ${newExpandedNodeDepth} for explicitly expanded array items`);
               
                 processProperties(
                   itemProps,
@@ -388,7 +305,6 @@ function processProperties(
       }
     } else if (expandedNodeDepth >= maxDepth) {
       // At relative max depth from last expanded node, add indicator that there are more levels
-      console.log(`Node ${propName} at relative max depth (${expandedNodeDepth} >= ${maxDepth})`);
       if ((propSchema.type === 'object' && propSchema.properties) || 
           (propSchema.type === 'array' && propSchema.items && 
            propSchema.items.type === 'object' && propSchema.items.properties)) {
@@ -399,15 +315,12 @@ function processProperties(
         if (typeof maxDepthPathValue === 'object' && maxDepthPathValue !== null) {
           // For MaxDepthReached objects, treat as expanded (show the indicator)
           propNode.data.isCollapsed = false;
-          console.log(`Max depth node ${propName} treated as expanded due to MaxDepthReached object`);
         } else if (maxDepthPathValue === true) {
           // Explicitly collapsed
           propNode.data.isCollapsed = true;
-          console.log(`Max depth node ${propName} explicitly collapsed`);
         } else {
           // Default collapsed for max depth nodes
           propNode.data.isCollapsed = true;
-          console.log(`Max depth node ${propName} defaulted to collapsed`);
         }
       }
     }

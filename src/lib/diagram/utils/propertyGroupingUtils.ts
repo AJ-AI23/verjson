@@ -27,12 +27,7 @@ export function processPropertiesWithGrouping(
   result: DiagramElements,
   options: PropertyGroupingOptions
 ): PropertyGroupingResult {
-  console.log('🔧 DEBUG [PROPERTY GROUPING] Called with:', {
-    propertiesCount: Array.isArray(properties) ? properties.length : Object.keys(properties).length,
-    maxIndividualProperties: options.maxIndividualProperties,
-    parentNodeId: options.parentNodeId,
-    parentPath: options.parentPath
-  });
+  // Note: Debug logging removed to prevent console spam when debug mode is off
   
   const { maxIndividualProperties, parentNodeId, yPosition, startXPosition, xSpacing } = options;
   
@@ -50,17 +45,7 @@ export function processPropertiesWithGrouping(
   // Determine if we need to group properties
   const shouldGroupProperties = totalProperties > maxIndividualProperties;
   
-  console.log('🔧 DEBUG [PROPERTY GROUPING] Grouping decision:', {
-    totalProperties,
-    maxIndividualProperties, 
-    shouldGroupProperties,
-    willShowIndividual: shouldGroupProperties ? maxIndividualProperties - 1 : totalProperties,
-    willShowGrouped: shouldGroupProperties ? totalProperties - (maxIndividualProperties - 1) : 0
-  });
-  
   if (shouldGroupProperties) {
-    console.log('🔧 DEBUG [PROPERTY GROUPING] Entering grouping logic');
-    
     // Prioritize expanded properties for individual display
     const { collapsedPaths, parentPath } = options;
     
@@ -94,16 +79,6 @@ export function processPropertiesWithGrouping(
     // Combine for display: expanded first, then individual non-expanded
     const individualProperties = [...expandedProperties, ...individualNonExpanded];
     
-    console.log('🔧 DEBUG [PROPERTY GROUPING] Property prioritization:', {
-      expandedCount,
-      individualSlots,
-      remainingSlotsForNonExpanded,
-      individualPropertiesCount: individualProperties.length,
-      groupedPropertiesCount: groupedProperties.length,
-      expandedPropertyNames: expandedProperties.map(([name]) => name),
-      individualNonExpandedNames: individualNonExpanded.map(([name]) => name)
-    });
-    
     // Calculate positions
     const totalNodesToShow = maxIndividualProperties;
     const centerOffset = (totalNodesToShow - 1) * xSpacing / 2;
@@ -120,12 +95,6 @@ export function processPropertiesWithGrouping(
         yPosition,
         false
       );
-      
-      console.log('🔧 DEBUG [PROPERTY GROUPING] Creating individual node:', {
-        propName,
-        nodeId: propNode.id,
-        position: { x: xPos, y: yPosition }
-      });
       
       const edge = createEdge(parentNodeId, propNode.id, undefined, false, {}, 'structure');
       result.nodes.push(propNode);
@@ -155,23 +124,12 @@ export function processPropertiesWithGrouping(
     groupedNode.data = {
       ...groupedNode.data,
       label: `${groupedProperties.length} More Properties`,
-      isGroupedProperties: true, // Special flag for styling
+      isGroupedProperties: true,
       propertyDetails: propertyDetails,
       hasCollapsibleContent: true,
-      isCollapsed: false, // Grouped nodes show their content by default to display bullet points
+      isCollapsed: false,
       description: `View details of ${groupedProperties.length} grouped properties`
     };
-    
-    console.log('🔧 DEBUG [PROPERTY GROUPING] Creating grouped node:', {
-      nodeId: groupedNode.id,
-      label: groupedNode.data.label,
-      position: { x: groupedXPos, y: yPosition },
-      propertyCount: groupedProperties.length,
-      hasPropertyDetails: !!groupedNode.data.propertyDetails,
-      propertyDetailsCount: propertyDetails.length,
-      isCollapsed: groupedNode.data.isCollapsed,
-      samplePropertyDetail: propertyDetails[0]
-    });
     
     const groupedEdge = createEdge(parentNodeId, groupedNode.id, undefined, false, {}, 'structure');
     result.nodes.push(groupedNode);
@@ -230,29 +188,20 @@ export function processWithGrouping(
   // Find which items are explicitly expanded
   const expandedItems = itemEntries.filter(([itemName]) => {
     const itemPath = `${parentPath}.${itemName}`;
-    return collapsedPaths[itemPath] === false; // explicitly expanded
+    return collapsedPaths[itemPath] === false;
   });
   
   const totalItems = itemEntries.length;
   const expandedCount = expandedItems.length;
   
-  console.log('🔧 DEBUG [GENERIC GROUPING] Analyzing items:', {
-    parentPath,
-    totalItems,
-    expandedCount,
-    maxIndividualItems,
-    expandedPaths: expandedItems.map(([name]) => `${parentPath}.${name}`)
-  });
-  
   // If total items <= maxIndividualItems + 1, show all individually
   if (totalItems <= maxIndividualItems + 1) {
-    console.log('🔧 DEBUG [GENERIC GROUPING] Showing all items individually (count within limit)');
     return processPropertiesWithGrouping(
       items,
       requiredProps,
       result,
       {
-        maxIndividualProperties: totalItems, // Show all
+        maxIndividualProperties: totalItems,
         xSpacing,
         parentNodeId,
         parentPath,
@@ -268,7 +217,7 @@ export function processWithGrouping(
     // Show expanded items individually + group the rest if needed
     const nonExpandedItems = itemEntries.filter(([itemName]) => {
       const itemPath = `${parentPath}.${itemName}`;
-      return collapsedPaths[itemPath] !== false; // not explicitly expanded
+      return collapsedPaths[itemPath] !== false;
     });
     
     const individualItemsToShow = Math.max(maxIndividualItems - expandedCount, 0);
@@ -278,18 +227,8 @@ export function processWithGrouping(
     const totalIndividualNodes = expandedCount + individualItemsToShow;
     const maxPropertiesToProcess = totalIndividualNodes + (willHaveGroupedNode ? 1 : 0);
     
-    console.log('🔧 DEBUG [GENERIC GROUPING] Mixed mode - expanded + grouped:', {
-      expandedCount,
-      individualItemsToShow,
-      totalIndividualNodes,
-      willHaveGroupedNode,
-      maxPropertiesToProcess,
-      nonExpandedCount: nonExpandedItems.length
-    });
-    
-    // Pass ALL original items but set maxIndividualProperties to control grouping
     return processPropertiesWithGrouping(
-      items, // Pass all items, not just individual ones
+      items,
       requiredProps,
       result,
       {
@@ -305,13 +244,12 @@ export function processWithGrouping(
   }
   
   // Default grouping behavior - no items are expanded
-  console.log('🔧 DEBUG [GENERIC GROUPING] Default grouping behavior');
   return processPropertiesWithGrouping(
     items,
     requiredProps,
     result,
     {
-      maxIndividualProperties: maxIndividualItems + 1, // +1 for the grouped node
+      maxIndividualProperties: maxIndividualItems + 1,
       xSpacing,
       parentNodeId,
       parentPath,
