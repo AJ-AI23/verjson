@@ -4,6 +4,14 @@ export interface TranslationEntry {
   path: string[];
 }
 
+export interface ConsistencyIssue {
+  type: 'missing-enum';
+  path: string;
+  value: string;
+  suggestedEnum: string[];
+  message: string;
+}
+
 // Schema type detection
 export type SchemaType = 'openapi' | 'json-schema' | 'unknown';
 
@@ -92,19 +100,8 @@ function isTranslatableProperty(
 
   // Special handling for example/examples properties - exclude if same object has enum array
   if ((key === 'example' || key === 'examples') && parentObj && typeof parentObj === 'object') {
-    // Debug: log what we're seeing for example properties
-    console.log('🔍 EXAMPLE DEBUG:', {
-      key,
-      fullPath: path.join('.'),
-      parentObjKeys: Object.keys(parentObj),
-      hasEnum: 'enum' in parentObj,
-      enumValue: parentObj.enum,
-      isEnumArray: Array.isArray(parentObj.enum)
-    });
-    
     // Check if the parent object (which should contain both example and enum) has an enum property
     if (Array.isArray(parentObj.enum) && parentObj.enum.length > 0) {
-      console.log('✅ EXCLUDING example due to enum');
       return false;
     }
   }
@@ -177,7 +174,6 @@ export function extractStringValues(obj: any, prefix = 'root', path: string[] = 
   if (schemaType === undefined) {
     schemaType = detectSchemaType(obj);
     rootObj = obj; // Set root object on first call
-    console.log('🔍 Starting translation extraction, schema type:', schemaType);
   }
   
   if (obj === null || obj === undefined) {
@@ -187,18 +183,6 @@ export function extractStringValues(obj: any, prefix = 'root', path: string[] = 
   if (typeof obj === 'string') {
     // Only add if it's a translatable property
     const key = path.length > 0 ? path[path.length - 1] : 'root';
-    
-    // Debug logging for specific paths we're interested in
-    if (path.join('.').includes('mediaType.example')) {
-      console.log('🎯 Processing mediaType.example:', {
-        key,
-        value: obj,
-        path: path.join('.'),
-        parentObjKeys: parentObj ? Object.keys(parentObj) : 'no parent',
-        parentObjEnum: parentObj?.enum,
-        isTranslatable: isTranslatableProperty(key, obj, path, schemaType, rootObj, parentObj)
-      });
-    }
     
     if (isTranslatableProperty(key, obj, path, schemaType, rootObj, parentObj)) {
       entries.push({
@@ -244,4 +228,95 @@ export function downloadJsonFile(data: any, filename: string) {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+// Collect all enum values from the schema for consistency checking
+export function collectEnumValues(obj: any, path: string[] = []): Record<string, string[]> {
+  const enumMap: Record<string, string[]> = {};
+  
+  if (obj === null || obj === undefined) {
+    return enumMap;
+  }
+
+  if (Array.isArray(obj)) {
+    obj.forEach((item, index) => {
+      const newPath = [...path, index.toString()];
+      Object.assign(enumMap, collectEnumValues(item, newPath));
+    });
+  } else if (typeof obj === 'object') {
+    // Check if current object has an enum property
+    if (Array.isArray(obj.enum) && obj.enum.length > 0) {
+      const pathStr = path.join('.');
+      enumMap[pathStr] = obj.enum.filter(val => typeof val === 'string');
+    }
+    
+    Object.keys(obj).forEach(key => {
+      const newPath = [...path, key];
+      Object.assign(enumMap, collectEnumValues(obj[key], newPath));
+    });
+  }
+
+  return enumMap;
+}
+
+// Check for consistency issues in the schema
+export function checkSchemaConsistency(obj: any): ConsistencyIssue[] {
+  const issues: ConsistencyIssue[] = [];
+  const enumMap = collectEnumValues(obj);
+  const allEnumValues = new Set<string>();
+  
+  // Flatten all enum values for quick lookup
+  Object.values(enumMap).forEach(enumArray => {
+    enumArray.forEach(val => allEnumValues.add(val));
+  });
+
+  // Recursively check for example values that match known enums but lack enum definition
+  function checkExamples(currentObj: any, path: string[] = []) {
+    if (currentObj === null || currentObj === undefined) {
+      return;
+    }
+
+    if (Array.isArray(currentObj)) {
+      currentObj.forEach((item, index) => {
+        checkExamples(item, [...path, index.toString()]);
+      });
+    } else if (typeof currentObj === 'object') {
+      Object.keys(currentObj).forEach(key => {
+        const newPath = [...path, key];
+        
+        // Check if this is an example property
+        if ((key === 'example' || key === 'examples') && typeof currentObj[key] === 'string') {
+          const exampleValue = currentObj[key];
+          const parentPath = path.join('.');
+          
+          // Check if example value matches known enum values but parent doesn't have enum
+          if (allEnumValues.has(exampleValue) && !Array.isArray(currentObj.enum)) {
+            // Find which enum(s) contain this value
+            const matchingEnums: string[] = [];
+            Object.entries(enumMap).forEach(([enumPath, enumValues]) => {
+              if (enumValues.includes(exampleValue)) {
+                matchingEnums.push(...enumValues);
+              }
+            });
+            
+            if (matchingEnums.length > 0) {
+              const uniqueEnums = [...new Set(matchingEnums)];
+              issues.push({
+                type: 'missing-enum',
+                path: newPath.join('.'),
+                value: exampleValue,
+                suggestedEnum: uniqueEnums,
+                message: `Example value "${exampleValue}" matches known enum values but parent object lacks enum definition. Consider adding: "enum": [${uniqueEnums.map(v => `"${v}"`).join(', ')}]`
+              });
+            }
+          }
+        }
+        
+        checkExamples(currentObj[key], newPath);
+      });
+    }
+  }
+
+  checkExamples(obj);
+  return issues;
 }

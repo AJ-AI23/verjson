@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Copy, Download, Languages, FileText, CheckCircle, AlertTriangle, XCircle, Search, Upload } from 'lucide-react';
 import { toast } from 'sonner';
-import { extractStringValues, createTranslationIndex, downloadJsonFile, TranslationEntry, detectSchemaType, SchemaType } from '@/lib/translationUtils';
+import { extractStringValues, createTranslationIndex, downloadJsonFile, TranslationEntry, detectSchemaType, SchemaType, checkSchemaConsistency, ConsistencyIssue } from '@/lib/translationUtils';
 import { validateSyntax, ValidationResult } from '@/lib/schemaUtils';
 import { CrowdinExportDialog } from '@/components/CrowdinExportDialog';
 import { CrowdinImportDialog } from '@/components/CrowdinImportDialog';
@@ -45,12 +45,14 @@ export const QADialog: React.FC<QADialogProps> = ({
       const schemaType = detectSchemaType(parsedSchema);
       const entries = extractStringValues(parsedSchema);
       const index = createTranslationIndex(entries);
+      const consistencyIssues = checkSchemaConsistency(parsedSchema);
       
       return {
         entries,
         index,
         totalStrings: entries.length,
-        schemaType
+        schemaType,
+        consistencyIssues
       };
     } catch (error) {
       console.error('Failed to parse schema for translations:', error);
@@ -58,7 +60,8 @@ export const QADialog: React.FC<QADialogProps> = ({
         entries: [],
         index: {},
         totalStrings: 0,
-        schemaType: 'unknown' as SchemaType
+        schemaType: 'unknown' as SchemaType,
+        consistencyIssues: []
       };
     }
   }, [schema]);
@@ -322,6 +325,14 @@ export const QADialog: React.FC<QADialogProps> = ({
                     <TabsTrigger value="grouped" className="flex-shrink-0">Grouped View</TabsTrigger>
                     <TabsTrigger value="flat" className="flex-shrink-0">Flat Index</TabsTrigger>
                     <TabsTrigger value="syntax" className="flex-shrink-0">Syntax</TabsTrigger>
+                    <TabsTrigger value="consistency" className="flex-shrink-0 relative">
+                      Consistency
+                      {translationData.consistencyIssues.length > 0 && (
+                        <Badge className="ml-1 text-xs px-1 py-0 h-4 bg-orange-500">
+                          {translationData.consistencyIssues.length}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
                   </TabsList>
                 </div>
               
@@ -574,6 +585,99 @@ export const QADialog: React.FC<QADialogProps> = ({
                       </div>
                     )}
                   </div>
+                </TabsContent>
+                
+                <TabsContent value="consistency" className="flex-1 min-h-0 mt-4 data-[state=active]:flex data-[state=active]:flex-col">
+                  <ScrollArea className="flex-1 min-h-0 w-full">
+                    <div className="space-y-4">
+                      {translationData.consistencyIssues.length === 0 ? (
+                        <Card>
+                          <CardContent className="pt-4">
+                            <div className="text-center py-8">
+                              <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                              <h3 className="text-lg font-medium text-green-700 mb-2">No Consistency Issues Found</h3>
+                              <p className="text-green-600">All example values are properly consistent with their enum definitions.</p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ) : (
+                        <>
+                          {/* Summary Card */}
+                          <Card>
+                            <CardHeader className="pb-3">
+                              <CardTitle className="text-sm flex items-center gap-2 text-orange-700">
+                                <AlertTriangle className="h-4 w-4" />
+                                Schema Consistency Issues ({translationData.consistencyIssues.length})
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-0">
+                              <p className="text-sm text-muted-foreground mb-3">
+                                The following example values match enum values found elsewhere in your schema, 
+                                but their parent objects are missing enum definitions. Consider adding enum 
+                                constraints for consistency.
+                              </p>
+                            </CardContent>
+                          </Card>
+
+                          {/* Issues List */}
+                          {translationData.consistencyIssues.map((issue, index) => (
+                            <Card key={index}>
+                              <CardHeader className="pb-3">
+                                <CardTitle className="text-sm flex items-center justify-between">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0" />
+                                    <span className="truncate">Missing Enum Definition</span>
+                                  </div>
+                                  <Badge variant="outline" className="shrink-0">
+                                    {issue.type}
+                                  </Badge>
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="pt-0">
+                                <div className="space-y-3">
+                                  <div>
+                                    <div className="text-xs font-medium text-muted-foreground mb-1">
+                                      Path:
+                                    </div>
+                                    <div className="font-mono text-sm bg-muted/30 p-2 rounded break-all">
+                                      {issue.path}
+                                    </div>
+                                  </div>
+                                  
+                                  <div>
+                                    <div className="text-xs font-medium text-muted-foreground mb-1">
+                                      Example Value:
+                                    </div>
+                                    <div className="text-sm bg-orange-50 border border-orange-200 p-2 rounded">
+                                      "{issue.value}"
+                                    </div>
+                                  </div>
+                                  
+                                  <div>
+                                    <div className="text-xs font-medium text-muted-foreground mb-1">
+                                      Suggested Enum:
+                                    </div>
+                                    <div className="text-sm bg-green-50 border border-green-200 p-2 rounded font-mono">
+                                      "enum": [{issue.suggestedEnum.map(val => `"${val}"`).join(', ')}]
+                                    </div>
+                                  </div>
+                                  
+                                  <div>
+                                    <div className="text-xs font-medium text-muted-foreground mb-1">
+                                      Recommendation:
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {issue.message}
+                                    </div>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  </ScrollArea>
                 </TabsContent>
               </Tabs>
             </div>
