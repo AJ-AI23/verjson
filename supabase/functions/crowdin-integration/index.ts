@@ -415,15 +415,26 @@ serve(async (req) => {
       console.log('🔍 Blob type:', fileBlob.type);
       console.log('🔍 FormData created with filename:', filename);
       console.log('🔍 Encoded content length:', encodedContent.length);
+      console.log('🔍 FormData entries:');
+      for (const [key, value] of formData.entries()) {
+        console.log(`  ${key}:`, typeof value, value instanceof Blob ? `Blob(${value.size} bytes)` : value);
+      }
 
       const storageResponse = await fetch(`${CROWDIN_API_BASE}/storages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiToken}`,
-          // Don't set Content-Type - let fetch handle it for FormData
+          // Let fetch auto-set Content-Type for FormData with boundary
         },
         body: formData,
       });
+
+      console.log('🔍 Request headers sent:', {
+        'Authorization': 'Bearer [hidden]',
+        'Content-Type': 'auto-generated for FormData'
+      });
+      console.log('🔍 Storage response status:', storageResponse.status);
+      console.log('🔍 Storage response headers:', Object.fromEntries(storageResponse.headers.entries()));
 
       if (!storageResponse.ok) {
         console.error('Crowdin storage creation failed:', storageResponse.status, await storageResponse.text());
