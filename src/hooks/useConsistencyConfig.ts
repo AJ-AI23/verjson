@@ -43,25 +43,43 @@ export function useConsistencyConfig() {
   const [config, setConfig] = useState<ConsistencyConfig>(DEFAULT_CONFIG);
 
   useEffect(() => {
+    console.log('=== Loading consistency config from localStorage ===');
     const savedConfig = localStorage.getItem(STORAGE_KEY);
+    console.log('Raw saved config:', savedConfig);
+    
     if (savedConfig) {
       try {
         const parsed = JSON.parse(savedConfig);
-        setConfig({ ...DEFAULT_CONFIG, ...parsed });
+        console.log('Parsed saved config:', parsed);
+        const mergedConfig = { ...DEFAULT_CONFIG, ...parsed };
+        console.log('Final merged config:', mergedConfig);
+        setConfig(mergedConfig);
       } catch (error) {
         console.error('Failed to parse consistency config:', error);
+        console.log('Using default config due to parse error');
+        setConfig(DEFAULT_CONFIG);
       }
+    } else {
+      console.log('No saved config found, using default');
+      setConfig(DEFAULT_CONFIG);
     }
   }, []);
 
   const updateConfig = (newConfig: ConsistencyConfig) => {
+    console.log('=== Updating consistency config ===');
+    console.log('New config being saved:', newConfig);
+    
     setConfig(newConfig);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
+    const configToSave = JSON.stringify(newConfig);
+    localStorage.setItem(STORAGE_KEY, configToSave);
+    console.log('Saved to localStorage:', configToSave);
     
     // Dispatch a custom event to notify other components of config change
     window.dispatchEvent(new CustomEvent('consistencyConfigUpdated', { 
       detail: newConfig 
     }));
+    
+    console.log('Config update complete');
   };
 
   const applyPreset = (preset: ConsistencyPreset) => {

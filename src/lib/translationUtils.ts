@@ -275,7 +275,13 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
   console.log('=== checkSchemaConsistency CALLED ===');
   console.log('Config received:', JSON.stringify(config, null, 2));
   
+  // Always start with a fresh issues array to avoid stale data
   const issues: ConsistencyIssue[] = [];
+  
+  if (!obj || typeof obj !== 'object') {
+    console.log('Invalid schema object, returning empty issues');
+    return issues;
+  }
   const enumMap = collectEnumValues(obj);
   const allEnumValues = new Set<string>();
   
