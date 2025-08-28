@@ -96,16 +96,20 @@ function isTranslatableProperty(
   }
 
   // Special handling for example properties that correspond to enum schema properties
-  if (rootObj && path.includes('example')) {
+  if (rootObj && (path.includes('example') || path.includes('examples'))) {
+    // Check for both 'example' and 'examples'
     const exampleIndex = path.indexOf('example');
-    if (exampleIndex > 0) {
-      // Construct path to the corresponding schema property (everything before 'example')
-      const schemaPath = path.slice(0, exampleIndex);
+    const examplesIndex = path.indexOf('examples');
+    const targetIndex = exampleIndex !== -1 ? exampleIndex : examplesIndex;
+    
+    if (targetIndex > 0) {
+      // Construct path to the corresponding schema property (everything before 'example'/'examples')
+      const schemaPath = path.slice(0, targetIndex);
       
       // Navigate to the schema property in the root object
       let schemaProperty = rootObj;
       for (const pathSegment of schemaPath) {
-        if (schemaProperty && typeof schemaProperty === 'object') {
+        if (schemaProperty && typeof schemaProperty === 'object' && pathSegment in schemaProperty) {
           schemaProperty = schemaProperty[pathSegment];
         } else {
           schemaProperty = null;
@@ -114,7 +118,7 @@ function isTranslatableProperty(
       }
       
       // Check if this schema property has an enum array
-      if (schemaProperty && typeof schemaProperty === 'object' && Array.isArray(schemaProperty.enum)) {
+      if (schemaProperty && typeof schemaProperty === 'object' && Array.isArray(schemaProperty.enum) && schemaProperty.enum.length > 0) {
         return false;
       }
     }
