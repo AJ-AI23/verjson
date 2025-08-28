@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Save, MessageCircle, FileText, Calendar, Clock, Copy, X, Share } from 'lucide-react';
+import { Save, MessageCircle, FileText, Calendar, Clock, Copy, X, Share, Download } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -14,6 +14,7 @@ import { NotationsPanel } from '@/components/notations/NotationsPanel';
 import { RedoclyDialog } from '@/components/RedoclyDialog';
 import { DebugToggle } from '@/components/DebugToggle';
 import { QADialog } from '@/components/QADialog';
+import { CrowdinImportDialog } from '@/components/CrowdinImportDialog';
 import { SchemaType } from '@/lib/schemaUtils';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 import { useNotationsManager } from '@/hooks/useNotationsManager';
@@ -53,6 +54,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const { debugToast } = useDebug();
   const { updateMaxDepth } = useEditorSettings();
   const [isNotationsPanelOpen, setIsNotationsPanelOpen] = useState(false);
+  const [showCrowdinImportDialog, setShowCrowdinImportDialog] = useState(false);
   const { groupedNotations, activeNotationCount } = useNotationsManager(schema);
   
   const handleAddNotation = (nodeId: string, user: string, message: string) => {
@@ -84,6 +86,16 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       toast.error('Failed to copy public URL');
     }
   };
+
+  const handleImportConfirm = (importedSchema: any, comparison: any, sourceDocumentName: string) => {
+    // Convert imported schema to string and set it
+    const schemaString = JSON.stringify(importedSchema, null, 2);
+    setSchema(schemaString);
+    setSavedSchema(schemaString);
+    toast.success(`Successfully imported from ${sourceDocumentName}`);
+  };
+
+  const canImportFromCrowdin = selectedDocument?.crowdin_file_id;
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -218,7 +230,22 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                   schema={schema}
                   documentName={selectedDocument?.name}
                   disabled={!selectedDocument}
+                  selectedDocument={selectedDocument}
                 />
+
+                {/* Crowdin Import Button - Show only if document has Crowdin file ID */}
+                {canImportFromCrowdin && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-2 h-8"
+                    onClick={() => setShowCrowdinImportDialog(true)}
+                    disabled={!selectedDocument}
+                  >
+                    <Download className="h-4 w-4" />
+                    <span>Import from Crowdin</span>
+                  </Button>
+                )}
 
                 {/* Redocly Documentation Button - Only show for OpenAPI specs */}
                 {schemaType === 'openapi' && (
@@ -275,6 +302,16 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           onAddNotation={handleAddNotation}
           onReplyToNotation={handleReplyToNotation}
         />
+
+        {/* Crowdin Import Dialog */}
+        {selectedDocument && canImportFromCrowdin && (
+          <CrowdinImportDialog
+            open={showCrowdinImportDialog}
+            onOpenChange={setShowCrowdinImportDialog}
+            document={selectedDocument}
+            onImportConfirm={handleImportConfirm}
+          />
+        )}
       </div>
     </TooltipProvider>
   );

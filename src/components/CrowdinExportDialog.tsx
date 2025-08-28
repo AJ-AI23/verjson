@@ -38,6 +38,7 @@ interface CrowdinExportDialogProps {
   translationData: Record<string, string>;
   documentName: string;
   workspaceId: string;
+  documentId?: string;
 }
 
 export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
@@ -46,6 +47,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
   translationData,
   documentName,
   workspaceId,
+  documentId,
 }) => {
   const [apiToken, setApiToken] = useState('');
   const [showTokenInput, setShowTokenInput] = useState(false);
@@ -325,6 +327,30 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       if (error || data.error) {
         setError(data?.error || 'Failed to export to Crowdin');
         return;
+      }
+
+      // Store Crowdin file information in the document record
+      if (documentId && data.fileId) {
+        try {
+          const { error: updateError } = await supabase
+            .from('documents')
+            .update({
+              crowdin_file_id: data.fileId,
+              crowdin_project_id: selectedProjectId,
+              crowdin_filename: filename.trim()
+            })
+            .eq('id', documentId);
+
+          if (updateError) {
+            console.error('Failed to update document with Crowdin info:', updateError);
+            // Don't fail the entire export, just log the error
+          } else {
+            console.log('✅ Updated document with Crowdin file info');
+          }
+        } catch (err) {
+          console.error('Error updating document:', err);
+          // Don't fail the entire export, just log the error
+        }
       }
 
       setExportSuccess(true);

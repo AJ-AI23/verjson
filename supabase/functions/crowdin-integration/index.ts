@@ -478,6 +478,83 @@ serve(async (req) => {
       });
     }
 
+    // Import file from Crowdin
+    if (action === 'import') {
+      console.log('🔍 Import action started');
+      
+      const { fileId, documentId } = payload;
+      
+      if (!fileId) {
+        return new Response(JSON.stringify({ error: 'File ID is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (!documentId) {
+        return new Response(JSON.stringify({ error: 'Document ID is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      try {
+        // Download file content from Crowdin storage
+        console.log('🔍 Downloading file from Crowdin storage:', fileId);
+        
+        const downloadResponse = await fetch(`${CROWDIN_API_BASE}/storages/${fileId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${apiToken}`,
+          }
+        });
+
+        if (!downloadResponse.ok) {
+          console.error('❌ Failed to download from Crowdin storage:', downloadResponse.status, downloadResponse.statusText);
+          const errorText = await downloadResponse.text();
+          console.error('❌ Crowdin error response:', errorText);
+          return new Response(JSON.stringify({ 
+            error: `Failed to download file from Crowdin: ${downloadResponse.statusText}` 
+          }), {
+            status: downloadResponse.status,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        const fileContent = await downloadResponse.text();
+        console.log('✅ Downloaded file content from Crowdin, length:', fileContent.length);
+
+        try {
+          const parsedContent = JSON.parse(fileContent);
+          console.log('✅ Successfully parsed downloaded content');
+          
+          return new Response(JSON.stringify({
+            success: true,
+            content: parsedContent,
+            message: 'File imported successfully from Crowdin'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        } catch (parseError) {
+          console.error('❌ Failed to parse downloaded content as JSON:', parseError);
+          return new Response(JSON.stringify({ 
+            error: 'Downloaded file is not valid JSON' 
+          }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error importing from Crowdin:', error);
+        return new Response(JSON.stringify({ 
+          error: `Import failed: ${error.message}` 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     if (action === 'listBranches') {
       const { projectId } = payload;
 

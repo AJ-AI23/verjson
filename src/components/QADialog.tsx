@@ -18,12 +18,14 @@ interface QADialogProps {
   schema: string;
   documentName?: string;
   disabled?: boolean;
+  selectedDocument?: any;
 }
 
 export const QADialog: React.FC<QADialogProps> = ({ 
   schema, 
   documentName = 'schema',
-  disabled = false 
+  disabled = false,
+  selectedDocument
 }) => {
   const [open, setOpen] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
@@ -280,17 +282,17 @@ export const QADialog: React.FC<QADialogProps> = ({
                      <span className="hidden sm:inline">Download Index</span>
                      <span className="sm:hidden">Download</span>
                    </Button>
-                   <Button 
-                     size="sm" 
-                     variant="outline" 
-                     onClick={() => setCrowdinDialogOpen(true)}
-                     className="gap-2"
-                     disabled={!selectedWorkspace}
-                   >
-                     <Upload className="h-4 w-4" />
-                     <span className="hidden sm:inline">Crowdin Export</span>
-                     <span className="sm:hidden">Export</span>
-                   </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => setCrowdinDialogOpen(true)}
+                      className="gap-2"
+                      disabled={!selectedWorkspace}
+                    >
+                      <Upload className="h-4 w-4" />
+                      <span className="hidden sm:inline">Crowdin Export</span>
+                      <span className="sm:hidden">Export</span>
+                    </Button>
                  </div>
               </CardContent>
             </Card>
@@ -563,15 +565,18 @@ export const QADialog: React.FC<QADialogProps> = ({
        </DialogContent>
        
        {/* Crowdin Export Dialog */}
-       {selectedWorkspace && (
-         <CrowdinExportDialog
-           open={crowdinDialogOpen}
-           onOpenChange={setCrowdinDialogOpen}
-           translationData={translationData.index}
-           documentName={documentName}
-           workspaceId={selectedWorkspace.id}
-         />
-       )}
+        {selectedWorkspace && selectedDocument && (
+          <>
+            <CrowdinExportDialog
+              open={crowdinDialogOpen}
+              onOpenChange={setCrowdinDialogOpen}
+              translationData={translationData.index}
+              documentName={documentName}
+              workspaceId={selectedWorkspace.id}
+              documentId={selectedDocument.id}
+            />
+          </>
+        )}
      </Dialog>
    );
  };

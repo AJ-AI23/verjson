@@ -145,6 +145,9 @@ export type Database = {
         Row: {
           content: Json
           created_at: string
+          crowdin_file_id: string | null
+          crowdin_filename: string | null
+          crowdin_project_id: string | null
           file_type: string
           id: string
           name: string
@@ -157,6 +160,9 @@ export type Database = {
         Insert: {
           content?: Json
           created_at?: string
+          crowdin_file_id?: string | null
+          crowdin_filename?: string | null
+          crowdin_project_id?: string | null
           file_type?: string
           id?: string
           name: string
@@ -169,6 +175,9 @@ export type Database = {
         Update: {
           content?: Json
           created_at?: string
+          crowdin_file_id?: string | null
+          crowdin_filename?: string | null
+          crowdin_project_id?: string | null
           file_type?: string
           id?: string
           name?: string
