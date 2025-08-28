@@ -113,21 +113,17 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       setIsLoadingProjects(true);
       setError('');
 
-      console.log('Calling crowdin-integration with:', { 
+      const requestPayload = { 
         action: 'saveToken',
-        apiToken: !!apiToken.trim(),
+        apiToken: apiToken.trim(),
         workspaceId 
-      });
+      };
+
+      console.log('Calling crowdin-integration with:', requestPayload);
+      console.log('Request payload JSON:', JSON.stringify(requestPayload));
 
       const { data, error } = await supabase.functions.invoke('crowdin-integration', {
-        body: { 
-          action: 'saveToken',
-          apiToken: apiToken.trim(),
-          workspaceId 
-        },
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        body: requestPayload,
       });
 
       console.log('Edge function response:', { data, error });

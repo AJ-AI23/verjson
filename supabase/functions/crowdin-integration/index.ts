@@ -61,18 +61,42 @@ serve(async (req) => {
     const url = new URL(req.url);
     let requestBody: any = null;
 
-    // Parse request body for all actions
-    try {
-      requestBody = await req.json();
-      console.log('Request body received:', { 
-        action: requestBody.action, 
-        hasWorkspaceId: !!requestBody.workspaceId,
-        hasApiToken: !!requestBody.apiToken 
-      });
-    } catch (error) {
-      console.error('Failed to parse request body:', error);
-      return new Response(JSON.stringify({ error: 'Invalid request body' }), {
-        status: 400,
+    // Parse request body for POST requests only
+    if (req.method === 'POST') {
+      try {
+        const bodyText = await req.text();
+        console.log('Raw request body:', bodyText);
+        
+        if (bodyText.trim() === '') {
+          console.error('Empty request body received');
+          return new Response(JSON.stringify({ error: 'Request body is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+        requestBody = JSON.parse(bodyText);
+        console.log('Parsed request body:', { 
+          action: requestBody.action, 
+          hasWorkspaceId: !!requestBody.workspaceId,
+          hasApiToken: !!requestBody.apiToken,
+          bodyKeys: Object.keys(requestBody || {})
+        });
+      } catch (error) {
+        console.error('Failed to parse request body:', error);
+        console.error('Request body was:', await req.text().catch(() => 'Could not read body'));
+        return new Response(JSON.stringify({ 
+          error: 'Invalid JSON in request body',
+          details: error.message 
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    } else {
+      console.log('Non-POST request, skipping body parsing');
+      return new Response(JSON.stringify({ error: 'Only POST requests are supported' }), {
+        status: 405,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
