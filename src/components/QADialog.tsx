@@ -46,6 +46,7 @@ export const QADialog: React.FC<QADialogProps> = ({
   const { toast: showToast } = useToast();
 
   const translationData = useMemo(() => {
+    console.log('QADialog - Recalculating translation data with config:', consistencyConfig);
     try {
       const parsedSchema = JSON.parse(schema);
       const schemaType = detectSchemaType(parsedSchema);

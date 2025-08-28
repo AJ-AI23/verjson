@@ -272,6 +272,7 @@ export function collectEnumValues(obj: any, path: string[] = []): Record<string,
 
 // Check for consistency issues in the schema with configurable rules
 export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue[] {
+  console.log('checkSchemaConsistency called with config:', config);
   const issues: ConsistencyIssue[] = [];
   const enumMap = collectEnumValues(obj);
   const allEnumValues = new Set<string>();
