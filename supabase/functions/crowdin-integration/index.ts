@@ -381,14 +381,27 @@ serve(async (req) => {
 
       // Step 1: Create storage
       const jsonContent = JSON.stringify(translationData, null, 2);
+      console.log('📄 JSON content being uploaded:', jsonContent.substring(0, 200) + '...');
+      console.log('📏 Content length:', jsonContent.length);
+      
+      if (!jsonContent || jsonContent.length === 0) {
+        return new Response(JSON.stringify({ error: 'Translation data is empty' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       const blob = new Blob([jsonContent], { type: 'application/json' });
       const formData = new FormData();
       formData.append('file', blob, filename);
+
+      console.log('🔍 Uploading to Crowdin with filename:', filename);
 
       const storageResponse = await fetch(`${CROWDIN_API_BASE}/storages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiToken}`,
+          'Crowdin-API-FileName': filename,
         },
         body: formData,
       });
@@ -424,7 +437,6 @@ serve(async (req) => {
         headers: {
           'Authorization': `Bearer ${apiToken}`,
           'Content-Type': 'application/json',
-          'Crowdin-API-FileName': filename,
         },
         body: JSON.stringify(fileRequestBody),
       });
