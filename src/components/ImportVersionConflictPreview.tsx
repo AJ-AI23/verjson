@@ -194,45 +194,49 @@ export const ImportVersionConflictPreview: React.FC<ImportVersionConflictPreview
         </TabsContent>
 
         <TabsContent value="conflicts" className="space-y-3">
-          {comparison.mergeConflicts.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-500" />
-              <p>No conflicts detected. Import can proceed safely.</p>
-            </div>
-          ) : (
-            comparison.mergeConflicts.map((conflict, index) => (
-              <Card key={index}>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    {getSeverityIcon(conflict.severity)}
-                    <code className="font-mono text-xs bg-muted px-1 rounded">
-                      {conflict.path}
-                    </code>
-                    <Badge variant={getSeverityColor(conflict.severity)} className="ml-auto">
-                      {conflict.severity}
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <p className="text-sm text-muted-foreground mb-3">{conflict.description}</p>
-                  <div className="grid grid-cols-2 gap-4 text-xs">
-                    <div>
-                      <div className="font-medium mb-1">Current Value:</div>
-                      <pre className="bg-muted p-2 rounded overflow-auto max-h-20">
-                        {formatJsonValue(conflict.currentValue)}
-                      </pre>
-                    </div>
-                    <div>
-                      <div className="font-medium mb-1">Import Value:</div>
-                      <pre className="bg-muted p-2 rounded overflow-auto max-h-20">
-                        {formatJsonValue(conflict.importValue)}
-                      </pre>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
+          <div className="max-h-96 overflow-auto">
+            {comparison.mergeConflicts.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-500" />
+                <p>No conflicts detected. Import can proceed safely.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {comparison.mergeConflicts.map((conflict, index) => (
+                  <Card key={index}>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        {getSeverityIcon(conflict.severity)}
+                        <code className="font-mono text-xs bg-muted px-1 rounded">
+                          {conflict.path}
+                        </code>
+                        <Badge variant={getSeverityColor(conflict.severity)} className="ml-auto">
+                          {conflict.severity}
+                        </Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <p className="text-sm text-muted-foreground mb-3">{conflict.description}</p>
+                      <div className="grid grid-cols-2 gap-4 text-xs">
+                        <div>
+                          <div className="font-medium mb-1">Current Value:</div>
+                          <pre className="bg-muted p-2 rounded overflow-auto max-h-20">
+                            {formatJsonValue(conflict.currentValue)}
+                          </pre>
+                        </div>
+                        <div>
+                          <div className="font-medium mb-1">Import Value:</div>
+                          <pre className="bg-muted p-2 rounded overflow-auto max-h-20">
+                            {formatJsonValue(conflict.importValue)}
+                          </pre>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="changes" className="space-y-2">

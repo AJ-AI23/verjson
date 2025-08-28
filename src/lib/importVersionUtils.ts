@@ -88,6 +88,36 @@ export function compareDocumentVersionsPartial(
 }
 
 /**
+ * Convert path-based properties (like "/root.title") to nested JSON structure
+ */
+function pathsToNestedObject(pathData: any): any {
+  const result: any = {};
+  
+  for (const [key, value] of Object.entries(pathData)) {
+    // Handle both "/path" and "path" formats
+    const cleanPath = key.startsWith('/') ? key.slice(1) : key;
+    const pathParts = cleanPath.split('.');
+    
+    let current = result;
+    
+    // Navigate/create the nested structure
+    for (let i = 0; i < pathParts.length - 1; i++) {
+      const part = pathParts[i];
+      if (!current[part] || typeof current[part] !== 'object') {
+        current[part] = {};
+      }
+      current = current[part];
+    }
+    
+    // Set the final value
+    const lastPart = pathParts[pathParts.length - 1];
+    current[lastPart] = value;
+  }
+  
+  return result;
+}
+
+/**
  * Create a merged schema that preserves existing structure and updates only imported properties
  */
 function createPartialMerge(currentSchema: any, importSchema: any): any {
@@ -99,10 +129,21 @@ function createPartialMerge(currentSchema: any, importSchema: any): any {
     return currentSchema;
   }
   
+  // Check if import schema looks like path-based data (Crowdin format)
+  const importKeys = Object.keys(importSchema);
+  const hasPathLikeKeys = importKeys.some(key => key.includes('/') || key.includes('.'));
+  
+  let processedImportSchema = importSchema;
+  if (hasPathLikeKeys) {
+    console.log('🔍 Detected path-based properties, converting to nested structure');
+    processedImportSchema = pathsToNestedObject(importSchema);
+    console.log('✅ Converted to nested:', processedImportSchema);
+  }
+  
   const merged = { ...currentSchema };
   
   // Recursively merge imported properties
-  for (const [key, value] of Object.entries(importSchema)) {
+  for (const [key, value] of Object.entries(processedImportSchema)) {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       // If both are objects, recursively merge
       if (merged[key] && typeof merged[key] === 'object' && !Array.isArray(merged[key])) {
