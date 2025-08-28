@@ -642,7 +642,12 @@ export const QADialog: React.FC<QADialogProps> = ({
                                   <div className="flex items-center gap-2 min-w-0">
                                     <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0" />
                                     <span className="truncate">
-                                      {issue.type === 'missing-enum' ? 'Missing Enum Definition' : 'Parameter Naming Issue'}
+                                      {issue.type === 'missing-enum' ? 'Missing Enum Definition' : 
+                                       issue.type === 'parameter-naming' ? 
+                                         `${issue.parameterType === 'path' ? 'Path' : 'Query'} Parameter Naming Issue` :
+                                       issue.type === 'semantic-rule' ? 
+                                         `${issue.rule || 'Semantic Rule Violation'}` :
+                                       'Consistency Issue'}
                                     </span>
                                   </div>
                                   <Badge variant="outline" className="shrink-0">
@@ -684,7 +689,7 @@ export const QADialog: React.FC<QADialogProps> = ({
                                   {issue.type === 'parameter-naming' && issue.suggestedName && (
                                     <div>
                                       <div className="text-xs font-medium text-muted-foreground mb-1">
-                                        Suggested Name (kebab-case):
+                                        Suggested Name ({issue.convention || 'configured convention'}):
                                       </div>
                                       <div className="text-sm bg-green-50 border border-green-200 p-2 rounded font-mono">
                                         "{issue.suggestedName}"

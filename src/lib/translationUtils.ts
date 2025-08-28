@@ -14,6 +14,8 @@ export interface ConsistencyIssue {
   suggestion?: string;
   severity?: 'error' | 'warning' | 'info';
   rule?: string;
+  parameterType?: string;
+  convention?: string;
 }
 
 // Schema type detection
@@ -348,7 +350,15 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
       // Check if this is a parameter object with a name property
       if (path.includes('parameters') && currentObj.name && typeof currentObj.name === 'string') {
         const paramName = currentObj.name;
-        const paramConfig = config?.parameterNaming;
+        const paramType = currentObj.in || 'query'; // 'query', 'path', 'header', 'cookie'
+        
+        // Use different config based on parameter type
+        let paramConfig;
+        if (paramType === 'path') {
+          paramConfig = config?.endpointNaming; // Path parameters follow endpoint naming
+        } else {
+          paramConfig = config?.parameterNaming; // Query, header, cookie parameters
+        }
         
         // Only check if we have a configuration defined
         if (paramConfig) {
@@ -360,7 +370,11 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
               path: [...path, 'name'].join('.'),
               value: paramName,
               suggestedName: validation.suggestion,
-              message: `Parameter name "${paramName}" should follow ${paramConfig.caseType} convention${validation.suggestion ? `. Suggested: "${validation.suggestion}"` : ''}`
+              parameterType: paramType,
+              convention: paramConfig.caseType,
+              message: `${paramType === 'path' ? 'Path' : 'Query'} parameter name "${paramName}" should follow ${paramConfig.caseType} convention${validation.suggestion ? `. Suggested: "${validation.suggestion}"` : ''}`,
+              severity: 'warning',
+              rule: `${paramType === 'path' ? 'Path' : 'Query'} Parameter Naming Convention`
             });
           }
         }
