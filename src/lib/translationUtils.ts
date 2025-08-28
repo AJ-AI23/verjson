@@ -90,41 +90,17 @@ function isTranslatableProperty(
     return false;
   }
 
-  // Combined enum exclusion logic - handles both direct enum arrays and example properties with enums
-  if (path.some(pathSegment => pathSegment === 'enum')) {
-    // Direct exclusion for values inside enum arrays
-    return false;
-  }
-
-  // Special handling for example/examples properties - check if their parent schema has enum
-  if (rootObj && (key === 'example' || key === 'examples' || path.includes('example') || path.includes('examples'))) {
-    // Method 1: Check immediate parent object for enum (for direct example properties)
-    if (parentObj && typeof parentObj === 'object' && Array.isArray(parentObj.enum)) {
+  // Special handling for example/examples properties - exclude if parent has enum array
+  if ((key === 'example' || key === 'examples') && parentObj && typeof parentObj === 'object') {
+    // Check if the parent object has an enum property with an array
+    if (Array.isArray(parentObj.enum) && parentObj.enum.length > 0) {
       return false;
     }
+  }
 
-    // Method 2: Navigate to schema property for nested examples
-    const exampleIndex = Math.max(path.indexOf('example'), path.indexOf('examples'));
-    if (exampleIndex > 0) {
-      // Get path to the schema property (everything before 'example'/'examples')
-      const schemaPath = path.slice(0, exampleIndex);
-      
-      // Navigate to the schema property
-      let schemaProperty = rootObj;
-      for (const pathSegment of schemaPath) {
-        if (schemaProperty && typeof schemaProperty === 'object' && pathSegment in schemaProperty) {
-          schemaProperty = schemaProperty[pathSegment];
-        } else {
-          schemaProperty = null;
-          break;
-        }
-      }
-      
-      // If we found the schema property and it has an enum, exclude this example
-      if (schemaProperty && typeof schemaProperty === 'object' && Array.isArray(schemaProperty.enum)) {
-        return false;
-      }
-    }
+  // Special handling for enum values - these are usually not translatable
+  if (path.some(pathSegment => pathSegment === 'enum')) {
+    return false;
   }
 
   // Special handling for 'type' values - these have predefined values
