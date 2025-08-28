@@ -110,6 +110,9 @@ serve(async (req) => {
     });
   }
 
+  // Clone the request to avoid consuming the body stream
+  const clonedReq = req.clone();
+
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -137,72 +140,27 @@ serve(async (req) => {
 
     console.log('✅ User authenticated:', user.id);
 
-    // Parse request body - try direct JSON parsing first (more reliable with Supabase functions)
+    // Parse request body using the cloned request
     let requestBody: any = null;
     
     try {
-      console.log('🔄 Attempting direct JSON parsing...');
-      requestBody = await req.json();
-      console.log('✅ Successfully parsed JSON directly:', {
+      console.log('🔄 Attempting to parse request body...');
+      requestBody = await clonedReq.json();
+      console.log('✅ Successfully parsed request body:', {
         action: requestBody?.action,
         hasWorkspaceId: !!requestBody?.workspaceId,
         hasApiToken: !!requestBody?.apiToken,
         bodyKeys: Object.keys(requestBody || {})
       });
-    } catch (directJsonError) {
-      console.log('⚠️ Direct JSON parse failed, trying text method:', directJsonError.message);
-      
-      try {
-        // Fallback to text parsing
-        const bodyText = await req.text();
-        console.log('📥 Request body length:', bodyText.length);
-        console.log('📥 Request body content:', bodyText.substring(0, 500));
-        
-        if (!bodyText || bodyText.trim() === '') {
-          console.error('❌ Empty request body received via both methods');
-          return new Response(JSON.stringify({ 
-            error: 'Request body is required',
-            received: 'empty body',
-            directJsonError: directJsonError.message
-          }), {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-        
-        try {
-          requestBody = JSON.parse(bodyText);
-          console.log('✅ Successfully parsed JSON from text:', {
-            action: requestBody?.action,
-            hasWorkspaceId: !!requestBody?.workspaceId,
-            hasApiToken: !!requestBody?.apiToken,
-            bodyKeys: Object.keys(requestBody || {})
-          });
-        } catch (parseError) {
-          console.error('❌ JSON parse failed on text content:', parseError.message);
-          console.error('❌ Body that failed to parse:', bodyText.substring(0, 200));
-          return new Response(JSON.stringify({ 
-            error: 'Invalid JSON in request body',
-            parseError: parseError.message,
-            directJsonError: directJsonError.message,
-            receivedBody: bodyText.substring(0, 200)
-          }), {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-        
-      } catch (textReadError) {
-        console.error('❌ Failed to read request body as text:', textReadError.message);
-        return new Response(JSON.stringify({ 
-          error: 'Failed to read request body',
-          directJsonError: directJsonError.message,
-          textReadError: textReadError.message 
-        }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
+    } catch (parseError) {
+      console.error('❌ Failed to parse request body:', parseError.message);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid JSON in request body',
+        parseError: parseError.message
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const action = requestBody?.action;
