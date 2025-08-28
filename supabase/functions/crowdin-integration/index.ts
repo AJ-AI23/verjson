@@ -370,7 +370,7 @@ serve(async (req) => {
     }
 
     if (action === 'export') {
-      const { projectId, filename, translationData } = payload;
+      const { projectId, filename, translationData, branchId, folderId } = payload;
 
       if (!projectId || !filename || !translationData) {
         return new Response(JSON.stringify({ error: 'Missing required fields' }), {
@@ -404,23 +404,37 @@ serve(async (req) => {
       const storageData = await storageResponse.json();
       const storageId = storageData.data.id;
 
-      // Step 2: Add file to project
+      // Step 2: Add file to project with optional branch and folder
+      const fileRequestBody: any = {
+        storageId: storageId,
+        name: filename,
+        type: 'json',
+      };
+
+      // Add branch and folder if specified
+      if (branchId) {
+        fileRequestBody.branchId = parseInt(branchId);
+      }
+      if (folderId) {
+        fileRequestBody.directoryId = parseInt(folderId);
+      }
+
       const fileResponse = await fetch(`${CROWDIN_API_BASE}/projects/${projectId}/files`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          storageId: storageId,
-          name: filename,
-          type: 'json',
-        }),
+        body: JSON.stringify(fileRequestBody),
       });
 
       if (!fileResponse.ok) {
-        console.error('Crowdin file creation failed:', fileResponse.status, await fileResponse.text());
-        return new Response(JSON.stringify({ error: 'Failed to add file to Crowdin project' }), {
+        const errorText = await fileResponse.text();
+        console.error('Crowdin file creation failed:', fileResponse.status, errorText);
+        return new Response(JSON.stringify({ 
+          error: 'Failed to add file to Crowdin project',
+          details: errorText 
+        }), {
           status: fileResponse.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
