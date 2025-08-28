@@ -46,13 +46,19 @@ export const QADialog: React.FC<QADialogProps> = ({
   const { toast: showToast } = useToast();
 
   const translationData = useMemo(() => {
-    console.log('QADialog - Recalculating translation data with config:', consistencyConfig);
+    console.log('=== QADialog - Recalculating translation data ===');
+    console.log('Schema length:', schema.length);
+    console.log('Config:', consistencyConfig);
+    
     try {
       const parsedSchema = JSON.parse(schema);
       const schemaType = detectSchemaType(parsedSchema);
       const entries = extractStringValues(parsedSchema);
       const index = createTranslationIndex(entries);
+      
+      console.log('About to call checkSchemaConsistency...');
       const consistencyIssues = checkSchemaConsistency(parsedSchema, consistencyConfig);
+      console.log('checkSchemaConsistency returned:', consistencyIssues.length, 'issues');
       
       return {
         entries,
