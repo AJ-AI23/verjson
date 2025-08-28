@@ -96,6 +96,14 @@ function isTranslatableProperty(
   }
 
   // Special handling for example properties that correspond to enum schema properties
+  if (rootObj && (key === 'example' || key === 'examples')) {
+    // Check if the parent object (which should be the schema property) has an enum
+    if (parentObj && typeof parentObj === 'object' && Array.isArray(parentObj.enum)) {
+      return false;
+    }
+  }
+
+  // Alternative check using path navigation for nested examples
   if (rootObj && (path.includes('example') || path.includes('examples'))) {
     // Check for both 'example' and 'examples'
     const exampleIndex = path.indexOf('example');
@@ -108,18 +116,29 @@ function isTranslatableProperty(
       
       // Navigate to the schema property in the root object
       let schemaProperty = rootObj;
+      let navigationSuccess = true;
+      
       for (const pathSegment of schemaPath) {
         if (schemaProperty && typeof schemaProperty === 'object' && pathSegment in schemaProperty) {
           schemaProperty = schemaProperty[pathSegment];
         } else {
-          schemaProperty = null;
+          navigationSuccess = false;
           break;
         }
       }
       
       // Check if this schema property has an enum array
-      if (schemaProperty && typeof schemaProperty === 'object' && Array.isArray(schemaProperty.enum) && schemaProperty.enum.length > 0) {
-        return false;
+      if (navigationSuccess && schemaProperty && typeof schemaProperty === 'object') {
+        // Check for enum property directly on this schema object
+        if (Array.isArray(schemaProperty.enum)) {
+          return false;
+        }
+        
+        // Also check if it's a reference that has enum elsewhere
+        // This handles cases where the enum might be in a referenced schema
+        if (schemaProperty.type && schemaProperty.enum !== undefined) {
+          return false;
+        }
       }
     }
   }
@@ -180,7 +199,7 @@ function isTranslatableProperty(
   return true;
 }
 
-export function extractStringValues(obj: any, prefix = 'root', path: string[] = [], schemaType?: SchemaType, rootObj?: any): TranslationEntry[] {
+export function extractStringValues(obj: any, prefix = 'root', path: string[] = [], schemaType?: SchemaType, rootObj?: any, parentObj?: any): TranslationEntry[] {
   const entries: TranslationEntry[] = [];
   
   // Detect schema type on first call and set rootObj
@@ -196,7 +215,7 @@ export function extractStringValues(obj: any, prefix = 'root', path: string[] = 
   if (typeof obj === 'string') {
     // Only add if it's a translatable property
     const key = path.length > 0 ? path[path.length - 1] : 'root';
-    if (isTranslatableProperty(key, obj, path, schemaType, rootObj)) {
+    if (isTranslatableProperty(key, obj, path, schemaType, rootObj, parentObj)) {
       entries.push({
         key: prefix,
         value: obj,
@@ -207,13 +226,13 @@ export function extractStringValues(obj: any, prefix = 'root', path: string[] = 
     obj.forEach((item, index) => {
       const newPrefix = `${prefix}.${index}`;
       const newPath = [...path, index.toString()];
-      entries.push(...extractStringValues(item, newPrefix, newPath, schemaType, rootObj));
+      entries.push(...extractStringValues(item, newPrefix, newPath, schemaType, rootObj, obj));
     });
   } else if (typeof obj === 'object') {
     Object.keys(obj).forEach(key => {
       const newPrefix = `${prefix}.${key}`;
       const newPath = [...path, key];
-      entries.push(...extractStringValues(obj[key], newPrefix, newPath, schemaType, rootObj));
+      entries.push(...extractStringValues(obj[key], newPrefix, newPath, schemaType, rootObj, obj));
     });
   }
 
