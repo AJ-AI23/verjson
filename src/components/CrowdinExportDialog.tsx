@@ -167,12 +167,19 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       setIsLoadingProjects(true);
       setError('');
 
+      console.log('🔍 Loading projects for workspace:', workspaceId);
+      
+      const requestBody = { action: 'listProjects', workspaceId };
+      console.log('📤 Sending request body:', JSON.stringify(requestBody));
+
       const { data, error } = await supabase.functions.invoke('crowdin-integration', {
-        body: { action: 'listProjects', workspaceId },
+        body: requestBody,
         headers: {
           'Content-Type': 'application/json',
         },
       });
+
+      console.log('📥 Response received:', { data, error });
 
       if (error || data.error) {
         setError(data?.error || 'Failed to load projects');
