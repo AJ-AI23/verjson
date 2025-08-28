@@ -186,6 +186,19 @@ export function extractStringValues(obj: any, prefix = 'root', path: string[] = 
   if (typeof obj === 'string') {
     // Only add if it's a translatable property
     const key = path.length > 0 ? path[path.length - 1] : 'root';
+    
+    // Debug logging for specific paths we're interested in
+    if (path.join('.').includes('mediaType.example')) {
+      console.log('🎯 Processing mediaType.example:', {
+        key,
+        value: obj,
+        path: path.join('.'),
+        parentObjKeys: parentObj ? Object.keys(parentObj) : 'no parent',
+        parentObjEnum: parentObj?.enum,
+        isTranslatable: isTranslatableProperty(key, obj, path, schemaType, rootObj, parentObj)
+      });
+    }
+    
     if (isTranslatableProperty(key, obj, path, schemaType, rootObj, parentObj)) {
       entries.push({
         key: prefix,
