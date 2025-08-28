@@ -402,17 +402,19 @@ serve(async (req) => {
         });
       }
 
-      // Create file as plain text to avoid Blob issues
+      // Create file as plain text to avoid Blob issues  
       const encoder = new TextEncoder();
-      const fileData = encoder.encode(jsonContent);
+      const encodedContent = encoder.encode(jsonContent);
       
       const formData = new FormData();
-      const file = new File([fileData], filename, { type: 'application/json' });
-      formData.append('file', file);
+      // Use Blob instead of File for better Deno compatibility
+      const fileBlob = new Blob([encodedContent], { type: 'application/json' });
+      formData.append('file', fileBlob, filename);
 
-      console.log('🔍 File size:', file.size);
-      console.log('🔍 File type:', file.type);
-      console.log('🔍 FormData created with file name:', filename);
+      console.log('🔍 Blob size:', fileBlob.size);
+      console.log('🔍 Blob type:', fileBlob.type);
+      console.log('🔍 FormData created with filename:', filename);
+      console.log('🔍 Encoded content length:', encodedContent.length);
 
       const storageResponse = await fetch(`${CROWDIN_API_BASE}/storages`, {
         method: 'POST',
@@ -470,12 +472,12 @@ serve(async (req) => {
         });
       }
 
-      const fileData = await fileResponse.json();
+      const fileResponseData = await fileResponse.json();
       
       return new Response(JSON.stringify({ 
         success: true, 
-        fileId: fileData.data.id,
-        fileName: fileData.data.name 
+        fileId: fileResponseData.data.id,
+        fileName: fileResponseData.data.name 
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
