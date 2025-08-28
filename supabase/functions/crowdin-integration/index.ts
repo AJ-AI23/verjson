@@ -94,7 +94,6 @@ serve(async (req) => {
   console.log('🚀 Crowdin integration function called');
   console.log('Request method:', req.method);
   console.log('Request URL:', req.url);
-  console.log('Request headers:', Object.fromEntries(req.headers.entries()));
   
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -102,16 +101,57 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Only allow POST requests
   if (req.method !== 'POST') {
-    console.log('Non-POST request received, returning 405');
-    return new Response(JSON.stringify({ error: 'Only POST requests are supported' }), {
-      status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ error: 'Only POST allowed' }),
+      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
   }
 
-  // Clone the request to avoid consuming the body stream
-  const clonedReq = req.clone();
+  // Ensure we have the correct content type
+  const contentType = req.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    return new Response(
+      JSON.stringify({ error: 'Content-Type must be application/json' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
+
+  // Parse the request body once
+  let payload: any;
+  try {
+    payload = await req.json();
+    console.log('✅ Successfully parsed request body:', {
+      action: payload?.action,
+      hasWorkspaceId: !!payload?.workspaceId,
+      bodyKeys: Object.keys(payload || {})
+    });
+  } catch (e) {
+    console.error('❌ Invalid JSON payload:', e);
+    return new Response(
+      JSON.stringify({ error: 'Invalid JSON payload', details: `${e}` }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
+
+  // Validate required fields
+  const action = payload?.action;
+  const workspaceId = payload?.workspaceId;
+
+  if (!action) {
+    return new Response(
+      JSON.stringify({ error: 'Action is required' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
+
+  if (!workspaceId) {
+    return new Response(
+      JSON.stringify({ error: 'Workspace ID is required' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
 
   try {
     const supabaseClient = createClient(
@@ -139,45 +179,6 @@ serve(async (req) => {
     }
 
     console.log('✅ User authenticated:', user.id);
-
-    // Parse request body using the cloned request
-    let requestBody: any = null;
-    
-    try {
-      console.log('🔄 Attempting to parse request body...');
-      requestBody = await clonedReq.json();
-      console.log('✅ Successfully parsed request body:', {
-        action: requestBody?.action,
-        hasWorkspaceId: !!requestBody?.workspaceId,
-        hasApiToken: !!requestBody?.apiToken,
-        bodyKeys: Object.keys(requestBody || {})
-      });
-    } catch (parseError) {
-      console.error('❌ Failed to parse request body:', parseError.message);
-      return new Response(JSON.stringify({ 
-        error: 'Invalid JSON in request body',
-        parseError: parseError.message
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const action = requestBody?.action;
-    const workspaceId = requestBody?.workspaceId;
-
-    console.log('📋 Extracted values:', { action, workspaceId });
-
-    if (!workspaceId) {
-      console.error('❌ Missing workspaceId in request body');
-      return new Response(JSON.stringify({ 
-        error: 'Workspace ID is required',
-        receivedBody: requestBody 
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
 
     // Verify user has access to workspace
     const { data: workspace, error: workspaceError } = await supabaseClient
@@ -237,7 +238,7 @@ serve(async (req) => {
     }
 
     if (action === 'saveToken') {
-      const { apiToken } = requestBody;
+      const { apiToken } = payload;
       
       console.log('SaveToken action started. WorkspaceId:', workspaceId, 'Has apiToken:', !!apiToken);
       
@@ -369,7 +370,7 @@ serve(async (req) => {
     }
 
     if (action === 'export') {
-      const { projectId, filename, translationData } = requestBody;
+      const { projectId, filename, translationData } = payload;
 
       if (!projectId || !filename || !translationData) {
         return new Response(JSON.stringify({ error: 'Missing required fields' }), {
@@ -432,6 +433,89 @@ serve(async (req) => {
         fileId: fileData.data.id,
         fileName: fileData.data.name 
       }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (action === 'listBranches') {
+      const { projectId } = payload;
+
+      if (!projectId) {
+        return new Response(JSON.stringify({ error: 'Project ID is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const response = await fetch(`${CROWDIN_API_BASE}/projects/${projectId}/branches`, {
+        headers: {
+          'Authorization': `Bearer ${apiToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Crowdin branches fetch failed:', response.status, errorText);
+        return new Response(JSON.stringify({ error: 'Failed to fetch branches from Crowdin API' }), {
+          status: response.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const data = await response.json();
+      const branches = data.data.map((item: any) => ({
+        id: item.data.id,
+        name: item.data.name,
+        title: item.data.title,
+        createdAt: item.data.createdAt,
+      }));
+
+      return new Response(JSON.stringify({ branches }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (action === 'listFolders') {
+      const { projectId, branchId } = payload;
+
+      if (!projectId) {
+        return new Response(JSON.stringify({ error: 'Project ID is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      let url = `${CROWDIN_API_BASE}/projects/${projectId}/directories`;
+      if (branchId) {
+        url += `?branchId=${branchId}`;
+      }
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${apiToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Crowdin folders fetch failed:', response.status, errorText);
+        return new Response(JSON.stringify({ error: 'Failed to fetch folders from Crowdin API' }), {
+          status: response.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const data = await response.json();
+      const folders = data.data.map((item: any) => ({
+        id: item.data.id,
+        name: item.data.name,
+        path: item.data.path,
+        createdAt: item.data.createdAt,
+      }));
+
+      return new Response(JSON.stringify({ folders }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
