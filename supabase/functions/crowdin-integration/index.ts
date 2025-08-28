@@ -137,56 +137,72 @@ serve(async (req) => {
 
     console.log('✅ User authenticated:', user.id);
 
-    // Parse request body - check if body exists
+    // Parse request body - try direct JSON parsing first (more reliable with Supabase functions)
     let requestBody: any = null;
-    let bodyText = '';
     
     try {
-      bodyText = await req.text();
-      console.log('📥 Request body length:', bodyText.length);
-      console.log('📥 Request body content:', bodyText.substring(0, 500)); // First 500 chars
-      
-      if (!bodyText || bodyText.trim() === '') {
-        console.error('❌ Empty request body received');
-        return new Response(JSON.stringify({ 
-          error: 'Request body is required',
-          received: 'empty body' 
-        }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
+      console.log('🔄 Attempting direct JSON parsing...');
+      requestBody = await req.json();
+      console.log('✅ Successfully parsed JSON directly:', {
+        action: requestBody?.action,
+        hasWorkspaceId: !!requestBody?.workspaceId,
+        hasApiToken: !!requestBody?.apiToken,
+        bodyKeys: Object.keys(requestBody || {})
+      });
+    } catch (directJsonError) {
+      console.log('⚠️ Direct JSON parse failed, trying text method:', directJsonError.message);
       
       try {
-        requestBody = JSON.parse(bodyText);
-        console.log('✅ Successfully parsed JSON:', {
-          action: requestBody?.action,
-          hasWorkspaceId: !!requestBody?.workspaceId,
-          hasApiToken: !!requestBody?.apiToken,
-          bodyKeys: Object.keys(requestBody || {})
-        });
-      } catch (parseError) {
-        console.error('❌ JSON parse failed:', parseError.message);
-        console.error('❌ Body that failed to parse:', bodyText);
+        // Fallback to text parsing
+        const bodyText = await req.text();
+        console.log('📥 Request body length:', bodyText.length);
+        console.log('📥 Request body content:', bodyText.substring(0, 500));
+        
+        if (!bodyText || bodyText.trim() === '') {
+          console.error('❌ Empty request body received via both methods');
+          return new Response(JSON.stringify({ 
+            error: 'Request body is required',
+            received: 'empty body',
+            directJsonError: directJsonError.message
+          }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+        try {
+          requestBody = JSON.parse(bodyText);
+          console.log('✅ Successfully parsed JSON from text:', {
+            action: requestBody?.action,
+            hasWorkspaceId: !!requestBody?.workspaceId,
+            hasApiToken: !!requestBody?.apiToken,
+            bodyKeys: Object.keys(requestBody || {})
+          });
+        } catch (parseError) {
+          console.error('❌ JSON parse failed on text content:', parseError.message);
+          console.error('❌ Body that failed to parse:', bodyText.substring(0, 200));
+          return new Response(JSON.stringify({ 
+            error: 'Invalid JSON in request body',
+            parseError: parseError.message,
+            directJsonError: directJsonError.message,
+            receivedBody: bodyText.substring(0, 200)
+          }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+      } catch (textReadError) {
+        console.error('❌ Failed to read request body as text:', textReadError.message);
         return new Response(JSON.stringify({ 
-          error: 'Invalid JSON in request body',
-          parseError: parseError.message,
-          receivedBody: bodyText.substring(0, 200)
+          error: 'Failed to read request body',
+          directJsonError: directJsonError.message,
+          textReadError: textReadError.message 
         }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      
-    } catch (readError) {
-      console.error('❌ Failed to read request body:', readError.message);
-      return new Response(JSON.stringify({ 
-        error: 'Failed to read request body',
-        readError: readError.message 
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
     }
 
     const action = requestBody?.action;
