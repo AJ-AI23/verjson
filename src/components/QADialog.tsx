@@ -341,7 +341,7 @@ export const QADialog: React.FC<QADialogProps> = ({
         <DialogHeader className="p-6 pb-2 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Languages className="h-5 w-5" />
-            QA Translation Manager
+            Quality Assurance
             {documentName && (
               <Badge variant="secondary" className="ml-2 max-w-[200px] truncate">
                 {documentName}
