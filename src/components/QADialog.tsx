@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Copy, Download, Languages, FileText, CheckCircle, AlertTriangle, XCircle, Search, Upload, Settings } from 'lucide-react';
+import { Copy, Download, Languages, FileText, CheckCircle, AlertTriangle, XCircle, Search, Upload, Settings, Filter, FilterX } from 'lucide-react';
 import { toast } from 'sonner';
 import { useToast } from '@/hooks/use-toast';
 import { extractStringValues, createTranslationIndex, downloadJsonFile, TranslationEntry, detectSchemaType, SchemaType, checkSchemaConsistency, ConsistencyIssue } from '@/lib/translationUtils';
@@ -41,6 +41,8 @@ export const QADialog: React.FC<QADialogProps> = ({
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [isRunningConsistencyCheck, setIsRunningConsistencyCheck] = useState(false);
   const [consistencyRefreshKey, setConsistencyRefreshKey] = useState(0);
+  const [consistencyFilters, setConsistencyFilters] = useState<Set<string>>(new Set());
+  const [showFilters, setShowFilters] = useState(false);
   
   const { workspaces } = useWorkspaces();
   const selectedWorkspace = workspaces?.[0]; // Use the first workspace for now
@@ -239,6 +241,41 @@ export const QADialog: React.FC<QADialogProps> = ({
     
     return groups;
   }, [translationData.entries, groupingStrategy, filterValue]);
+
+  // Get available issue types for filtering
+  const availableIssueTypes = useMemo(() => {
+    const types = new Set<string>();
+    translationData.consistencyIssues.forEach(issue => {
+      types.add(issue.type);
+    });
+    return Array.from(types).sort();
+  }, [translationData.consistencyIssues]);
+
+  // Filter consistency issues based on selected filters
+  const filteredConsistencyIssues = useMemo(() => {
+    if (consistencyFilters.size === 0) {
+      return translationData.consistencyIssues;
+    }
+    return translationData.consistencyIssues.filter(issue => 
+      consistencyFilters.has(issue.type)
+    );
+  }, [translationData.consistencyIssues, consistencyFilters]);
+
+  // Handle filter toggle
+  const toggleFilter = (type: string) => {
+    const newFilters = new Set(consistencyFilters);
+    if (newFilters.has(type)) {
+      newFilters.delete(type);
+    } else {
+      newFilters.add(type);
+    }
+    setConsistencyFilters(newFilters);
+  };
+
+  // Clear all filters
+  const clearFilters = () => {
+    setConsistencyFilters(new Set());
+  };
 
   // Get filter placeholder text based on strategy
   const getFilterPlaceholder = () => {
@@ -726,8 +763,75 @@ export const QADialog: React.FC<QADialogProps> = ({
                             </CardContent>
                           </Card>
 
+                          {/* Filter Controls */}
+                          {availableIssueTypes.length > 0 && (
+                            <Card>
+                              <CardHeader className="pb-3">
+                                <CardTitle className="text-sm flex items-center justify-between">
+                                  <span className="flex items-center gap-2">
+                                    <Filter className="h-4 w-4" />
+                                    Filters
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => setShowFilters(!showFilters)}
+                                      className="text-xs"
+                                    >
+                                      {showFilters ? 'Hide' : 'Show'} Filters
+                                    </Button>
+                                    {consistencyFilters.size > 0 && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={clearFilters}
+                                        className="text-xs text-muted-foreground hover:text-foreground"
+                                      >
+                                        <FilterX className="h-3 w-3 mr-1" />
+                                        Clear
+                                      </Button>
+                                    )}
+                                  </div>
+                                </CardTitle>
+                              </CardHeader>
+                              {showFilters && (
+                                <CardContent className="pt-0">
+                                  <div className="space-y-3">
+                                    <div className="text-xs text-muted-foreground">
+                                      Filter by issue type ({consistencyFilters.size > 0 ? `${filteredConsistencyIssues.length}/${translationData.consistencyIssues.length}` : `${translationData.consistencyIssues.length}`} issues shown):
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                      {availableIssueTypes.map(type => {
+                                        const count = translationData.consistencyIssues.filter(issue => issue.type === type).length;
+                                        const isActive = consistencyFilters.has(type);
+                                        return (
+                                          <Button
+                                            key={type}
+                                            variant={isActive ? "default" : "outline"}
+                                            size="sm"
+                                            onClick={() => toggleFilter(type)}
+                                            className="text-xs h-7"
+                                          >
+                                            {type.replace('-', ' ')}
+                                            <Badge 
+                                              variant={isActive ? "secondary" : "outline"} 
+                                              className="ml-1 text-xs px-1 h-4"
+                                            >
+                                              {count}
+                                            </Badge>
+                                          </Button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              )}
+                            </Card>
+                          )}
+
                           {/* Issues List */}
-                          {translationData.consistencyIssues.map((issue, index) => (
+                          {filteredConsistencyIssues.map((issue, index) => (
                             <Card key={index}>
                               <CardHeader className="pb-3">
                                <CardTitle className="text-sm flex items-center justify-between">
