@@ -381,8 +381,8 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
           paramConfig = config?.queryParameterNaming; // Query, header, cookie parameters
         }
         
-        // Only check if we have a configuration defined
-        if (paramConfig) {
+        // Only check if we have a configuration defined and it's enabled
+        if (paramConfig && paramConfig.enabled) {
           console.log('Parameter validation:', {
             paramName,
             paramType,
@@ -583,7 +583,7 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
       // Check component names in OpenAPI schemas
       if (path.includes('components') && path.includes('schemas') && path.length >= 3) {
         const componentName = path[path.indexOf('schemas') + 1];
-        if (componentName && config?.componentNaming) {
+        if (componentName && config?.componentNaming?.enabled) {
           console.log('Component validation:', {
             componentName,
             config: config.componentNaming
@@ -628,7 +628,7 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
       // Check endpoint paths
       if (path.includes('paths') && path.length === 2 && path[0] === 'paths') {
         const endpointPath = path[1];
-        if (endpointPath && config?.endpointNaming) {
+        if (endpointPath && config?.endpointNaming?.enabled) {
           // Extract path segments (excluding parameters like {id})
           const pathSegments = endpointPath.split('/').filter(segment => 
             segment && !segment.startsWith('{') && !segment.endsWith('}')
@@ -682,7 +682,7 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
       if (path.includes('properties') && path.length >= 2) {
         const propertyName = path[path.length - 1];
         // Make sure we're actually looking at a property name, not a nested object key
-        if (path[path.length - 2] === 'properties' && config?.propertyNaming) {
+        if (path[path.length - 2] === 'properties' && config?.propertyNaming?.enabled) {
           console.log('Property validation:', {
             propertyName,
             path: path.join('.'),

@@ -1,4 +1,5 @@
 export interface NamingConvention {
+  enabled: boolean;
   caseType: 'kebab-case' | 'camelCase' | 'snake_case' | 'PascalCase' | 'custom';
   customPattern?: string;
   exclusions?: string[];
@@ -86,22 +87,27 @@ export const DEFAULT_SEMANTIC_RULES: SemanticRule[] = [
 
 export const DEFAULT_CONFIG: ConsistencyConfig = {
   queryParameterNaming: {
+    enabled: true,
     caseType: 'kebab-case',
     exclusions: []
   },
   pathParameterNaming: {
+    enabled: true,
     caseType: 'kebab-case',
     exclusions: []
   },
   componentNaming: {
+    enabled: true,
     caseType: 'PascalCase',
     exclusions: []
   },
   endpointNaming: {
+    enabled: true,
     caseType: 'kebab-case',
     exclusions: []
   },
   propertyNaming: {
+    enabled: true,
     caseType: 'camelCase',
     exclusions: []
   },

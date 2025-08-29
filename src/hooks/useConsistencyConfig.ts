@@ -9,10 +9,10 @@ export const PRESET_CONFIGS: ConsistencyPreset[] = [
     description: 'Standard RESTful API conventions',
     config: {
       ...DEFAULT_CONFIG,
-      queryParameterNaming: { caseType: 'kebab-case', exclusions: [] },
-      pathParameterNaming: { caseType: 'kebab-case', exclusions: [] },
-      endpointNaming: { caseType: 'kebab-case', exclusions: [] },
-      propertyNaming: { caseType: 'camelCase', exclusions: [] }
+      queryParameterNaming: { enabled: true, caseType: 'kebab-case', exclusions: [] },
+      pathParameterNaming: { enabled: true, caseType: 'kebab-case', exclusions: [] },
+      endpointNaming: { enabled: true, caseType: 'kebab-case', exclusions: [] },
+      propertyNaming: { enabled: true, caseType: 'camelCase', exclusions: [] }
     }
   },
   {
@@ -20,10 +20,10 @@ export const PRESET_CONFIGS: ConsistencyPreset[] = [
     description: 'Google\'s API design patterns',
     config: {
       ...DEFAULT_CONFIG,
-      queryParameterNaming: { caseType: 'snake_case', exclusions: [] },
-      pathParameterNaming: { caseType: 'snake_case', exclusions: [] },
-      endpointNaming: { caseType: 'snake_case', exclusions: [] },
-      propertyNaming: { caseType: 'snake_case', exclusions: [] }
+      queryParameterNaming: { enabled: true, caseType: 'snake_case', exclusions: [] },
+      pathParameterNaming: { enabled: true, caseType: 'snake_case', exclusions: [] },
+      endpointNaming: { enabled: true, caseType: 'snake_case', exclusions: [] },
+      propertyNaming: { enabled: true, caseType: 'snake_case', exclusions: [] }
     }
   },
   {
@@ -31,10 +31,10 @@ export const PRESET_CONFIGS: ConsistencyPreset[] = [
     description: 'Microsoft\'s REST API guidelines',
     config: {
       ...DEFAULT_CONFIG,
-      queryParameterNaming: { caseType: 'camelCase', exclusions: [] },
-      pathParameterNaming: { caseType: 'camelCase', exclusions: [] },
-      endpointNaming: { caseType: 'camelCase', exclusions: [] },
-      propertyNaming: { caseType: 'camelCase', exclusions: [] }
+      queryParameterNaming: { enabled: true, caseType: 'camelCase', exclusions: [] },
+      pathParameterNaming: { enabled: true, caseType: 'camelCase', exclusions: [] },
+      endpointNaming: { enabled: true, caseType: 'camelCase', exclusions: [] },
+      propertyNaming: { enabled: true, caseType: 'camelCase', exclusions: [] }
     }
   }
 ];

@@ -86,51 +86,67 @@ export function ConsistencyConfigDialog({ open, onOpenChange }: ConsistencyConfi
 
   const renderNamingSection = (
     title: string,
+    description: string,
     type: 'queryParameterNaming' | 'pathParameterNaming' | 'componentNaming' | 'endpointNaming' | 'propertyNaming',
     convention: NamingConvention
   ) => (
-    <div className="space-y-4">
-      <h3 className="text-sm font-medium">{title}</h3>
-      <div className="space-y-2">
-        <Label>Case Convention</Label>
-        <Select
-          value={convention.caseType}
-          onValueChange={(value: any) => updateNamingConvention(type, { caseType: value })}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="kebab-case">kebab-case</SelectItem>
-            <SelectItem value="camelCase">camelCase</SelectItem>
-            <SelectItem value="snake_case">snake_case</SelectItem>
-            <SelectItem value="PascalCase">PascalCase</SelectItem>
-            <SelectItem value="custom">Custom Pattern</SelectItem>
-          </SelectContent>
-        </Select>
-        
-        {convention.caseType === 'custom' && (
-          <div>
-            <Label>Custom Pattern (RegEx)</Label>
-            <Input
-              placeholder="^[a-z]+(-[a-z]+)*$"
-              value={convention.customPattern || ''}
-              onChange={(e) => updateNamingConvention(type, { customPattern: e.target.value })}
-            />
-          </div>
-        )}
-        
-        <div>
-          <Label>Exclusions (comma-separated)</Label>
-          <Input
-            placeholder="id, uuid, api"
-            value={convention.exclusions?.join(', ') || ''}
-            onChange={(e) => updateNamingConvention(type, { 
-              exclusions: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
-            })}
+    <div className="border rounded-lg p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Switch
+            checked={convention.enabled}
+            onCheckedChange={(enabled) => updateNamingConvention(type, { enabled })}
           />
+          <Label className="font-medium">{title}</Label>
         </div>
       </div>
+      
+      <p className="text-sm text-muted-foreground">{description}</p>
+      
+      {convention.enabled && (
+        <div className="space-y-3">
+          <div>
+            <Label>Case Convention</Label>
+            <Select
+              value={convention.caseType}
+              onValueChange={(value: any) => updateNamingConvention(type, { caseType: value })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="kebab-case">kebab-case</SelectItem>
+                <SelectItem value="camelCase">camelCase</SelectItem>
+                <SelectItem value="snake_case">snake_case</SelectItem>
+                <SelectItem value="PascalCase">PascalCase</SelectItem>
+                <SelectItem value="custom">Custom Pattern</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {convention.caseType === 'custom' && (
+            <div>
+              <Label>Custom Pattern (RegEx)</Label>
+              <Input
+                placeholder="^[a-z]+(-[a-z]+)*$"
+                value={convention.customPattern || ''}
+                onChange={(e) => updateNamingConvention(type, { customPattern: e.target.value })}
+              />
+            </div>
+          )}
+          
+          <div>
+            <Label>Exclusions (comma-separated)</Label>
+            <Input
+              placeholder="id, uuid, api"
+              value={convention.exclusions?.join(', ') || ''}
+              onChange={(e) => updateNamingConvention(type, { 
+                exclusions: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+              })}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -177,13 +193,13 @@ export function ConsistencyConfigDialog({ open, onOpenChange }: ConsistencyConfi
               <TabsTrigger value="import-export">Import/Export</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="naming" className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-2">
-                {renderNamingSection('Query Parameters', 'queryParameterNaming', localConfig.queryParameterNaming)}
-                {renderNamingSection('Path Parameters', 'pathParameterNaming', localConfig.pathParameterNaming)}
-                {renderNamingSection('Component Names', 'componentNaming', localConfig.componentNaming)}
-                {renderNamingSection('Endpoint Paths', 'endpointNaming', localConfig.endpointNaming)}
-                {renderNamingSection('Property Names', 'propertyNaming', localConfig.propertyNaming)}
+            <TabsContent value="naming" className="space-y-4">
+              <div className="space-y-4">
+                {renderNamingSection('Query Parameters', 'Enforce naming conventions for query parameters in API endpoints', 'queryParameterNaming', localConfig.queryParameterNaming)}
+                {renderNamingSection('Path Parameters', 'Enforce naming conventions for path parameters in API endpoints', 'pathParameterNaming', localConfig.pathParameterNaming)}
+                {renderNamingSection('Component Names', 'Enforce naming conventions for reusable schema components', 'componentNaming', localConfig.componentNaming)}
+                {renderNamingSection('Endpoint Paths', 'Enforce naming conventions for API endpoint path segments', 'endpointNaming', localConfig.endpointNaming)}
+                {renderNamingSection('Property Names', 'Enforce naming conventions for object properties in schemas', 'propertyNaming', localConfig.propertyNaming)}
               </div>
             </TabsContent>
 
