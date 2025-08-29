@@ -569,10 +569,161 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
     }
   }
   
+  // Check for component naming consistency
+  function checkComponentNaming(currentObj: any, path: string[] = []) {
+    if (currentObj === null || currentObj === undefined) {
+      return;
+    }
+
+    if (Array.isArray(currentObj)) {
+      currentObj.forEach((item, index) => {
+        checkComponentNaming(item, [...path, index.toString()]);
+      });
+    } else if (typeof currentObj === 'object') {
+      // Check component names in OpenAPI schemas
+      if (path.includes('components') && path.includes('schemas') && path.length >= 3) {
+        const componentName = path[path.indexOf('schemas') + 1];
+        if (componentName && config?.componentNaming) {
+          console.log('Component validation:', {
+            componentName,
+            config: config.componentNaming
+          });
+          
+          const validation = validateNamingConvention(componentName, config.componentNaming);
+          
+          console.log('Component validation result:', validation);
+          
+          if (!validation.isValid) {
+            issues.push({
+              type: 'component-naming',
+              path: path.slice(0, path.indexOf('schemas') + 2).join('.'),
+              value: componentName,
+              suggestedName: validation.suggestion,
+              convention: config.componentNaming.caseType,
+              message: `Component name "${componentName}" should follow ${config.componentNaming.caseType} convention${validation.suggestion ? `. Suggested: "${validation.suggestion}"` : ''}`,
+              severity: 'warning',
+              rule: 'Component Naming Convention'
+            });
+          }
+        }
+      }
+      
+      Object.keys(currentObj).forEach(key => {
+        checkComponentNaming(currentObj[key], [...path, key]);
+      });
+    }
+  }
+
+  // Check for endpoint path naming consistency
+  function checkEndpointNaming(currentObj: any, path: string[] = []) {
+    if (currentObj === null || currentObj === undefined) {
+      return;
+    }
+
+    if (Array.isArray(currentObj)) {
+      currentObj.forEach((item, index) => {
+        checkEndpointNaming(item, [...path, index.toString()]);
+      });
+    } else if (typeof currentObj === 'object') {
+      // Check endpoint paths
+      if (path.includes('paths') && path.length === 2 && path[0] === 'paths') {
+        const endpointPath = path[1];
+        if (endpointPath && config?.endpointNaming) {
+          // Extract path segments (excluding parameters like {id})
+          const pathSegments = endpointPath.split('/').filter(segment => 
+            segment && !segment.startsWith('{') && !segment.endsWith('}')
+          );
+          
+          pathSegments.forEach(segment => {
+            console.log('Endpoint validation:', {
+              segment,
+              endpointPath,
+              config: config.endpointNaming
+            });
+            
+            const validation = validateNamingConvention(segment, config.endpointNaming);
+            
+            console.log('Endpoint validation result:', validation);
+            
+            if (!validation.isValid) {
+              issues.push({
+                type: 'endpoint-naming',
+                path: path.join('.'),
+                value: segment,
+                suggestedName: validation.suggestion,
+                convention: config.endpointNaming.caseType,
+                message: `Endpoint path segment "${segment}" in "${endpointPath}" should follow ${config.endpointNaming.caseType} convention${validation.suggestion ? `. Suggested: "${validation.suggestion}"` : ''}`,
+                severity: 'warning',
+                rule: 'Endpoint Naming Convention'
+              });
+            }
+          });
+        }
+      }
+      
+      Object.keys(currentObj).forEach(key => {
+        checkEndpointNaming(currentObj[key], [...path, key]);
+      });
+    }
+  }
+
+  // Check for property naming consistency
+  function checkPropertyNaming(currentObj: any, path: string[] = []) {
+    if (currentObj === null || currentObj === undefined) {
+      return;
+    }
+
+    if (Array.isArray(currentObj)) {
+      currentObj.forEach((item, index) => {
+        checkPropertyNaming(item, [...path, index.toString()]);
+      });
+    } else if (typeof currentObj === 'object') {
+      // Check properties within schema objects
+      if (path.includes('properties') && path.length >= 2) {
+        const propertyName = path[path.length - 1];
+        // Make sure we're actually looking at a property name, not a nested object key
+        if (path[path.length - 2] === 'properties' && config?.propertyNaming) {
+          console.log('Property validation:', {
+            propertyName,
+            path: path.join('.'),
+            config: config.propertyNaming
+          });
+          
+          const validation = validateNamingConvention(propertyName, config.propertyNaming);
+          
+          console.log('Property validation result:', validation);
+          
+          if (!validation.isValid) {
+            issues.push({
+              type: 'property-naming',
+              path: path.join('.'),
+              value: propertyName,
+              suggestedName: validation.suggestion,
+              convention: config.propertyNaming.caseType,
+              message: `Property name "${propertyName}" should follow ${config.propertyNaming.caseType} convention${validation.suggestion ? `. Suggested: "${validation.suggestion}"` : ''}`,
+              severity: 'warning',
+              rule: 'Property Naming Convention'
+            });
+          }
+        }
+      }
+      
+      Object.keys(currentObj).forEach(key => {
+        checkPropertyNaming(currentObj[key], [...path, key]);
+      });
+    }
+  }
+  
   // Run all checks
+  console.log('Running all consistency checks with config:', config);
   checkParameterNaming(obj);
+  checkComponentNaming(obj);
+  checkEndpointNaming(obj);
+  checkPropertyNaming(obj);
   checkExamples(obj);
   checkSemanticRules(obj);
+  
+  console.log('Total issues found:', issues.length);
   
   return issues;
 }
