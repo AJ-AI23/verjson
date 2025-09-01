@@ -4,6 +4,7 @@ export interface ComponentInfo {
   name: string;
   schema: any;
   description?: string;
+  isTopLevel: boolean;
 }
 
 export interface SplitResult {
@@ -11,6 +12,40 @@ export interface SplitResult {
   createdDocuments: Document[];
   componentDocumentMap: Map<string, string>;
 }
+
+/**
+ * Find components that are directly referenced from paths
+ */
+const findTopLevelComponents = (schema: any): Set<string> => {
+  const topLevelComponents = new Set<string>();
+  
+  // Check references in paths
+  if (schema.paths) {
+    const searchForRefs = (obj: any) => {
+      if (!obj || typeof obj !== 'object') return;
+      
+      if (Array.isArray(obj)) {
+        obj.forEach(searchForRefs);
+        return;
+      }
+      
+      for (const [key, value] of Object.entries(obj)) {
+        if (key === '$ref' && typeof value === 'string') {
+          const refMatch = value.match(/^#\/components\/schemas\/(.+)$/);
+          if (refMatch) {
+            topLevelComponents.add(refMatch[1]);
+          }
+        } else if (value && typeof value === 'object') {
+          searchForRefs(value);
+        }
+      }
+    };
+    
+    searchForRefs(schema.paths);
+  }
+  
+  return topLevelComponents;
+};
 
 /**
  * Extract available components from an OpenAPI specification
@@ -22,13 +57,15 @@ export const extractComponents = (schema: any): ComponentInfo[] => {
 
   const components: ComponentInfo[] = [];
   const schemas = schema.components.schemas;
+  const topLevelComponents = findTopLevelComponents(schema);
 
   for (const [name, componentSchema] of Object.entries(schemas)) {
     if (componentSchema && typeof componentSchema === 'object') {
       components.push({
         name,
         schema: componentSchema,
-        description: (componentSchema as any).description || undefined
+        description: (componentSchema as any).description || undefined,
+        isTopLevel: topLevelComponents.has(name)
       });
     }
   }
@@ -49,31 +86,34 @@ const createComponentJsonSchema = (componentName: string, componentSchema: any):
 };
 
 /**
- * Update all references in a schema object to point to document URLs
+ * Update all references in a schema object to point to document URLs or maintain original references
  */
-const updateReferences = (obj: any, componentDocumentMap: Map<string, string>): any => {
+const updateReferences = (obj: any, componentDocumentMap: Map<string, string>, originalDocumentId?: string): any => {
   if (!obj || typeof obj !== 'object') {
     return obj;
   }
 
   if (Array.isArray(obj)) {
-    return obj.map(item => updateReferences(item, componentDocumentMap));
+    return obj.map(item => updateReferences(item, componentDocumentMap, originalDocumentId));
   }
 
   const result: any = {};
 
   for (const [key, value] of Object.entries(obj)) {
     if (key === '$ref' && typeof value === 'string') {
-      // Check if this is a reference to a component we're splitting
+      // Check if this is a reference to a component
       const refMatch = value.match(/^#\/components\/schemas\/(.+)$/);
       if (refMatch) {
         const componentName = refMatch[1];
         const documentId = componentDocumentMap.get(componentName);
         if (documentId) {
-          // Replace with external document reference using a clear format
+          // Replace with external document reference for split components
           result[key] = `doc://${documentId}#/`;
+        } else if (originalDocumentId) {
+          // Reference to a component that wasn't split - point to original document
+          result[key] = `doc://${originalDocumentId}#/components/schemas/${componentName}`;
         } else {
-          // Keep original reference for components not being split
+          // Keep original reference for components not being split (when updating main schema)
           result[key] = value;
         }
       } else {
@@ -81,7 +121,7 @@ const updateReferences = (obj: any, componentDocumentMap: Map<string, string>): 
         result[key] = value;
       }
     } else if (value && typeof value === 'object') {
-      result[key] = updateReferences(value, componentDocumentMap);
+      result[key] = updateReferences(value, componentDocumentMap, originalDocumentId);
     } else {
       result[key] = value;
     }
@@ -97,6 +137,7 @@ export const splitOpenAPISpec = async (
   originalSchema: any,
   selectedComponentNames: string[],
   targetWorkspaceId: string,
+  originalDocumentId: string,
   createDocument: (data: CreateDocumentData) => Promise<Document | null>
 ): Promise<SplitResult> => {
   const componentDocumentMap = new Map<string, string>();
@@ -109,8 +150,11 @@ export const splitOpenAPISpec = async (
       throw new Error(`Component "${componentName}" not found in schema`);
     }
 
+    // Update references within the component schema before creating the document
+    const updatedComponentSchema = updateReferences(componentSchema, componentDocumentMap, originalDocumentId);
+
     // Create JSON schema document
-    const jsonSchemaContent = createComponentJsonSchema(componentName, componentSchema);
+    const jsonSchemaContent = createComponentJsonSchema(componentName, updatedComponentSchema);
     
     const documentData: CreateDocumentData = {
       workspace_id: targetWorkspaceId,
@@ -128,7 +172,20 @@ export const splitOpenAPISpec = async (
     createdDocuments.push(createdDocument);
   }
 
-  // Step 2: Create updated OpenAPI schema with references replaced
+  // Step 2: Update component schemas with proper references (second pass after all documents are created)
+  for (const [componentName, document] of zip(selectedComponentNames, createdDocuments)) {
+    const componentSchema = originalSchema.components?.schemas?.[componentName];
+    if (!componentSchema) continue;
+
+    // Update references within the component schema with complete mapping
+    const updatedComponentSchema = updateReferences(componentSchema, componentDocumentMap, originalDocumentId);
+    const jsonSchemaContent = createComponentJsonSchema(componentName, updatedComponentSchema);
+    
+    // Update the document with proper references
+    await updateDocumentContent(document.id, jsonSchemaContent);
+  }
+
+  // Step 3: Create updated OpenAPI schema with references replaced
   const updatedSchema = JSON.parse(JSON.stringify(originalSchema));
 
   // Remove the split components from the components.schemas section
@@ -148,7 +205,7 @@ export const splitOpenAPISpec = async (
     }
   }
 
-  // Step 3: Update all references throughout the schema
+  // Step 4: Update all references throughout the schema
   const updatedSchemaWithRefs = updateReferences(updatedSchema, componentDocumentMap);
 
   return {
@@ -157,6 +214,17 @@ export const splitOpenAPISpec = async (
     componentDocumentMap
   };
 };
+
+// Helper function to zip arrays
+function zip<T, U>(arr1: T[], arr2: U[]): Array<[T, U]> {
+  return arr1.map((item, index) => [item, arr2[index]]);
+}
+
+// Placeholder for document update function - would need to be passed in or imported
+async function updateDocumentContent(documentId: string, content: any): Promise<void> {
+  // This would be implemented using the documents hook
+  console.log(`Would update document ${documentId} with content:`, content);
+}
 
 /**
  * Validate that a schema is a valid OpenAPI specification with components
