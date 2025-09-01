@@ -14,6 +14,7 @@ import { NotationsPanel } from '@/components/notations/NotationsPanel';
 import { RedoclyDialog } from '@/components/RedoclyDialog';
 import { DebugToggle } from '@/components/DebugToggle';
 import { QADialog } from '@/components/QADialog';
+import { OpenAPISplitDialog } from '@/components/OpenAPISplitDialog';
 
 import { SchemaType } from '@/lib/schemaUtils';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
@@ -225,13 +226,22 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 />
 
 
-                {/* Redocly Documentation Button - Only show for OpenAPI specs */}
+                {/* OpenAPI-specific buttons */}
                 {schemaType === 'openapi' && (
-                  <RedoclyDialog 
-                    schema={schema}
-                    documentName={selectedDocument?.name}
-                    disabled={!selectedDocument}
-                  />
+                  <>
+                    <RedoclyDialog 
+                      schema={schema}
+                      documentName={selectedDocument?.name}
+                      disabled={!selectedDocument}
+                    />
+                    
+                    <OpenAPISplitDialog
+                      schema={schema}
+                      documentName={selectedDocument?.name}
+                      selectedDocument={selectedDocument}
+                      disabled={!selectedDocument}
+                    />
+                  </>
                 )}
               </div>
 
