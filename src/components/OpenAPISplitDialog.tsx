@@ -144,18 +144,18 @@ export const OpenAPISplitDialog: React.FC<OpenAPISplitDialogProps> = ({
         createDocument
       );
 
-      // Step 4: Create a new version with the updated schema
+      // Step 4: Update the current document with the split schema and create new version
       const newSchemaString = JSON.stringify(splitResult.updatedSchema, null, 2);
       
-      // Update the schema first
-      const setSchemaCallback = (newSchema: string) => {
-        // This would be handled by the parent component
-        console.log('Schema updated:', newSchema);
-      };
+      // Update the document content directly using the documents hook
+      const { updateDocument } = useDocuments();
+      await updateDocument(selectedDocument.id, {
+        content: splitResult.updatedSchema
+      });
       
-      // Import version utilities to create proper version
+      // Create a new version with the updated schema
       const { calculateLatestVersion } = await import('@/lib/versionUtils');
-      const currentVersion = { major: 0, minor: 1, patch: 0 };
+      const currentVersion = calculateLatestVersion(selectedDocument.version_history || []);
       
       await handleVersionBump(
         currentVersion,

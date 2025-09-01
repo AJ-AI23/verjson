@@ -70,8 +70,8 @@ const updateReferences = (obj: any, componentDocumentMap: Map<string, string>): 
         const componentName = refMatch[1];
         const documentId = componentDocumentMap.get(componentName);
         if (documentId) {
-          // Replace with document URL reference
-          result[key] = `https://swghcmyqracwifpdfyap.supabase.co/functions/v1/public-document?id=${documentId}`;
+          // Replace with external document reference using a clear format
+          result[key] = `doc://${documentId}#/`;
         } else {
           // Keep original reference for components not being split
           result[key] = value;
