@@ -70,20 +70,31 @@ const Auth = () => {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('=== FORGOT PASSWORD FUNCTION CALLED ===');
+    console.log('Reset email:', resetEmail);
+    
     setError('');
     setMessage('');
     setIsSubmitting(true);
 
     try {
+      const redirectUrl = `${window.location.origin}/auth`;
+      console.log('Attempting password reset for:', resetEmail);
+      console.log('Redirect URL:', redirectUrl);
+      
       const { error } = await resetPassword(resetEmail);
+      
       if (error) {
+        console.error('Password reset error:', error);
         setError(error.message);
       } else {
+        console.log('Password reset request sent successfully');
         setMessage('Password reset link sent! Check your email.');
         setResetEmail('');
         setShowForgotPassword(false);
       }
     } catch (err) {
+      console.error('Unexpected error in handleForgotPassword:', err);
       setError('An unexpected error occurred');
     } finally {
       setIsSubmitting(false);
@@ -164,7 +175,10 @@ const Auth = () => {
                   type="button"
                   variant="ghost"
                   className="w-full mt-2"
-                  onClick={() => setShowForgotPassword(!showForgotPassword)}
+                  onClick={() => {
+                    console.log('Forgot password button clicked');
+                    setShowForgotPassword(!showForgotPassword);
+                  }}
                 >
                   Forgot password?
                 </Button>
@@ -178,7 +192,10 @@ const Auth = () => {
                         type="email"
                         placeholder="your@email.com"
                         value={resetEmail}
-                        onChange={(e) => setResetEmail(e.target.value)}
+                        onChange={(e) => {
+                          console.log('Reset email input changed:', e.target.value);
+                          setResetEmail(e.target.value);
+                        }}
                         required
                         disabled={isSubmitting}
                       />
@@ -187,6 +204,7 @@ const Auth = () => {
                       type="submit" 
                       className="w-full" 
                       disabled={isSubmitting}
+                      onClick={() => console.log('Reset submit button clicked')}
                     >
                       {isSubmitting ? (
                         <>
