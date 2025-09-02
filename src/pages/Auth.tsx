@@ -9,13 +9,15 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2 } from 'lucide-react';
 
 const Auth = () => {
-  const { user, signIn, signUp, loading } = useAuth();
+  const { user, signIn, signUp, resetPassword, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
 
   // Redirect if already logged in
   useEffect(() => {
@@ -58,6 +60,28 @@ const Auth = () => {
         setEmail('');
         setPassword('');
         setFullName('');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+    setIsSubmitting(true);
+
+    try {
+      const { error } = await resetPassword(resetEmail);
+      if (error) {
+        setError(error.message);
+      } else {
+        setMessage('Password reset link sent! Check your email.');
+        setResetEmail('');
+        setShowForgotPassword(false);
       }
     } catch (err) {
       setError('An unexpected error occurred');
@@ -136,6 +160,57 @@ const Auth = () => {
                     'Sign In'
                   )}
                 </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full mt-2"
+                  onClick={() => setShowForgotPassword(!showForgotPassword)}
+                >
+                  Forgot password?
+                </Button>
+
+                {showForgotPassword && (
+                  <form onSubmit={handleForgotPassword} className="mt-4 space-y-4 p-4 border rounded-lg bg-muted/50">
+                    <div className="space-y-2">
+                      <Label htmlFor="reset-email">Email</Label>
+                      <Input
+                        id="reset-email"
+                        type="email"
+                        placeholder="your@email.com"
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        required
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <Button 
+                      type="submit" 
+                      className="w-full" 
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        'Send Reset Link'
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        setShowForgotPassword(false);
+                        setResetEmail('');
+                      }}
+                      disabled={isSubmitting}
+                    >
+                      Cancel
+                    </Button>
+                  </form>
+                )}
               </form>
             </TabsContent>
 
