@@ -191,104 +191,110 @@ const Auth = () => {
             </TabsList>
 
             <TabsContent value="signin">
-              <form onSubmit={handleSignIn} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signin-email">Email</Label>
-                  <Input
-                    id="signin-email"
-                    type="email"
-                    placeholder="your@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
+              <div className="space-y-4">
+                <form onSubmit={handleSignIn} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-email">Email</Label>
+                    <Input
+                      id="signin-email"
+                      type="email"
+                      placeholder="your@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-password">Password</Label>
+                    <Input
+                      id="signin-password"
+                      type="password"
+                      placeholder="Your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
                     disabled={isSubmitting}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signin-password">Password</Label>
-                  <Input
-                    id="signin-password"
-                    type="password"
-                    placeholder="Your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    disabled={isSubmitting}
-                  />
-                </div>
-                <Button 
-                  type="submit" 
-                  className="w-full" 
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Signing in...
-                    </>
-                  ) : (
-                    'Sign In'
-                  )}
-                </Button>
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Signing in...
+                      </>
+                    ) : (
+                      'Sign In'
+                    )}
+                  </Button>
+                </form>
+
                 <Button
                   type="button"
                   variant="ghost"
-                  className="w-full mt-2"
+                  className="w-full"
                   onClick={() => {
-                    console.log('Forgot password button clicked');
                     setShowForgotPassword(!showForgotPassword);
+                    setError('');
+                    setMessage('');
                   }}
                 >
                   Forgot password?
                 </Button>
 
                 {showForgotPassword && (
-                  <form onSubmit={handleForgotPassword} className="mt-4 space-y-4 p-4 border rounded-lg bg-muted/50">
-                    <div className="space-y-2">
-                      <Label htmlFor="reset-email">Email</Label>
-                      <Input
-                        id="reset-email"
-                        type="email"
-                        placeholder="your@email.com"
-                        value={resetEmail}
-                        onChange={(e) => {
-                          console.log('Reset email input changed:', e.target.value);
-                          setResetEmail(e.target.value);
-                        }}
-                        required
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
-                      disabled={isSubmitting}
-                      onClick={() => console.log('Reset submit button clicked')}
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Sending...
-                        </>
-                      ) : (
-                        'Send Reset Link'
-                      )}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => {
-                        setShowForgotPassword(false);
-                        setResetEmail('');
-                      }}
-                      disabled={isSubmitting}
-                    >
-                      Cancel
-                    </Button>
-                  </form>
+                  <div className="mt-4 p-4 border rounded-lg bg-muted/50">
+                    <form onSubmit={handleForgotPassword} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="reset-email">Email for password reset</Label>
+                        <Input
+                          id="reset-email"
+                          type="email"
+                          placeholder="your@email.com"
+                          value={resetEmail}
+                          onChange={(e) => setResetEmail(e.target.value)}
+                          required
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          type="submit" 
+                          className="flex-1" 
+                          disabled={isSubmitting}
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Sending...
+                            </>
+                          ) : (
+                            'Send Reset Link'
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => {
+                            setShowForgotPassword(false);
+                            setResetEmail('');
+                            setError('');
+                            setMessage('');
+                          }}
+                          disabled={isSubmitting}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
                 )}
-              </form>
+              </div>
             </TabsContent>
 
             <TabsContent value="signup">
