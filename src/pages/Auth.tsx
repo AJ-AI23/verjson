@@ -19,6 +19,18 @@ const Auth = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
 
+  // Handle URL parameters for password reset
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    const errorDescription = urlParams.get('error_description');
+    
+    if (error) {
+      console.error('Auth URL error:', error, errorDescription);
+      setError(errorDescription || 'Authentication error occurred');
+    }
+  }, []);
+
   // Redirect if already logged in
   useEffect(() => {
     if (user && !loading) {
@@ -29,17 +41,38 @@ const Auth = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setMessage('');
     setIsSubmitting(true);
+
+    // Basic email validation
+    if (!email.includes('@') || !email.includes('.')) {
+      setError('Please enter a valid email address');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       const { error } = await signIn(email, password);
       if (error) {
-        setError(error.message);
-      } else {
-        window.location.href = '/';
+        // Provide more user-friendly error messages
+        if (error.message.includes('Invalid login credentials')) {
+          setError('Invalid email or password. Please check your credentials.');
+        } else if (error.message.includes('Email not confirmed')) {
+          setError('Please check your email and click the confirmation link before signing in.');
+        } else {
+          setError(error.message);
+        }
       }
+      // Don't redirect here - let the auth state change handle it
     } catch (err) {
-      setError('An unexpected error occurred');
+      console.error('Sign in error:', err);
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -51,18 +84,42 @@ const Auth = () => {
     setMessage('');
     setIsSubmitting(true);
 
+    // Validation
+    if (!fullName.trim()) {
+      setError('Full name is required');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!email.includes('@') || !email.includes('.')) {
+      setError('Please enter a valid email address');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const { error } = await signUp(email, password, fullName);
       if (error) {
-        setError(error.message);
+        if (error.message.includes('User already registered')) {
+          setError('An account with this email already exists. Please sign in instead.');
+        } else {
+          setError(error.message);
+        }
       } else {
-        setMessage('Check your email for the confirmation link!');
+        setMessage('Account created successfully! Check your email for the confirmation link.');
         setEmail('');
         setPassword('');
         setFullName('');
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      console.error('Sign up error:', err);
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -70,32 +127,34 @@ const Auth = () => {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('=== FORGOT PASSWORD FUNCTION CALLED ===');
-    console.log('Reset email:', resetEmail);
-    
     setError('');
     setMessage('');
     setIsSubmitting(true);
 
+    // Validation
+    if (!resetEmail.includes('@') || !resetEmail.includes('.')) {
+      setError('Please enter a valid email address');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      const redirectUrl = `${window.location.origin}/auth`;
-      console.log('Attempting password reset for:', resetEmail);
-      console.log('Redirect URL:', redirectUrl);
-      
       const { error } = await resetPassword(resetEmail);
       
       if (error) {
-        console.error('Password reset error:', error);
-        setError(error.message);
+        if (error.message.includes('User not found')) {
+          setError('No account found with this email address.');
+        } else {
+          setError(error.message);
+        }
       } else {
-        console.log('Password reset request sent successfully');
-        setMessage('Password reset link sent! Check your email.');
+        setMessage('Password reset link sent! Check your email (including spam folder).');
         setResetEmail('');
         setShowForgotPassword(false);
       }
     } catch (err) {
-      console.error('Unexpected error in handleForgotPassword:', err);
-      setError('An unexpected error occurred');
+      console.error('Password reset error:', err);
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
