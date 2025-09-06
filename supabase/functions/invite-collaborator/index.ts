@@ -177,13 +177,6 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Available env vars:", Object.keys(Deno.env.toObject()).filter(key => key.includes('RESEND')));
     console.log("All available environment variables:", Object.keys(Deno.env.toObject()));
     
-    if (!resendApiKey) {
-      console.error("RESEND_API_KEY environment variable is not set");
-      // Continue without email for now to prevent blocking invitations
-      console.log("Skipping email send due to missing API key, but invitation will still be created");
-    } else {
-      const resend = new Resend(resendApiKey);
-    
     const emailContent = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">${notificationTitle}</h1>
@@ -217,6 +210,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Send email using Resend
     if (resendApiKey) {
       try {
+        const resend = new Resend(resendApiKey);
         const emailResponse = await resend.emails.send({
           from: `Collaboration Invites <invites@mail.verjson.dev>`,
           to: [email],
@@ -229,13 +223,14 @@ const handler = async (req: Request): Promise<Response> => {
         console.error("Failed to send email:", emailError);
       }
     } else {
+      console.error("RESEND_API_KEY environment variable is not set");
       console.log("Skipping email send - RESEND_API_KEY not configured");
     }
 
     return new Response(
       JSON.stringify({
         message: `Invitation sent successfully to ${email}`,
-        emailSent: true,
+        emailSent: !!resendApiKey,
         userExists: !!targetUserProfile,
       }),
       {
