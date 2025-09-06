@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -170,7 +171,9 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Send email invitation using dedicated SMTP service
+    // Send email invitation using Resend
+    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+    
     const emailContent = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">${notificationTitle}</h1>
@@ -201,38 +204,18 @@ const handler = async (req: Request): Promise<Response> => {
       </div>
     `;
 
-    // Call the SMTP service function
-    const smtpUser = Deno.env.get("SMTP_USERNAME");
-    if (smtpUser) {
-      try {
-        const emailServiceClient = createClient(
-          Deno.env.get("SUPABASE_URL") ?? "",
-          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-        );
+    // Send email using Resend
+    try {
+      const emailResponse = await resend.emails.send({
+        from: `Collaboration Invites <invites@mail.verjson.dev>`,
+        to: [email],
+        subject: notificationTitle,
+        html: emailContent,
+      });
 
-        const { data: emailResult, error: emailError } = await emailServiceClient.functions.invoke(
-          'send-smtp-email',
-          {
-            body: {
-              to: email,
-              subject: notificationTitle,
-              html: emailContent,
-              from: smtpUser
-            }
-          }
-        );
-
-        if (emailError) {
-          console.error("Email service error:", emailError);
-        } else {
-          console.log("Email sent successfully:", emailResult);
-        }
-
-      } catch (emailError) {
-        console.error("Failed to send email:", emailError);
-      }
-    } else {
-      console.log("No SMTP user configured, skipping email send");
+      console.log("Email sent successfully:", emailResponse);
+    } catch (emailError) {
+      console.error("Failed to send email:", emailError);
     }
 
     return new Response(
