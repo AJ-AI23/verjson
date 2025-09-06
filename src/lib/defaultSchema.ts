@@ -1,5 +1,5 @@
 
-export const defaultSchema = `{
+export const exampleSchema = `{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.com/schemas/your-schema.json",
   "title": "GenericObject",
@@ -72,4 +72,13 @@ export const defaultSchema = `{
   },
   "required": ["exampleString", "exampleNumber"],
   "additionalProperties": false
+}`;
+
+export const defaultSchema = `{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "My Schema",
+  "type": "object",
+  "properties": {
+    
+  }
 }`;
