@@ -587,6 +587,38 @@ export type Database = {
         Args: { content: string }
         Returns: string
       }
+      get_document_permissions: {
+        Args: { doc_id: string }
+        Returns: {
+          created_at: string
+          document_id: string
+          granted_by: string
+          id: string
+          role: Database["public"]["Enums"]["permission_role"]
+          status: string
+          updated_at: string
+          user_email: string
+          user_id: string
+          user_name: string
+          username: string
+        }[]
+      }
+      get_workspace_permissions: {
+        Args: { ws_id: string }
+        Returns: {
+          created_at: string
+          granted_by: string
+          id: string
+          role: Database["public"]["Enums"]["permission_role"]
+          status: string
+          updated_at: string
+          user_email: string
+          user_id: string
+          user_name: string
+          username: string
+          workspace_id: string
+        }[]
+      }
     }
     Enums: {
       permission_role: "owner" | "editor" | "viewer"
