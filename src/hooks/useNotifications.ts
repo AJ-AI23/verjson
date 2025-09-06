@@ -127,8 +127,10 @@ export const useNotifications = () => {
   useEffect(() => {
     if (!user) return;
 
+    console.log('Setting up notifications real-time subscription for user:', user.id);
+
     const channel = supabase
-      .channel('notifications-updates')
+      .channel(`notifications-${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -141,13 +143,23 @@ export const useNotifications = () => {
           console.log('New notification received:', payload);
           const newNotification = payload.new as Notification;
           
-          setNotifications(prev => [newNotification, ...prev]);
-          setUnreadCount(prev => prev + 1);
-          
-          // Show toast notification
-          toast.info(newNotification.title, {
-            description: newNotification.message,
+          setNotifications(prev => {
+            console.log('Adding new notification to list, current count:', prev.length);
+            return [newNotification, ...prev];
           });
+          
+          setUnreadCount(prev => {
+            const newCount = prev + 1;
+            console.log('Updating unread count from', prev, 'to', newCount);
+            return newCount;
+          });
+          
+          // Show toast notification for all types except access_revoked (which might be sensitive)
+          if (newNotification.type !== 'access_revoked') {
+            toast.info(newNotification.title, {
+              description: newNotification.message,
+            });
+          }
         }
       )
       .on(
@@ -161,13 +173,18 @@ export const useNotifications = () => {
         (payload) => {
           console.log('Notification updated:', payload);
           const updatedNotification = payload.new as Notification;
+          
           setNotifications(prev => 
             prev.map(n => n.id === updatedNotification.id ? updatedNotification : n)
           );
           
           // Update unread count based on read_at changes
           if (payload.old?.read_at !== payload.new?.read_at && payload.new?.read_at) {
-            setUnreadCount(prev => Math.max(0, prev - 1));
+            setUnreadCount(prev => {
+              const newCount = Math.max(0, prev - 1);
+              console.log('Notification marked as read, updating unread count from', prev, 'to', newCount);
+              return newCount;
+            });
           }
         }
       )
@@ -182,19 +199,27 @@ export const useNotifications = () => {
         (payload) => {
           console.log('Notification deleted:', payload);
           const deletedNotification = payload.old as Notification;
+          
           setNotifications(prev => 
             prev.filter(n => n.id !== deletedNotification.id)
           );
           
           // Update unread count if the deleted notification was unread
           if (!deletedNotification.read_at) {
-            setUnreadCount(prev => Math.max(0, prev - 1));
+            setUnreadCount(prev => {
+              const newCount = Math.max(0, prev - 1);
+              console.log('Unread notification deleted, updating count from', prev, 'to', newCount);
+              return newCount;
+            });
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Notifications subscription status:', status);
+      });
 
     return () => {
+      console.log('Cleaning up notifications subscription');
       supabase.removeChannel(channel);
     };
   }, [user]);

@@ -94,29 +94,73 @@ export function useInvitations() {
   useEffect(() => {
     if (!user) return;
 
+    console.log('Setting up invitations real-time subscription for user:', user.id);
     fetchInvitations();
 
     const channel = supabase
-      .channel('invitations-updates')
+      .channel(`invitations-${user.id}`)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'notifications',
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('Invitation/notification change detected:', payload);
+          console.log('New notification detected for invitations:', payload);
+          const newNotification = payload.new as any;
           // Only refetch if it's an invitation type notification
-          if ((payload.new as any)?.type === 'invitation' || (payload.old as any)?.type === 'invitation') {
+          if (newNotification?.type === 'invitation') {
+            console.log('New invitation received, refreshing invitations list');
             fetchInvitations();
           }
         }
       )
-      .subscribe();
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Notification updated for invitations:', payload);
+          const newNotification = payload.new as any;
+          const oldNotification = payload.old as any;
+          // Refresh if it's an invitation type notification and status changed
+          if ((newNotification?.type === 'invitation' || oldNotification?.type === 'invitation') &&
+              newNotification?.status !== oldNotification?.status) {
+            console.log('Invitation status changed, refreshing invitations list');
+            fetchInvitations();
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Notification deleted for invitations:', payload);
+          const deletedNotification = payload.old as any;
+          // Refresh if it was an invitation type notification
+          if (deletedNotification?.type === 'invitation') {
+            console.log('Invitation deleted, refreshing invitations list');
+            fetchInvitations();
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Invitations subscription status:', status);
+      });
 
     return () => {
+      console.log('Cleaning up invitations subscription');
       supabase.removeChannel(channel);
     };
   }, [user]);
