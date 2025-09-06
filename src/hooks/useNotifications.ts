@@ -128,7 +128,7 @@ export const useNotifications = () => {
     if (!user) return;
 
     const channel = supabase
-      .channel('notifications')
+      .channel('notifications-updates')
       .on(
         'postgres_changes',
         {
@@ -159,10 +159,16 @@ export const useNotifications = () => {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
+          console.log('Notification updated:', payload);
           const updatedNotification = payload.new as Notification;
           setNotifications(prev => 
             prev.map(n => n.id === updatedNotification.id ? updatedNotification : n)
           );
+          
+          // Update unread count based on read_at changes
+          if (payload.old?.read_at !== payload.new?.read_at && payload.new?.read_at) {
+            setUnreadCount(prev => Math.max(0, prev - 1));
+          }
         }
       )
       .subscribe();

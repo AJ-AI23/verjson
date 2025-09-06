@@ -133,30 +133,46 @@ export function useWorkspaces() {
     }
   };
 
-  // Set up real-time subscription
+  // Set up real-time subscriptions for workspace changes
   useEffect(() => {
     if (!user) return;
 
     fetchWorkspaces();
 
-    const channel = supabase
-      .channel('workspace-changes')
+    // Listen for workspace changes (new workspace invitations accepted)
+    const workspaceChannel = supabase
+      .channel('workspace-updates')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
+          table: 'workspace_permissions',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Workspace permission change detected:', payload);
+          // Refetch workspaces when permissions change
+          fetchWorkspaces();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public', 
           table: 'workspaces',
           filter: `user_id=eq.${user.id}`,
         },
-        () => {
+        (payload) => {
+          console.log('Workspace change detected:', payload);
           fetchWorkspaces();
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(workspaceChannel);
     };
   }, [user]);
 

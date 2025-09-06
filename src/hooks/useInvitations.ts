@@ -90,8 +90,35 @@ export function useInvitations() {
     }
   };
 
+  // Set up real-time subscription for invitation changes
   useEffect(() => {
+    if (!user) return;
+
     fetchInvitations();
+
+    const channel = supabase
+      .channel('invitations-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Invitation/notification change detected:', payload);
+          // Only refetch if it's an invitation type notification
+          if ((payload.new as any)?.type === 'invitation' || (payload.old as any)?.type === 'invitation') {
+            fetchInvitations();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   return {
