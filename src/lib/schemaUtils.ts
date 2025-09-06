@@ -71,23 +71,68 @@ export const validateJsonSchema = (jsonString: string, schemaType: SchemaType = 
     }
     
     return parsedSchema;
-  } catch (e) {
-    if (e instanceof SyntaxError) {
-      // Provide more user-friendly JSON syntax error message
-      const lineMatch = e.message.match(/at position (\d+)/);
+  } catch (parseError) {
+    // Provide more helpful error messages for common JSON issues
+    const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
+    
+    if (errorMessage.includes('unexpected non-whitespace character after JSON data')) {
+      // Try to find where the valid JSON ends
+      try {
+        let validJsonEnd = 0;
+        let braceCount = 0;
+        let inString = false;
+        let escaped = false;
+        
+        for (let i = 0; i < jsonString.length; i++) {
+          const char = jsonString[i];
+          
+          if (!inString) {
+            if (char === '{') braceCount++;
+            else if (char === '}') {
+              braceCount--;
+              if (braceCount === 0) {
+                validJsonEnd = i + 1;
+                break;
+              }
+            }
+            else if (char === '"') inString = true;
+          } else {
+            if (!escaped && char === '"') inString = false;
+            escaped = !escaped && char === '\\';
+          }
+        }
+        
+        const validPortion = jsonString.substring(0, validJsonEnd);
+        const invalidPortion = jsonString.substring(validJsonEnd).trim();
+        
+        throw new Error(
+          `Invalid JSON: The document contains valid JSON followed by unexpected content.\n\n` +
+          `Valid JSON ends at character ${validJsonEnd}.\n` +
+          `Invalid content: "${invalidPortion.substring(0, 100)}${invalidPortion.length > 100 ? '...' : ''}"\n\n` +
+          `Please remove the extra content after the JSON structure.`
+        );
+      } catch (analysisError) {
+        // Fallback to original error if analysis fails
+        throw new Error(`Invalid JSON: ${errorMessage}\n\nPlease check your JSON syntax and remove any content after the main JSON structure.`);
+      }
+    } else if (errorMessage.includes('Unexpected end of JSON input')) {
+      throw new Error('Invalid JSON: The document appears to be incomplete. Please check for missing closing brackets or quotes.');
+    } else if (errorMessage.includes('Unexpected token')) {
+      // Try to provide line/column information for syntax errors
+      const lineMatch = errorMessage.match(/at position (\d+)/);
       if (lineMatch && lineMatch[1]) {
         const position = parseInt(lineMatch[1], 10);
-        // Calculate approximate line and column
         const upToError = jsonString.substring(0, position);
         const lines = upToError.split('\n');
         const line = lines.length;
         const column = lines[lines.length - 1].length + 1;
-        throw new Error(`JSON Syntax Error at line ${line}, column ${column}: ${e.message}`);
+        throw new Error(`Invalid JSON: Syntax error at line ${line}, column ${column}. ${errorMessage}`);
       } else {
-        throw new Error(`Invalid JSON: ${e.message}`);
+        throw new Error(`Invalid JSON: ${errorMessage}\n\nPlease check your JSON syntax - look for missing commas, quotes, or brackets.`);
       }
+    } else {
+      throw new Error(`Invalid JSON: ${errorMessage}`);
     }
-    throw e;
   }
 };
 
