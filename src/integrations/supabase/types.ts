@@ -45,7 +45,22 @@ export type Database = {
           user_id?: string
           user_name?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_collaboration_sessions_document_id"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_collaboration_sessions_user_id"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       document_access_logs: {
         Row: {
@@ -75,6 +90,13 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "document_access_logs_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_document_access_logs_document_id"
             columns: ["document_id"]
             isOneToOne: false
             referencedRelation: "documents"
@@ -187,6 +209,13 @@ export type Database = {
             referencedRelation: "documents"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_document_versions_user_id"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       documents: {
@@ -243,6 +272,20 @@ export type Database = {
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_documents_user_id"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "fk_documents_workspace_id"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
         ]
       }
       notifications: {
@@ -289,6 +332,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_notifications_document_id"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_notifications_user_id"
             columns: ["user_id"]
@@ -356,7 +406,22 @@ export type Database = {
           updated_at?: string
           workspace_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_workspace_crowdin_settings_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "fk_workspace_crowdin_settings_workspace_id"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workspace_permissions: {
         Row: {
@@ -431,7 +496,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_workspaces_user_id"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       yjs_documents: {
         Row: {
@@ -461,7 +534,22 @@ export type Database = {
           yjs_state?: string
           yjs_vector_clock?: Json
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_yjs_documents_document_id"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_yjs_documents_user_id"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
     }
     Views: {
