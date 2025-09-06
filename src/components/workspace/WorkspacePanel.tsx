@@ -53,7 +53,12 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   const { user } = useAuth();
   const { workspaces, createWorkspace, updateWorkspace, deleteWorkspace } = useWorkspaces();
   const [selectedWorkspace, setSelectedWorkspace] = useState<string>('');
+  
+  console.log('[WorkspacePanel] Selected workspace:', selectedWorkspace);
   const { documents, createDocument, deleteDocument } = useDocuments(selectedWorkspace);
+  console.log('[WorkspacePanel] Documents for workspace:', selectedWorkspace, 'count:', documents.length);
+  console.log('[WorkspacePanel] Document details:', documents.map(d => ({ id: d.id, name: d.name, workspace_id: d.workspace_id })));
+  
   const { inviteToWorkspace, inviteBulkDocuments } = useWorkspacePermissions(selectedWorkspace);
   const { checkDocumentPinStatus } = useDocumentPinSecurity();
   
@@ -424,7 +429,10 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
         {/* Workspace Selection */}
         <div className="space-y-2">
           <Label>Select Workspace</Label>
-          <Select value={selectedWorkspace} onValueChange={setSelectedWorkspace}>
+          <Select value={selectedWorkspace} onValueChange={(value) => {
+            console.log('[WorkspacePanel] Workspace selection changed from', selectedWorkspace, 'to', value);
+            setSelectedWorkspace(value);
+          }}>
             <SelectTrigger>
               <SelectValue placeholder="Choose a workspace..." />
             </SelectTrigger>
