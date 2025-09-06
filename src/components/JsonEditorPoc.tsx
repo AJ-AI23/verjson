@@ -18,6 +18,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 
 interface JsonEditorPocProps {
@@ -48,11 +50,17 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   // Track if we're updating from Yjs to avoid circular updates
   const isUpdatingFromYjs = useRef<boolean>(false);
   
-  // Collaboration state
+  // Collaboration state with localStorage persistence
   const [showCollaborationInfo, setShowCollaborationInfo] = useState(false);
+  const [collaborationEnabled, setCollaborationEnabled] = useState(() => {
+    const saved = localStorage.getItem('collaboration-enabled');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
 
-  // Temporarily disable Yjs to prevent infinite loops
-  const ENABLE_YJS = false;
+  // Persist collaboration setting
+  useEffect(() => {
+    localStorage.setItem('collaboration-enabled', JSON.stringify(collaborationEnabled));
+  }, [collaborationEnabled]);
 
   // Stable refs for Yjs callbacks to prevent recreating hooks
   const onContentChangeRef = useRef<((content: string) => void) | undefined>();
@@ -66,7 +74,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     }
   }, [onChange]);
 
-  // Initialize Yjs collaborative document (disabled for now)
+  // Initialize Yjs collaborative document
   const {
     yjsDoc,
     provider,
@@ -77,7 +85,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     getTextContent,
     updateContent
   } = useYjsDocument({
-    documentId: ENABLE_YJS ? documentId : null,
+    documentId: collaborationEnabled ? documentId : null,
     initialContent: value,
     onContentChange: onContentChangeRef.current
   });
@@ -95,15 +103,15 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   // Get collaboration info
   const { activeUsers: dbActiveUsers } = useCollaboration({ documentId });
   
-  // Wrap onChange to update Yjs document (fallback to regular onChange when Yjs disabled)
+  // Wrap onChange to update Yjs document 
   const handleChange = useCallback((newValue: string) => {
-    if (ENABLE_YJS && !isUpdatingFromYjs.current && yjsDoc) {
+    if (collaborationEnabled && !isUpdatingFromYjs.current && yjsDoc) {
       updateContent(newValue);
     } else {
-      // Regular onChange when Yjs is disabled
+      // Regular onChange when collaboration is disabled
       onChange(newValue);
     }
-  }, [updateContent, yjsDoc, onChange]);
+  }, [collaborationEnabled, updateContent, yjsDoc, onChange]);
 
   // Wrap onToggleCollapse 
   const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
@@ -143,40 +151,40 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     };
   }, []);
 
-  // Update editor content when Yjs content changes (with guards)
+  // Update editor content when Yjs content changes (only when collaboration enabled)
   useEffect(() => {
-    if (yjsDoc && !isUpdatingFromYjs.current) {
+    if (collaborationEnabled && yjsDoc && !isUpdatingFromYjs.current) {
       const content = getTextContent();
       if (content && content !== value) {
         onChange(content);
       }
     }
-  }, [yjsDoc]); // Remove getTextContent, value, onChange from dependencies
+  }, [collaborationEnabled, yjsDoc]); // Remove getTextContent, value, onChange from dependencies
 
-  // Show toast notifications for collaboration (only once per error/connection)
+  // Show toast notifications for collaboration (only when enabled)
   const previousYjsErrorRef = useRef<string | null>(null);
   const hasShownConnectedToastRef = useRef<boolean>(false);
   
   useEffect(() => {
-    if (yjsError && yjsError !== previousYjsErrorRef.current) {
+    if (collaborationEnabled && yjsError && yjsError !== previousYjsErrorRef.current) {
       previousYjsErrorRef.current = yjsError;
       toast.error('Collaboration Error', {
         description: yjsError
       });
     }
-  }, [yjsError]);
+  }, [collaborationEnabled, yjsError]);
 
   useEffect(() => {
-    if (isConnected && !hasShownConnectedToastRef.current) {
+    if (collaborationEnabled && isConnected && !hasShownConnectedToastRef.current) {
       hasShownConnectedToastRef.current = true;
       toast.success('Connected to collaboration server');
-    } else if (!isConnected) {
+    } else if (!isConnected || !collaborationEnabled) {
       hasShownConnectedToastRef.current = false;
     }
-  }, [isConnected]);
+  }, [collaborationEnabled, isConnected]);
 
-  // Combine active users from Yjs and database into unified format
-  const unifiedActiveUsers = [
+  // Combine active users from Yjs and database into unified format (only when collaboration enabled)
+  const unifiedActiveUsers = collaborationEnabled ? [
     ...(yjsActiveUsers || []).map(user => ({
       id: user.id,
       user_id: user.id,
@@ -185,7 +193,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
       last_seen: new Date().toISOString()
     })),
     ...(dbActiveUsers || [])
-  ];
+  ] : [];
   
   const uniqueActiveUsers = unifiedActiveUsers.filter((user, index, self) => 
     index === self.findIndex(u => u.user_id === user.user_id)
@@ -210,48 +218,85 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
               </DialogHeader>
               
               <div className="space-y-4">
-                <div className="p-3 bg-muted rounded-lg">
-                  <p className="text-sm font-medium mb-2">Connection Status:</p>
-                  <div className="flex items-center gap-2">
-                    {yjsLoading ? (
-                      <>
-                        <div className="h-2 w-2 bg-yellow-500 rounded-full animate-pulse" />
-                        <span className="text-sm">Connecting...</span>
-                      </>
-                    ) : isConnected ? (
-                      <>
-                        <div className="h-2 w-2 bg-green-500 rounded-full" />
-                        <span className="text-sm">Connected</span>
-                      </>
-                    ) : (
-                      <>
-                        <div className="h-2 w-2 bg-red-500 rounded-full" />
-                        <span className="text-sm">Disconnected</span>
-                      </>
-                    )}
+                {/* Collaboration Toggle */}
+                <div className="flex items-center justify-between p-3 bg-background border rounded-lg">
+                  <div className="space-y-1">
+                    <Label htmlFor="collaboration-enabled" className="text-sm font-medium">
+                      Enable Real-time Collaboration
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Connect with other users to edit documents together
+                    </p>
                   </div>
+                  <Switch
+                    id="collaboration-enabled"
+                    checked={collaborationEnabled}
+                    onCheckedChange={(checked) => {
+                      setCollaborationEnabled(checked);
+                      if (checked) {
+                        toast.success('Collaboration enabled');
+                      } else {
+                        toast.info('Collaboration disabled - working in single-user mode');
+                      }
+                    }}
+                  />
                 </div>
 
-                {uniqueActiveUsers.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Active Collaborators:</p>
-                    <div className="space-y-1">
-                      {uniqueActiveUsers.map((user) => (
-                        <div key={user.user_id} className="flex items-center gap-2 text-sm">
-                          <div className="h-2 w-2 bg-green-500 rounded-full" />
-                          <span>{user.user_name || 'Anonymous'}</span>
-                        </div>
-                      ))}
+                {collaborationEnabled && (
+                  <>
+                    <div className="p-3 bg-muted rounded-lg">
+                      <p className="text-sm font-medium mb-2">Connection Status:</p>
+                      <div className="flex items-center gap-2">
+                        {yjsLoading ? (
+                          <>
+                            <div className="h-2 w-2 bg-yellow-500 rounded-full animate-pulse" />
+                            <span className="text-sm">Connecting...</span>
+                          </>
+                        ) : isConnected ? (
+                          <>
+                            <div className="h-2 w-2 bg-green-500 rounded-full" />
+                            <span className="text-sm">Connected</span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="h-2 w-2 bg-red-500 rounded-full" />
+                            <span className="text-sm">Disconnected</span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </div>
+
+                    {uniqueActiveUsers.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">Active Collaborators:</p>
+                        <div className="space-y-1">
+                          {uniqueActiveUsers.map((user) => (
+                            <div key={user.user_id} className="flex items-center gap-2 text-sm">
+                              <div className="h-2 w-2 bg-green-500 rounded-full" />
+                              <span>{user.user_name || 'Anonymous'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="p-3 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">
+                        Changes are automatically synchronized in real-time. 
+                        Undo/redo operations are per-user and won't affect other collaborators' work.
+                      </p>
+                    </div>
+                  </>
                 )}
 
-                <div className="p-3 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    Changes are automatically synchronized in real-time. 
-                    Undo/redo operations are per-user and won't affect other collaborators' work.
-                  </p>
-                </div>
+                {!collaborationEnabled && (
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">
+                      Collaboration is currently disabled. You're working in single-user mode 
+                      with local undo/redo history.
+                    </p>
+                  </div>
+                )}
               </div>
             </DialogContent>
           </Dialog>
@@ -268,9 +313,9 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
           />
           
           <CollaborationIndicator
-            activeUsers={uniqueActiveUsers}
-            isConnected={isConnected}
-            isLoading={yjsLoading}
+            activeUsers={collaborationEnabled ? uniqueActiveUsers : []}
+            isConnected={collaborationEnabled && isConnected}
+            isLoading={collaborationEnabled && yjsLoading}
             className="ml-2"
           />
           
