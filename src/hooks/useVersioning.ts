@@ -119,11 +119,8 @@ export const useVersioning = ({
 
   // Create initial version when document is loaded (only once per document)
   useEffect(() => {
-    // Use saved schema for initial version creation (the one loaded from document)
-    const currentSchemaToUse = savedSchema;
-    
     // Early returns to prevent unnecessary processing
-    if (!documentId || !currentSchemaToUse || currentSchemaToUse.trim() === '{}' || currentSchemaToUse.trim() === '') {
+    if (!documentId) {
       return;
     }
 
@@ -161,6 +158,12 @@ export const useVersioning = ({
           return;
         }
         
+        // Use saved schema for initial version creation (the one loaded from document)
+        const currentSchemaToUse = savedSchema;
+        if (!currentSchemaToUse || currentSchemaToUse.trim() === '{}' || currentSchemaToUse.trim() === '') {
+          return;
+        }
+        
         const parsedSchema = JSON.parse(currentSchemaToUse);
         // Only create initial version if the schema has actual content
         if (Object.keys(parsedSchema).length > 0) {
@@ -189,7 +192,7 @@ export const useVersioning = ({
     };
     
     createInitialVersion();
-  }, [documentId, loading, versions.length, savedSchema]); // Use savedSchema for initial version
+  }, [documentId, loading, versions.length]); // Removed savedSchema from dependencies to prevent duplicate initial versions
 
   // Reset tracking when document changes
   useEffect(() => {
