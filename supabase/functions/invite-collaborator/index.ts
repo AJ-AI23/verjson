@@ -61,11 +61,13 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Check if user exists, if not create an invitation notification anyway
-    const { data: targetUserProfile } = await supabaseClient
+    const { data: targetUserProfile, error: profileError } = await supabaseClient
       .from("profiles")
       .select("user_id, email, full_name")
       .eq("email", email)
-      .single();
+      .maybeSingle();
+
+    console.log("Target user lookup:", { email, targetUserProfile, profileError });
 
     let invitationData: any = {
       inviter_id: user.id,
@@ -97,7 +99,10 @@ const handler = async (req: Request): Promise<Response> => {
           });
 
         if (permissionError) {
-          console.error("Permission error:", permissionError);
+          console.error("Document permission creation error:", permissionError);
+          throw new Error(`Failed to create document permission: ${permissionError.message}`);
+        } else {
+          console.log("Document permission created successfully for user:", targetUserProfile.user_id);
         }
       }
 
@@ -122,7 +127,10 @@ const handler = async (req: Request): Promise<Response> => {
           });
 
         if (permissionError) {
-          console.error("Permission error:", permissionError);
+          console.error("Workspace permission creation error:", permissionError);
+          throw new Error(`Failed to create workspace permission: ${permissionError.message}`);
+        } else {
+          console.log("Workspace permission created successfully for user:", targetUserProfile.user_id);
         }
       }
 
@@ -189,15 +197,15 @@ const handler = async (req: Request): Promise<Response> => {
         
         <p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
           ${targetUserProfile ? 
-            'You can manage this invitation from your dashboard after logging in.' :
+            'To accept this invitation, please log in to your account and check your notifications.' :
             'To accept this invitation, please sign up for an account and the invitation will be waiting for you.'
           }
         </p>
         
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${Deno.env.get("SUPABASE_URL")?.replace('/v1', '') || 'https://your-app.com'}" 
+           <a href="${Deno.env.get("SUPABASE_URL")?.replace('/v1', '') || 'https://your-app.com'}" 
              style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500;">
-            ${targetUserProfile ? 'View Invitation' : 'Sign Up & Accept'}
+            ${targetUserProfile ? 'Login & View Invitation' : 'Sign Up & Accept'}
           </a>
         </div>
         
