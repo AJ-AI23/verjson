@@ -619,6 +619,10 @@ export type Database = {
           workspace_id: string
         }[]
       }
+      user_has_workspace_access: {
+        Args: { user_id: string; workspace_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       permission_role: "owner" | "editor" | "viewer"
