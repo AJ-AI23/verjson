@@ -29,31 +29,13 @@ export function useWorkspacePermissions(workspaceId?: string) {
       setLoading(true);
       setError(null);
       
-      // Use JOIN query now that we have proper foreign keys
+      // Use proper SQL JOIN instead of nested query
       const { data: permissionsData, error } = await supabase
-        .from('workspace_permissions')
-        .select(`
-          *,
-          profiles (
-            email,
-            full_name,
-            username
-          )
-        `)
-        .eq('workspace_id', workspaceId)
-        .order('created_at', { ascending: false });
+        .rpc('get_workspace_permissions', { ws_id: workspaceId });
 
       if (error) throw error;
 
-      // Transform the data to match our interface
-      const permissionsWithUserInfo = (permissionsData || []).map(perm => ({
-        ...perm,
-        user_email: perm.profiles?.email,
-        user_name: perm.profiles?.full_name,
-        username: perm.profiles?.username
-      }));
-      
-      setPermissions(permissionsWithUserInfo);
+      setPermissions(permissionsData || []);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch permissions';
       setError(message);

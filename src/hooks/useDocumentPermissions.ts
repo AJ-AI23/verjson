@@ -29,31 +29,13 @@ export function useDocumentPermissions(documentId?: string, document?: any) {
       setLoading(true);
       setError(null);
       
-      // Use JOIN query now that we have proper foreign keys
+      // Use proper SQL JOIN instead of nested query
       const { data: permissionsData, error } = await supabase
-        .from('document_permissions')
-        .select(`
-          *,
-          profiles (
-            email,
-            full_name,
-            username
-          )
-        `)
-        .eq('document_id', documentId)
-        .order('created_at', { ascending: false });
+        .rpc('get_document_permissions', { doc_id: documentId });
 
       if (error) throw error;
 
-      // Transform the data to match our interface
-      const permissionsWithUserInfo = (permissionsData || []).map(perm => ({
-        ...perm,
-        user_email: perm.profiles?.email,
-        user_name: perm.profiles?.full_name,
-        username: perm.profiles?.username
-      }));
-      
-      setPermissions(permissionsWithUserInfo);
+      setPermissions(permissionsData || []);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch permissions';
       setError(message);
