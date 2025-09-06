@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SmtpClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import nodemailer from "npm:nodemailer@6.9.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -171,7 +171,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Send email invitation using SMTP
+    // Send email invitation using SMTP with nodemailer
     const smtpHost = Deno.env.get("SMTP_HOST") || "send.one.com";
     const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "465");
     const smtpUser = Deno.env.get("SMTP_USERNAME");
@@ -181,15 +181,6 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("SMTP credentials are not configured. Please set SMTP_USERNAME and SMTP_PASSWORD in the Supabase dashboard.");
     }
 
-    const client = new SmtpClient();
-    
-    await client.connectTLS({
-      hostname: smtpHost,
-      port: smtpPort,
-      username: smtpUser,
-      password: smtpPassword,
-    });
-    
     const emailContent = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">${notificationTitle}</h1>
@@ -220,17 +211,34 @@ const handler = async (req: Request): Promise<Response> => {
       </div>
     `;
 
-    await client.send({
+    // Create nodemailer transporter
+    const transporter = nodemailer.createTransporter({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465, // true for 465, false for other ports
+      auth: {
+        user: smtpUser,
+        pass: smtpPassword,
+      },
+    });
+
+    console.log("Attempting to send email via SMTP:", {
+      host: smtpHost,
+      port: smtpPort,
+      user: smtpUser,
+      to: email
+    });
+
+    // Send email
+    const mailOptions = {
       from: smtpUser,
       to: email,
       subject: notificationTitle,
-      content: emailContent,
       html: emailContent,
-    });
+    };
 
-    await client.close();
-
-    console.log("Email sent successfully via SMTP");
+    const emailResult = await transporter.sendMail(mailOptions);
+    console.log("Email sent successfully via SMTP:", emailResult);
 
     return new Response(
       JSON.stringify({
