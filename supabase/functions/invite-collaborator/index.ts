@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "npm:resend@2.0.0";
+import { SmtpClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -171,13 +171,24 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Send email invitation
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendApiKey) {
-      throw new Error("RESEND_API_KEY is not configured. Please set it in the Supabase dashboard.");
+    // Send email invitation using SMTP
+    const smtpHost = Deno.env.get("SMTP_HOST") || "send.one.com";
+    const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "465");
+    const smtpUser = Deno.env.get("SMTP_USERNAME");
+    const smtpPassword = Deno.env.get("SMTP_PASSWORD");
+
+    if (!smtpUser || !smtpPassword) {
+      throw new Error("SMTP credentials are not configured. Please set SMTP_USERNAME and SMTP_PASSWORD in the Supabase dashboard.");
     }
 
-    const resend = new Resend(resendApiKey);
+    const client = new SmtpClient();
+    
+    await client.connectTLS({
+      hostname: smtpHost,
+      port: smtpPort,
+      username: smtpUser,
+      password: smtpPassword,
+    });
     
     const emailContent = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -209,14 +220,17 @@ const handler = async (req: Request): Promise<Response> => {
       </div>
     `;
 
-    const emailResponse = await resend.emails.send({
-      from: "Workspace Invitations <onboarding@resend.dev>",
-      to: [email],
+    await client.send({
+      from: smtpUser,
+      to: email,
       subject: notificationTitle,
+      content: emailContent,
       html: emailContent,
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    await client.close();
+
+    console.log("Email sent successfully via SMTP");
 
     return new Response(
       JSON.stringify({
