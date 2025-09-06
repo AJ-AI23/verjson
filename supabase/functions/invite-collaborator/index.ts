@@ -170,12 +170,12 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
     } else if (invitationType === 'workspace' && resourceId) {
-      // Workspace invitation
+      // Workspace invitation - use the actual workspace name from database lookup
       invitationData.workspace_id = resourceId;
-      invitationData.workspace_name = resourceName;
+      invitationData.workspace_name = workspace.name; // Use actual name from database
       
-      notificationTitle = `Invitation to workspace "${resourceName}"`;
-      notificationMessage = `You have been invited to collaborate on the workspace "${resourceName}" as ${role}.`;
+      notificationTitle = `Invitation to workspace "${workspace.name}"`;
+      notificationMessage = `You have been invited to collaborate on the workspace "${workspace.name}" as ${role}.`;
 
       if (targetUserProfile) {
         // Create pending permission
