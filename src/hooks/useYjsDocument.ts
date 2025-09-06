@@ -190,6 +190,8 @@ export const useYjsDocument = ({
   // Initialize when documentId changes
   useEffect(() => {
     if (documentId) {
+      // Cleanup previous connection before initializing new one
+      disconnect();
       initializeYjsDocument();
     } else {
       disconnect();
@@ -198,7 +200,7 @@ export const useYjsDocument = ({
     return () => {
       disconnect();
     };
-  }, [documentId, initializeYjsDocument]);
+  }, [documentId]);
 
   return {
     yjsDoc,
