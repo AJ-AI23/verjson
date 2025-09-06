@@ -13,6 +13,7 @@ interface UseYjsUndoResult {
   redo: () => void;
   clearHistory: () => void;
   historySize: number;
+  isUndoRedoOperation: () => boolean;
 }
 
 export const useYjsUndo = ({
@@ -24,6 +25,7 @@ export const useYjsUndo = ({
   const [historySize, setHistorySize] = useState(0);
   
   const undoManagerRef = useRef<Y.UndoManager | null>(null);
+  const isUndoRedoOperation = useRef(false);
 
   const updateState = useCallback(() => {
     if (undoManagerRef.current) {
@@ -42,15 +44,25 @@ export const useYjsUndo = ({
 
   const undo = useCallback(() => {
     if (undoManagerRef.current && undoManagerRef.current.undoStack.length > 0) {
+      isUndoRedoOperation.current = true;
       undoManagerRef.current.undo();
       updateState();
+      // Reset flag after operation completes
+      setTimeout(() => {
+        isUndoRedoOperation.current = false;
+      }, 0);
     }
   }, [updateState]);
 
   const redo = useCallback(() => {
     if (undoManagerRef.current && undoManagerRef.current.redoStack.length > 0) {
+      isUndoRedoOperation.current = true;
       undoManagerRef.current.redo();
       updateState();
+      // Reset flag after operation completes
+      setTimeout(() => {
+        isUndoRedoOperation.current = false;
+      }, 0);
     }
   }, [updateState]);
 
@@ -119,6 +131,7 @@ export const useYjsUndo = ({
     undo,
     redo,
     clearHistory,
-    historySize
+    historySize,
+    isUndoRedoOperation: () => isUndoRedoOperation.current
   };
 };

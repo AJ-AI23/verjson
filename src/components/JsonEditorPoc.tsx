@@ -114,7 +114,8 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     undo,
     redo,
     clearHistory,
-    historySize
+    historySize,
+    isUndoRedoOperation
   } = useYjsUndo({ yjsDoc });
 
   // Get collaboration info
@@ -122,13 +123,14 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   
   // Wrap onChange to update Yjs document 
   const handleChange = useCallback((newValue: string) => {
-    if (collaborationEnabled && !isUpdatingFromYjs.current && yjsDoc) {
+    // Don't update Yjs if this change is from an undo/redo operation
+    if (collaborationEnabled && !isUpdatingFromYjs.current && !isUndoRedoOperation() && yjsDoc) {
       updateContent(newValue);
-    } else {
+    } else if (!collaborationEnabled) {
       // Regular onChange when collaboration is disabled
       onChange(newValue);
     }
-  }, [collaborationEnabled, updateContent, yjsDoc, onChange]);
+  }, [collaborationEnabled, updateContent, yjsDoc, onChange, isUndoRedoOperation]);
 
   // Wrap onToggleCollapse 
   const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
