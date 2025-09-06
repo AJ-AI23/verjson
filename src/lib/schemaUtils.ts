@@ -42,6 +42,11 @@ try {
 export type SchemaType = 'json-schema' | 'openapi';
 
 export const validateJsonSchema = (jsonString: string, schemaType: SchemaType = 'json-schema'): any => {
+  // Handle empty or whitespace-only strings
+  if (!jsonString || jsonString.trim() === '') {
+    throw new Error('Schema content is empty. Please provide valid JSON content.');
+  }
+
   try {
     // Parse JSON
     const parsedSchema = JSON.parse(jsonString);

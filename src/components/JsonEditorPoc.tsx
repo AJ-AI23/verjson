@@ -50,17 +50,28 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   // Track if we're updating from Yjs to avoid circular updates
   const isUpdatingFromYjs = useRef<boolean>(false);
   
-  // Collaboration state with localStorage persistence
+  // Collaboration state with per-document localStorage persistence
   const [showCollaborationInfo, setShowCollaborationInfo] = useState(false);
   const [collaborationEnabled, setCollaborationEnabled] = useState(() => {
-    const saved = localStorage.getItem('collaboration-enabled');
+    if (!documentId) return false;
+    const saved = localStorage.getItem(`collaboration-enabled-${documentId}`);
     return saved !== null ? JSON.parse(saved) : true;
   });
 
-  // Persist collaboration setting
+  // Reset collaboration setting when document changes
   useEffect(() => {
-    localStorage.setItem('collaboration-enabled', JSON.stringify(collaborationEnabled));
-  }, [collaborationEnabled]);
+    if (documentId) {
+      const saved = localStorage.getItem(`collaboration-enabled-${documentId}`);
+      setCollaborationEnabled(saved !== null ? JSON.parse(saved) : true);
+    }
+  }, [documentId]);
+
+  // Persist collaboration setting per document
+  useEffect(() => {
+    if (documentId) {
+      localStorage.setItem(`collaboration-enabled-${documentId}`, JSON.stringify(collaborationEnabled));
+    }
+  }, [collaborationEnabled, documentId]);
 
   // Stable refs for Yjs callbacks to prevent recreating hooks
   const onContentChangeRef = useRef<((content: string) => void) | undefined>();
