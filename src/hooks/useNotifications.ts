@@ -49,6 +49,8 @@ export const useNotifications = () => {
   const markAsRead = async (notificationId: string) => {
     if (!user) return;
 
+    console.log('Marking notification as read:', notificationId);
+
     try {
       const { error } = await supabase
         .from('notifications')
@@ -58,7 +60,9 @@ export const useNotifications = () => {
 
       if (error) throw error;
 
-      // Update local state
+      console.log('Successfully marked notification as read in database');
+
+      // Update local state immediately for better UX
       setNotifications(prev => 
         prev.map(n => 
           n.id === notificationId 
@@ -66,7 +70,20 @@ export const useNotifications = () => {
             : n
         )
       );
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      
+      // Calculate new unread count from updated notifications
+      setNotifications(prevNotifications => {
+        const updatedNotifications = prevNotifications.map(n => 
+          n.id === notificationId 
+            ? { ...n, read_at: new Date().toISOString() }
+            : n
+        );
+        const newUnreadCount = updatedNotifications.filter(n => !n.read_at).length;
+        console.log('Updating unread count after marking as read:', newUnreadCount);
+        setUnreadCount(newUnreadCount);
+        return updatedNotifications;
+      });
+
     } catch (error) {
       console.error('Error marking notification as read:', error);
       toast.error('Failed to mark notification as read');
@@ -77,6 +94,8 @@ export const useNotifications = () => {
   const markAllAsRead = async () => {
     if (!user) return;
 
+    console.log('Marking all notifications as read');
+
     try {
       const { error } = await supabase
         .from('notifications')
@@ -86,11 +105,17 @@ export const useNotifications = () => {
 
       if (error) throw error;
 
-      // Update local state
+      console.log('Successfully marked all notifications as read in database');
+
+      // Update local state immediately
+      const currentTime = new Date().toISOString();
       setNotifications(prev => 
-        prev.map(n => ({ ...n, read_at: n.read_at || new Date().toISOString() }))
+        prev.map(n => ({ ...n, read_at: n.read_at || currentTime }))
       );
+      
+      console.log('Setting unread count to 0');
       setUnreadCount(0);
+      
       toast.success('All notifications marked as read');
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
@@ -130,7 +155,12 @@ export const useNotifications = () => {
     console.log('Setting up notifications real-time subscription for user:', user.id);
 
     const channel = supabase
-      .channel(`notifications-${user.id}`)
+      .channel(`user-notifications-${user.id}`, {
+        config: {
+          broadcast: { self: true },
+          presence: { key: user.id }
+        }
+      })
       .on(
         'postgres_changes',
         {
@@ -140,7 +170,7 @@ export const useNotifications = () => {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('New notification received:', payload);
+          console.log('Real-time: New notification received:', payload);
           const newNotification = payload.new as Notification;
           
           setNotifications(prev => {
@@ -150,7 +180,7 @@ export const useNotifications = () => {
           
           setUnreadCount(prev => {
             const newCount = prev + 1;
-            console.log('Updating unread count from', prev, 'to', newCount);
+            console.log('Real-time: Updating unread count from', prev, 'to', newCount);
             return newCount;
           });
           
@@ -171,18 +201,21 @@ export const useNotifications = () => {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('Notification updated:', payload);
+          console.log('Real-time: Notification updated:', payload);
           const updatedNotification = payload.new as Notification;
+          const oldNotification = payload.old as Notification;
           
-          setNotifications(prev => 
-            prev.map(n => n.id === updatedNotification.id ? updatedNotification : n)
-          );
+          setNotifications(prev => {
+            const updated = prev.map(n => n.id === updatedNotification.id ? updatedNotification : n);
+            console.log('Real-time: Updated notifications list');
+            return updated;
+          });
           
           // Update unread count based on read_at changes
-          if (payload.old?.read_at !== payload.new?.read_at && payload.new?.read_at) {
+          if (oldNotification?.read_at !== updatedNotification?.read_at && updatedNotification?.read_at) {
             setUnreadCount(prev => {
               const newCount = Math.max(0, prev - 1);
-              console.log('Notification marked as read, updating unread count from', prev, 'to', newCount);
+              console.log('Real-time: Notification marked as read, updating unread count from', prev, 'to', newCount);
               return newCount;
             });
           }
@@ -197,7 +230,7 @@ export const useNotifications = () => {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('Notification deleted:', payload);
+          console.log('Real-time: Notification deleted:', payload);
           const deletedNotification = payload.old as Notification;
           
           setNotifications(prev => 
@@ -208,14 +241,17 @@ export const useNotifications = () => {
           if (!deletedNotification.read_at) {
             setUnreadCount(prev => {
               const newCount = Math.max(0, prev - 1);
-              console.log('Unread notification deleted, updating count from', prev, 'to', newCount);
+              console.log('Real-time: Unread notification deleted, updating count from', prev, 'to', newCount);
               return newCount;
             });
           }
         }
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         console.log('Notifications subscription status:', status);
+        if (err) {
+          console.error('Notifications subscription error:', err);
+        }
       });
 
     return () => {

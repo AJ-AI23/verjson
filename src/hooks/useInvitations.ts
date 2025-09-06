@@ -47,6 +47,8 @@ export function useInvitations() {
   };
 
   const acceptInvitation = async (invitationId: string) => {
+    console.log('Accepting invitation:', invitationId);
+    
     try {
       const { data, error } = await supabase
         .rpc('accept_invitation', { notification_id: invitationId });
@@ -54,8 +56,16 @@ export function useInvitations() {
       if (error) throw error;
 
       if (data) {
+        console.log('Invitation accepted successfully');
         toast.success('Invitation accepted successfully');
-        await fetchInvitations(); // Refresh invitations
+        
+        // Update local state immediately - remove the accepted invitation
+        setInvitations(prev => {
+          const updated = prev.filter(inv => inv.id !== invitationId);
+          console.log('Updated invitations count after acceptance:', updated.length);
+          return updated;
+        });
+        
         return true;
       } else {
         throw new Error('Failed to accept invitation');
@@ -69,6 +79,8 @@ export function useInvitations() {
   };
 
   const declineInvitation = async (invitationId: string) => {
+    console.log('Declining invitation:', invitationId);
+    
     try {
       const { data, error } = await supabase
         .rpc('decline_invitation', { notification_id: invitationId });
@@ -76,8 +88,16 @@ export function useInvitations() {
       if (error) throw error;
 
       if (data) {
+        console.log('Invitation declined successfully');
         toast.success('Invitation declined');
-        await fetchInvitations(); // Refresh invitations
+        
+        // Update local state immediately - remove the declined invitation
+        setInvitations(prev => {
+          const updated = prev.filter(inv => inv.id !== invitationId);
+          console.log('Updated invitations count after decline:', updated.length);
+          return updated;
+        });
+        
         return true;
       } else {
         throw new Error('Failed to decline invitation');
@@ -98,7 +118,12 @@ export function useInvitations() {
     fetchInvitations();
 
     const channel = supabase
-      .channel(`invitations-${user.id}`)
+      .channel(`user-invitations-${user.id}`, {
+        config: {
+          broadcast: { self: true },
+          presence: { key: user.id }
+        }
+      })
       .on(
         'postgres_changes',
         {
@@ -108,11 +133,11 @@ export function useInvitations() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('New notification detected for invitations:', payload);
+          console.log('Real-time: New notification detected for invitations:', payload);
           const newNotification = payload.new as any;
           // Only refetch if it's an invitation type notification
-          if (newNotification?.type === 'invitation') {
-            console.log('New invitation received, refreshing invitations list');
+          if (newNotification?.type === 'invitation' && newNotification?.status === 'pending') {
+            console.log('Real-time: New invitation received, refreshing invitations list');
             fetchInvitations();
           }
         }
@@ -126,13 +151,13 @@ export function useInvitations() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('Notification updated for invitations:', payload);
+          console.log('Real-time: Notification updated for invitations:', payload);
           const newNotification = payload.new as any;
           const oldNotification = payload.old as any;
           // Refresh if it's an invitation type notification and status changed
           if ((newNotification?.type === 'invitation' || oldNotification?.type === 'invitation') &&
               newNotification?.status !== oldNotification?.status) {
-            console.log('Invitation status changed, refreshing invitations list');
+            console.log('Real-time: Invitation status changed, refreshing invitations list');
             fetchInvitations();
           }
         }
@@ -146,17 +171,20 @@ export function useInvitations() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('Notification deleted for invitations:', payload);
+          console.log('Real-time: Notification deleted for invitations:', payload);
           const deletedNotification = payload.old as any;
           // Refresh if it was an invitation type notification
           if (deletedNotification?.type === 'invitation') {
-            console.log('Invitation deleted, refreshing invitations list');
+            console.log('Real-time: Invitation deleted, refreshing invitations list');
             fetchInvitations();
           }
         }
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         console.log('Invitations subscription status:', status);
+        if (err) {
+          console.error('Invitations subscription error:', err);
+        }
       });
 
     return () => {
