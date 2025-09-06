@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -20,6 +20,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useDocumentPermissions, DocumentPermission } from '@/hooks/useDocumentPermissions';
 import { useWorkspacePermissions, WorkspacePermission } from '@/hooks/useWorkspacePermissions';
+
+// Extended type for display purposes
+type CollaboratorPermission = (DocumentPermission | WorkspacePermission) & {
+  isWorkspaceLevel?: boolean;
+};
 import { InviteCollaboratorDialog } from './InviteCollaboratorDialog';
 import { ChangeAccessDialog } from './ChangeAccessDialog';
 import { Document } from '@/types/workspace';
@@ -37,23 +42,50 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
   const { user } = useAuth();
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [showChangeAccessDialog, setShowChangeAccessDialog] = useState(false);
-  const [selectedPermission, setSelectedPermission] = useState<DocumentPermission | WorkspacePermission | null>(null);
+  const [selectedPermission, setSelectedPermission] = useState<CollaboratorPermission | null>(null);
   const [ownerProfile, setOwnerProfile] = useState<{email?: string, full_name?: string, username?: string} | null>(null);
   
   // Use document permissions by default, workspace permissions when specified
   const documentPermissions = useDocumentPermissions(document?.id, document);
   const workspacePermissions = useWorkspacePermissions(workspaceId);
   
+  // Merge document and workspace permissions for document view
+  const allPermissions = useMemo((): CollaboratorPermission[] => {
+    if (showWorkspaceCollaborators) {
+      return workspacePermissions.permissions;
+    }
+    
+    // For document view, show both document and workspace collaborators
+    const combined: CollaboratorPermission[] = [...documentPermissions.permissions];
+    
+    // Add workspace collaborators who don't already have document permissions
+    workspacePermissions.permissions.forEach(workspacePerm => {
+      const hasDocumentPermission = documentPermissions.permissions.some(
+        docPerm => docPerm.user_id === workspacePerm.user_id
+      );
+      
+      if (!hasDocumentPermission) {
+        combined.push({
+          ...workspacePerm,
+          isWorkspaceLevel: true
+        });
+      }
+    });
+    
+    return combined;
+  }, [documentPermissions.permissions, workspacePermissions.permissions, showWorkspaceCollaborators]);
+
   const permissions = showWorkspaceCollaborators ? workspacePermissions : documentPermissions;
+  const loading = showWorkspaceCollaborators ? workspacePermissions.loading : (documentPermissions.loading || workspacePermissions.loading);
   
   // Filter out the current user from collaborators since they're shown as owner
-  const collaboratorPermissions = permissions.permissions.filter(permission => permission.user_id !== user?.id);
+  const collaboratorPermissions = allPermissions.filter(permission => permission.user_id !== user?.id);
 
   // Fetch owner profile information
   React.useEffect(() => {
     const fetchOwnerProfile = async () => {
       // Find owner permission or determine owner
-      const ownerPermission = permissions.permissions.find(p => p.role === 'owner');
+      const ownerPermission = allPermissions.find(p => p.role === 'owner');
       let ownerId = ownerPermission?.user_id;
       
       // If no owner permission found, use document/workspace owner
@@ -84,7 +116,7 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
     };
 
     fetchOwnerProfile();
-  }, [permissions.permissions, document?.user_id, user?.id, showWorkspaceCollaborators]);
+  }, [allPermissions, document?.user_id, user?.id, showWorkspaceCollaborators]);
 
   if (!document && !showWorkspaceCollaborators) {
     return (
@@ -141,7 +173,7 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
     return false;
   };
 
-  const handleChangeAccess = (permission: DocumentPermission | WorkspacePermission) => {
+  const handleChangeAccess = (permission: CollaboratorPermission) => {
     setSelectedPermission(permission);
     setShowChangeAccessDialog(true);
   };
@@ -152,7 +184,7 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
     }
   };
 
-  const handleRemoveCollaborator = async (permission: DocumentPermission | WorkspacePermission) => {
+  const handleRemoveCollaborator = async (permission: CollaboratorPermission) => {
     await permissions.removePermission(permission.id);
   };
 
@@ -171,7 +203,7 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4">
             <div className="space-y-3">
-              {permissions.loading ? (
+              {loading ? (
                 <p className="text-sm text-muted-foreground">Loading collaborators...</p>
               ) : (
                 <>
@@ -204,12 +236,12 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
                         <div className="flex items-center gap-2 min-w-0">
                           {getRoleIcon(permission.role)}
                           <div className="flex flex-col min-w-0">
-                            <span className="font-medium truncate">
-                              {permission.username ? `@${permission.username}` : (permission.user_name || permission.user_email)}
-                            </span>
-                            <span className="text-xs text-muted-foreground truncate">
-                              {permission.username && permission.user_name ? permission.user_name : permission.user_email}
-                            </span>
+                           <span className="font-medium truncate">
+                               {permission.username ? `@${permission.username}` : (permission.user_name || permission.user_email || 'Unknown User')}
+                             </span>
+                             <span className="text-xs text-muted-foreground truncate">
+                               {permission.username && permission.user_name ? permission.user_name : (permission.user_email || 'No email')}
+                             </span>
                           </div>
                         </div>
                       </div>
@@ -219,6 +251,11 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
                           <Badge className={getRoleColor(permission.role)}>
                             {permission.role}
                           </Badge>
+                          {permission.isWorkspaceLevel && (
+                            <Badge variant="secondary" className="text-xs">
+                              Workspace
+                            </Badge>
+                          )}
                           
                           {isOwner && (
                             <DropdownMenu>
