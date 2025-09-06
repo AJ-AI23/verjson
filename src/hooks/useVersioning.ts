@@ -80,7 +80,10 @@ export const useVersioning = ({
 
   // Debounced database version calculation to prevent excessive updates
   const calculateDatabaseVersion = useCallback((schemaPatches: SchemaPatch[]) => {
-    if (schemaPatches.length === 0) return;
+    if (schemaPatches.length === 0) {
+      debugToast('No patches available, skipping database version calculation');
+      return;
+    }
     
     try {
       const currentMergedSchema = applySelectedPatches(schemaPatches);
@@ -89,8 +92,15 @@ export const useVersioning = ({
       debugToast('Database version set from selected patches', mergedSchemaString.substring(0, 100));
     } catch (err) {
       console.error('Failed to calculate database version from patches:', err);
+      debugToast('Version calculation failed', (err as Error).message);
+      // Don't show toast errors during initialization when no document is loaded
+      if (documentId) {
+        toast.error('Failed to apply version', {
+          description: (err as Error).message,
+        });
+      }
     }
-  }, []);
+  }, [documentId, debugToast]);
 
   // Update patches when database versions change
   useEffect(() => {
@@ -256,6 +266,16 @@ export const useVersioning = ({
       
       // Apply selected patches to get new schema and update both editor and database version
       debugToast('🔍 Recalculating schema from selected patches...');
+      
+      // Guard against empty patches during toggle operations
+      if (updatedPatches.length === 0) {
+        debugToast('No patches available after toggle, resetting to empty schema');
+        setSchema('{}');
+        setSavedSchema('{}');
+        setDatabaseVersion('');
+        return;
+      }
+      
       const newSchema = applySelectedPatches(updatedPatches);
       const newSchemaString = JSON.stringify(newSchema, null, 2);
       debugToast('🔍 New schema calculated, length', newSchemaString.length);
@@ -324,11 +344,19 @@ export const useVersioning = ({
       
       // Recalculate schema after deletion
       if (result.updatedPatches.length > 0) {
-        const newSchema = applySelectedPatches(result.updatedPatches);
-        const newSchemaString = JSON.stringify(newSchema, null, 2);
-        setSchema(newSchemaString);
-        setSavedSchema(newSchemaString);
-        setDatabaseVersion(newSchemaString);
+        try {
+          const newSchema = applySelectedPatches(result.updatedPatches);
+          const newSchemaString = JSON.stringify(newSchema, null, 2);
+          setSchema(newSchemaString);
+          setSavedSchema(newSchemaString);
+          setDatabaseVersion(newSchemaString);
+        } catch (err) {
+          console.error('Failed to recalculate schema after version deletion:', err);
+          // Fallback to empty state if recalculation fails
+          setSchema('{}');
+          setSavedSchema('{}');
+          setDatabaseVersion('');
+        }
       } else {
         // If no versions remain, reset to empty state
         setSchema('{}');
