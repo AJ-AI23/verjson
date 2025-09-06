@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import nodemailer from "npm:nodemailer@6.9.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -171,16 +170,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Send email invitation using SMTP with nodemailer
-    const smtpHost = Deno.env.get("SMTP_HOST") || "send.one.com";
-    const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "465");
-    const smtpUser = Deno.env.get("SMTP_USERNAME");
-    const smtpPassword = Deno.env.get("SMTP_PASSWORD");
-
-    if (!smtpUser || !smtpPassword) {
-      throw new Error("SMTP credentials are not configured. Please set SMTP_USERNAME and SMTP_PASSWORD in the Supabase dashboard.");
-    }
-
+    // Send email invitation using dedicated SMTP service
     const emailContent = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">${notificationTitle}</h1>
@@ -211,34 +201,39 @@ const handler = async (req: Request): Promise<Response> => {
       </div>
     `;
 
-    // Create nodemailer transporter
-    const transporter = nodemailer.createTransporter({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465, // true for 465, false for other ports
-      auth: {
-        user: smtpUser,
-        pass: smtpPassword,
-      },
-    });
+    // Call the SMTP service function
+    const smtpUser = Deno.env.get("SMTP_USERNAME");
+    if (smtpUser) {
+      try {
+        const emailServiceClient = createClient(
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+        );
 
-    console.log("Attempting to send email via SMTP:", {
-      host: smtpHost,
-      port: smtpPort,
-      user: smtpUser,
-      to: email
-    });
+        const { data: emailResult, error: emailError } = await emailServiceClient.functions.invoke(
+          'send-smtp-email',
+          {
+            body: {
+              to: email,
+              subject: notificationTitle,
+              html: emailContent,
+              from: smtpUser
+            }
+          }
+        );
 
-    // Send email
-    const mailOptions = {
-      from: smtpUser,
-      to: email,
-      subject: notificationTitle,
-      html: emailContent,
-    };
+        if (emailError) {
+          console.error("Email service error:", emailError);
+        } else {
+          console.log("Email sent successfully:", emailResult);
+        }
 
-    const emailResult = await transporter.sendMail(mailOptions);
-    console.log("Email sent successfully via SMTP:", emailResult);
+      } catch (emailError) {
+        console.error("Failed to send email:", emailError);
+      }
+    } else {
+      console.log("No SMTP user configured, skipping email send");
+    }
 
     return new Response(
       JSON.stringify({
