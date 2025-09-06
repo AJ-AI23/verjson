@@ -15,13 +15,32 @@ export function useWorkspaces() {
     
     try {
       setLoading(true);
+      
+      // Fetch both owned workspaces and workspaces user has permissions for
       const { data, error } = await supabase
         .from('workspaces')
-        .select('*')
+        .select(`
+          *,
+          workspace_permissions(role, status, user_id)
+        `)
+        .or(`user_id.eq.${user.id},workspace_permissions.user_id.eq.${user.id}`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setWorkspaces(data || []);
+      
+      // Transform the data to include isOwner flag and clean up duplicates
+      const workspacesMap = new Map();
+      data?.forEach((workspace: any) => {
+        const cleanWorkspace = {
+          ...workspace,
+          isOwner: workspace.user_id === user.id,
+          role: workspace.workspace_permissions?.role || (workspace.user_id === user.id ? 'owner' : 'viewer')
+        };
+        delete cleanWorkspace.workspace_permissions;
+        workspacesMap.set(workspace.id, cleanWorkspace);
+      });
+      
+      setWorkspaces(Array.from(workspacesMap.values()));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch workspaces');
       toast.error('Failed to load workspaces');

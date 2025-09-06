@@ -435,9 +435,16 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
             <SelectContent>
               {workspaces.map((workspace) => (
                 <SelectItem key={workspace.id} value={workspace.id}>
-                  <div className="flex items-center min-w-0">
-                    <Folder className="h-4 w-4 mr-2 flex-shrink-0" />
-                    <span className="truncate">{workspace.name}</span>
+                  <div className="flex items-center justify-between min-w-0 w-full">
+                    <div className="flex items-center min-w-0">
+                      <Folder className="h-4 w-4 mr-2 flex-shrink-0" />
+                      <span className="truncate">{workspace.name}</span>
+                    </div>
+                    {!workspace.isOwner && (
+                      <Badge variant="secondary" className="ml-2 text-xs">
+                        Invited
+                      </Badge>
+                    )}
                   </div>
                 </SelectItem>
               ))}

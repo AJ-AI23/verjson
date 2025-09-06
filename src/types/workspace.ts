@@ -5,6 +5,8 @@ export interface Workspace {
   description?: string;
   created_at: string;
   updated_at: string;
+  isOwner?: boolean;
+  role?: string;
 }
 
 export interface Document {

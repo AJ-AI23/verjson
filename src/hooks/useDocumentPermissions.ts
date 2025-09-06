@@ -40,20 +40,24 @@ export function useDocumentPermissions(documentId?: string, document?: any) {
 
       console.log('Permissions data:', permissionsData);
 
-      // Then get user profiles for each permission
+      // Then get user profiles for each permission with better error handling
       const permissionsWithUserInfo = await Promise.all(
         (permissionsData || []).map(async (perm) => {
-          const { data: profile } = await supabase
+          const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('email, full_name, username')
             .eq('user_id', perm.user_id)
             .maybeSingle();
 
+          if (profileError) {
+            console.warn('Failed to fetch profile for user:', perm.user_id, profileError);
+          }
+
           return {
             ...perm,
-            user_email: profile?.email,
-            user_name: profile?.full_name,
-            username: profile?.username
+            user_email: profile?.email || 'Unknown',
+            user_name: profile?.full_name || profile?.email || 'Unknown User',
+            username: profile?.username || profile?.email?.split('@')[0] || 'Unknown'
           };
         })
       );
