@@ -174,6 +174,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Send email invitation using Resend
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     console.log("Resend API Key exists:", !!resendApiKey);
+    console.log("Available env vars:", Object.keys(Deno.env.toObject()).filter(key => key.includes('RESEND')));
     
     if (!resendApiKey) {
       console.error("RESEND_API_KEY environment variable is not set");
