@@ -175,7 +175,22 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     if (collaborationEnabled && yjsDoc && !isUpdatingFromYjs.current) {
       const content = getTextContent();
       if (content && content !== value) {
-        onChange(content);
+        // Set flag to prevent recursive updates
+        isUpdatingFromYjs.current = true;
+        try {
+          // Validate JSON before updating to avoid invalid intermediate states
+          JSON.parse(content);
+          onChange(content);
+        } catch (e) {
+          // If content is not valid JSON, don't update the editor yet
+          // This can happen during partial sync operations
+          console.log('Waiting for complete Yjs sync, content not yet valid JSON');
+        } finally {
+          // Reset flag after a short delay
+          setTimeout(() => {
+            isUpdatingFromYjs.current = false;
+          }, 100);
+        }
       }
     }
   }, [collaborationEnabled, yjsDoc]); // Remove getTextContent, value, onChange from dependencies

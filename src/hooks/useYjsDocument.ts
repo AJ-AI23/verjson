@@ -64,7 +64,13 @@ export const useYjsDocument = ({
       
       // Set initial content if provided and document is empty
       if (initialContent && text.length === 0) {
-        text.insert(0, initialContent);
+        // Validate that initial content is valid JSON before inserting
+        try {
+          JSON.parse(initialContent);
+          text.insert(0, initialContent);
+        } catch (e) {
+          console.warn('Initial content is not valid JSON, skipping insertion:', e);
+        }
       }
 
       // Get auth token for WebSocket connection
@@ -123,7 +129,14 @@ export const useYjsDocument = ({
       // Set up text change observer
       const observer = (event: Y.YTextEvent) => {
         const content = text.toString();
-        onContentChange?.(content);
+        // Only notify of changes if content is valid JSON
+        try {
+          JSON.parse(content);
+          onContentChange?.(content);
+        } catch (e) {
+          // Content is not valid JSON yet, skip notification
+          // This prevents errors during partial sync operations
+        }
       };
 
       text.observe(observer);
