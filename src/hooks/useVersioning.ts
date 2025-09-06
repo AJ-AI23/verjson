@@ -80,6 +80,11 @@ export const useVersioning = ({
 
   // Debounced database version calculation to prevent excessive updates
   const calculateDatabaseVersion = useCallback((schemaPatches: SchemaPatch[]) => {
+    // Don't calculate database version if no document is loaded
+    if (!documentId) {
+      return;
+    }
+    
     if (schemaPatches.length === 0) {
       debugToast('No patches available, skipping database version calculation');
       return;
@@ -93,12 +98,9 @@ export const useVersioning = ({
     } catch (err) {
       console.error('Failed to calculate database version from patches:', err);
       debugToast('Version calculation failed', (err as Error).message);
-      // Don't show toast errors during initialization when no document is loaded
-      if (documentId) {
-        toast.error('Failed to apply version', {
-          description: (err as Error).message,
-        });
-      }
+      toast.error('Failed to apply version', {
+        description: (err as Error).message,
+      });
     }
   }, [documentId, debugToast]);
 
@@ -237,6 +239,11 @@ export const useVersioning = ({
   };
 
   const handleToggleSelection = async (patchId: string) => {
+    // Don't toggle selection if no document is loaded
+    if (!documentId) {
+      return;
+    }
+    
     try {
       debugToast('🔄 handleToggleSelection called for patch', patchId);
       debugToast('🔄 Current patches', patches.map(p => ({ id: p.id, isSelected: p.isSelected, description: p.description })));
@@ -326,6 +333,11 @@ export const useVersioning = ({
   };
 
   const handleDeleteVersion = async (patchId: string) => {
+    // Don't delete version if no document is loaded
+    if (!documentId) {
+      return;
+    }
+    
     try {
       const result = deleteVersion(patches, patchId);
       
