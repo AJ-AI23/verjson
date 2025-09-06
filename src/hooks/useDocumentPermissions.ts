@@ -47,7 +47,7 @@ export function useDocumentPermissions(documentId?: string, document?: any) {
             .from('profiles')
             .select('email, full_name, username')
             .eq('user_id', perm.user_id)
-            .single();
+            .maybeSingle();
 
           return {
             ...perm,

@@ -65,13 +65,23 @@ const handler = async (req: Request): Promise<Response> => {
     }: RevokeAccessRequest = await req.json();
 
     console.log("Revoke access request:", JSON.stringify({
-      permissionId, type, revokedUserEmail, resourceName
+      permissionId, type, revokedUserEmail, resourceName, revokedUserName, revokerName
     }, null, 2));
 
-    if (!permissionId || !type || !revokedUserEmail || !resourceName) {
-      console.error('Missing required parameters');
-      throw new Error("Missing required parameters");
+    // Enhanced parameter validation with detailed logging
+    const missingParams = [];
+    if (!permissionId) missingParams.push('permissionId');
+    if (!type) missingParams.push('type');
+    if (!revokedUserEmail) missingParams.push('revokedUserEmail');
+    if (!resourceName) missingParams.push('resourceName');
+    
+    if (missingParams.length > 0) {
+      console.error('Missing required parameters:', missingParams);
+      console.error('Received request body:', { permissionId, type, revokedUserEmail, resourceName, revokedUserName, revokerName });
+      throw new Error(`Missing required parameters: ${missingParams.join(', ')}`);
     }
+
+    console.log("All required parameters validated successfully");
 
     // Get the revoked user's profile to create notification
     const { data: revokedUserProfile } = await supabaseClient

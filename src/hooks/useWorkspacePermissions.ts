@@ -47,7 +47,7 @@ export function useWorkspacePermissions(workspaceId?: string) {
             .from('profiles')
             .select('email, full_name, username')
             .eq('user_id', perm.user_id)
-            .single();
+            .maybeSingle();
 
           return {
             ...perm,

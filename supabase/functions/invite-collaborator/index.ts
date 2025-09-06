@@ -74,18 +74,20 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // First, validate that the workspace exists if it's a workspace invitation
+    let workspace: any = null;
     if (invitationType === 'workspace') {
-      const { data: workspace, error: workspaceError } = await supabaseClient
+      const { data: workspaceData, error: workspaceError } = await supabaseClient
         .from('workspaces')
         .select('id, name, user_id')
         .eq('id', resourceId)
         .single();
 
-      if (workspaceError || !workspace) {
+      if (workspaceError || !workspaceData) {
         console.error('Workspace not found:', workspaceError);
         throw new Error(`Workspace not found: ${resourceId}`);
       }
 
+      workspace = workspaceData;
       console.log("Workspace found:", workspace);
       
       // Verify the inviter owns the workspace
