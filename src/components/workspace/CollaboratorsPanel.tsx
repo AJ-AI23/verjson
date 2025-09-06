@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -24,6 +24,7 @@ import { InviteCollaboratorDialog } from './InviteCollaboratorDialog';
 import { ChangeAccessDialog } from './ChangeAccessDialog';
 import { Document } from '@/types/workspace';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CollaboratorsPanelProps {
   document: Document | null;
@@ -37,6 +38,7 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [showChangeAccessDialog, setShowChangeAccessDialog] = useState(false);
   const [selectedPermission, setSelectedPermission] = useState<DocumentPermission | WorkspacePermission | null>(null);
+  const [ownerProfile, setOwnerProfile] = useState<{email?: string, full_name?: string, username?: string} | null>(null);
   
   // Use document permissions by default, workspace permissions when specified
   const documentPermissions = useDocumentPermissions(document?.id);
@@ -46,6 +48,39 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
   
   // Filter out the current user from collaborators since they're shown as owner
   const collaboratorPermissions = permissions.permissions.filter(permission => permission.user_id !== user?.id);
+
+  // Fetch owner profile information
+  React.useEffect(() => {
+    const fetchOwnerProfile = async () => {
+      // Find owner permission or determine owner
+      const ownerPermission = permissions.permissions.find(p => p.role === 'owner');
+      let ownerId = ownerPermission?.user_id;
+      
+      // If no owner permission found, use document/workspace owner
+      if (!ownerId && document?.user_id) {
+        ownerId = document.user_id;
+      } else if (!ownerId && showWorkspaceCollaborators) {
+        // For workspace, we might need to fetch workspace details
+        return;
+      }
+      
+      if (ownerId && ownerId !== user?.id) {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('email, full_name, username')
+            .eq('user_id', ownerId)
+            .single();
+          
+          setOwnerProfile(profile);
+        } catch (error) {
+          console.error('Failed to fetch owner profile:', error);
+        }
+      }
+    };
+
+    fetchOwnerProfile();
+  }, [permissions.permissions, document?.user_id, user?.id, showWorkspaceCollaborators]);
 
   if (!document && !showWorkspaceCollaborators) {
     return (
@@ -142,7 +177,14 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
                       <div className="flex items-center gap-2">
                         <Crown className="h-4 w-4 text-yellow-600" />
                         <div className="flex flex-col">
-                          <span className="font-medium">You</span>
+                          <span className="font-medium">
+                            {ownerProfile && ownerProfile.username ? `@${ownerProfile.username}` : 'You'}
+                          </span>
+                          {ownerProfile && (
+                            <span className="text-xs text-muted-foreground">
+                              {ownerProfile.full_name || ownerProfile.email}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <Badge className={getRoleColor('owner')}>
@@ -159,13 +201,11 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
                           {getRoleIcon(permission.role)}
                           <div className="flex flex-col min-w-0">
                             <span className="font-medium truncate">
-                              {permission.user_name || permission.user_email}
+                              {permission.username ? `@${permission.username}` : (permission.user_name || permission.user_email)}
                             </span>
-                            {permission.user_name && (
-                              <span className="text-xs text-muted-foreground truncate">
-                                {permission.user_email}
-                              </span>
-                            )}
+                            <span className="text-xs text-muted-foreground truncate">
+                              {permission.username && permission.user_name ? permission.user_name : permission.user_email}
+                            </span>
                           </div>
                         </div>
                       </div>

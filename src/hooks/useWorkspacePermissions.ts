@@ -13,6 +13,7 @@ export interface WorkspacePermission {
   updated_at: string;
   user_email?: string;
   user_name?: string;
+  username?: string;
 }
 
 export function useWorkspacePermissions(workspaceId?: string) {
@@ -42,14 +43,15 @@ export function useWorkspacePermissions(workspaceId?: string) {
       for (const perm of permissionsData || []) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('email, full_name')
+          .select('email, full_name, username')
           .eq('user_id', perm.user_id)
           .single();
         
         permissionsWithUserInfo.push({
           ...perm,
           user_email: profile?.email,
-          user_name: profile?.full_name
+          user_name: profile?.full_name,
+          username: profile?.username
         });
       }
       
