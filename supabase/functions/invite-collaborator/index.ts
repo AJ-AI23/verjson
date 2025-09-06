@@ -175,13 +175,14 @@ const handler = async (req: Request): Promise<Response> => {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     console.log("Resend API Key exists:", !!resendApiKey);
     console.log("Available env vars:", Object.keys(Deno.env.toObject()).filter(key => key.includes('RESEND')));
+    console.log("All available environment variables:", Object.keys(Deno.env.toObject()));
     
     if (!resendApiKey) {
       console.error("RESEND_API_KEY environment variable is not set");
-      throw new Error("Email service not configured");
-    }
-    
-    const resend = new Resend(resendApiKey);
+      // Continue without email for now to prevent blocking invitations
+      console.log("Skipping email send due to missing API key, but invitation will still be created");
+    } else {
+      const resend = new Resend(resendApiKey);
     
     const emailContent = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -214,17 +215,21 @@ const handler = async (req: Request): Promise<Response> => {
     `;
 
     // Send email using Resend
-    try {
-      const emailResponse = await resend.emails.send({
-        from: `Collaboration Invites <invites@mail.verjson.dev>`,
-        to: [email],
-        subject: notificationTitle,
-        html: emailContent,
-      });
+    if (resendApiKey) {
+      try {
+        const emailResponse = await resend.emails.send({
+          from: `Collaboration Invites <invites@mail.verjson.dev>`,
+          to: [email],
+          subject: notificationTitle,
+          html: emailContent,
+        });
 
-      console.log("Email sent successfully:", emailResponse);
-    } catch (emailError) {
-      console.error("Failed to send email:", emailError);
+        console.log("Email sent successfully:", emailResponse);
+      } catch (emailError) {
+        console.error("Failed to send email:", emailError);
+      }
+    } else {
+      console.log("Skipping email send - RESEND_API_KEY not configured");
     }
 
     return new Response(
