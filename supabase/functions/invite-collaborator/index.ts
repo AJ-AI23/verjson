@@ -172,7 +172,15 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Send email invitation using Resend
-    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    console.log("Resend API Key exists:", !!resendApiKey);
+    
+    if (!resendApiKey) {
+      console.error("RESEND_API_KEY environment variable is not set");
+      throw new Error("Email service not configured");
+    }
+    
+    const resend = new Resend(resendApiKey);
     
     const emailContent = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
