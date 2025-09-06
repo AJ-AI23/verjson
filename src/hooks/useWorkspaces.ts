@@ -1,16 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRealtimeService } from './useRealtimeService';
 import { Workspace, CreateWorkspaceData } from '@/types/workspace';
 import { toast } from 'sonner';
 
 export function useWorkspaces() {
   const { user } = useAuth();
+  const { subscribe, unsubscribe } = useRealtimeService();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchWorkspaces = async () => {
+  const fetchWorkspaces = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -64,7 +66,7 @@ export function useWorkspaces() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   const createWorkspace = async (data: CreateWorkspaceData): Promise<Workspace | null> => {
     if (!user) return null;
@@ -139,42 +141,36 @@ export function useWorkspaces() {
 
     fetchWorkspaces();
 
-    // Listen for workspace changes (new workspace invitations accepted AND revocations)
-    const workspaceChannel = supabase
-      .channel('workspace-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'workspace_permissions',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log('Workspace permission change detected:', payload);
-          // Refetch workspaces when permissions change (accept/revoke)
-          fetchWorkspaces();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public', 
-          table: 'workspaces',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log('Workspace change detected:', payload);
-          fetchWorkspaces();
-        }
-      )
-      .subscribe();
+    // Listen for workspace changes
+    const handleWorkspaceChange = () => {
+      console.log('Workspace change detected, refetching...');
+      fetchWorkspaces();
+    };
+
+    subscribe('workspaces', {
+      table: 'workspaces',
+      callback: handleWorkspaceChange
+    });
+
+    subscribe('workspace_permissions', {
+      table: 'workspace_permissions',
+      callback: handleWorkspaceChange
+    });
+
+    // Listen for custom workspace update events (from invitation acceptance)
+    const handleCustomWorkspaceUpdate = () => {
+      console.log('Custom workspace update event received');
+      fetchWorkspaces();
+    };
+
+    window.addEventListener('workspaceUpdated', handleCustomWorkspaceUpdate);
 
     return () => {
-      supabase.removeChannel(workspaceChannel);
+      unsubscribe('workspaces');
+      unsubscribe('workspace_permissions');
+      window.removeEventListener('workspaceUpdated', handleCustomWorkspaceUpdate);
     };
-  }, [user]);
+  }, [user, fetchWorkspaces, subscribe, unsubscribe]);
 
   return {
     workspaces,

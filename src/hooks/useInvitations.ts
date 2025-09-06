@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRealtimeService } from './useRealtimeService';
 import { toast } from 'sonner';
 
 export interface Invitation {
   id: string;
   title: string;
   message: string;
+  type: string;
   invitation_type: 'document' | 'workspace' | 'bulk_documents';
   invitation_data: any;
   status: 'pending' | 'accepted' | 'declined';
@@ -15,11 +17,12 @@ export interface Invitation {
 
 export function useInvitations() {
   const { user } = useAuth();
+  const { subscribe, unsubscribe } = useRealtimeService();
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchInvitations = async () => {
+  const fetchInvitations = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -44,28 +47,30 @@ export function useInvitations() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const acceptInvitation = async (invitationId: string) => {
+  const acceptInvitation = useCallback(async (invitationId: string) => {
     console.log('Accepting invitation:', invitationId);
     
     try {
+      // Optimistic update - remove immediately
+      setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
+      
       const { data, error } = await supabase
         .rpc('accept_invitation', { notification_id: invitationId });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error accepting invitation:', error);
+        // Revert optimistic update on error
+        await fetchInvitations();
+        return false;
+      }
 
       if (data) {
         console.log('Invitation accepted successfully');
         toast.success('Invitation accepted successfully');
-        
-        // Update local state immediately - remove the accepted invitation
-        setInvitations(prev => {
-          const updated = prev.filter(inv => inv.id !== invitationId);
-          console.log('Updated invitations count after acceptance:', updated.length);
-          return updated;
-        });
-        
+        // Trigger workspace refresh by dispatching custom event
+        window.dispatchEvent(new CustomEvent('workspaceUpdated'));
         return true;
       } else {
         throw new Error('Failed to accept invitation');
@@ -74,30 +79,31 @@ export function useInvitations() {
       const message = err instanceof Error ? err.message : 'Failed to accept invitation';
       setError(message);
       toast.error(message);
+      await fetchInvitations();
       return false;
     }
-  };
+  }, [fetchInvitations]);
 
-  const declineInvitation = async (invitationId: string) => {
+  const declineInvitation = useCallback(async (invitationId: string) => {
     console.log('Declining invitation:', invitationId);
     
     try {
+      // Optimistic update - remove immediately
+      setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
+      
       const { data, error } = await supabase
         .rpc('decline_invitation', { notification_id: invitationId });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error declining invitation:', error);
+        // Revert optimistic update on error
+        await fetchInvitations();
+        return false;
+      }
 
       if (data) {
         console.log('Invitation declined successfully');
         toast.success('Invitation declined');
-        
-        // Update local state immediately - remove the declined invitation
-        setInvitations(prev => {
-          const updated = prev.filter(inv => inv.id !== invitationId);
-          console.log('Updated invitations count after decline:', updated.length);
-          return updated;
-        });
-        
         return true;
       } else {
         throw new Error('Failed to decline invitation');
@@ -106,92 +112,61 @@ export function useInvitations() {
       const message = err instanceof Error ? err.message : 'Failed to decline invitation';
       setError(message);
       toast.error(message);
+      await fetchInvitations();
       return false;
     }
-  };
+  }, [fetchInvitations]);
 
-  // Set up real-time subscription for invitation changes
+  // Set up real-time subscription for invitations
   useEffect(() => {
     if (!user) return;
 
-    console.log('Setting up invitations real-time subscription for user:', user.id);
-    fetchInvitations();
+    console.log('Setting up invitations subscription for user:', user.id);
+    
+    const handleInvitationUpdate = (payload: any) => {
+      console.log('Invitations real-time update:', payload);
+      
+      if (payload.eventType === 'INSERT') {
+        const newInvitation = payload.new as Invitation;
+        if (newInvitation.type === 'invitation' && newInvitation.status === 'pending') {
+          setInvitations(prev => [newInvitation, ...prev]);
+        }
+      } else if (payload.eventType === 'UPDATE') {
+        const updatedInvitation = payload.new as Invitation;
+        if (updatedInvitation.status === 'accepted' || updatedInvitation.status === 'declined') {
+          // Remove accepted/declined invitations
+          setInvitations(prev => prev.filter(inv => inv.id !== updatedInvitation.id));
+        } else if (updatedInvitation.type === 'invitation' && updatedInvitation.status === 'pending') {
+          setInvitations(prev => 
+            prev.map(invitation => 
+              invitation.id === updatedInvitation.id 
+                ? updatedInvitation 
+                : invitation
+            )
+          );
+        }
+      } else if (payload.eventType === 'DELETE') {
+        const deletedId = payload.old.id;
+        setInvitations(prev => prev.filter(invitation => invitation.id !== deletedId));
+      }
+    };
 
-    const channel = supabase
-      .channel(`user-invitations-${user.id}`, {
-        config: {
-          broadcast: { self: true },
-          presence: { key: user.id }
-        }
-      })
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log('Real-time: New notification detected for invitations:', payload);
-          const newNotification = payload.new as any;
-          // Only refetch if it's an invitation type notification
-          if (newNotification?.type === 'invitation' && newNotification?.status === 'pending') {
-            console.log('Real-time: New invitation received, refreshing invitations list');
-            fetchInvitations();
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log('Real-time: Notification updated for invitations:', payload);
-          const newNotification = payload.new as any;
-          const oldNotification = payload.old as any;
-          // Refresh if it's an invitation type notification and status changed
-          if ((newNotification?.type === 'invitation' || oldNotification?.type === 'invitation') &&
-              newNotification?.status !== oldNotification?.status) {
-            console.log('Real-time: Invitation status changed, refreshing invitations list');
-            fetchInvitations();
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log('Real-time: Notification deleted for invitations:', payload);
-          const deletedNotification = payload.old as any;
-          // Refresh if it was an invitation type notification
-          if (deletedNotification?.type === 'invitation') {
-            console.log('Real-time: Invitation deleted, refreshing invitations list');
-            fetchInvitations();
-          }
-        }
-      )
-      .subscribe((status, err) => {
-        console.log('Invitations subscription status:', status);
-        if (err) {
-          console.error('Invitations subscription error:', err);
-        }
-      });
+    subscribe('invitations', {
+      table: 'notifications',
+      filter: `user_id=eq.${user.id}`,
+      callback: handleInvitationUpdate
+    });
 
     return () => {
       console.log('Cleaning up invitations subscription');
-      supabase.removeChannel(channel);
+      unsubscribe('invitations');
     };
-  }, [user]);
+  }, [user, subscribe, unsubscribe]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchInvitations();
+  }, [fetchInvitations]);
 
   return {
     invitations,
