@@ -21,6 +21,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { runLegacyCleanupOnce } from '@/utils/legacyCleanup';
 
 interface JsonEditorPocProps {
   value: string;
@@ -49,6 +50,11 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   
   // Track if we're updating from Yjs to avoid circular updates
   const isUpdatingFromYjs = useRef<boolean>(false);
+  
+  // Clean up legacy editor history on component mount
+  useEffect(() => {
+    runLegacyCleanupOnce();
+  }, []);
   
   // Collaboration state with per-document localStorage persistence
   const [showCollaborationInfo, setShowCollaborationInfo] = useState(false);

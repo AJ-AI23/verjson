@@ -230,39 +230,6 @@ export type Database = {
           },
         ]
       }
-      editor_history: {
-        Row: {
-          content: string
-          content_hash: string
-          created_at: string
-          document_id: string
-          id: string
-          sequence_number: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          content: string
-          content_hash: string
-          created_at?: string
-          document_id: string
-          id?: string
-          sequence_number: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          content?: string
-          content_hash?: string
-          created_at?: string
-          document_id?: string
-          id?: string
-          sequence_number?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       notifications: {
         Row: {
           created_at: string
