@@ -118,21 +118,27 @@ export function useDocumentPermissions(documentId?: string, document?: any) {
         throw new Error('Permission not found');
       }
 
-      // Send revocation notification and email
-      try {
-        await supabase.functions.invoke('revoke-access', {
-          body: {
-            permissionId,
-            type: 'document',
-            revokedUserEmail: permissionToRemove.user_email,
-            revokedUserName: permissionToRemove.user_name || permissionToRemove.username,
-            resourceName: document?.name || 'Unknown Document',
-            revokerName: user?.email
-          }
-        });
-      } catch (notificationError) {
-        console.error('Failed to send revocation notification:', notificationError);
-        // Continue with removal even if notification fails
+      console.log('Permission to remove:', permissionToRemove);
+
+      // Only send notification if we have user email
+      if (permissionToRemove.user_email) {
+        try {
+          await supabase.functions.invoke('revoke-access', {
+            body: {
+              permissionId,
+              type: 'document',
+              revokedUserEmail: permissionToRemove.user_email,
+              revokedUserName: permissionToRemove.user_name || permissionToRemove.username,
+              resourceName: document?.name || 'Unknown Document',
+              revokerName: user?.email
+            }
+          });
+        } catch (notificationError) {
+          console.error('Failed to send revocation notification:', notificationError);
+          // Continue with removal even if notification fails
+        }
+      } else {
+        console.warn('No user email found for permission, skipping notification');
       }
 
       // Remove the permission

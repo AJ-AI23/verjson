@@ -145,6 +145,8 @@ export function useWorkspacePermissions(workspaceId?: string) {
         throw new Error('Permission not found');
       }
 
+      console.log('Permission to remove:', permissionToRemove);
+
       // Get workspace name for the notification
       const { data: workspace } = await supabase
         .from('workspaces')
@@ -152,21 +154,25 @@ export function useWorkspacePermissions(workspaceId?: string) {
         .eq('id', workspaceId)
         .single();
 
-      // Send revocation notification and email
-      try {
-        await supabase.functions.invoke('revoke-access', {
-          body: {
-            permissionId,
-            type: 'workspace',
-            revokedUserEmail: permissionToRemove.user_email,
-            revokedUserName: permissionToRemove.user_name || permissionToRemove.username,
-            resourceName: workspace?.name || 'Unknown Workspace',
-            revokerName: user?.email
-          }
-        });
-      } catch (notificationError) {
-        console.error('Failed to send revocation notification:', notificationError);
-        // Continue with removal even if notification fails
+      // Only send notification if we have user email
+      if (permissionToRemove.user_email) {
+        try {
+          await supabase.functions.invoke('revoke-access', {
+            body: {
+              permissionId,
+              type: 'workspace',
+              revokedUserEmail: permissionToRemove.user_email,
+              revokedUserName: permissionToRemove.user_name || permissionToRemove.username,
+              resourceName: workspace?.name || 'Unknown Workspace',
+              revokerName: user?.email
+            }
+          });
+        } catch (notificationError) {
+          console.error('Failed to send revocation notification:', notificationError);
+          // Continue with removal even if notification fails
+        }
+      } else {
+        console.warn('No user email found for permission, skipping notification');
       }
 
       // Remove the permission
