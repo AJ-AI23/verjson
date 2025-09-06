@@ -16,31 +16,42 @@ export function useWorkspaces() {
     try {
       setLoading(true);
       
-      // Fetch both owned workspaces and workspaces user has permissions for
-      const { data, error } = await supabase
+      // Fetch owned workspaces
+      const { data: ownedWorkspaces, error: ownedError } = await supabase
+        .from('workspaces')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (ownedError) throw ownedError;
+
+      // Fetch workspaces user has permissions for
+      const { data: invitedWorkspaces, error: invitedError } = await supabase
         .from('workspaces')
         .select(`
           *,
-          workspace_permissions(role, status, user_id)
+          workspace_permissions!inner(role, status)
         `)
-        .or(`user_id.eq.${user.id},workspace_permissions.user_id.eq.${user.id}`)
-        .order('created_at', { ascending: false });
+        .eq('workspace_permissions.user_id', user.id)
+        .eq('workspace_permissions.status', 'accepted')
+        .neq('user_id', user.id); // Exclude owned workspaces to avoid duplicates
 
-      if (error) throw error;
+      if (invitedError) throw invitedError;
       
-      // Transform the data to include isOwner flag and clean up duplicates
-      const workspacesMap = new Map();
-      data?.forEach((workspace: any) => {
-        const cleanWorkspace = {
-          ...workspace,
-          isOwner: workspace.user_id === user.id,
-          role: workspace.workspace_permissions?.role || (workspace.user_id === user.id ? 'owner' : 'viewer')
-        };
-        delete cleanWorkspace.workspace_permissions;
-        workspacesMap.set(workspace.id, cleanWorkspace);
-      });
+      // Combine and transform the data
+      const allWorkspaces = [
+        ...(ownedWorkspaces || []).map(ws => ({ ...ws, isOwner: true, role: 'owner' })),
+        ...(invitedWorkspaces || []).map((ws: any) => ({
+          ...ws,
+          isOwner: false,
+          role: ws.workspace_permissions?.role || 'viewer',
+          workspace_permissions: undefined // Clean up the nested object
+        }))
+      ];
       
-      setWorkspaces(Array.from(workspacesMap.values()));
+      // Sort by created_at descending
+      allWorkspaces.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
+      setWorkspaces(allWorkspaces);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch workspaces');
       toast.error('Failed to load workspaces');
