@@ -13,6 +13,7 @@ interface UseYjsUndoResult {
   redo: () => void;
   clearHistory: () => void;
   historySize: number;
+  currentIndex: number;
   isUndoRedoOperation: () => boolean;
 }
 
@@ -23,22 +24,28 @@ export const useYjsUndo = ({
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [historySize, setHistorySize] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
   
   const undoManagerRef = useRef<Y.UndoManager | null>(null);
   const isUndoRedoOperation = useRef(false);
 
   const updateState = useCallback(() => {
     if (undoManagerRef.current) {
-      setCanUndo(undoManagerRef.current.undoStack.length > 0);
-      setCanRedo(undoManagerRef.current.redoStack.length > 0);
-      setHistorySize(
-        undoManagerRef.current.undoStack.length + 
-        undoManagerRef.current.redoStack.length
-      );
+      const undoStackLength = undoManagerRef.current.undoStack.length;
+      const redoStackLength = undoManagerRef.current.redoStack.length;
+      
+      setCanUndo(undoStackLength > 0);
+      setCanRedo(redoStackLength > 0);
+      setHistorySize(undoStackLength + redoStackLength);
+      
+      // Current index is the position in the history where we are
+      // If we have undo stack of 3 and redo stack of 2, we're at position 3 out of 5 total
+      setCurrentIndex(undoStackLength);
     } else {
       setCanUndo(false);
       setCanRedo(false);
       setHistorySize(0);
+      setCurrentIndex(0);
     }
   }, []);
 
@@ -131,6 +138,7 @@ export const useYjsUndo = ({
     undo,
     redo,
     clearHistory,
+    currentIndex,
     historySize,
     isUndoRedoOperation: () => isUndoRedoOperation.current
   };

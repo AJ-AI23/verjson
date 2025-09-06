@@ -115,6 +115,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     redo,
     clearHistory,
     historySize,
+    currentIndex,
     isUndoRedoOperation
   } = useYjsUndo({ yjsDoc });
 
@@ -355,7 +356,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
             onUndo={undo}
             onRedo={redo}
             onClearHistory={clearHistory}
-            currentIndex={0} // Yjs doesn't expose current index
+            currentIndex={currentIndex}
             totalEntries={historySize}
             disabled={false}
           />
