@@ -25,8 +25,6 @@ export function useWorkspacePermissions(workspaceId?: string) {
   const fetchPermissions = async () => {
     if (!user || !workspaceId) return;
     
-    console.log('Fetching workspace permissions for:', workspaceId);
-    
     try {
       setLoading(true);
       setError(null);
@@ -40,12 +38,9 @@ export function useWorkspacePermissions(workspaceId?: string) {
 
       if (error) throw error;
 
-      console.log('Raw permissions data:', permissionsData);
-
       // Then get user info for each permission
       const permissionsWithUserInfo = [];
       for (const perm of permissionsData || []) {
-        console.log('Fetching profile for user:', perm.user_id);
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('email, full_name, username')
@@ -56,8 +51,6 @@ export function useWorkspacePermissions(workspaceId?: string) {
           console.error('Error fetching profile for user:', perm.user_id, profileError);
         }
         
-        console.log('Profile data for user:', perm.user_id, profile);
-        
         permissionsWithUserInfo.push({
           ...perm,
           user_email: profile?.email,
@@ -66,7 +59,6 @@ export function useWorkspacePermissions(workspaceId?: string) {
         });
       }
       
-      console.log('Final permissions with user info:', permissionsWithUserInfo);
       setPermissions(permissionsWithUserInfo);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch permissions';

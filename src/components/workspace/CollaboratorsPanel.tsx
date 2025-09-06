@@ -49,18 +49,6 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
   // Filter out the current user from collaborators since they're shown as owner
   const collaboratorPermissions = permissions.permissions.filter(permission => permission.user_id !== user?.id);
 
-  // Debug logging
-  React.useEffect(() => {
-    console.log('CollaboratorsPanel props:', { 
-      workspaceId, 
-      showWorkspaceCollaborators, 
-      document: document?.id 
-    });
-    console.log('Permissions loading:', permissions.loading);
-    console.log('All permissions:', permissions.permissions);
-    console.log('Collaborator permissions (filtered):', collaboratorPermissions);
-  }, [workspaceId, showWorkspaceCollaborators, document?.id, permissions.loading, permissions.permissions, collaboratorPermissions]);
-
   // Fetch owner profile information
   React.useEffect(() => {
     const fetchOwnerProfile = async () => {
