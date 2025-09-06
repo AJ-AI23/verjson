@@ -3,13 +3,13 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import 'jsoneditor/dist/jsoneditor.css';
 import { CollapsedState } from '@/lib/diagram/types';
 import { useJsonEditor } from '@/hooks/useJsonEditor';
-import { useEditorHistory } from '@/hooks/useEditorHistory';
+import { useYjsDocument } from '@/hooks/useYjsDocument';
+import { useYjsUndo } from '@/hooks/useYjsUndo';
+import { useCollaboration } from '@/hooks/useCollaboration';
 import { EditorHistoryControls } from '@/components/editor/EditorHistoryControls';
-import { VersionMismatchRibbon } from '@/components/editor/VersionMismatchRibbon';
-import { useEditorSettings } from '@/contexts/EditorSettingsContext';
-import { getEffectiveDocumentContentForEditor } from '@/lib/documentUtils';
+import { CollaborationIndicator } from '@/components/CollaborationIndicator';
 import { Button } from '@/components/ui/button';
-import { Settings } from 'lucide-react';
+import { Settings, Users } from 'lucide-react';
 import {
   Dialog,
   DialogContent, 
@@ -18,9 +18,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
 
 interface JsonEditorPocProps {
   value: string;
@@ -44,122 +42,65 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   // Create a ref to the editor container DOM element
   const containerRef = useRef<HTMLDivElement>(null);
   
-  
   // Track if the component has been mounted
   const isMountedRef = useRef<boolean>(false);
   
-  // Track if we're currently restoring from history to avoid circular updates
-  const isRestoringFromHistory = useRef<boolean>(false);
+  // Track if we're updating from Yjs to avoid circular updates
+  const isUpdatingFromYjs = useRef<boolean>(false);
   
-  // Editor settings and version mismatch state
-  const { settings } = useEditorSettings();
-  const [showVersionMismatch, setShowVersionMismatch] = useState(false);
-  const [baseContentForVersion, setBaseContentForVersion] = useState<any>(null);
+  // Collaboration state
+  const [showCollaborationInfo, setShowCollaborationInfo] = useState(false);
   
-  // Cache configuration state with localStorage persistence
-  const [showCacheConfig, setShowCacheConfig] = useState(false);
-  const [cacheEnabled, setCacheEnabled] = useState(() => {
-    const saved = localStorage.getItem('editor-cache-enabled');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-  const [serverSyncEnabled, setServerSyncEnabled] = useState(() => {
-    const saved = localStorage.getItem('editor-server-sync-enabled');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-  const [syncInterval, setSyncInterval] = useState(() => {
-    const saved = localStorage.getItem('editor-sync-interval');
-    return saved !== null ? JSON.parse(saved) : 30;
-  });
-  const [maxHistorySize, setMaxHistorySize] = useState(() => {
-    const saved = localStorage.getItem('editor-max-history-size');
-    return saved !== null ? JSON.parse(saved) : 50;
-  });
-
-  // Persist cache configuration changes to localStorage
-  useEffect(() => {
-    localStorage.setItem('editor-cache-enabled', JSON.stringify(cacheEnabled));
-  }, [cacheEnabled]);
-
-  useEffect(() => {
-    localStorage.setItem('editor-server-sync-enabled', JSON.stringify(serverSyncEnabled));
-  }, [serverSyncEnabled]);
-
-  useEffect(() => {
-    localStorage.setItem('editor-sync-interval', JSON.stringify(syncInterval));
-  }, [syncInterval]);
-
-  useEffect(() => {
-    localStorage.setItem('editor-max-history-size', JSON.stringify(maxHistorySize));
-  }, [maxHistorySize]);
-  
-  // Get base content for version comparison (only once per document)
-  useEffect(() => {
-    const getBaseContent = async () => {
-      if (documentId && !baseContentForVersion) {
-        try {
-          // Parse the current value to get base content structure
-          const parsedValue = JSON.parse(value);
-          setBaseContentForVersion(parsedValue);
-        } catch (error) {
-          console.error('Error parsing current value for version comparison:', error);
-          setBaseContentForVersion(null);
-        }
-      }
-    };
-    
-    getBaseContent();
-  }, [documentId]); // Only depend on documentId, not value
-
-  // Initialize editor history
+  // Initialize Yjs collaborative document
   const {
-    addToHistory,
+    yjsDoc,
+    provider,
+    isConnected,
+    isLoading: yjsLoading,
+    error: yjsError,
+    activeUsers: yjsActiveUsers,
+    getTextContent,
+    updateContent
+  } = useYjsDocument({
+    documentId,
+    initialContent: value,
+    onContentChange: (content) => {
+      if (!isUpdatingFromYjs.current) {
+        isUpdatingFromYjs.current = true;
+        onChange(content);
+        setTimeout(() => {
+          isUpdatingFromYjs.current = false;
+        }, 100);
+      }
+    }
+  });
+
+  // Initialize Yjs undo manager
+  const {
+    canUndo,
+    canRedo,
     undo,
     redo,
     clearHistory,
-    startFresh,
-    canUndo,
-    canRedo,
-    currentIndex,
-    totalEntries,
-    isInitialized
-  } = useEditorHistory({
-    documentId,
-    initialContent: value,
-    baseContent: baseContentForVersion,
-    // 🎛️ Cache Strategy Configuration - Now controlled by UI
-    enableServerSync: cacheEnabled && serverSyncEnabled,
-    syncIntervalMs: syncInterval * 1000,
-    maxHistorySize: maxHistorySize,
-    debounceMs: 1000,
-    disabled: !cacheEnabled, // Completely disable history when caching is off
-    onContentChange: (content) => {
-      // When restoring from history, don't trigger addToHistory again
-      isRestoringFromHistory.current = true;
-      onChange(content);
-      // Reset flag after a small delay to allow the editor to update
-      setTimeout(() => {
-        isRestoringFromHistory.current = false;
-      }, 100);
-    },
-    onVersionMismatch: (hasConflict) => {
-      if (hasConflict && settings.showVersionMismatchWarning) {
-        setShowVersionMismatch(true);
-      }
-    }
-  });
+    historySize
+  } = useYjsUndo({ yjsDoc });
+
+  // Get collaboration info
+  const { activeUsers: dbActiveUsers } = useCollaboration({ documentId });
   
-  // Wrap onChange to add to history
+  // Wrap onChange to update Yjs document
   const handleChange = useCallback((newValue: string) => {
-    onChange(newValue);
-    // Only add to history if we're not restoring from history and history is initialized
-    if (!isRestoringFromHistory.current && isInitialized) {
-      addToHistory(newValue);
+    if (!isUpdatingFromYjs.current && yjsDoc) {
+      updateContent(newValue);
     }
-  }, [onChange, addToHistory, isInitialized]);
+    // Also call the original onChange for non-Yjs fallback
+    if (!yjsDoc) {
+      onChange(newValue);
+    }
+  }, [updateContent, yjsDoc, onChange]);
   
-  // Wrap onToggleCollapse to prevent initial setup events but allow bulk operations
+  // Wrap onToggleCollapse 
   const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
-    // Always allow the callback for better bulk operation support
     if (onToggleCollapse) {
       onToggleCollapse(path, isCollapsed);
     }
@@ -184,145 +125,118 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   useEffect(() => {
     if (!containerRef.current) return;
     
-    // Initialize the editor
     initializeEditor(containerRef.current);
     
-    // Mark as mounted after a small delay to let initial setup complete
     setTimeout(() => {
       isMountedRef.current = true;
     }, 500);
     
-    // Cleanup on unmount
     return () => {
       isMountedRef.current = false;
       destroyEditor();
     };
   }, []);
 
-  // Handle version mismatch ribbon actions
-  const handleDismissVersionMismatch = useCallback(() => {
-    setShowVersionMismatch(false);
-  }, []);
+  // Update editor content when Yjs content changes
+  useEffect(() => {
+    if (yjsDoc && !isUpdatingFromYjs.current) {
+      const content = getTextContent();
+      if (content && content !== value) {
+        onChange(content);
+      }
+    }
+  }, [yjsDoc, getTextContent, value, onChange]);
 
-  const handleStartFresh = useCallback(async () => {
-    setShowVersionMismatch(false);
-    await startFresh();
-  }, [startFresh]);
+  // Show toast notifications for collaboration
+  useEffect(() => {
+    if (yjsError) {
+      toast.error('Collaboration Error', {
+        description: yjsError
+      });
+    }
+  }, [yjsError]);
 
-  const handleKeepEdits = useCallback(() => {
-    setShowVersionMismatch(false);
-  }, []);
+  useEffect(() => {
+    if (isConnected) {
+      toast.success('Connected to collaboration server');
+    }
+  }, [isConnected]);
+
+  // Combine active users from Yjs and database into unified format
+  const unifiedActiveUsers = [
+    ...(yjsActiveUsers || []).map(user => ({
+      id: user.id,
+      user_id: user.id,
+      user_name: user.name,
+      user_avatar: user.avatar,
+      last_seen: new Date().toISOString()
+    })),
+    ...(dbActiveUsers || [])
+  ];
+  
+  const uniqueActiveUsers = unifiedActiveUsers.filter((user, index, self) => 
+    index === self.findIndex(u => u.user_id === user.user_id)
+  );
 
   return (
     <div className="h-full flex flex-col">
-      <VersionMismatchRibbon
-        isVisible={showVersionMismatch}
-        onDismiss={handleDismissVersionMismatch}
-        onStartFresh={handleStartFresh}
-        onKeepEdits={handleKeepEdits}
-        documentId={documentId}
-      />
       <div className="p-2 border-b bg-muted/30 flex justify-between items-center">
-        
         <div className="flex items-center gap-3">
-          <Dialog open={showCacheConfig} onOpenChange={setShowCacheConfig}>
+          <Dialog open={showCollaborationInfo} onOpenChange={setShowCollaborationInfo}>
             <DialogTrigger asChild>
               <Button variant="ghost" size="sm" className="p-2">
-                <Settings className="h-4 w-4" />
+                <Users className="h-4 w-4" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[400px]">
               <DialogHeader>
-                <DialogTitle>Editor Cache Configuration</DialogTitle>
+                <DialogTitle>Collaborative Editing</DialogTitle>
                 <DialogDescription>
-                  Configure how the editor saves and syncs your edit history.
+                  Real-time collaboration powered by Yjs
                 </DialogDescription>
               </DialogHeader>
               
-              <div className="space-y-6">
-                {/* Cache Enabled Toggle */}
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label htmlFor="cache-enabled">Enable Editor Caching</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Store edit history for undo/redo functionality
-                    </p>
-                  </div>
-                  <Switch
-                    id="cache-enabled"
-                    checked={cacheEnabled}
-                    onCheckedChange={setCacheEnabled}
-                  />
-                </div>
-
-                {/* Server Sync Toggle */}
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label htmlFor="server-sync">Server Synchronization</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Sync history across devices and sessions
-                    </p>
-                  </div>
-                  <Switch
-                    id="server-sync"
-                    checked={serverSyncEnabled}
-                    onCheckedChange={setServerSyncEnabled}
-                    disabled={!cacheEnabled}
-                  />
-                </div>
-
-                {/* Sync Interval */}
-                <div className="space-y-3">
-                  <Label htmlFor="sync-interval">Sync Interval</Label>
-                  <Select 
-                    value={syncInterval.toString()} 
-                    onValueChange={(value) => setSyncInterval(Number(value))}
-                    disabled={!cacheEnabled || !serverSyncEnabled}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select sync interval" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="5">Every 5 seconds (Real-time)</SelectItem>
-                      <SelectItem value="15">Every 15 seconds</SelectItem>
-                      <SelectItem value="30">Every 30 seconds (Default)</SelectItem>
-                      <SelectItem value="60">Every minute</SelectItem>
-                      <SelectItem value="120">Every 2 minutes (Battery saving)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* History Size */}
-                <div className="space-y-3">
-                  <Label htmlFor="history-size">Max History Entries</Label>
-                  <Select 
-                    value={maxHistorySize.toString()} 
-                    onValueChange={(value) => setMaxHistorySize(Number(value))}
-                    disabled={!cacheEnabled}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select history size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="20">20 entries (Low memory)</SelectItem>
-                      <SelectItem value="30">30 entries</SelectItem>
-                      <SelectItem value="50">50 entries (Default)</SelectItem>
-                      <SelectItem value="100">100 entries</SelectItem>
-                      <SelectItem value="200">200 entries (High memory)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Current Strategy Display */}
+              <div className="space-y-4">
                 <div className="p-3 bg-muted rounded-lg">
-                  <p className="text-sm font-medium">Current Strategy:</p>
+                  <p className="text-sm font-medium mb-2">Connection Status:</p>
+                  <div className="flex items-center gap-2">
+                    {yjsLoading ? (
+                      <>
+                        <div className="h-2 w-2 bg-yellow-500 rounded-full animate-pulse" />
+                        <span className="text-sm">Connecting...</span>
+                      </>
+                    ) : isConnected ? (
+                      <>
+                        <div className="h-2 w-2 bg-green-500 rounded-full" />
+                        <span className="text-sm">Connected</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="h-2 w-2 bg-red-500 rounded-full" />
+                        <span className="text-sm">Disconnected</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {uniqueActiveUsers.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Active Collaborators:</p>
+                    <div className="space-y-1">
+                      {uniqueActiveUsers.map((user) => (
+                        <div key={user.user_id} className="flex items-center gap-2 text-sm">
+                          <div className="h-2 w-2 bg-green-500 rounded-full" />
+                          <span>{user.user_name || 'Anonymous'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="p-3 bg-muted rounded-lg">
                   <p className="text-sm text-muted-foreground">
-                    {!cacheEnabled 
-                      ? "❌ Caching Disabled - No history saved"
-                      : serverSyncEnabled 
-                        ? `🔄 Server-Side with Local Cache (${syncInterval}s sync)`
-                        : "💾 Local-Only Mode"
-                    }
+                    Changes are automatically synchronized in real-time. 
+                    Undo/redo operations are per-user and won't affect other collaborators' work.
                   </p>
                 </div>
               </div>
@@ -330,15 +244,23 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
           </Dialog>
           
           <EditorHistoryControls
-            canUndo={cacheEnabled && canUndo}
-            canRedo={cacheEnabled && canRedo}
+            canUndo={canUndo}
+            canRedo={canRedo}
             onUndo={undo}
             onRedo={redo}
             onClearHistory={clearHistory}
-            currentIndex={cacheEnabled ? currentIndex : 0}
-            totalEntries={cacheEnabled ? totalEntries : 0}
-            disabled={!cacheEnabled}
+            currentIndex={0} // Yjs doesn't expose current index
+            totalEntries={historySize}
+            disabled={false}
           />
+          
+          <CollaborationIndicator
+            activeUsers={uniqueActiveUsers}
+            isConnected={isConnected}
+            isLoading={yjsLoading}
+            className="ml-2"
+          />
+          
           <div className="w-px h-4 bg-border" />
           <div className="flex gap-2">
             <button

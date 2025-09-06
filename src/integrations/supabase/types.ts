@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      collaboration_sessions: {
+        Row: {
+          created_at: string
+          cursor_position: Json | null
+          document_id: string
+          id: string
+          last_seen: string
+          user_avatar: string | null
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          cursor_position?: Json | null
+          document_id: string
+          id?: string
+          last_seen?: string
+          user_avatar?: string | null
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          cursor_position?: Json | null
+          document_id?: string
+          id?: string
+          last_seen?: string
+          user_avatar?: string | null
+          user_id?: string
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       document_access_logs: {
         Row: {
           access_type: string
@@ -395,6 +428,36 @@ export type Database = {
         }
         Relationships: []
       }
+      yjs_documents: {
+        Row: {
+          created_at: string
+          document_id: string
+          id: string
+          updated_at: string
+          user_id: string
+          yjs_state: string
+          yjs_vector_clock: Json
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          yjs_state: string
+          yjs_vector_clock?: Json
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          yjs_state?: string
+          yjs_vector_clock?: Json
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -403,6 +466,10 @@ export type Database = {
       accept_invitation: {
         Args: { notification_id: string }
         Returns: boolean
+      }
+      cleanup_old_collaboration_sessions: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       cleanup_old_editor_history: {
         Args: Record<PropertyKey, never>

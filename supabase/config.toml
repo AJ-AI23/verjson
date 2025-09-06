@@ -21,3 +21,6 @@ verify_jwt = false
 
 [functions.crowdin-integration]
 verify_jwt = true
+
+[functions.yjs-sync]
+verify_jwt = false

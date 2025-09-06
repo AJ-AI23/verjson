@@ -1,0 +1,286 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface YjsSyncMessage {
+  type: 'sync' | 'awareness' | 'update';
+  documentId: string;
+  userId?: string;
+  data?: string; // base64 encoded Yjs update
+  awareness?: any;
+}
+
+interface ConnectedClient {
+  socket: WebSocket;
+  documentId: string;
+  userId: string | null;
+  userName?: string;
+  userAvatar?: string;
+}
+
+const connectedClients = new Map<string, ConnectedClient>();
+
+serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  const { headers } = req;
+  const upgradeHeader = headers.get("upgrade") || "";
+
+  if (upgradeHeader.toLowerCase() !== "websocket") {
+    return new Response("Expected WebSocket connection", { 
+      status: 400,
+      headers: corsHeaders 
+    });
+  }
+
+  const url = new URL(req.url);
+  const documentId = url.searchParams.get('documentId');
+  const authToken = url.searchParams.get('token');
+
+  if (!documentId) {
+    return new Response("Document ID required", { 
+      status: 400,
+      headers: corsHeaders 
+    });
+  }
+
+  // Initialize Supabase client
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
+  let userId: string | null = null;
+  let userName: string | undefined;
+  let userAvatar: string | undefined;
+
+  // Verify auth token and get user info
+  if (authToken) {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser(authToken);
+      if (user && !error) {
+        userId = user.id;
+        
+        // Get user profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (profile) {
+          userName = profile.full_name || user.email?.split('@')[0];
+          userAvatar = profile.avatar_url;
+        }
+      }
+    } catch (error) {
+      console.error('Auth verification failed:', error);
+    }
+  }
+
+  const { socket, response } = Deno.upgradeWebSocket(req);
+  const clientId = crypto.randomUUID();
+
+  socket.onopen = () => {
+    console.log(`Client ${clientId} connected to document ${documentId}`);
+    
+    connectedClients.set(clientId, {
+      socket,
+      documentId,
+      userId,
+      userName,
+      userAvatar
+    });
+
+    // Update collaboration session
+    if (userId) {
+      updateCollaborationSession(supabase, documentId, userId, userName, userAvatar);
+    }
+
+    // Send current Yjs state to new client
+    loadAndSendYjsState(supabase, socket, documentId);
+    
+    // Notify other clients about new user
+    broadcastToDocument(documentId, {
+      type: 'awareness',
+      documentId,
+      userId,
+      awareness: {
+        user: { id: userId, name: userName, avatar: userAvatar },
+        joined: true
+      }
+    }, clientId);
+  };
+
+  socket.onmessage = async (event) => {
+    try {
+      const message: YjsSyncMessage = JSON.parse(event.data);
+      console.log(`Received message from ${clientId}:`, message.type);
+
+      switch (message.type) {
+        case 'update':
+          // Save Yjs update to database
+          if (message.data && userId) {
+            await saveYjsUpdate(supabase, documentId, userId, message.data);
+          }
+          
+          // Broadcast update to other clients
+          broadcastToDocument(documentId, message, clientId);
+          break;
+
+        case 'awareness':
+          // Broadcast awareness info to other clients
+          broadcastToDocument(documentId, message, clientId);
+          
+          // Update collaboration session
+          if (userId && message.awareness) {
+            await updateCollaborationSession(
+              supabase, 
+              documentId, 
+              userId, 
+              userName, 
+              userAvatar,
+              message.awareness.cursor
+            );
+          }
+          break;
+
+        case 'sync':
+          // Send current state back to requesting client
+          await loadAndSendYjsState(supabase, socket, documentId);
+          break;
+      }
+    } catch (error) {
+      console.error('Error processing message:', error);
+    }
+  };
+
+  socket.onclose = () => {
+    console.log(`Client ${clientId} disconnected from document ${documentId}`);
+    connectedClients.delete(clientId);
+
+    // Remove collaboration session
+    if (userId) {
+      removeCollaborationSession(supabase, documentId, userId);
+    }
+
+    // Notify other clients about user leaving
+    broadcastToDocument(documentId, {
+      type: 'awareness',
+      documentId,
+      userId,
+      awareness: {
+        user: { id: userId, name: userName, avatar: userAvatar },
+        left: true
+      }
+    }, clientId);
+  };
+
+  socket.onerror = (error) => {
+    console.error(`WebSocket error for client ${clientId}:`, error);
+  };
+
+  return response;
+});
+
+async function loadAndSendYjsState(supabase: any, socket: WebSocket, documentId: string) {
+  try {
+    const { data: yjsDoc } = await supabase
+      .from('yjs_documents')
+      .select('yjs_state, yjs_vector_clock')
+      .eq('document_id', documentId)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (yjsDoc && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({
+        type: 'sync',
+        documentId,
+        data: yjsDoc.yjs_state,
+        vectorClock: yjsDoc.yjs_vector_clock
+      }));
+    }
+  } catch (error) {
+    console.error('Error loading Yjs state:', error);
+  }
+}
+
+async function saveYjsUpdate(supabase: any, documentId: string, userId: string, updateData: string) {
+  try {
+    // Insert or update Yjs document state
+    await supabase
+      .from('yjs_documents')
+      .upsert({
+        document_id: documentId,
+        user_id: userId,
+        yjs_state: updateData,
+        yjs_vector_clock: {}, // Will be populated by Yjs
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'document_id,user_id'
+      });
+  } catch (error) {
+    console.error('Error saving Yjs update:', error);
+  }
+}
+
+async function updateCollaborationSession(
+  supabase: any, 
+  documentId: string, 
+  userId: string, 
+  userName?: string, 
+  userAvatar?: string,
+  cursorPosition?: any
+) {
+  try {
+    await supabase
+      .from('collaboration_sessions')
+      .upsert({
+        document_id: documentId,
+        user_id: userId,
+        user_name: userName,
+        user_avatar: userAvatar,
+        cursor_position: cursorPosition,
+        last_seen: new Date().toISOString()
+      }, {
+        onConflict: 'document_id,user_id'
+      });
+  } catch (error) {
+    console.error('Error updating collaboration session:', error);
+  }
+}
+
+async function removeCollaborationSession(supabase: any, documentId: string, userId: string) {
+  try {
+    await supabase
+      .from('collaboration_sessions')
+      .delete()
+      .eq('document_id', documentId)
+      .eq('user_id', userId);
+  } catch (error) {
+    console.error('Error removing collaboration session:', error);
+  }
+}
+
+function broadcastToDocument(documentId: string, message: YjsSyncMessage, excludeClientId?: string) {
+  for (const [clientId, client] of connectedClients.entries()) {
+    if (client.documentId === documentId && 
+        clientId !== excludeClientId && 
+        client.socket.readyState === WebSocket.OPEN) {
+      try {
+        client.socket.send(JSON.stringify(message));
+      } catch (error) {
+        console.error(`Error broadcasting to client ${clientId}:`, error);
+        connectedClients.delete(clientId);
+      }
+    }
+  }
+}
