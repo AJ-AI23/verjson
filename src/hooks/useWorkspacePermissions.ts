@@ -139,6 +139,37 @@ export function useWorkspacePermissions(workspaceId?: string) {
 
   const removePermission = async (permissionId: string) => {
     try {
+      // Get permission details before deletion for notification
+      const permissionToRemove = permissions.find(p => p.id === permissionId);
+      if (!permissionToRemove) {
+        throw new Error('Permission not found');
+      }
+
+      // Get workspace name for the notification
+      const { data: workspace } = await supabase
+        .from('workspaces')
+        .select('name')
+        .eq('id', workspaceId)
+        .single();
+
+      // Send revocation notification and email
+      try {
+        await supabase.functions.invoke('revoke-access', {
+          body: {
+            permissionId,
+            type: 'workspace',
+            revokedUserEmail: permissionToRemove.user_email,
+            revokedUserName: permissionToRemove.user_name || permissionToRemove.username,
+            resourceName: workspace?.name || 'Unknown Workspace',
+            revokerName: user?.email
+          }
+        });
+      } catch (notificationError) {
+        console.error('Failed to send revocation notification:', notificationError);
+        // Continue with removal even if notification fails
+      }
+
+      // Remove the permission
       const { error } = await supabase
         .from('workspace_permissions')
         .delete()
@@ -147,7 +178,7 @@ export function useWorkspacePermissions(workspaceId?: string) {
       if (error) throw error;
 
       setPermissions(prev => prev.filter(p => p.id !== permissionId));
-      toast.success('Permission removed successfully');
+      toast.success('Permission removed and user notified');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to remove permission';
       setError(message);

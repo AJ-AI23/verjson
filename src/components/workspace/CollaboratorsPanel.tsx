@@ -41,7 +41,7 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
   const [ownerProfile, setOwnerProfile] = useState<{email?: string, full_name?: string, username?: string} | null>(null);
   
   // Use document permissions by default, workspace permissions when specified
-  const documentPermissions = useDocumentPermissions(document?.id);
+  const documentPermissions = useDocumentPermissions(document?.id, document);
   const workspacePermissions = useWorkspacePermissions(workspaceId);
   
   const permissions = showWorkspaceCollaborators ? workspacePermissions : documentPermissions;
