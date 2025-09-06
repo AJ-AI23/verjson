@@ -109,34 +109,40 @@ export const useJsonEditorFolding = ({
     }
     
     try {
-      // Get all possible paths from the schema
-      let allPaths: string[] = [];
+      // First, use the editor's native collapseAll method
+      editorRef.current.collapseAll();
+      
+      // Get all currently expanded paths (those that are false in collapsedPathsRef)
+      const currentlyExpandedPaths: string[] = [];
+      Object.entries(collapsedPathsRef.current).forEach(([path, isCollapsed]) => {
+        if (!isCollapsed) {
+          currentlyExpandedPaths.push(path);
+        }
+      });
+      
+      // If we have parsed schema, also get all possible paths to ensure we cover everything
       if (parsedSchema) {
-        allPaths = getDiagramPaths(parsedSchema);
-        
-        // Update all paths to collapsed state (except root, which should be expanded to show the collapsed children)
-        allPaths.forEach(path => {
-          if (path === 'root') {
-            onToggleCollapse(path, false); // Keep root expanded so we can see it has children
-          } else {
-            onToggleCollapse(path, true); // true = collapsed
+        const allPossiblePaths = getDiagramPaths(parsedSchema);
+        allPossiblePaths.forEach(path => {
+          if (!currentlyExpandedPaths.includes(path)) {
+            currentlyExpandedPaths.push(path);
           }
         });
-      } else {
-        // Fallback: just expand root
-        onToggleCollapse('root', false);
       }
       
-      // Also collapse the editor using its native method
-      editorRef.current.expand({
-        path: [],  // Empty path for root
-        isExpand: false,
-        recursive: true
+      // Update all paths to collapsed state except root (which we keep expanded to show the structure)
+      currentlyExpandedPaths.forEach(path => {
+        if (path === 'root') {
+          onToggleCollapse(path, false); // Keep root expanded so we can see the structure
+        } else {
+          onToggleCollapse(path, true); // Collapse all other paths
+        }
       });
+      
     } catch (err) {
       console.error('Error collapsing all nodes:', err);
     }
-  }, [editorRef, onToggleCollapse, parsedSchema, getDiagramPaths]);
+  }, [editorRef, onToggleCollapse, parsedSchema, getDiagramPaths, collapsedPathsRef]);
 
   // Expand only the first level nodes
   const expandFirstLevel = useCallback(() => {
