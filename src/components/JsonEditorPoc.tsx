@@ -50,8 +50,23 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   
   // Collaboration state
   const [showCollaborationInfo, setShowCollaborationInfo] = useState(false);
-  
-  // Initialize Yjs collaborative document
+
+  // Temporarily disable Yjs to prevent infinite loops
+  const ENABLE_YJS = false;
+
+  // Stable refs for Yjs callbacks to prevent recreating hooks
+  const onContentChangeRef = useRef<((content: string) => void) | undefined>();
+  onContentChangeRef.current = useCallback((content: string) => {
+    if (!isUpdatingFromYjs.current) {
+      isUpdatingFromYjs.current = true;
+      onChange(content);
+      setTimeout(() => {
+        isUpdatingFromYjs.current = false;
+      }, 100);
+    }
+  }, [onChange]);
+
+  // Initialize Yjs collaborative document (disabled for now)
   const {
     yjsDoc,
     provider,
@@ -62,17 +77,9 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     getTextContent,
     updateContent
   } = useYjsDocument({
-    documentId,
+    documentId: ENABLE_YJS ? documentId : null,
     initialContent: value,
-    onContentChange: (content) => {
-      if (!isUpdatingFromYjs.current) {
-        isUpdatingFromYjs.current = true;
-        onChange(content);
-        setTimeout(() => {
-          isUpdatingFromYjs.current = false;
-        }, 100);
-      }
-    }
+    onContentChange: onContentChangeRef.current
   });
 
   // Initialize Yjs undo manager
@@ -88,17 +95,16 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   // Get collaboration info
   const { activeUsers: dbActiveUsers } = useCollaboration({ documentId });
   
-  // Wrap onChange to update Yjs document
+  // Wrap onChange to update Yjs document (fallback to regular onChange when Yjs disabled)
   const handleChange = useCallback((newValue: string) => {
-    if (!isUpdatingFromYjs.current && yjsDoc) {
+    if (ENABLE_YJS && !isUpdatingFromYjs.current && yjsDoc) {
       updateContent(newValue);
-    }
-    // Also call the original onChange for non-Yjs fallback
-    if (!yjsDoc) {
+    } else {
+      // Regular onChange when Yjs is disabled
       onChange(newValue);
     }
   }, [updateContent, yjsDoc, onChange]);
-  
+
   // Wrap onToggleCollapse 
   const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
     if (onToggleCollapse) {
@@ -137,7 +143,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     };
   }, []);
 
-  // Update editor content when Yjs content changes
+  // Update editor content when Yjs content changes (with guards)
   useEffect(() => {
     if (yjsDoc && !isUpdatingFromYjs.current) {
       const content = getTextContent();
@@ -145,11 +151,15 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
         onChange(content);
       }
     }
-  }, [yjsDoc, getTextContent, value, onChange]);
+  }, [yjsDoc]); // Remove getTextContent, value, onChange from dependencies
 
-  // Show toast notifications for collaboration
+  // Show toast notifications for collaboration (only once per error/connection)
+  const previousYjsErrorRef = useRef<string | null>(null);
+  const hasShownConnectedToastRef = useRef<boolean>(false);
+  
   useEffect(() => {
-    if (yjsError) {
+    if (yjsError && yjsError !== previousYjsErrorRef.current) {
+      previousYjsErrorRef.current = yjsError;
       toast.error('Collaboration Error', {
         description: yjsError
       });
@@ -157,8 +167,11 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   }, [yjsError]);
 
   useEffect(() => {
-    if (isConnected) {
+    if (isConnected && !hasShownConnectedToastRef.current) {
+      hasShownConnectedToastRef.current = true;
       toast.success('Connected to collaboration server');
+    } else if (!isConnected) {
+      hasShownConnectedToastRef.current = false;
     }
   }, [isConnected]);
 

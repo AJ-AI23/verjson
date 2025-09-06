@@ -139,7 +139,7 @@ export const useYjsDocument = ({
       setError('Failed to initialize collaborative editing');
       setIsLoading(false);
     }
-  }, [documentId, initialContent, onContentChange]);
+  }, [documentId]); // Remove initialContent and onContentChange from dependencies
 
   const getTextContent = useCallback(() => {
     return textRef.current?.toString() || '';
@@ -185,7 +185,7 @@ export const useYjsDocument = ({
     return () => {
       disconnect();
     };
-  }, [documentId, initializeYjsDocument, disconnect]);
+  }, [documentId, initializeYjsDocument]);
 
   return {
     yjsDoc,
