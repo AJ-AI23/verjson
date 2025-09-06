@@ -275,7 +275,7 @@ export function ImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[80vh]">
+      <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
@@ -348,9 +348,9 @@ export function ImportDialog({
         </Tabs>
 
         {filesToImport.length > 0 && (
-          <div className="space-y-4">
+          <div className="space-y-4 flex-shrink-0">
             <Label className="text-base font-medium">Files to Import ({filesToImport.length})</Label>
-            <ScrollArea className="h-64 border rounded-md">
+            <div className="max-h-64 overflow-y-auto border rounded-md">
               <div className="p-4 space-y-3">
                 {validFiles.map((file) => (
                   <div
@@ -410,7 +410,7 @@ export function ImportDialog({
                   </div>
                 ))}
               </div>
-            </ScrollArea>
+            </div>
           </div>
         )}
 

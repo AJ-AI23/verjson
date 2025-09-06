@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -74,6 +74,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   const [newDocumentType, setNewDocumentType] = useState<'json-schema' | 'openapi'>('json-schema');
   const [showWorkspaceDialog, setShowWorkspaceDialog] = useState(false);
   const [showDocumentDialog, setShowDocumentDialog] = useState(false);
+  const [showCreateDocumentDialog, setShowCreateDocumentDialog] = useState(false);
   
   // New invitation dialog states
   const [showWorkspaceInviteDialog, setShowWorkspaceInviteDialog] = useState(false);
@@ -465,35 +466,36 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Create New Document</DialogTitle>
+                    <DialogTitle>New Document</DialogTitle>
+                    <DialogDescription>
+                      Choose how you want to create your document
+                    </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="document-name">Name</Label>
-                      <Input
-                        id="document-name"
-                        value={newDocumentName}
-                        onChange={(e) => setNewDocumentName(e.target.value)}
-                        placeholder="My Schema"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="document-type">Type</Label>
-                      <Select value={newDocumentType} onValueChange={(value: 'json-schema' | 'openapi') => setNewDocumentType(value)}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="json-schema">JSON Schema</SelectItem>
-                          <SelectItem value="openapi">OpenAPI</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setShowDocumentDialog(false)}>
-                        Cancel
+                    <div className="grid grid-cols-2 gap-4">
+                      <Button
+                        variant="outline"
+                        className="h-24 flex flex-col gap-2"
+                        onClick={() => {
+                          setShowDocumentDialog(false);
+                          setShowImportDialog(true);
+                        }}
+                      >
+                        <Upload className="h-6 w-6" />
+                        <span className="text-sm">Upload Documents</span>
                       </Button>
-                      <Button onClick={handleCreateDocument}>Create</Button>
+                      <Button
+                        variant="outline"
+                        className="h-24 flex flex-col gap-2"
+                        onClick={() => {
+                          // Switch to create mode - show the original form
+                          setShowDocumentDialog(false);
+                          setShowCreateDocumentDialog(true);
+                        }}
+                      >
+                        <FileText className="h-6 w-6" />
+                        <span className="text-sm">Create Document</span>
+                      </Button>
                     </div>
                   </div>
                 </DialogContent>
@@ -735,6 +737,43 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
         onMergeConfirm={handleDocumentMerge}
         workspaceName={workspaces.find(w => w.id === selectedWorkspace)?.name}
       />
+
+      <Dialog open={showCreateDocumentDialog} onOpenChange={setShowCreateDocumentDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Document</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="document-name">Name</Label>
+              <Input
+                id="document-name"
+                value={newDocumentName}
+                onChange={(e) => setNewDocumentName(e.target.value)}
+                placeholder="My Schema"
+              />
+            </div>
+            <div>
+              <Label htmlFor="document-type">Type</Label>
+              <Select value={newDocumentType} onValueChange={(value: 'json-schema' | 'openapi') => setNewDocumentType(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="json-schema">JSON Schema</SelectItem>
+                  <SelectItem value="openapi">OpenAPI</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowCreateDocumentDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateDocument}>Create</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showWorkspaceEditDialog} onOpenChange={setShowWorkspaceEditDialog}>
         <DialogContent className="max-w-2xl">
