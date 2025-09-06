@@ -29,35 +29,29 @@ export function useWorkspacePermissions(workspaceId?: string) {
       setLoading(true);
       setError(null);
       
-      // First get permissions
+      // Use JOIN query now that we have proper foreign keys
       const { data: permissionsData, error } = await supabase
         .from('workspace_permissions')
-        .select('*')
+        .select(`
+          *,
+          profiles (
+            email,
+            full_name,
+            username
+          )
+        `)
         .eq('workspace_id', workspaceId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      // Then get user info for each permission
-      const permissionsWithUserInfo = [];
-      for (const perm of permissionsData || []) {
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('email, full_name, username')
-          .eq('user_id', perm.user_id)
-          .maybeSingle();
-        
-        if (profileError) {
-          console.error('Error fetching profile for user:', perm.user_id, profileError);
-        }
-        
-        permissionsWithUserInfo.push({
-          ...perm,
-          user_email: profile?.email,
-          user_name: profile?.full_name,
-          username: profile?.username
-        });
-      }
+      // Transform the data to match our interface
+      const permissionsWithUserInfo = (permissionsData || []).map(perm => ({
+        ...perm,
+        user_email: perm.profiles?.email,
+        user_name: perm.profiles?.full_name,
+        username: perm.profiles?.username
+      }));
       
       setPermissions(permissionsWithUserInfo);
     } catch (err) {
