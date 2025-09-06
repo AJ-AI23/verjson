@@ -29,17 +29,10 @@ export function useWorkspacePermissions(workspaceId?: string) {
       setLoading(true);
       setError(null);
       
-      // Use basic nested query syntax
+      // First get the permissions
       const { data: permissionsData, error } = await supabase
         .from('workspace_permissions')
-        .select(`
-          *,
-          profiles (
-            email,
-            full_name,
-            username
-          )
-        `)
+        .select('*')
         .eq('workspace_id', workspaceId)
         .order('created_at', { ascending: false });
 
@@ -47,13 +40,23 @@ export function useWorkspacePermissions(workspaceId?: string) {
 
       console.log('Workspace permissions data:', permissionsData);
 
-      // Transform the data to match our interface
-      const permissionsWithUserInfo = (permissionsData || []).map(perm => ({
-        ...perm,
-        user_email: perm.profiles?.email,
-        user_name: perm.profiles?.full_name,
-        username: perm.profiles?.username
-      }));
+      // Then get user profiles for each permission
+      const permissionsWithUserInfo = await Promise.all(
+        (permissionsData || []).map(async (perm) => {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('email, full_name, username')
+            .eq('user_id', perm.user_id)
+            .single();
+
+          return {
+            ...perm,
+            user_email: profile?.email,
+            user_name: profile?.full_name,
+            username: profile?.username
+          };
+        })
+      );
       
       setPermissions(permissionsWithUserInfo);
     } catch (err) {
