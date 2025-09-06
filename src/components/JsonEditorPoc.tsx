@@ -115,7 +115,8 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     redo,
     clearHistory,
     historySize,
-    isUndoRedoOperation
+    isUndoRedoOperation,
+    markInitialSyncCompleted
   } = useYjsUndo({ yjsDoc });
 
   // Get collaboration info
@@ -193,6 +194,10 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
           // Validate JSON before updating to avoid invalid intermediate states
           JSON.parse(content);
           onChange(content);
+          // Mark initial sync as completed after content is loaded
+          setTimeout(() => {
+            markInitialSyncCompleted();
+          }, 150);
         } catch (e) {
           // If content is not valid JSON, don't update the editor yet
           // This can happen during partial sync operations
@@ -205,6 +210,10 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
         }
       } else if (content && content === value) {
         console.log('[YJS] Editor and YJS content already in sync');
+        // If content is already in sync, mark initial sync as completed
+        setTimeout(() => {
+          markInitialSyncCompleted();
+        }, 150);
       }
     }
   }, [collaborationEnabled, yjsDoc, documentId, getTextContent, value, onChange]);

@@ -14,6 +14,7 @@ interface UseYjsUndoResult {
   clearHistory: () => void;
   historySize: number;
   isUndoRedoOperation: () => boolean;
+  markInitialSyncCompleted: () => void;
 }
 
 export const useYjsUndo = ({
@@ -26,6 +27,7 @@ export const useYjsUndo = ({
   
   const undoManagerRef = useRef<Y.UndoManager | null>(null);
   const isUndoRedoOperation = useRef(false);
+  const initialSyncCompleted = useRef(false);
 
   const updateState = useCallback(() => {
     if (undoManagerRef.current) {
@@ -77,6 +79,7 @@ export const useYjsUndo = ({
   useEffect(() => {
     if (!yjsDoc) {
       undoManagerRef.current = null;
+      initialSyncCompleted.current = false;
       updateState();
       return;
     }
@@ -88,13 +91,28 @@ export const useYjsUndo = ({
     });
 
     // Listen to undo manager changes
-    const handleStackItemAdded = () => updateState();
+    const handleStackItemAdded = () => {
+      console.log('[YJS Undo] Stack item added, initial sync completed:', initialSyncCompleted.current);
+      updateState();
+    };
     const handleStackItemPopped = () => updateState();
 
     undoManager.on('stack-item-added', handleStackItemAdded);
     undoManager.on('stack-item-popped', handleStackItemPopped);
 
     undoManagerRef.current = undoManager;
+    initialSyncCompleted.current = false;
+    
+    // Clear any operations that might have been added during initial setup
+    setTimeout(() => {
+      if (undoManager && !initialSyncCompleted.current) {
+        console.log('[YJS Undo] Clearing initial setup operations');
+        undoManager.clear();
+        initialSyncCompleted.current = true;
+        updateState();
+      }
+    }, 100);
+
     updateState();
 
     return () => {
@@ -102,6 +120,7 @@ export const useYjsUndo = ({
       undoManager.off('stack-item-popped', handleStackItemPopped);
       undoManager.destroy();
       undoManagerRef.current = null;
+      initialSyncCompleted.current = false;
     };
   }, [yjsDoc, textKey, updateState]);
 
@@ -132,6 +151,10 @@ export const useYjsUndo = ({
     redo,
     clearHistory,
     historySize,
-    isUndoRedoOperation: () => isUndoRedoOperation.current
+    isUndoRedoOperation: () => isUndoRedoOperation.current,
+    markInitialSyncCompleted: () => {
+      initialSyncCompleted.current = true;
+      console.log('[YJS Undo] Initial sync marked as completed');
+    }
   };
 };

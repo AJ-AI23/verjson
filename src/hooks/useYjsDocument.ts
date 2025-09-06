@@ -67,6 +67,7 @@ export const useYjsDocument = ({
         // Validate that initial content is valid JSON before inserting
         try {
           JSON.parse(initialContent);
+          console.log('[YJS] Setting initial content for new document:', { documentId, contentLength: initialContent.length });
           text.insert(0, initialContent);
         } catch (e) {
           console.warn('Initial content is not valid JSON, skipping insertion:', e);
