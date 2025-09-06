@@ -97,7 +97,7 @@ export function useWorkspacePermissions(workspaceId?: string) {
       const { data, error } = await supabase.functions.invoke('invite-collaborator', {
         body: {
           email,
-          invitationType: 'bulk-documents',
+          invitationType: 'bulk_documents',
           resourceIds: documentIds,
           resourceName: `${documentIds.length} documents`,
           role
@@ -112,6 +112,7 @@ export function useWorkspacePermissions(workspaceId?: string) {
       const message = err instanceof Error ? err.message : 'Failed to send bulk document invitation';
       setError(message);
       toast.error(message);
+      console.error('Bulk invite error:', err);
       return false;
     }
   };
