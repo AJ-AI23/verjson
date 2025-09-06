@@ -139,7 +139,7 @@ export function useWorkspaces() {
 
     fetchWorkspaces();
 
-    // Listen for workspace changes (new workspace invitations accepted)
+    // Listen for workspace changes (new workspace invitations accepted AND revocations)
     const workspaceChannel = supabase
       .channel('workspace-updates')
       .on(
@@ -152,7 +152,7 @@ export function useWorkspaces() {
         },
         (payload) => {
           console.log('Workspace permission change detected:', payload);
-          // Refetch workspaces when permissions change
+          // Refetch workspaces when permissions change (accept/revoke)
           fetchWorkspaces();
         }
       )

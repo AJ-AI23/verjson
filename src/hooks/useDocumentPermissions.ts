@@ -142,8 +142,32 @@ export function useDocumentPermissions(documentId?: string, document?: any) {
     }
   };
 
+  // Set up real-time subscription for permission changes
   useEffect(() => {
+    if (!user || !documentId) return;
+
     fetchPermissions();
+
+    const channel = supabase
+      .channel('document-permission-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'document_permissions',
+          filter: `document_id=eq.${documentId}`,
+        },
+        (payload) => {
+          console.log('Document permission change detected:', payload);
+          fetchPermissions();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user, documentId]);
 
   return {

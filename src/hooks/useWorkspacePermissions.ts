@@ -176,8 +176,32 @@ export function useWorkspacePermissions(workspaceId?: string) {
     }
   };
 
+  // Set up real-time subscription for permission changes
   useEffect(() => {
+    if (!user || !workspaceId) return;
+
     fetchPermissions();
+
+    const channel = supabase
+      .channel('workspace-permission-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'workspace_permissions',
+          filter: `workspace_id=eq.${workspaceId}`,
+        },
+        (payload) => {
+          console.log('Workspace permission change detected:', payload);
+          fetchPermissions();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user, workspaceId]);
 
   return {

@@ -98,24 +98,22 @@ const handler = async (req: Request): Promise<Response> => {
       const notificationMessage = `Your ${type} access to "${resourceName}" has been revoked by ${revokerName || user.email}.`;
       
       try {
-        const { data, error: notificationError } = await supabaseClient.rpc('create_invitation_notification', {
-          target_user_id: revokedUserProfile.user_id,
-          inviter_user_id: user.id,
-          inv_type: 'access_revoked',
-          inv_data: {
-            resource_type: type,
-            resource_name: resourceName,
-            revoked_by: user.email,
-            revoked_by_name: revokerName
-          },
-          title: notificationTitle,
-          message: notificationMessage
-        });
+        const { data, error: notificationError } = await supabaseClient
+          .from('notifications')
+          .insert({
+            user_id: revokedUserProfile.user_id,
+            type: 'access_revoked',
+            title: notificationTitle,
+            message: notificationMessage,
+            status: 'pending'
+          })
+          .select()
+          .single();
         
         if (notificationError) {
           console.error("Notification creation error:", notificationError);
         } else {
-          console.log("Notification created with ID:", data);
+          console.log("Notification created with ID:", data?.id);
         }
       } catch (error) {
         console.error("Failed to create notification:", error);

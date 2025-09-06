@@ -171,6 +171,27 @@ export const useNotifications = () => {
           }
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Notification deleted:', payload);
+          const deletedNotification = payload.old as Notification;
+          setNotifications(prev => 
+            prev.filter(n => n.id !== deletedNotification.id)
+          );
+          
+          // Update unread count if the deleted notification was unread
+          if (!deletedNotification.read_at) {
+            setUnreadCount(prev => Math.max(0, prev - 1));
+          }
+        }
+      )
       .subscribe();
 
     return () => {
