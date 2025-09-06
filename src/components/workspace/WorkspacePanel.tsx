@@ -37,9 +37,11 @@ import {
   UserPlus,
   Shield,
   GitMerge
-} from 'lucide-react';
+ } from 'lucide-react';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
+import { defaultSchema } from '@/lib/defaultSchema';
+import { defaultOasSchema } from '@/lib/defaultOasSchema';
 
 interface WorkspacePanelProps {
   onDocumentSelect: (document: any) => void;
@@ -114,15 +116,8 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
     if (!newDocumentName.trim() || !selectedWorkspace) return;
     
     const defaultContent = newDocumentType === 'openapi' 
-      ? {
-          openapi: '3.1.0',
-          info: { title: 'API', version: '1.0.0' },
-          paths: {}
-        }
-      : {
-          type: 'object',
-          properties: {}
-        };
+      ? JSON.parse(defaultOasSchema)
+      : JSON.parse(defaultSchema);
 
     const document = await createDocument({
       workspace_id: selectedWorkspace,
@@ -133,7 +128,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
     
     if (document) {
       setNewDocumentName('');
-      setShowDocumentDialog(false);
+      setShowCreateDocumentDialog(false);
       onDocumentSelect(document);
     }
   };
