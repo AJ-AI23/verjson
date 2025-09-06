@@ -8,6 +8,7 @@ import { DocumentPinEntryDialog } from '@/components/workspace/DocumentPinEntryD
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Document } from '@/types/workspace';
 import { useDocuments } from '@/hooks/useDocuments';
+import { useDocumentContent } from '@/hooks/useDocumentContent';
 import { useDocumentPinSecurity } from '@/hooks/useDocumentPinSecurity';
 import { toast } from 'sonner';
 import { FileText } from 'lucide-react';
@@ -17,7 +18,8 @@ const Index = () => {
   const [clearEditorRequest, setClearEditorRequest] = useState(false);
   const [showPinDialog, setShowPinDialog] = useState(false);
   const [pendingDocument, setPendingDocument] = useState<Document | null>(null);
-  const { updateDocument } = useDocuments();
+  const { updateDocument } = useDocuments(undefined); // Only for updates, no fetching
+  const { content: documentContent, loading: contentLoading } = useDocumentContent(selectedDocument?.id);
   const { checkDocumentPinStatus } = useDocumentPinSecurity();
 
   // Redirect to auth if not logged in
@@ -141,16 +143,22 @@ const Index = () => {
           
           <main className="flex-1 p-4 min-h-0">
             {selectedDocument ? (
-              <div className="h-full animate-fade-in">
-                <Editor 
-                  initialSchema={selectedDocument?.content}
-                  onSave={handleDocumentSave}
-                  documentName={selectedDocument?.name}
-                  selectedDocument={selectedDocument}
-                  onClearRequest={clearEditorRequest}
-                  onClose={handleCloseDocument}
-                />
-              </div>
+              contentLoading ? (
+                <div className="h-full flex items-center justify-center">
+                  <div className="animate-pulse text-muted-foreground">Loading document content...</div>
+                </div>
+              ) : (
+                <div className="h-full animate-fade-in">
+                  <Editor 
+                    initialSchema={documentContent}
+                    onSave={handleDocumentSave}
+                    documentName={selectedDocument?.name}
+                    selectedDocument={selectedDocument}
+                    onClearRequest={clearEditorRequest}
+                    onClose={handleCloseDocument}
+                  />
+                </div>
+              )
             ) : (
               <div className="h-full flex items-center justify-center bg-muted/30 rounded-lg">
                 <div className="flex flex-col items-center gap-4 text-muted-foreground">

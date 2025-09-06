@@ -17,18 +17,24 @@ export function useDocuments(workspaceId?: string) {
       return;
     }
     
+    // Don't fetch anything if no workspace is selected
+    if (!workspaceId) {
+      console.log('[useDocuments] No workspace selected, skipping document fetch');
+      setDocuments([]);
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
-      console.log('[useDocuments] Fetching documents for workspace:', workspaceId || 'ALL');
+      console.log('[useDocuments] Fetching documents for workspace:', workspaceId);
       
-      let query = supabase.from('documents').select('*');
+      const query = supabase
+        .from('documents')
+        .select('id, name, workspace_id, user_id, file_type, created_at, updated_at') // Only metadata, no content
+        .eq('workspace_id', workspaceId);
       
-      if (workspaceId) {
-        query = query.eq('workspace_id', workspaceId);
-        console.log('[useDocuments] Applied workspace filter:', workspaceId);
-      } else {
-        console.log('[useDocuments] No workspace filter applied - fetching all user documents');
-      }
+      console.log('[useDocuments] Applied workspace filter:', workspaceId);
       
       const { data, error } = await query.order('created_at', { ascending: false });
 
@@ -44,11 +50,9 @@ export function useDocuments(workspaceId?: string) {
         workspace_id: d.workspace_id 
       })));
       
-      // Enhance documents with effective content from released versions
-      const documentsWithEffectiveContent = await enhanceDocumentsWithEffectiveContent((data || []) as Document[]);
-      
-      console.log('[useDocuments] Enhanced documents:', documentsWithEffectiveContent.length);
-      setDocuments(documentsWithEffectiveContent);
+      // Store documents with metadata only - content will be loaded when document is selected
+      console.log('[useDocuments] Documents metadata fetched:', data?.length || 0);
+      setDocuments((data || []) as Document[]);
     } catch (err) {
       console.error('[useDocuments] Error in fetchDocuments:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch documents');
@@ -144,20 +148,14 @@ export function useDocuments(workspaceId?: string) {
     
     fetchDocuments();
 
-    // Create proper filter based on workspace selection
-    // The real-time subscription should only listen to changes for the current workspace
-    let channelFilter;
-    let channelName;
-    
-    if (workspaceId) {
-      channelFilter = `workspace_id=eq.${workspaceId}`;
-      channelName = `document-changes-workspace-${workspaceId}`;
-    } else {
-      // When no workspace is selected, listen to all documents the user owns directly
-      // This ensures we don't get updates from workspace documents when no workspace is selected
-      channelFilter = `user_id=eq.${user.id}`;
-      channelName = `document-changes-user-${user.id}`;
+    // Only set up real-time subscription if workspace is selected
+    if (!workspaceId) {
+      console.log('[useDocuments] No workspace selected, skipping real-time subscription');
+      return;
     }
+    
+    const channelFilter = `workspace_id=eq.${workspaceId}`;
+    const channelName = `document-changes-workspace-${workspaceId}`;
 
     console.log('[useDocuments] Setting up real-time subscription:', {
       channelName,
