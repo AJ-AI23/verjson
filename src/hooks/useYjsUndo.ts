@@ -14,7 +14,6 @@ interface UseYjsUndoResult {
   clearHistory: () => void;
   historySize: number;
   isUndoRedoOperation: () => boolean;
-  markInitialSyncCompleted: () => void;
 }
 
 export const useYjsUndo = ({
@@ -27,7 +26,6 @@ export const useYjsUndo = ({
   
   const undoManagerRef = useRef<Y.UndoManager | null>(null);
   const isUndoRedoOperation = useRef(false);
-  const initialSyncCompleted = useRef(false);
 
   const updateState = useCallback(() => {
     if (undoManagerRef.current) {
@@ -79,60 +77,31 @@ export const useYjsUndo = ({
   useEffect(() => {
     if (!yjsDoc) {
       undoManagerRef.current = null;
-      initialSyncCompleted.current = false;
       updateState();
       return;
     }
 
     const text = yjsDoc.getText(textKey);
-    
-    // Create undo manager but don't attach it yet
-    let undoManager: Y.UndoManager | null = null;
-    let handleStackItemAdded: (() => void) | null = null;
-    let handleStackItemPopped: (() => void) | null = null;
-    
-    // Wait for initial content to be set before creating undo manager
-    const initializeUndoManager = () => {
-      if (undoManager) return; // Already initialized
-      
-      console.log('[YJS Undo] Initializing undo manager after content setup');
-      undoManager = new Y.UndoManager([text], {
-        captureTimeout: 500,
-        deleteFilter: () => true
-      });
+    const undoManager = new Y.UndoManager([text], {
+      captureTimeout: 500, // Group operations within 500ms
+      deleteFilter: () => true // Allow deletion undo
+    });
 
-      // Listen to undo manager changes
-      handleStackItemAdded = () => {
-        console.log('[YJS Undo] Stack item added, initial sync completed:', initialSyncCompleted.current);
-        if (initialSyncCompleted.current) {
-          updateState();
-        }
-      };
-      handleStackItemPopped = () => updateState();
+    // Listen to undo manager changes
+    const handleStackItemAdded = () => updateState();
+    const handleStackItemPopped = () => updateState();
 
-      undoManager.on('stack-item-added', handleStackItemAdded);
-      undoManager.on('stack-item-popped', handleStackItemPopped);
+    undoManager.on('stack-item-added', handleStackItemAdded);
+    undoManager.on('stack-item-popped', handleStackItemPopped);
 
-      undoManagerRef.current = undoManager;
-      updateState();
-    };
-
-    // Initialize after a delay to allow content to be set
-    const timeoutId = setTimeout(initializeUndoManager, 200);
-
-    undoManagerRef.current = null;
-    initialSyncCompleted.current = false;
+    undoManagerRef.current = undoManager;
     updateState();
 
     return () => {
-      clearTimeout(timeoutId);
-      if (undoManager && handleStackItemAdded && handleStackItemPopped) {
-        undoManager.off('stack-item-added', handleStackItemAdded);
-        undoManager.off('stack-item-popped', handleStackItemPopped);
-        undoManager.destroy();
-      }
+      undoManager.off('stack-item-added', handleStackItemAdded);
+      undoManager.off('stack-item-popped', handleStackItemPopped);
+      undoManager.destroy();
       undoManagerRef.current = null;
-      initialSyncCompleted.current = false;
     };
   }, [yjsDoc, textKey, updateState]);
 
@@ -163,16 +132,6 @@ export const useYjsUndo = ({
     redo,
     clearHistory,
     historySize,
-    isUndoRedoOperation: () => isUndoRedoOperation.current,
-    markInitialSyncCompleted: () => {
-      initialSyncCompleted.current = true;
-      console.log('[YJS Undo] Initial sync marked as completed');
-      // Clear any operations that were added during initial sync
-      if (undoManagerRef.current) {
-        console.log('[YJS Undo] Clearing undo stack after initial sync completion');
-        undoManagerRef.current.clear();
-        updateState();
-      }
-    }
+    isUndoRedoOperation: () => isUndoRedoOperation.current
   };
 };
