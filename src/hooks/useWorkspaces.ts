@@ -16,11 +16,14 @@ export function useWorkspaces() {
     try {
       setLoading(true);
       
+      console.log('Fetching workspaces for user:', user.id);
+      
       // Fetch owned workspaces
       const { data: ownedWorkspaces, error: ownedError } = await supabase
         .from('workspaces')
         .select('*')
         .eq('user_id', user.id);
+      console.log('Owned workspaces result:', { data: ownedWorkspaces, error: ownedError });
 
       if (ownedError) throw ownedError;
 
@@ -34,6 +37,7 @@ export function useWorkspaces() {
         .eq('workspace_permissions.user_id', user.id)
         .eq('workspace_permissions.status', 'accepted')
         .neq('user_id', user.id); // Exclude owned workspaces to avoid duplicates
+      console.log('Invited workspaces result:', { data: invitedWorkspaces, error: invitedError });
 
       if (invitedError) throw invitedError;
       
@@ -50,6 +54,8 @@ export function useWorkspaces() {
       
       // Sort by created_at descending
       allWorkspaces.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
+      console.log('Final workspaces:', allWorkspaces);
       
       setWorkspaces(allWorkspaces);
     } catch (err) {
