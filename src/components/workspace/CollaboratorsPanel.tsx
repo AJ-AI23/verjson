@@ -66,13 +66,17 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
       
       if (ownerId && ownerId !== user?.id) {
         try {
-          const { data: profile } = await supabase
+          const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('email, full_name, username')
             .eq('user_id', ownerId)
-            .single();
+            .maybeSingle();
           
-          setOwnerProfile(profile);
+          if (profileError) {
+            console.error('Error fetching owner profile:', profileError);
+          } else {
+            setOwnerProfile(profile);
+          }
         } catch (error) {
           console.error('Failed to fetch owner profile:', error);
         }

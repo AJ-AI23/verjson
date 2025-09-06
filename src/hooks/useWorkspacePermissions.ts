@@ -41,11 +41,15 @@ export function useWorkspacePermissions(workspaceId?: string) {
       // Then get user info for each permission
       const permissionsWithUserInfo = [];
       for (const perm of permissionsData || []) {
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('email, full_name, username')
           .eq('user_id', perm.user_id)
-          .single();
+          .maybeSingle();
+        
+        if (profileError) {
+          console.error('Error fetching profile for user:', perm.user_id, profileError);
+        }
         
         permissionsWithUserInfo.push({
           ...perm,

@@ -233,7 +233,7 @@ export type Database = {
       notifications: {
         Row: {
           created_at: string
-          document_id: string
+          document_id: string | null
           id: string
           invitation_data: Json | null
           invitation_type: string | null
@@ -247,7 +247,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          document_id: string
+          document_id?: string | null
           id?: string
           invitation_data?: Json | null
           invitation_type?: string | null
@@ -261,7 +261,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          document_id?: string
+          document_id?: string | null
           id?: string
           invitation_data?: Json | null
           invitation_type?: string | null
