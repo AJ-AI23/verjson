@@ -111,10 +111,10 @@ export function useDocuments(workspaceId?: string) {
 
     fetchDocuments();
 
-    let filter = `user_id=eq.${user.id}`;
-    if (workspaceId) {
-      filter += `,workspace_id=eq.${workspaceId}`;
-    }
+    // Create proper filter based on workspace selection
+    const channelFilter = workspaceId 
+      ? `workspace_id=eq.${workspaceId}`
+      : `user_id=eq.${user.id}`;
 
     const channel = supabase
       .channel('document-changes')
@@ -124,7 +124,7 @@ export function useDocuments(workspaceId?: string) {
           event: '*',
           schema: 'public',
           table: 'documents',
-          filter,
+          filter: channelFilter,
         },
         () => {
           fetchDocuments();
