@@ -176,7 +176,9 @@ export function useInvitations() {
     const handleNotificationUpdate = (payload: any) => {
       if (payload.eventType === 'INSERT') {
         const notification = payload.new;
-        if (notification.type === 'access_revoked' && notification.title?.includes('invitation cancelled')) {
+        console.log('Received notification update:', notification);
+        if (notification.type === 'access_revoked' && notification.title?.toLowerCase().includes('invitation cancelled')) {
+          console.log('Detected cancelled invitation notification, refetching invitations...');
           // Refetch invitations to ensure consistency
           fetchInvitations();
         }
