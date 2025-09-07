@@ -83,11 +83,17 @@ export const useNotifications = () => {
         });
       }
 
-      const { error } = await supabase
+      const updateTimestamp = new Date().toISOString();
+      console.log('Attempting to update notification with timestamp:', updateTimestamp);
+
+      const { data, error } = await supabase
         .from('notifications')
-        .update({ read_at: new Date().toISOString() })
+        .update({ read_at: updateTimestamp })
         .eq('id', notificationId)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .select(); // Add select to see what was actually updated
+
+      console.log('Database update result:', { data, error });
 
       if (error) {
         console.error('Error marking notification as read:', error);
@@ -95,6 +101,16 @@ export const useNotifications = () => {
         await fetchNotifications();
       } else {
         console.log('Successfully marked notification as read in database');
+        console.log('Updated notification data:', data);
+        
+        // Verify the update by fetching fresh data
+        const { data: verifyData, error: verifyError } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('id', notificationId)
+          .single();
+        
+        console.log('Verification query result:', { verifyData, verifyError });
       }
     } catch (error) {
       console.error('Error marking notification as read:', error);
