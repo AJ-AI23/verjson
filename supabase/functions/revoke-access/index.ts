@@ -83,6 +83,36 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("All required parameters validated successfully");
 
+    // First, get the permission details to check if it's pending or accepted
+    const table = type === 'workspace' ? 'workspace_permissions' : 'document_permissions';
+    const { data: permission, error: permissionError } = await supabaseClient
+      .from(table)
+      .select('*')
+      .eq('id', permissionId)
+      .single();
+
+    if (permissionError || !permission) {
+      console.error('Permission not found:', permissionError);
+      throw new Error('Permission not found');
+    }
+
+    console.log('Permission details:', permission);
+    const isPendingInvitation = permission.status === 'pending';
+
+    // Delete the permission record
+    console.log(`Deleting permission from ${table}:`, permissionId);
+    const { error: deleteError } = await supabaseClient
+      .from(table)
+      .delete()
+      .eq('id', permissionId);
+
+    if (deleteError) {
+      console.error('Failed to delete permission:', deleteError);
+      throw new Error('Failed to delete permission');
+    }
+
+    console.log('Permission deleted successfully');
+
     // Get the revoked user's profile to create notification
     const { data: revokedUserProfile } = await supabaseClient
       .from("profiles")
@@ -90,26 +120,58 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("email", revokedUserEmail)
       .maybeSingle();
 
-    // Create notification for the revoked user if they exist
-    if (revokedUserProfile) {
+    // If this was a pending invitation, clean up related invitation notifications
+    if (isPendingInvitation && revokedUserProfile) {
+      console.log('Cleaning up pending invitation notifications...');
+      
+      // Delete invitation notifications for this specific permission
+      const invitationTitle = type === 'workspace' 
+        ? `Invitation to workspace "${resourceName}"`
+        : `Invitation to collaborate on "${resourceName}"`;
+      
+      const { error: cleanupError } = await supabaseClient
+        .from('notifications')
+        .delete()
+        .eq('user_id', revokedUserProfile.user_id)
+        .eq('title', invitationTitle)
+        .is('read_at', null); // Only unread notifications (pending invitations)
+
+      if (cleanupError) {
+        console.error('Failed to cleanup invitation notifications:', cleanupError);
+      } else {
+        console.log('Pending invitation notifications cleaned up');
+      }
+    }
+
+    // Create notification for the revoked user if they exist and it was an accepted permission
+    if (revokedUserProfile && !isPendingInvitation) {
       console.log("Creating revocation notification for user:", revokedUserProfile.user_id);
       
       const notificationTitle = `Access revoked: ${resourceName}`;
       const notificationMessage = `Your ${type} access to "${resourceName}" has been revoked by ${revokerName || user.email}.`;
       
       try {
-        // For workspace revocation, we should include workspace_id
-        let notificationData: any = {
+        const notificationData: any = {
           user_id: revokedUserProfile.user_id,
           type: 'access_revoked',
           title: notificationTitle,
           message: notificationMessage
         };
 
-        // Add workspace_id for workspace revocations
+        // Add resource IDs for proper notification tracking
         if (type === 'workspace') {
-          // We could extract workspace_id from the permission, but for now just create without it
-          // Future improvement: pass workspace_id in the request
+          notificationData.workspace_id = permission.workspace_id;
+        } else {
+          notificationData.document_id = permission.document_id;
+          // Get document's workspace_id for proper context
+          const { data: doc } = await supabaseClient
+            .from('documents')
+            .select('workspace_id')
+            .eq('id', permission.document_id)
+            .single();
+          if (doc) {
+            notificationData.workspace_id = doc.workspace_id;
+          }
         }
 
         const { data, error: notificationError } = await supabaseClient
@@ -180,13 +242,19 @@ const handler = async (req: Request): Promise<Response> => {
         console.error("Email sending failed:", emailError);
         // Don't throw here - the revocation should still proceed
       }
+    } else {
+      console.log("Skipping email notification for pending invitation cleanup");
     }
 
     const response = {
       success: true,
-      message: 'Revocation notification sent successfully',
-      notificationSent: !!revokedUserProfile,
-      emailSent: !!resend,
+      message: isPendingInvitation 
+        ? 'Pending invitation revoked and cleaned up successfully'
+        : 'Access revoked and notification sent successfully',
+      permissionDeleted: true,
+      notificationSent: !!revokedUserProfile && !isPendingInvitation,
+      invitationCleaned: isPendingInvitation,
+      emailSent: !!resend && !isPendingInvitation,
       revokedUserEmail
     };
 
