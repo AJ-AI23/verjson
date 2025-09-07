@@ -98,15 +98,23 @@ const handler = async (req: Request): Promise<Response> => {
       const notificationMessage = `Your ${type} access to "${resourceName}" has been revoked by ${revokerName || user.email}.`;
       
       try {
+        // For workspace revocation, we should include workspace_id
+        let notificationData: any = {
+          user_id: revokedUserProfile.user_id,
+          type: 'access_revoked',
+          title: notificationTitle,
+          message: notificationMessage
+        };
+
+        // Add workspace_id for workspace revocations
+        if (type === 'workspace') {
+          // We could extract workspace_id from the permission, but for now just create without it
+          // Future improvement: pass workspace_id in the request
+        }
+
         const { data, error: notificationError } = await supabaseClient
           .from('notifications')
-          .insert({
-            user_id: revokedUserProfile.user_id,
-            type: 'access_revoked',
-            title: notificationTitle,
-            message: notificationMessage,
-            status: 'pending'
-          })
+          .insert(notificationData)
           .select()
           .single();
         

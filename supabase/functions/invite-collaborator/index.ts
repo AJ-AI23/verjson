@@ -232,21 +232,9 @@ const handler = async (req: Request): Promise<Response> => {
     if (targetUserId) {
       console.log("Creating notification for existing user:", targetUserId);
       try {
-        const { data, error: notificationError } = await supabaseClient.rpc('create_invitation_notification', {
-          target_user_id: targetUserId,
-          inviter_user_id: user.id,
-          inv_type: invitationType,
-          inv_data: invitationData,
-          title: notificationTitle,
-          message: notificationMessage
-        });
-        
-        if (notificationError) {
-          console.error("Notification creation error:", notificationError);
-        } else {
-          notificationId = data;
-          console.log("Notification created with ID:", notificationId);
-        }
+        // Since invitation functions were removed, we don't create notifications here anymore
+        // Invitations are now handled directly by workspace_permissions status
+        console.log("Skipping notification creation - invitations handled by workspace_permissions");
       } catch (error) {
         console.error("Failed to create notification:", error);
       }

@@ -154,7 +154,7 @@ export const useNotifications = () => {
   }, [user, fetchNotifications]);
 
   // Create a notification (for testing or manual creation)
-  const createNotification = useCallback(async (documentId: string, title: string, message: string) => {
+  const createNotification = useCallback(async (documentId: string, title: string, message: string, workspaceId?: string) => {
     if (!user) return;
 
     try {
@@ -163,6 +163,7 @@ export const useNotifications = () => {
         .insert({
           user_id: user.id,
           document_id: documentId,
+          workspace_id: workspaceId, // Include workspace_id if provided
           type: 'notation',
           title,
           message
