@@ -17,6 +17,10 @@ export const NotificationsButton: React.FC = () => {
 
   const pendingInvitationsCount = invitations.length; // All invitations are pending
 
+  // Debug logging
+  console.log('🔔 NotificationsButton - Unread count:', unreadCount);
+  console.log('🔔 NotificationsButton - Total notifications:', notifications.length);
+
 
   return (
     <div className="flex items-center gap-2">
