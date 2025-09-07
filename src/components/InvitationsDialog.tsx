@@ -20,7 +20,8 @@ import {
   Clock,
   User
 } from 'lucide-react';
-import { useInvitations, Invitation } from '@/hooks/useInvitations';
+import { useNotifications } from '@/contexts/NotificationsContext';
+import { Invitation } from '@/hooks/useInvitations';
 
 interface InvitationsDialogProps {
   open: boolean;
@@ -28,19 +29,25 @@ interface InvitationsDialogProps {
 }
 
 export function InvitationsDialog({ open, onOpenChange }: InvitationsDialogProps) {
-  const { invitations, loading, acceptInvitation, declineInvitation } = useInvitations();
+  const { invitations, invitationsLoading, acceptInvitation, declineInvitation } = useNotifications();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const getInvitationIcon = () => {
-    return <Folder className="h-5 w-5" />;
+  // Debug logging
+  console.log('🗂️ InvitationsDialog - Invitations:', invitations);
+  console.log('🗂️ InvitationsDialog - Loading:', invitationsLoading);
+
+  const getInvitationIcon = (invitation: Invitation) => {
+    return invitation.type === 'workspace' ? <Folder className="h-5 w-5" /> : <FileText className="h-5 w-5" />;
   };
 
-  const getInvitationTypeLabel = () => {
-    return 'Workspace';
+  const getInvitationTypeLabel = (invitation: Invitation) => {
+    return invitation.type === 'workspace' ? 'Workspace' : 'Document';
   };
 
   const getInvitationDescription = (invitation: Invitation) => {
-    return `Workspace: ${invitation.workspace_name}`;
+    return invitation.type === 'workspace' 
+      ? `Workspace: ${invitation.workspace_name}` 
+      : `Document: ${invitation.document_name}`;
   };
 
   const handleAccept = async (invitationId: string) => {
@@ -75,7 +82,7 @@ export function InvitationsDialog({ open, onOpenChange }: InvitationsDialogProps
         </DialogHeader>
 
         <div className="space-y-4">
-          {loading ? (
+          {invitationsLoading ? (
             <div className="text-center py-8 text-muted-foreground">
               <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
               Loading invitations...
@@ -94,25 +101,27 @@ export function InvitationsDialog({ open, onOpenChange }: InvitationsDialogProps
                      {/* Header */}
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="flex-shrink-0">
-                          {getInvitationIcon()}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-medium truncate">Workspace Invitation</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {getInvitationDescription(invitation)}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge variant="secondary" className="flex-shrink-0">
-                        {getInvitationTypeLabel()}
-                      </Badge>
-                    </div>
+                         <div className="flex-shrink-0">
+                           {getInvitationIcon(invitation)}
+                         </div>
+                         <div className="min-w-0 flex-1">
+                           <h3 className="font-medium truncate">
+                             {invitation.type === 'workspace' ? 'Workspace Invitation' : 'Document Invitation'}
+                           </h3>
+                           <p className="text-sm text-muted-foreground">
+                             {getInvitationDescription(invitation)}
+                           </p>
+                         </div>
+                       </div>
+                       <Badge variant="secondary" className="flex-shrink-0">
+                         {getInvitationTypeLabel(invitation)}
+                       </Badge>
+                     </div>
 
-                    {/* Message */}
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      You've been invited to collaborate on this workspace.
-                    </p>
+                     {/* Message */}
+                     <p className="text-sm text-muted-foreground leading-relaxed">
+                       You've been invited to collaborate on this {invitation.type}.
+                     </p>
 
                     {/* Invitation Details */}
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
