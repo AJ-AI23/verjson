@@ -91,6 +91,9 @@ export const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
               <p className="text-sm text-muted-foreground">
                 You'll see notifications here when someone adds comments to your documents.
               </p>
+              <p className="text-xs text-red-500 mt-2">
+                Debug: Loading={loading ? 'true' : 'false'}, Count={notifications.length}, Unread={unreadCount}
+              </p>
             </div>
           ) : (
             <div className="p-2">
