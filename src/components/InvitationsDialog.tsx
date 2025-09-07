@@ -85,9 +85,6 @@ export function InvitationsDialog({ open, onOpenChange }: InvitationsDialogProps
               <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <h3 className="text-lg font-medium mb-2">No pending invitations</h3>
               <p className="text-sm">You're all caught up! Any new collaboration invitations will appear here.</p>
-              <p className="text-xs text-red-500 mt-2">
-                Debug: Loading={loading ? 'true' : 'false'}, Count={invitations.length}
-              </p>
             </div>
           ) : (
             <ScrollArea className="max-h-96">
