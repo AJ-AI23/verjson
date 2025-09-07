@@ -31,6 +31,11 @@ export const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
     markAllAsRead 
   } = useNotifications();
 
+  // Debug logging
+  console.log('🗂️ NotificationsDialog - Total notifications:', notifications.length);
+  console.log('🗂️ NotificationsDialog - Unread count:', unreadCount);
+  console.log('🗂️ NotificationsDialog - Notifications:', notifications.map(n => ({ id: n.id, title: n.title, read_at: n.read_at })));
+
   const handleNotificationClick = async (notification: Notification) => {
     if (!notification.read_at) {
       await markAsRead(notification.id);
