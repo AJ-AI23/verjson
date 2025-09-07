@@ -120,7 +120,7 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("email", revokedUserEmail)
       .maybeSingle();
 
-    // If this was a pending invitation, clean up related invitation notifications
+    // If this was a pending invitation, clean up related invitation notifications and create cancellation notification
     if (isPendingInvitation && revokedUserProfile) {
       console.log('Cleaning up pending invitation notifications...');
       
@@ -140,6 +140,51 @@ const handler = async (req: Request): Promise<Response> => {
         console.error('Failed to cleanup invitation notifications:', cleanupError);
       } else {
         console.log('Pending invitation notifications cleaned up');
+      }
+
+      // Create a cancellation notification for the user whose invitation was revoked
+      console.log("Creating invitation cancellation notification for user:", revokedUserProfile.user_id);
+      
+      const cancellationTitle = `Invitation cancelled: ${resourceName}`;
+      const cancellationMessage = `Your invitation to "${resourceName}" has been cancelled by ${revokerName || user.email}.`;
+      
+      try {
+        const notificationData: any = {
+          user_id: revokedUserProfile.user_id,
+          type: 'access_revoked',
+          title: cancellationTitle,
+          message: cancellationMessage
+        };
+
+        // Add resource IDs for proper notification tracking
+        if (type === 'workspace') {
+          notificationData.workspace_id = permission.workspace_id;
+        } else {
+          notificationData.document_id = permission.document_id;
+          // Get document's workspace_id for proper context
+          const { data: doc } = await supabaseClient
+            .from('documents')
+            .select('workspace_id')
+            .eq('id', permission.document_id)
+            .single();
+          if (doc) {
+            notificationData.workspace_id = doc.workspace_id;
+          }
+        }
+
+        const { data, error: notificationError } = await supabaseClient
+          .from('notifications')
+          .insert(notificationData)
+          .select()
+          .single();
+        
+        if (notificationError) {
+          console.error("Cancellation notification creation error:", notificationError);
+        } else {
+          console.log("Cancellation notification created with ID:", data?.id);
+        }
+      } catch (error) {
+        console.error("Failed to create cancellation notification:", error);
       }
     }
 
@@ -254,7 +299,7 @@ const handler = async (req: Request): Promise<Response> => {
         ? 'Pending invitation revoked and cleaned up successfully'
         : 'Access revoked and notification sent successfully',
       permissionDeleted: true,
-      notificationSent: !!revokedUserProfile && !isPendingInvitation,
+      notificationSent: !!revokedUserProfile, // Now we send notifications for both cases
       invitationCleaned: isPendingInvitation,
       emailSent: !!resend && !isPendingInvitation,
       revokedUserEmail
