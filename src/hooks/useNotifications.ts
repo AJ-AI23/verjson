@@ -257,8 +257,7 @@ export const useNotifications = () => {
         
         // Skip real-time update if we have an optimistic update in progress
         if (optimisticUpdatesRef.current.has(updatedNotification.id)) {
-          optimisticUpdatesRef.current.delete(updatedNotification.id);
-          return;
+          return; // Don't delete from optimistic tracker here - let the timeout handle it
         }
         
         setNotifications(prev => {
