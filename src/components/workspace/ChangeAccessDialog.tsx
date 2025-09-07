@@ -41,32 +41,63 @@ export function ChangeAccessDialog({
 }: ChangeAccessDialogProps) {
   const [role, setRole] = useState<'editor' | 'viewer'>('viewer');
   const [isUpdating, setIsUpdating] = useState(false);
-  const { permissions: userPermissions, loading: permissionsLoading, revokePermission } = useUserPermissions(permission?.user_id);
+  const [permissionsToRevoke, setPermissionsToRevoke] = useState<string[]>([]);
+  const { permissions: userPermissions, loading: permissionsLoading, revokePermission, refetch } = useUserPermissions(permission?.user_id);
 
   // Update role when permission changes, but only allow editor/viewer roles
   React.useEffect(() => {
     if (permission && (permission.role === 'editor' || permission.role === 'viewer')) {
       setRole(permission.role);
     }
+    // Reset revoke queue when permission changes
+    setPermissionsToRevoke([]);
   }, [permission]);
 
   const handleUpdateRole = async () => {
-    if (!permission || role === permission.role) return;
+    if (!permission) return;
 
     setIsUpdating(true);
-    await onUpdateRole(role);
-    setIsUpdating(false);
-    onOpenChange(false);
+    
+    try {
+      // First revoke any queued permissions
+      for (const permId of permissionsToRevoke) {
+        const permToRevoke = userPermissions.find(p => p.id === permId);
+        if (permToRevoke) {
+          await revokePermission(
+            permId, 
+            permToRevoke.type, 
+            permToRevoke.resource_name,
+            permission.user_email,
+            permission.user_name
+          );
+        }
+      }
+
+      // Then update the current permission role if it changed
+      if (role !== permission.role) {
+        await onUpdateRole(role);
+      }
+
+      // Refresh the permissions list
+      await refetch();
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Failed to update permissions:', error);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
-  const handleRevokePermission = async (permissionId: string, type: 'workspace' | 'document') => {
-    const success = await revokePermission(permissionId, type);
-    if (success) {
-      // Close dialog if we revoked the current permission
-      if (permissionId === permission?.id) {
-        onOpenChange(false);
+  const handleQueueRevoke = (permissionId: string) => {
+    setPermissionsToRevoke(prev => {
+      if (prev.includes(permissionId)) {
+        // Remove from queue (undo)
+        return prev.filter(id => id !== permissionId);
+      } else {
+        // Add to queue
+        return [...prev, permissionId];
       }
-    }
+    });
   };
 
   if (!permission) return null;
@@ -173,55 +204,68 @@ export function ChangeAccessDialog({
                 <p className="text-sm text-muted-foreground">No permissions found</p>
               ) : (
                 <div className="space-y-2">
-                  {userPermissions.map((perm) => (
-                    <div key={`${perm.type}-${perm.id}`} className="flex items-center justify-between p-2 border rounded-lg">
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        {perm.type === 'workspace' ? (
-                          <Folder className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        ) : (
-                          <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        )}
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-sm font-medium truncate">
-                            {perm.resource_name}
-                          </span>
-                          <span className="text-xs text-muted-foreground truncate">
-                            {perm.type === 'document' ? `in ${perm.workspace_name}` : 'Workspace'}
-                          </span>
+                  {userPermissions.map((perm) => {
+                    const isQueued = permissionsToRevoke.includes(perm.id);
+                    return (
+                      <div 
+                        key={`${perm.type}-${perm.id}`} 
+                        className={`flex items-center justify-between p-2 border rounded-lg transition-colors ${
+                          isQueued ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          {perm.type === 'workspace' ? (
+                            <Folder className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          ) : (
+                            <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          )}
+                          <div className="flex flex-col min-w-0">
+                            <span className={`text-sm font-medium truncate ${isQueued ? 'line-through text-muted-foreground' : ''}`}>
+                              {perm.resource_name}
+                            </span>
+                            <span className="text-xs text-muted-foreground truncate">
+                              {perm.type === 'document' ? `in ${perm.workspace_name}` : 'Workspace'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Badge variant="secondary" className="text-xs">
+                            {perm.role}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={`h-6 w-6 p-0 ${
+                              isQueued 
+                                ? 'text-orange-600 hover:text-orange-700' 
+                                : 'text-destructive hover:text-destructive'
+                            }`}
+                            onClick={() => handleQueueRevoke(perm.id)}
+                            title={isQueued ? 'Undo revoke' : 'Queue for removal'}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Badge variant="secondary" className="text-xs">
-                          {perm.role}
-                        </Badge>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                          onClick={() => handleRevokePermission(perm.id, perm.type)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </ScrollArea>
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isUpdating}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleUpdateRole} 
-            disabled={role === permission.role || isUpdating}
-          >
-            {isUpdating ? 'Updating...' : 'Update Access'}
-          </Button>
-        </DialogFooter>
+          <div className="flex gap-2 pt-4">
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isUpdating}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpdateRole} 
+              disabled={isUpdating || (role === permission.role && permissionsToRevoke.length === 0)}
+            >
+              {isUpdating ? 'Updating...' : 'Update Access'}
+            </Button>
+          </div>
       </DialogContent>
     </Dialog>
   );

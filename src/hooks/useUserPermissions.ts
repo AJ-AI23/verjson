@@ -47,19 +47,24 @@ export function useUserPermissions(userId?: string) {
     }
   };
 
-  const revokePermission = async (permissionId: string, type: 'workspace' | 'document') => {
+  const revokePermission = async (permissionId: string, type: 'workspace' | 'document', resourceName: string, userEmail?: string, userName?: string) => {
     try {
-      const table = type === 'workspace' ? 'workspace_permissions' : 'document_permissions';
-      
-      const { error } = await supabase
-        .from(table)
-        .delete()
-        .eq('id', permissionId);
+      // Use the revoke-access edge function for proper notifications
+      const { data, error } = await supabase.functions.invoke('revoke-access', {
+        body: {
+          permissionId,
+          type,
+          revokedUserEmail: userEmail,
+          revokedUserName: userName,
+          resourceName,
+          revokerName: user?.email
+        }
+      });
 
       if (error) throw error;
 
       setPermissions(prev => prev.filter(p => p.id !== permissionId));
-      toast.success('Permission revoked successfully');
+      toast.success(data?.message || 'Permission revoked successfully');
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to revoke permission';
