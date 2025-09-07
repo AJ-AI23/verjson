@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRealtimeService } from './useRealtimeService';
@@ -29,36 +29,13 @@ export interface Notification {
   updated_at: string;
 }
 
-// Helper function to compute unread count considering optimistic updates
-const computeUnreadCount = (notifications: Notification[], optimisticReadIds: Set<string>) => {
-  return notifications.filter(n => {
-    // If it's already read in DB, it's read
-    if (n.read_at) return false;
-    
-    // If it's optimistically marked as read, consider it read
-    if (optimisticReadIds.has(n.id)) return false;
-    
-    // Otherwise it's unread
-    return true;
-  }).length;
-};
-
 export const useNotifications = () => {
   const { user } = useAuth();
   const { subscribe, unsubscribe, connectionState } = useRealtimeService();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
-  
-  // Track optimistic updates to prevent real-time conflicts
-  const optimisticUpdatesRef = useRef<Set<string>>(new Set());
-  // Force useMemo to recompute when optimistic updates change
-  const [optimisticUpdateTrigger, setOptimisticUpdateTrigger] = useState(0);
-  
-  // Compute unread count from notifications + optimistic cache
-  const unreadCount = useMemo(() => {
-    return computeUnreadCount(notifications, optimisticUpdatesRef.current);
-  }, [notifications, optimisticUpdateTrigger]);
 
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
@@ -75,6 +52,8 @@ export const useNotifications = () => {
       if (error) throw error;
 
       setNotifications(data || []);
+      const calculatedUnreadCount = data?.filter(n => !n.read_at).length || 0;
+      setUnreadCount(calculatedUnreadCount);
     } catch (error) {
       console.error('Error fetching notifications:', error);
       toast.error('Failed to load notifications');
@@ -94,7 +73,6 @@ export const useNotifications = () => {
 
       // Track this as optimistic update to prevent real-time conflicts
       optimisticUpdatesRef.current.add(notificationId);
-      setOptimisticUpdateTrigger(prev => prev + 1);
 
       // Optimistic update
       setNotifications(prev => {
@@ -106,7 +84,10 @@ export const useNotifications = () => {
         return updated;
       });
       
-      // No need to manually update unreadCount - useMemo will handle it
+      // Update unread count immediately if it was unread
+      if (wasUnread) {
+        setUnreadCount(current => Math.max(0, current - 1));
+      }
 
       const updateTimestamp = new Date().toISOString();
 
@@ -120,19 +101,16 @@ export const useNotifications = () => {
         console.error('Error marking notification as read:', error);
         // Revert optimistic update on error
         optimisticUpdatesRef.current.delete(notificationId);
-        setOptimisticUpdateTrigger(prev => prev + 1);
         await fetchNotifications();
       } else {
         // Remove from optimistic tracking on success
         setTimeout(() => {
           optimisticUpdatesRef.current.delete(notificationId);
-          setOptimisticUpdateTrigger(prev => prev + 1);
         }, 100); // Small delay to ensure real-time event is handled
       }
     } catch (error) {
       console.error('Error marking notification as read:', error);
       optimisticUpdatesRef.current.delete(notificationId);
-      setOptimisticUpdateTrigger(prev => prev + 1);
       await fetchNotifications();
     }
   }, [user, fetchNotifications, notifications]);
@@ -146,13 +124,13 @@ export const useNotifications = () => {
       
       // Track all unread notifications as optimistic updates
       unreadNotifications.forEach(n => optimisticUpdatesRef.current.add(n.id));
-      setOptimisticUpdateTrigger(prev => prev + 1);
 
       // Optimistic update
       const currentTime = new Date().toISOString();
       setNotifications(prev => 
         prev.map(n => ({ ...n, read_at: n.read_at || currentTime }))
       );
+      setUnreadCount(0);
 
       const { error } = await supabase
         .from('notifications')
@@ -164,21 +142,18 @@ export const useNotifications = () => {
         console.error('Error marking all notifications as read:', error);
         // Revert optimistic update on error
         unreadNotifications.forEach(n => optimisticUpdatesRef.current.delete(n.id));
-        setOptimisticUpdateTrigger(prev => prev + 1);
         await fetchNotifications();
       } else {
         toast.success('All notifications marked as read');
         // Remove from optimistic tracking on success
         setTimeout(() => {
           unreadNotifications.forEach(n => optimisticUpdatesRef.current.delete(n.id));
-          setOptimisticUpdateTrigger(prev => prev + 1);
         }, 100);
       }
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
       const unreadNotifications = notifications.filter(n => !n.read_at);
       unreadNotifications.forEach(n => optimisticUpdatesRef.current.delete(n.id));
-      setOptimisticUpdateTrigger(prev => prev + 1);
       await fetchNotifications();
     }
   }, [user, fetchNotifications, notifications]);
@@ -247,6 +222,8 @@ export const useNotifications = () => {
     }
   }, []);
 
+  // Track optimistic updates to prevent real-time conflicts
+  const optimisticUpdatesRef = useRef<Set<string>>(new Set());
 
   // Set up real-time subscription for notifications
   useEffect(() => {
@@ -266,7 +243,12 @@ export const useNotifications = () => {
           console.log('📋 Current notifications count:', prev.length);
           const updated = [newNotification, ...prev];
           console.log('📋 Updated notifications count:', updated.length);
-          console.log('🔔 Unread count will be computed from updated notifications');
+          
+          // Calculate unread count from the updated array
+          const newUnreadCount = updated.filter(n => !n.read_at).length;
+          setUnreadCount(newUnreadCount);
+          console.log('🔔 Setting unread count to:', newUnreadCount);
+          
           return updated;
         });
         
@@ -293,11 +275,21 @@ export const useNotifications = () => {
               ? updatedNotification 
               : n
           );
+          
+          // Recalculate unread count based on actual data to ensure accuracy
+          const newUnreadCount = updated.filter(n => !n.read_at).length;
+          setUnreadCount(newUnreadCount);
+          
           return updated;
         });
       } else if (payload.eventType === 'DELETE') {
         const deletedId = payload.old.id;
-        setNotifications(prev => prev.filter(n => n.id !== deletedId));
+        setNotifications(prev => {
+          const filtered = prev.filter(n => n.id !== deletedId);
+          const newUnreadCount = filtered.filter(n => !n.read_at).length;
+          setUnreadCount(newUnreadCount);
+          return filtered;
+        });
       }
     };
 
