@@ -6,7 +6,7 @@ import { NotificationsDialog } from './NotificationsDialog';
 import { InvitationsDialog } from './InvitationsDialog';
 import { DebugToggle } from '@/components/DebugToggle';
 import { SupportButton } from './SupportButton';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useNotifications } from '@/contexts/NotificationsContext';
 import { useInvitations } from '@/hooks/useInvitations';
 
 export const NotificationsButton: React.FC = () => {

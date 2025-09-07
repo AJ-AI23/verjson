@@ -10,7 +10,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Check, FileText, MoreHorizontal } from 'lucide-react';
-import { useNotifications, Notification } from '@/hooks/useNotifications';
+import { useNotifications } from '@/contexts/NotificationsContext';
+import { Notification } from '@/hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 
