@@ -15,140 +15,204 @@ interface ConnectionState {
   lastError?: string;
 }
 
+// Global singleton to prevent multiple channels
+class RealtimeServiceSingleton {
+  private static instance: RealtimeServiceSingleton;
+  private channel: RealtimeChannel | null = null;
+  private subscriptions = new Map<string, RealtimeSubscription>();
+  private connectionState: ConnectionState = { status: 'disconnected', retryCount: 0 };
+  private listeners = new Set<(state: ConnectionState) => void>();
+  private retryTimeout: NodeJS.Timeout | null = null;
+  private isCleaningUp = false;
+
+  static getInstance(): RealtimeServiceSingleton {
+    if (!RealtimeServiceSingleton.instance) {
+      RealtimeServiceSingleton.instance = new RealtimeServiceSingleton();
+    }
+    return RealtimeServiceSingleton.instance;
+  }
+
+  private setConnectionState(newState: ConnectionState) {
+    this.connectionState = newState;
+    this.listeners.forEach(listener => listener(newState));
+  }
+
+  private cleanup() {
+    if (this.isCleaningUp) return; // Prevent recursive cleanup
+    this.isCleaningUp = true;
+    
+    if (this.retryTimeout) {
+      clearTimeout(this.retryTimeout);
+      this.retryTimeout = null;
+    }
+
+    if (this.channel) {
+      try {
+        this.channel.unsubscribe();
+        supabase.removeChannel(this.channel);
+      } catch (error) {
+        console.error('Error cleaning up channel:', error);
+      }
+      this.channel = null;
+    }
+    
+    this.setConnectionState({ status: 'disconnected', retryCount: 0 });
+    this.isCleaningUp = false;
+  }
+
+  private async createChannel() {
+    if (this.isCleaningUp) return;
+    
+    this.cleanup();
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.warn('No user found, skipping realtime connection');
+        return;
+      }
+
+      const channelName = `unified-realtime-${user.id}`;
+      
+      this.setConnectionState({ ...this.connectionState, status: 'connecting' });
+
+      const channel = supabase.channel(channelName, {
+        config: {
+          broadcast: { self: false },
+          presence: { key: 'user' }
+        }
+      });
+
+      // Set up all current subscriptions on the new channel
+      this.subscriptions.forEach((subscription, id) => {
+        const config: any = {
+          event: subscription.event || '*',
+          schema: 'public',
+          table: subscription.table
+        };
+
+        if (subscription.filter) {
+          config.filter = subscription.filter;
+        }
+
+        channel.on('postgres_changes', config, (payload) => {
+          subscription.callback(payload);
+        });
+      });
+
+      channel.subscribe((status) => {
+        if (this.isCleaningUp) return;
+        
+        if (status === 'SUBSCRIBED') {
+          this.setConnectionState({ status: 'connected', retryCount: 0 });
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          const newRetryCount = this.connectionState.retryCount + 1;
+          const delay = Math.min(1000 * Math.pow(2, newRetryCount), 30000);
+          
+          if (newRetryCount < 5) { // Max 5 retries
+            console.warn(`Channel ${status}, retrying in ${delay}ms (attempt ${newRetryCount})`);
+            this.setConnectionState({ status: 'error', retryCount: newRetryCount, lastError: status });
+            
+            this.retryTimeout = setTimeout(() => {
+              if (!this.isCleaningUp) {
+                this.createChannel();
+              }
+            }, delay);
+          } else {
+            console.error('Max retries reached, giving up');
+            this.setConnectionState({ status: 'error', retryCount: newRetryCount, lastError: 'Max retries exceeded' });
+          }
+        }
+      });
+
+      this.channel = channel;
+    } catch (error) {
+      console.error('Error creating realtime channel:', error);
+      this.setConnectionState({ status: 'error', retryCount: this.connectionState.retryCount + 1, lastError: 'Creation failed' });
+    }
+  }
+
+  subscribe(id: string, subscription: RealtimeSubscription) {
+    this.subscriptions.set(id, subscription);
+    
+    // If we have an active channel, add the subscription to it
+    if (this.channel && this.connectionState.status === 'connected') {
+      const config: any = {
+        event: subscription.event || '*',
+        schema: 'public',
+        table: subscription.table
+      };
+
+      if (subscription.filter) {
+        config.filter = subscription.filter;
+      }
+
+      this.channel.on('postgres_changes', config, (payload) => {
+        subscription.callback(payload);
+      });
+    } else {
+      // Create channel if it doesn't exist or is not connected
+      this.createChannel();
+    }
+  }
+
+  unsubscribe(id: string) {
+    this.subscriptions.delete(id);
+    
+    // If no more subscriptions, cleanup the channel
+    if (this.subscriptions.size === 0) {
+      this.cleanup();
+    }
+  }
+
+  addConnectionListener(listener: (state: ConnectionState) => void) {
+    this.listeners.add(listener);
+    // Immediately notify with current state
+    listener(this.connectionState);
+    
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  getConnectionState() {
+    return this.connectionState;
+  }
+
+  destroy() {
+    this.cleanup();
+    this.subscriptions.clear();
+    this.listeners.clear();
+  }
+}
+
 export function useRealtimeService() {
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  const subscriptionsRef = useRef<Map<string, RealtimeSubscription>>(new Map());
   const [connectionState, setConnectionState] = useState<ConnectionState>({
     status: 'disconnected',
     retryCount: 0
   });
-
-  const cleanup = useCallback(() => {
-    console.log('Cleaning up realtime service');
-    if (channelRef.current) {
-      try {
-        channelRef.current.unsubscribe();
-        supabase.removeChannel(channelRef.current);
-      } catch (error) {
-        console.error('Error cleaning up channel:', error);
-      }
-      channelRef.current = null;
-    }
-    subscriptionsRef.current.clear();
-    setConnectionState({ status: 'disconnected', retryCount: 0 });
-  }, []);
-
-  const createChannel = useCallback(() => {
-    cleanup();
-    
-    const userId = supabase.auth.getUser().then(({ data }) => data.user?.id);
-    const channelName = `user-realtime-${Date.now()}`;
-    
-    console.log('Creating unified realtime channel:', channelName);
-    setConnectionState(prev => ({ ...prev, status: 'connecting' }));
-
-    const channel = supabase.channel(channelName, {
-      config: {
-        broadcast: { self: false },
-        presence: { key: 'user' }
-      }
-    });
-
-    // Set up all current subscriptions on the new channel
-    subscriptionsRef.current.forEach((subscription, id) => {
-      const config: any = {
-        event: subscription.event || '*',
-        schema: 'public',
-        table: subscription.table
-      };
-
-      if (subscription.filter) {
-        config.filter = subscription.filter;
-      }
-
-      channel.on('postgres_changes', config, (payload) => {
-        console.log(`Realtime event for ${subscription.table}:`, payload);
-        subscription.callback(payload);
-      });
-    });
-
-    let retryTimeout: NodeJS.Timeout;
-
-    channel.subscribe((status) => {
-      console.log('Unified channel status:', status);
-      
-      if (status === 'SUBSCRIBED') {
-        setConnectionState({ status: 'connected', retryCount: 0 });
-      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-        setConnectionState(prev => {
-          const newRetryCount = prev.retryCount + 1;
-          const delay = Math.min(1000 * Math.pow(2, newRetryCount), 30000); // Exponential backoff, max 30s
-          
-          console.warn(`Channel ${status}, retrying in ${delay}ms (attempt ${newRetryCount})`);
-          
-          retryTimeout = setTimeout(() => {
-            if (newRetryCount < 5) { // Max 5 retries
-              createChannel();
-            } else {
-              console.error('Max retries reached, falling back to polling');
-              setConnectionState({ status: 'error', retryCount: newRetryCount, lastError: 'Max retries exceeded' });
-            }
-          }, delay);
-          
-          return { status: 'error', retryCount: newRetryCount, lastError: status };
-        });
-      }
-    });
-
-    channelRef.current = channel;
-    
-    return () => {
-      if (retryTimeout) clearTimeout(retryTimeout);
-    };
-  }, [cleanup]);
-
-  const subscribe = useCallback((
-    id: string,
-    subscription: RealtimeSubscription
-  ) => {
-    console.log(`Adding subscription: ${id} for table: ${subscription.table}`);
-    subscriptionsRef.current.set(id, subscription);
-    
-    // If we have an active channel, add the subscription to it
-    if (channelRef.current) {
-      const config: any = {
-        event: subscription.event || '*',
-        schema: 'public',
-        table: subscription.table
-      };
-
-      if (subscription.filter) {
-        config.filter = subscription.filter;
-      }
-
-      channelRef.current.on('postgres_changes', config, (payload) => {
-        console.log(`Realtime event for ${subscription.table}:`, payload);
-        subscription.callback(payload);
-      });
-    } else {
-      // Create channel if it doesn't exist
-      createChannel();
-    }
-  }, [createChannel]);
-
-  const unsubscribe = useCallback((id: string) => {
-    console.log(`Removing subscription: ${id}`);
-    subscriptionsRef.current.delete(id);
-    
-    // If no more subscriptions, cleanup the channel
-    if (subscriptionsRef.current.size === 0) {
-      cleanup();
-    }
-  }, [cleanup]);
+  
+  const serviceRef = useRef<RealtimeServiceSingleton | null>(null);
 
   useEffect(() => {
-    return cleanup;
-  }, [cleanup]);
+    serviceRef.current = RealtimeServiceSingleton.getInstance();
+    
+    const removeListener = serviceRef.current.addConnectionListener(setConnectionState);
+    
+    return removeListener;
+  }, []);
+
+  const subscribe = useCallback((id: string, subscription: RealtimeSubscription) => {
+    serviceRef.current?.subscribe(id, subscription);
+  }, []);
+
+  const unsubscribe = useCallback((id: string) => {
+    serviceRef.current?.unsubscribe(id);
+  }, []);
+
+  const cleanup = useCallback(() => {
+    serviceRef.current?.destroy();
+  }, []);
 
   return { 
     subscribe, 
