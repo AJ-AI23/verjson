@@ -557,6 +557,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_invitation: {
+        Args: { invitation_id: string; invitation_type: string }
+        Returns: {
+          document_id: string
+          message: string
+          success: boolean
+          workspace_id: string
+        }[]
+      }
       cleanup_old_collaboration_sessions: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -574,6 +583,13 @@ export type Database = {
           target_workspace_id: string
         }
         Returns: undefined
+      }
+      decline_invitation: {
+        Args: { invitation_id: string; invitation_type: string }
+        Returns: {
+          message: string
+          success: boolean
+        }[]
       }
       generate_content_hash: {
         Args: { content: string }
@@ -593,6 +609,21 @@ export type Database = {
           user_id: string
           user_name: string
           username: string
+        }[]
+      }
+      get_user_invitations: {
+        Args: { target_user_id: string }
+        Returns: {
+          created_at: string
+          document_id: string
+          document_name: string
+          id: string
+          inviter_email: string
+          inviter_name: string
+          role: Database["public"]["Enums"]["permission_role"]
+          type: string
+          workspace_id: string
+          workspace_name: string
         }[]
       }
       get_workspace_permissions: {

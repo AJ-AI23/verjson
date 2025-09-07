@@ -30,73 +30,27 @@ export function useInvitations() {
       setLoading(true);
       setError(null);
       
-      // Fetch workspace invitations
-      const { data: workspaceData, error: workspaceError } = await supabase
-        .from('workspace_permissions')
-        .select(`
-          id,
-          workspace_id,
-          role,
-          created_at,
-          granted_by,
-          workspaces:workspace_id (
-            name
-          )
-        `)
-        .eq('user_id', user.id)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
+      // Use the database function to get all invitations
+      const { data, error } = await supabase
+        .rpc('get_user_invitations', { target_user_id: user.id });
 
-      if (workspaceError) throw workspaceError;
+      if (error) throw error;
 
-      // Fetch document invitations
-      const { data: documentData, error: documentError } = await supabase
-        .from('document_permissions')
-        .select(`
-          id,
-          document_id,
-          role,
-          created_at,
-          granted_by,
-          documents:document_id (
-            name
-          )
-        `)
-        .eq('user_id', user.id)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-
-      if (documentError) throw documentError;
-
-      // Format workspace invitations
-      const formattedWorkspaceInvitations = workspaceData?.map(permission => ({
-        id: permission.id,
-        workspace_id: permission.workspace_id,
-        workspace_name: permission.workspaces?.name || 'Unknown Workspace',
-        role: permission.role,
-        inviter_email: 'Unknown',
-        inviter_name: 'Unknown',
-        created_at: permission.created_at,
-        type: 'workspace' as const
+      // Format the data to match our interface
+      const formattedInvitations = data?.map(invitation => ({
+        id: invitation.id,
+        workspace_id: invitation.workspace_id,
+        document_id: invitation.document_id,
+        workspace_name: invitation.workspace_name,
+        document_name: invitation.document_name,
+        role: invitation.role,
+        inviter_email: invitation.inviter_email || 'Unknown',
+        inviter_name: invitation.inviter_name || 'Unknown',
+        created_at: invitation.created_at,
+        type: invitation.type as 'workspace' | 'document'
       })) || [];
 
-      // Format document invitations
-      const formattedDocumentInvitations = documentData?.map(permission => ({
-        id: permission.id,
-        document_id: permission.document_id,
-        document_name: permission.documents?.name || 'Unknown Document',
-        role: permission.role,
-        inviter_email: 'Unknown',
-        inviter_name: 'Unknown',
-        created_at: permission.created_at,
-        type: 'document' as const
-      })) || [];
-
-      // Combine and sort by creation date
-      const allInvitations = [...formattedWorkspaceInvitations, ...formattedDocumentInvitations]
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      setInvitations(allInvitations);
+      setInvitations(formattedInvitations);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch invitations';
       setError(message);
@@ -108,35 +62,42 @@ export function useInvitations() {
 
   const acceptInvitation = useCallback(async (invitationId: string) => {
     try {
-      // Optimistic update - remove immediately
-      const removedInvitation = invitations.find(inv => inv.id === invitationId);
-      setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
-      
-      if (!removedInvitation) {
+      // Find the invitation to get its type
+      const invitation = invitations.find(inv => inv.id === invitationId);
+      if (!invitation) {
         toast.error('Invitation not found');
         return false;
       }
 
-      // Choose the correct table based on invitation type
-      const tableName = removedInvitation.type === 'workspace' ? 'workspace_permissions' : 'document_permissions';
+      // Optimistic update - remove immediately
+      setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
       
-      const { error } = await supabase
-        .from(tableName)
-        .update({ status: 'accepted' })
-        .eq('id', invitationId)
-        .eq('user_id', user?.id);
+      // Use the database function to accept the invitation
+      const { data, error } = await supabase
+        .rpc('accept_invitation', { 
+          invitation_id: invitationId, 
+          invitation_type: invitation.type 
+        });
 
       if (error) {
         console.error('Error accepting invitation:', error);
         // Revert optimistic update on error
-        setInvitations(prev => [...prev, removedInvitation]);
+        setInvitations(prev => [...prev, invitation]);
         toast.error('Failed to accept invitation');
         return false;
       }
 
-      toast.success('Invitation accepted successfully');
+      const result = data?.[0];
+      if (!result?.success) {
+        // Revert optimistic update on error
+        setInvitations(prev => [...prev, invitation]);
+        toast.error(result?.message || 'Failed to accept invitation');
+        return false;
+      }
+
+      toast.success(result.message);
       // Trigger refresh events
-      if (removedInvitation.type === 'workspace') {
+      if (invitation.type === 'workspace') {
         window.dispatchEvent(new CustomEvent('workspaceUpdated'));
       }
       return true;
@@ -151,37 +112,44 @@ export function useInvitations() {
       toast.error(message);
       return false;
     }
-  }, [invitations, user?.id]);
+  }, [invitations]);
 
   const declineInvitation = useCallback(async (invitationId: string) => {
     try {
-      // Optimistic update - remove immediately
-      const removedInvitation = invitations.find(inv => inv.id === invitationId);
-      setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
-      
-      if (!removedInvitation) {
+      // Find the invitation to get its type
+      const invitation = invitations.find(inv => inv.id === invitationId);
+      if (!invitation) {
         toast.error('Invitation not found');
         return false;
       }
 
-      // Choose the correct table based on invitation type
-      const tableName = removedInvitation.type === 'workspace' ? 'workspace_permissions' : 'document_permissions';
+      // Optimistic update - remove immediately
+      setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
       
-      const { error } = await supabase
-        .from(tableName)
-        .delete()
-        .eq('id', invitationId)
-        .eq('user_id', user?.id);
+      // Use the database function to decline the invitation
+      const { data, error } = await supabase
+        .rpc('decline_invitation', { 
+          invitation_id: invitationId, 
+          invitation_type: invitation.type 
+        });
 
       if (error) {
         console.error('Error declining invitation:', error);
         // Revert optimistic update on error
-        setInvitations(prev => [...prev, removedInvitation]);
+        setInvitations(prev => [...prev, invitation]);
         toast.error('Failed to decline invitation');
         return false;
       }
 
-      toast.success('Invitation declined');
+      const result = data?.[0];
+      if (!result?.success) {
+        // Revert optimistic update on error
+        setInvitations(prev => [...prev, invitation]);
+        toast.error(result?.message || 'Failed to decline invitation');
+        return false;
+      }
+
+      toast.success(result.message);
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to decline invitation';
@@ -194,7 +162,7 @@ export function useInvitations() {
       toast.error(message);
       return false;
     }
-  }, [invitations, user?.id]);
+  }, [invitations]);
 
   // Register for notification-based updates
   useEffect(() => {
