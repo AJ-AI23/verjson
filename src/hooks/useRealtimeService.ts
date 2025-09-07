@@ -12,15 +12,37 @@ interface RealtimeSubscription {
 export function useRealtimeService() {
   const channelsRef = useRef<Map<string, RealtimeChannel>>(new Map());
 
+  const unsubscribe = useCallback((id: string) => {
+    const channel = channelsRef.current.get(id);
+    if (channel) {
+      console.log(`Unsubscribing from ${id}`);
+      try {
+        channel.unsubscribe();
+        supabase.removeChannel(channel);
+      } catch (error) {
+        console.error(`Error unsubscribing from ${id}:`, error);
+      }
+      channelsRef.current.delete(id);
+    }
+  }, []);
+
   const subscribe = useCallback((
     id: string,
     subscription: RealtimeSubscription
   ) => {
-    // Create a dedicated channel for each subscription to avoid conflicts
+    // Clean up any existing subscription with the same ID first
+    unsubscribe(id);
+    
+    // Create a simpler channel name without timestamps to avoid conflicts
     const channelName = `realtime-${subscription.table}-${id}`;
     console.log(`Creating realtime subscription: ${channelName}`);
     
-    const channel = supabase.channel(channelName);
+    const channel = supabase.channel(channelName, {
+      config: {
+        broadcast: { self: false },
+        presence: { key: id }
+      }
+    });
 
     const config: any = {
       event: subscription.event || '*',
@@ -43,16 +65,28 @@ export function useRealtimeService() {
         console.log(`Successfully subscribed to ${id}`);
       } else if (status === 'CHANNEL_ERROR') {
         console.error(`Subscription error for ${id}`);
-        // Retry connection after delay
+        // Retry connection after a short delay
         setTimeout(() => {
-          console.log(`Retrying subscription for ${id}`);
-          channel.subscribe();
+          if (channelsRef.current.has(id)) {
+            console.log(`Retrying subscription for ${id}`);
+            channel.subscribe();
+          }
         }, 2000);
+      } else if (status === 'TIMED_OUT') {
+        console.warn(`Subscription ${id} timed out, attempting reconnect...`);
+        setTimeout(() => {
+          if (channelsRef.current.has(id)) {
+            console.log(`Reconnecting timed out subscription for ${id}`);
+            // Remove and recreate the subscription
+            unsubscribe(id);
+            subscribe(id, subscription);
+          }
+        }, 1000);
       } else if (status === 'CLOSED') {
         console.warn(`Subscription ${id} was closed, attempting reconnect...`);
         setTimeout(() => {
           if (channelsRef.current.has(id)) {
-            console.log(`Reconnecting subscription for ${id}`);
+            console.log(`Reconnecting closed subscription for ${id}`);
             channel.subscribe();
           }
         }, 1000);
@@ -60,21 +94,18 @@ export function useRealtimeService() {
     });
 
     channelsRef.current.set(id, channel);
-  }, []);
+  }, [unsubscribe]);
 
-  const unsubscribe = useCallback((id: string) => {
-    const channel = channelsRef.current.get(id);
-    if (channel) {
-      console.log(`Unsubscribing from ${id}`);
-      channel.unsubscribe();
-      channelsRef.current.delete(id);
-    }
-  }, []);
 
   const cleanup = useCallback(() => {
     console.log('Cleaning up all realtime subscriptions');
     channelsRef.current.forEach((channel, id) => {
-      channel.unsubscribe();
+      try {
+        channel.unsubscribe();
+        supabase.removeChannel(channel);
+      } catch (error) {
+        console.error(`Error cleaning up channel ${id}:`, error);
+      }
     });
     channelsRef.current.clear();
   }, []);
