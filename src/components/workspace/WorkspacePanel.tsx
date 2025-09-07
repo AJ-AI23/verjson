@@ -642,9 +642,15 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                              <Badge variant="secondary" className="text-xs">
                                {doc.file_type}
                              </Badge>
-                             {documentPermissions[doc.id]?.length > 1 && (
+                             {doc.user_id === user?.id ? (
+                               documentPermissions[doc.id]?.length > 1 && (
+                                 <Badge variant="secondary" className="text-xs">
+                                   Shared
+                                 </Badge>
+                               )
+                             ) : (
                                <Badge variant="secondary" className="text-xs">
-                                 Shared
+                                 Invited
                                </Badge>
                              )}
                              {documentPinStatus[doc.id] && (
