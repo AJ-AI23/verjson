@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRealtimeService } from './useRealtimeService';
@@ -29,13 +29,34 @@ export interface Notification {
   updated_at: string;
 }
 
+// Helper function to compute unread count considering optimistic updates
+const computeUnreadCount = (notifications: Notification[], optimisticReadIds: Set<string>) => {
+  return notifications.filter(n => {
+    // If it's already read in DB, it's read
+    if (n.read_at) return false;
+    
+    // If it's optimistically marked as read, consider it read
+    if (optimisticReadIds.has(n.id)) return false;
+    
+    // Otherwise it's unread
+    return true;
+  }).length;
+};
+
 export const useNotifications = () => {
   const { user } = useAuth();
   const { subscribe, unsubscribe, connectionState } = useRealtimeService();
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
+  
+  // Track optimistic updates to prevent real-time conflicts
+  const optimisticUpdatesRef = useRef<Set<string>>(new Set());
+  
+  // Compute unread count from notifications + optimistic cache
+  const unreadCount = useMemo(() => {
+    return computeUnreadCount(notifications, optimisticUpdatesRef.current);
+  }, [notifications, optimisticUpdatesRef.current]);
 
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
@@ -52,8 +73,6 @@ export const useNotifications = () => {
       if (error) throw error;
 
       setNotifications(data || []);
-      const calculatedUnreadCount = data?.filter(n => !n.read_at).length || 0;
-      setUnreadCount(calculatedUnreadCount);
     } catch (error) {
       console.error('Error fetching notifications:', error);
       toast.error('Failed to load notifications');
@@ -84,10 +103,7 @@ export const useNotifications = () => {
         return updated;
       });
       
-      // Update unread count immediately if it was unread
-      if (wasUnread) {
-        setUnreadCount(current => Math.max(0, current - 1));
-      }
+      // No need to manually update unreadCount - useMemo will handle it
 
       const updateTimestamp = new Date().toISOString();
 
@@ -130,7 +146,6 @@ export const useNotifications = () => {
       setNotifications(prev => 
         prev.map(n => ({ ...n, read_at: n.read_at || currentTime }))
       );
-      setUnreadCount(0);
 
       const { error } = await supabase
         .from('notifications')
@@ -222,8 +237,6 @@ export const useNotifications = () => {
     }
   }, []);
 
-  // Track optimistic updates to prevent real-time conflicts
-  const optimisticUpdatesRef = useRef<Set<string>>(new Set());
 
   // Set up real-time subscription for notifications
   useEffect(() => {
@@ -243,12 +256,7 @@ export const useNotifications = () => {
           console.log('📋 Current notifications count:', prev.length);
           const updated = [newNotification, ...prev];
           console.log('📋 Updated notifications count:', updated.length);
-          
-          // Calculate unread count from the updated array
-          const newUnreadCount = updated.filter(n => !n.read_at).length;
-          setUnreadCount(newUnreadCount);
-          console.log('🔔 Setting unread count to:', newUnreadCount);
-          
+          console.log('🔔 Unread count will be computed from updated notifications');
           return updated;
         });
         
@@ -275,21 +283,11 @@ export const useNotifications = () => {
               ? updatedNotification 
               : n
           );
-          
-          // Recalculate unread count based on actual data to ensure accuracy
-          const newUnreadCount = updated.filter(n => !n.read_at).length;
-          setUnreadCount(newUnreadCount);
-          
           return updated;
         });
       } else if (payload.eventType === 'DELETE') {
         const deletedId = payload.old.id;
-        setNotifications(prev => {
-          const filtered = prev.filter(n => n.id !== deletedId);
-          const newUnreadCount = filtered.filter(n => !n.read_at).length;
-          setUnreadCount(newUnreadCount);
-          return filtered;
-        });
+        setNotifications(prev => prev.filter(n => n.id !== deletedId));
       }
     };
 
