@@ -52,11 +52,13 @@ export const useNotifications = () => {
   
   // Track optimistic updates to prevent real-time conflicts
   const optimisticUpdatesRef = useRef<Set<string>>(new Set());
+  // Force useMemo to recompute when optimistic updates change
+  const [optimisticUpdateTrigger, setOptimisticUpdateTrigger] = useState(0);
   
   // Compute unread count from notifications + optimistic cache
   const unreadCount = useMemo(() => {
     return computeUnreadCount(notifications, optimisticUpdatesRef.current);
-  }, [notifications, optimisticUpdatesRef.current]);
+  }, [notifications, optimisticUpdateTrigger]);
 
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
@@ -92,6 +94,7 @@ export const useNotifications = () => {
 
       // Track this as optimistic update to prevent real-time conflicts
       optimisticUpdatesRef.current.add(notificationId);
+      setOptimisticUpdateTrigger(prev => prev + 1);
 
       // Optimistic update
       setNotifications(prev => {
@@ -117,16 +120,19 @@ export const useNotifications = () => {
         console.error('Error marking notification as read:', error);
         // Revert optimistic update on error
         optimisticUpdatesRef.current.delete(notificationId);
+        setOptimisticUpdateTrigger(prev => prev + 1);
         await fetchNotifications();
       } else {
         // Remove from optimistic tracking on success
         setTimeout(() => {
           optimisticUpdatesRef.current.delete(notificationId);
+          setOptimisticUpdateTrigger(prev => prev + 1);
         }, 100); // Small delay to ensure real-time event is handled
       }
     } catch (error) {
       console.error('Error marking notification as read:', error);
       optimisticUpdatesRef.current.delete(notificationId);
+      setOptimisticUpdateTrigger(prev => prev + 1);
       await fetchNotifications();
     }
   }, [user, fetchNotifications, notifications]);
@@ -140,6 +146,7 @@ export const useNotifications = () => {
       
       // Track all unread notifications as optimistic updates
       unreadNotifications.forEach(n => optimisticUpdatesRef.current.add(n.id));
+      setOptimisticUpdateTrigger(prev => prev + 1);
 
       // Optimistic update
       const currentTime = new Date().toISOString();
@@ -157,18 +164,21 @@ export const useNotifications = () => {
         console.error('Error marking all notifications as read:', error);
         // Revert optimistic update on error
         unreadNotifications.forEach(n => optimisticUpdatesRef.current.delete(n.id));
+        setOptimisticUpdateTrigger(prev => prev + 1);
         await fetchNotifications();
       } else {
         toast.success('All notifications marked as read');
         // Remove from optimistic tracking on success
         setTimeout(() => {
           unreadNotifications.forEach(n => optimisticUpdatesRef.current.delete(n.id));
+          setOptimisticUpdateTrigger(prev => prev + 1);
         }, 100);
       }
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
       const unreadNotifications = notifications.filter(n => !n.read_at);
       unreadNotifications.forEach(n => optimisticUpdatesRef.current.delete(n.id));
+      setOptimisticUpdateTrigger(prev => prev + 1);
       await fetchNotifications();
     }
   }, [user, fetchNotifications, notifications]);
