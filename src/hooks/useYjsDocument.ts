@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Y from 'yjs';
-import { WebsocketProvider } from 'y-websocket';
+import { Awareness } from 'y-protocols/awareness';
 import { supabase } from '@/integrations/supabase/client';
+import { CustomYjsProvider } from './useCustomYjsProvider';
 
 interface UseYjsDocumentProps {
   documentId: string | null;
@@ -11,7 +12,7 @@ interface UseYjsDocumentProps {
 
 interface UseYjsDocumentResult {
   yjsDoc: Y.Doc | null;
-  provider: WebsocketProvider | null;
+  provider: CustomYjsProvider | null;
   isConnected: boolean;
   isLoading: boolean;
   error: string | null;
@@ -32,7 +33,7 @@ export const useYjsDocument = ({
   onContentChange
 }: UseYjsDocumentProps): UseYjsDocumentResult => {
   const [yjsDoc, setYjsDoc] = useState<Y.Doc | null>(null);
-  const [provider, setProvider] = useState<WebsocketProvider | null>(null);
+  const [provider, setProvider] = useState<CustomYjsProvider | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,9 +77,10 @@ export const useYjsDocument = ({
       // Get auth token for WebSocket connection
       const authToken = await getAuthToken();
       
-      // Create WebSocket provider
+      // Create custom YJS provider with proper binary handling
       const wsUrl = `wss://swghcmyqracwifpdfyap.functions.supabase.co/functions/v1/yjs-sync?documentId=${documentId}&token=${authToken}`;
-      const wsProvider = new WebsocketProvider(wsUrl, documentId, doc);
+      const awareness = new Awareness(doc);
+      const wsProvider = new CustomYjsProvider(wsUrl, documentId, doc, awareness);
 
       // Set up connection event listeners
       wsProvider.on('status', (event: { status: string }) => {
@@ -94,8 +96,10 @@ export const useYjsDocument = ({
         setIsLoading(false);
       });
 
-      // Set up awareness for user presence
-      const awareness = wsProvider.awareness;
+      wsProvider.on('synced', () => {
+        console.log('YJS document synchronized');
+        setIsLoading(false);
+      });
       
       // Get user info for awareness
       const { data: { user } } = await supabase.auth.getUser();

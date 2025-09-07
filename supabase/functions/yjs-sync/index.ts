@@ -121,18 +121,44 @@ serve(async (req) => {
 
   socket.onmessage = async (event) => {
     try {
-      const message: YjsSyncMessage = JSON.parse(event.data);
-      console.log(`Received message from ${clientId}:`, message.type);
+      let message: YjsSyncMessage;
+      
+      // Handle binary data (Yjs updates) and text data (awareness/sync)
+      if (event.data instanceof ArrayBuffer || event.data instanceof Uint8Array) {
+        // Binary Yjs update - convert to base64
+        const uint8Array = new Uint8Array(event.data);
+        const base64Data = btoa(String.fromCharCode(...uint8Array));
+        
+        console.log(`Received binary Yjs update from ${clientId}, size: ${uint8Array.length} bytes`);
+        
+        // Save Yjs update to database
+        if (userId) {
+          await saveYjsUpdate(supabase, documentId, userId, base64Data);
+        }
+        
+        // Broadcast binary update to other clients
+        broadcastBinaryToDocument(documentId, uint8Array, clientId);
+        return;
+      } else {
+        // Text message (JSON) - parse as usual
+        message = JSON.parse(event.data);
+        console.log(`Received JSON message from ${clientId}:`, message.type);
+      }
 
       switch (message.type) {
         case 'update':
-          // Save Yjs update to database
+          // Handle base64 encoded updates from custom client
           if (message.data && userId) {
             await saveYjsUpdate(supabase, documentId, userId, message.data);
+            
+            // Convert base64 back to binary for broadcasting
+            try {
+              const binaryData = Uint8Array.from(atob(message.data), c => c.charCodeAt(0));
+              broadcastBinaryToDocument(documentId, binaryData, clientId);
+            } catch (e) {
+              console.error('Error converting base64 to binary:', e);
+            }
           }
-          
-          // Broadcast update to other clients
-          broadcastToDocument(documentId, message, clientId);
           break;
 
         case 'awareness':
@@ -201,12 +227,23 @@ async function loadAndSendYjsState(supabase: any, socket: WebSocket, documentId:
       .single();
 
     if (yjsDoc && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({
-        type: 'sync',
-        documentId,
-        data: yjsDoc.yjs_state,
-        vectorClock: yjsDoc.yjs_vector_clock
-      }));
+      // Send state as binary if we have binary data, otherwise send as JSON
+      if (yjsDoc.yjs_state) {
+        try {
+          // If it's base64 encoded binary data, send as binary
+          const binaryData = Uint8Array.from(atob(yjsDoc.yjs_state), c => c.charCodeAt(0));
+          socket.send(binaryData);
+          console.log(`Sent binary Yjs state to client, size: ${binaryData.length} bytes`);
+        } catch (e) {
+          // If it's not base64, send as JSON (fallback)
+          socket.send(JSON.stringify({
+            type: 'sync',
+            documentId,
+            data: yjsDoc.yjs_state,
+            vectorClock: yjsDoc.yjs_vector_clock
+          }));
+        }
+      }
     }
   } catch (error) {
     console.error('Error loading Yjs state:', error);
@@ -279,6 +316,22 @@ function broadcastToDocument(documentId: string, message: YjsSyncMessage, exclud
         client.socket.send(JSON.stringify(message));
       } catch (error) {
         console.error(`Error broadcasting to client ${clientId}:`, error);
+        connectedClients.delete(clientId);
+      }
+    }
+  }
+}
+
+function broadcastBinaryToDocument(documentId: string, binaryData: Uint8Array, excludeClientId?: string) {
+  for (const [clientId, client] of connectedClients.entries()) {
+    if (client.documentId === documentId && 
+        clientId !== excludeClientId && 
+        client.socket.readyState === WebSocket.OPEN) {
+      try {
+        client.socket.send(binaryData);
+        console.log(`Broadcasted binary update to client ${clientId}, size: ${binaryData.length} bytes`);
+      } catch (error) {
+        console.error(`Error broadcasting binary data to client ${clientId}:`, error);
         connectedClients.delete(clientId);
       }
     }
