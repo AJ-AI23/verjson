@@ -22,7 +22,7 @@ export function useWorkspaces() {
         .from('workspaces')
         .select(`
           *,
-          workspace_permissions!workspace_permissions_workspace_id_fkey(role, status)
+          workspace_permissions(role, status)
         `)
         .eq('user_id', user.id);
 
