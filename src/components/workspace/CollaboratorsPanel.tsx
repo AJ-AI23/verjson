@@ -10,7 +10,8 @@ import {
   Eye, 
   MoreHorizontal,
   Trash2,
-  Settings
+  Settings,
+  Folder
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -232,19 +233,22 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
                   {/* Collaborators */}
                   {collaboratorPermissions.map((permission) => (
                     <div key={permission.id} className="flex items-start justify-between p-3 border rounded-lg gap-3">
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div className="flex items-center gap-2 min-w-0">
-                          {getRoleIcon(permission.role)}
-                          <div className="flex flex-col min-w-0">
-                           <span className="font-medium truncate">
-                               {permission.username ? `@${permission.username}` : (permission.user_name || permission.user_email || 'Unknown User')}
-                             </span>
-                             <span className="text-xs text-muted-foreground truncate">
-                               {permission.username && permission.user_name ? permission.user_name : (permission.user_email || 'No email')}
-                             </span>
-                          </div>
-                        </div>
-                      </div>
+                       <div className="flex items-center gap-3 min-w-0 flex-1">
+                         <div className="flex items-center gap-2 min-w-0">
+                           {getRoleIcon(permission.role)}
+                           {permission.isWorkspaceLevel && (
+                             <Folder className="h-4 w-4 text-muted-foreground" />
+                           )}
+                           <div className="flex flex-col min-w-0">
+                            <span className="font-medium truncate">
+                                {permission.username ? `@${permission.username}` : (permission.user_name || permission.user_email || 'Unknown User')}
+                              </span>
+                              <span className="text-xs text-muted-foreground truncate">
+                                {permission.username && permission.user_name ? permission.user_name : (permission.user_email || 'No email')}
+                              </span>
+                           </div>
+                         </div>
+                       </div>
                       
                       <div className="flex flex-col items-end gap-2 flex-shrink-0">
                         <div className="flex items-center gap-2">

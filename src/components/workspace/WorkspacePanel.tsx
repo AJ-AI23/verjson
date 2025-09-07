@@ -440,7 +440,11 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                       <Folder className="h-4 w-4 mr-2 flex-shrink-0" />
                       <span className="truncate">{workspace.name}</span>
                     </div>
-                    {!workspace.isOwner && (
+                    {workspace.isOwner ? (
+                      <Badge variant="secondary" className="ml-2 text-xs">
+                        Shared
+                      </Badge>
+                    ) : (
                       <Badge variant="secondary" className="ml-2 text-xs">
                         Invited
                       </Badge>
