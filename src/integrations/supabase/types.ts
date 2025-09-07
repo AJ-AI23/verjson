@@ -293,43 +293,37 @@ export type Database = {
           created_at: string
           document_id: string | null
           id: string
-          invitation_data: Json | null
-          invitation_type: string | null
           message: string
           read_at: string | null
-          status: string | null
           title: string
           type: string
           updated_at: string
           user_id: string
+          workspace_id: string | null
         }
         Insert: {
           created_at?: string
           document_id?: string | null
           id?: string
-          invitation_data?: Json | null
-          invitation_type?: string | null
           message: string
           read_at?: string | null
-          status?: string | null
           title: string
           type?: string
           updated_at?: string
           user_id: string
+          workspace_id?: string | null
         }
         Update: {
           created_at?: string
           document_id?: string | null
           id?: string
-          invitation_data?: Json | null
-          invitation_type?: string | null
           message?: string
           read_at?: string | null
-          status?: string | null
           title?: string
           type?: string
           updated_at?: string
           user_id?: string
+          workspace_id?: string | null
         }
         Relationships: [
           {
