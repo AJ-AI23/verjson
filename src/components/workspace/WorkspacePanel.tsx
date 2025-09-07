@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspaces } from '@/hooks/useWorkspaces';
 import { useDocuments } from '@/hooks/useDocuments';
@@ -23,6 +23,7 @@ import { DocumentMergeDialog } from './DocumentMergeDialog';
 import { useWorkspacePermissions } from '@/hooks/useWorkspacePermissions';
 import { useDocumentPinSecurity } from '@/hooks/useDocumentPinSecurity';
 import { useDebug } from '@/contexts/DebugContext';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Plus, 
   FolderPlus, 
@@ -95,6 +96,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   const [showPinSetupDialog, setShowPinSetupDialog] = useState(false);
   const [pinSetupDocument, setPinSetupDocument] = useState<any>(null);
   const [documentPinStatus, setDocumentPinStatus] = useState<{[key: string]: boolean}>({});
+  const [documentPermissions, setDocumentPermissions] = useState<Record<string, any[]>>({});
 
   const handleCreateWorkspace = async () => {
     if (!newWorkspaceName.trim()) return;
@@ -367,6 +369,33 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
     }
   };
 
+  // Fetch document permissions for sharing indicators
+  useEffect(() => {
+    const fetchDocumentPermissions = async () => {
+      if (!documents.length) {
+        setDocumentPermissions({});
+        return;
+      }
+      
+      const permissionsMap: Record<string, any[]> = {};
+      
+      for (const doc of documents) {
+        try {
+          const { data: perms } = await supabase
+            .rpc('get_document_permissions', { doc_id: doc.id });
+          permissionsMap[doc.id] = perms || [];
+        } catch (error) {
+          console.error(`Error fetching permissions for document ${doc.id}:`, error);
+          permissionsMap[doc.id] = [];
+        }
+      }
+      
+      setDocumentPermissions(permissionsMap);
+    };
+
+    fetchDocumentPermissions();
+  }, [documents]);
+
   // Don't render content if collapsed
   if (isCollapsed) {
     return null;
@@ -440,15 +469,17 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                       <Folder className="h-4 w-4 mr-2 flex-shrink-0" />
                       <span className="truncate">{workspace.name}</span>
                     </div>
-                    {workspace.isOwner ? (
-                      <Badge variant="secondary" className="ml-2 text-xs">
-                        Shared
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary" className="ml-2 text-xs">
-                        Invited
-                      </Badge>
-                    )}
+                     {workspace.isOwner ? (
+                       workspace.collaboratorCount > 0 && (
+                         <Badge variant="secondary" className="ml-2 text-xs">
+                           Shared
+                         </Badge>
+                       )
+                     ) : (
+                       <Badge variant="secondary" className="ml-2 text-xs">
+                         Invited
+                       </Badge>
+                     )}
                   </div>
                 </SelectItem>
               ))}
@@ -607,16 +638,21 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                           <div className="text-sm font-medium truncate">
                             {doc.name}
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Badge variant="secondary" className="text-xs">
-                              {doc.file_type}
-                            </Badge>
-                            {documentPinStatus[doc.id] && (
-                              <div title="PIN Protected">
-                                <Shield className="h-3 w-3 text-amber-600" />
-                              </div>
-                            )}
-                          </div>
+                           <div className="flex items-center gap-1">
+                             <Badge variant="secondary" className="text-xs">
+                               {doc.file_type}
+                             </Badge>
+                             {documentPermissions[doc.id]?.length > 1 && (
+                               <Badge variant="secondary" className="text-xs">
+                                 Shared
+                               </Badge>
+                             )}
+                             {documentPinStatus[doc.id] && (
+                               <div title="PIN Protected">
+                                 <Shield className="h-3 w-3 text-amber-600" />
+                               </div>
+                             )}
+                           </div>
                         </div>
                       </div>
                        <div className="flex gap-0.5 flex-shrink-0">

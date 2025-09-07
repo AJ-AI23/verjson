@@ -17,10 +17,13 @@ export function useWorkspaces() {
     try {
       setLoading(true);
       
-      // Fetch owned workspaces
+      // Fetch owned workspaces with collaborator counts
       const { data: ownedWorkspaces, error: ownedError } = await supabase
         .from('workspaces')
-        .select('*')
+        .select(`
+          *,
+          workspace_permissions!workspace_permissions_workspace_id_fkey(role, status)
+        `)
         .eq('user_id', user.id);
 
       if (ownedError) throw ownedError;
@@ -40,11 +43,25 @@ export function useWorkspaces() {
       
       // Combine and transform the data
       const allWorkspaces = [
-        ...(ownedWorkspaces || []).map(ws => ({ ...ws, isOwner: true, role: 'owner' })),
+        ...(ownedWorkspaces || []).map(ws => {
+          // Count accepted collaborators (excluding owner)
+          const permissions = ws.workspace_permissions || [];
+          const collaboratorCount = Array.isArray(permissions) 
+            ? permissions.filter((p: any) => p.status === 'accepted' && p.role !== 'owner').length 
+            : 0;
+          return { 
+            ...ws, 
+            isOwner: true, 
+            role: 'owner',
+            collaboratorCount,
+            workspace_permissions: undefined
+          };
+        }),
         ...(invitedWorkspaces || []).map((ws: any) => ({
           ...ws,
           isOwner: false,
           role: ws.workspace_permissions?.role || 'viewer',
+          collaboratorCount: 0,
           workspace_permissions: undefined // Clean up the nested object
         }))
       ];

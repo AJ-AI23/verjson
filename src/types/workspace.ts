@@ -7,6 +7,7 @@ export interface Workspace {
   updated_at: string;
   isOwner?: boolean;
   role?: string;
+  collaboratorCount?: number;
 }
 
 export interface Document {
