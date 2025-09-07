@@ -38,7 +38,9 @@ export const useNotifications = () => {
       if (error) throw error;
 
       setNotifications(data || []);
-      setUnreadCount(data?.filter(n => !n.read_at).length || 0);
+      const calculatedUnreadCount = data?.filter(n => !n.read_at).length || 0;
+      console.log('Fetched notifications:', data?.length, 'Unread:', calculatedUnreadCount);
+      setUnreadCount(calculatedUnreadCount);
     } catch (error) {
       console.error('Error fetching notifications:', error);
       toast.error('Failed to load notifications');
@@ -52,8 +54,15 @@ export const useNotifications = () => {
     if (!user) return;
 
     console.log('Marking notification as read:', notificationId);
+    console.log('Current unread count before update:', unreadCount);
 
     try {
+      // Get the notification being marked as read
+      const notificationToUpdate = notifications.find(n => n.id === notificationId);
+      const wasUnread = notificationToUpdate?.read_at === null;
+      
+      console.log('Notification was unread:', wasUnread);
+
       // Optimistic update
       setNotifications(prev => {
         const updated = prev.map(n => 
@@ -61,15 +70,18 @@ export const useNotifications = () => {
             ? { ...n, read_at: new Date().toISOString() }
             : n
         );
-        
-        // Update unread count based on the actual change
-        const wasUnread = prev.find(n => n.id === notificationId)?.read_at === null;
-        if (wasUnread) {
-          setUnreadCount(current => Math.max(0, current - 1));
-        }
-        
+        console.log('Updated notifications:', updated.map(n => ({ id: n.id, read_at: n.read_at })));
         return updated;
       });
+      
+      // Update unread count immediately if it was unread
+      if (wasUnread) {
+        setUnreadCount(current => {
+          const newCount = Math.max(0, current - 1);
+          console.log('Updating unread count from', current, 'to', newCount);
+          return newCount;
+        });
+      }
 
       const { error } = await supabase
         .from('notifications')
@@ -81,12 +93,14 @@ export const useNotifications = () => {
         console.error('Error marking notification as read:', error);
         // Revert optimistic update on error
         await fetchNotifications();
+      } else {
+        console.log('Successfully marked notification as read in database');
       }
     } catch (error) {
       console.error('Error marking notification as read:', error);
       await fetchNotifications();
     }
-  }, [user, fetchNotifications]);
+  }, [user, fetchNotifications, notifications, unreadCount]);
 
   // Mark all notifications as read
   const markAllAsRead = useCallback(async () => {
@@ -171,6 +185,14 @@ export const useNotifications = () => {
         }
       } else if (payload.eventType === 'UPDATE') {
         const updatedNotification = payload.new as Notification;
+        const oldNotification = payload.old as Notification;
+        
+        console.log('Real-time UPDATE event:', {
+          id: updatedNotification.id,
+          oldReadAt: oldNotification?.read_at,
+          newReadAt: updatedNotification.read_at
+        });
+        
         setNotifications(prev => {
           const updated = prev.map(n => 
             n.id === updatedNotification.id 
@@ -180,6 +202,7 @@ export const useNotifications = () => {
           
           // Recalculate unread count based on actual data
           const newUnreadCount = updated.filter(n => !n.read_at).length;
+          console.log('Recalculating unread count after real-time update:', newUnreadCount);
           setUnreadCount(newUnreadCount);
           
           return updated;
