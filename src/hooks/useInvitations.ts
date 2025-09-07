@@ -6,12 +6,11 @@ import { toast } from 'sonner';
 
 export interface Invitation {
   id: string;
-  title: string;
-  message: string;
-  type: string;
-  invitation_type: 'document' | 'workspace' | 'bulk_documents';
-  invitation_data: any;
-  status: 'pending' | 'accepted' | 'declined';
+  workspace_id: string;
+  workspace_name: string;
+  role: string;
+  inviter_email: string;
+  inviter_name: string;
   created_at: string;
 }
 
@@ -29,17 +28,40 @@ export function useInvitations() {
       setLoading(true);
       setError(null);
       
+      console.log('Fetching pending workspace invitations for user:', user.id);
+      
       const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
+        .from('workspace_permissions')
+        .select(`
+          id,
+          workspace_id,
+          role,
+          created_at,
+          granted_by,
+          workspaces:workspace_id (
+            name
+          )
+        `)
         .eq('user_id', user.id)
-        .eq('type', 'invitation')
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      setInvitations((data || []) as Invitation[]);
+      console.log('Raw workspace permission data:', data);
+      
+      const formattedInvitations = data?.map(permission => ({
+        id: permission.id,
+        workspace_id: permission.workspace_id,
+        workspace_name: permission.workspaces?.name || 'Unknown Workspace',
+        role: permission.role,
+        inviter_email: 'Unknown',
+        inviter_name: 'Unknown',
+        created_at: permission.created_at
+      })) || [];
+
+      console.log('Formatted invitations:', formattedInvitations);
+      setInvitations(formattedInvitations);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch invitations';
       setError(message);
@@ -50,14 +72,17 @@ export function useInvitations() {
   }, [user]);
 
   const acceptInvitation = useCallback(async (invitationId: string) => {
-    console.log('Accepting invitation:', invitationId);
+    console.log('Accepting workspace invitation:', invitationId);
     
     try {
       // Optimistic update - remove immediately
       setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
       
-      const { data, error } = await supabase
-        .rpc('accept_invitation', { notification_id: invitationId });
+      const { error } = await supabase
+        .from('workspace_permissions')
+        .update({ status: 'accepted' })
+        .eq('id', invitationId)
+        .eq('user_id', user?.id);
 
       if (error) {
         console.error('Error accepting invitation:', error);
@@ -66,15 +91,11 @@ export function useInvitations() {
         return false;
       }
 
-      if (data) {
-        console.log('Invitation accepted successfully');
-        toast.success('Invitation accepted successfully');
-        // Trigger workspace refresh by dispatching custom event
-        window.dispatchEvent(new CustomEvent('workspaceUpdated'));
-        return true;
-      } else {
-        throw new Error('Failed to accept invitation');
-      }
+      console.log('Workspace invitation accepted successfully');
+      toast.success('Invitation accepted successfully');
+      // Trigger workspace refresh by dispatching custom event
+      window.dispatchEvent(new CustomEvent('workspaceUpdated'));
+      return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to accept invitation';
       setError(message);
@@ -82,17 +103,20 @@ export function useInvitations() {
       await fetchInvitations();
       return false;
     }
-  }, [fetchInvitations]);
+  }, [fetchInvitations, user?.id]);
 
   const declineInvitation = useCallback(async (invitationId: string) => {
-    console.log('Declining invitation:', invitationId);
+    console.log('Declining workspace invitation:', invitationId);
     
     try {
       // Optimistic update - remove immediately
       setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
       
-      const { data, error } = await supabase
-        .rpc('decline_invitation', { notification_id: invitationId });
+      const { error } = await supabase
+        .from('workspace_permissions')
+        .delete()
+        .eq('id', invitationId)
+        .eq('user_id', user?.id);
 
       if (error) {
         console.error('Error declining invitation:', error);
@@ -101,13 +125,9 @@ export function useInvitations() {
         return false;
       }
 
-      if (data) {
-        console.log('Invitation declined successfully');
-        toast.success('Invitation declined');
-        return true;
-      } else {
-        throw new Error('Failed to decline invitation');
-      }
+      console.log('Workspace invitation declined successfully');
+      toast.success('Invitation declined');
+      return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to decline invitation';
       setError(message);
@@ -115,35 +135,28 @@ export function useInvitations() {
       await fetchInvitations();
       return false;
     }
-  }, [fetchInvitations]);
+  }, [fetchInvitations, user?.id]);
 
-  // Set up real-time subscription for invitations
+  // Set up real-time subscription for workspace permission changes
   useEffect(() => {
     if (!user) return;
 
-    console.log('Setting up invitations subscription for user:', user.id);
+    console.log('Setting up workspace invitations subscription for user:', user.id);
     
     const handleInvitationUpdate = (payload: any) => {
-      console.log('Invitations real-time update:', payload);
+      console.log('Workspace invitations real-time update:', payload);
       
       if (payload.eventType === 'INSERT') {
-        const newInvitation = payload.new as Invitation;
-        if (newInvitation.type === 'invitation' && newInvitation.status === 'pending') {
-          setInvitations(prev => [newInvitation, ...prev]);
+        const newPermission = payload.new;
+        if (newPermission.status === 'pending' && newPermission.user_id === user.id) {
+          // Refetch to get full data with workspace name and granter info
+          fetchInvitations();
         }
       } else if (payload.eventType === 'UPDATE') {
-        const updatedInvitation = payload.new as Invitation;
-        if (updatedInvitation.status === 'accepted' || updatedInvitation.status === 'declined') {
+        const updatedPermission = payload.new;
+        if (updatedPermission.status !== 'pending') {
           // Remove accepted/declined invitations
-          setInvitations(prev => prev.filter(inv => inv.id !== updatedInvitation.id));
-        } else if (updatedInvitation.type === 'invitation' && updatedInvitation.status === 'pending') {
-          setInvitations(prev => 
-            prev.map(invitation => 
-              invitation.id === updatedInvitation.id 
-                ? updatedInvitation 
-                : invitation
-            )
-          );
+          setInvitations(prev => prev.filter(inv => inv.id !== updatedPermission.id));
         }
       } else if (payload.eventType === 'DELETE') {
         const deletedId = payload.old.id;
@@ -151,17 +164,17 @@ export function useInvitations() {
       }
     };
 
-    subscribe('invitations', {
-      table: 'notifications',
+    subscribe('workspace-invitations', {
+      table: 'workspace_permissions',
       filter: `user_id=eq.${user.id}`,
       callback: handleInvitationUpdate
     });
 
     return () => {
-      console.log('Cleaning up invitations subscription');
-      unsubscribe('invitations');
+      console.log('Cleaning up workspace invitations subscription');
+      unsubscribe('workspace-invitations');
     };
-  }, [user, subscribe, unsubscribe]);
+  }, [user, subscribe, unsubscribe, fetchInvitations]);
 
   // Initial fetch
   useEffect(() => {

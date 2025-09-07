@@ -31,44 +31,16 @@ export function InvitationsDialog({ open, onOpenChange }: InvitationsDialogProps
   const { invitations, loading, acceptInvitation, declineInvitation } = useInvitations();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const getInvitationIcon = (type: string) => {
-    switch (type) {
-      case 'document':
-        return <FileText className="h-5 w-5" />;
-      case 'workspace':
-        return <Folder className="h-5 w-5" />;
-      case 'bulk_documents':
-        return <Files className="h-5 w-5" />;
-      default:
-        return <Mail className="h-5 w-5" />;
-    }
+  const getInvitationIcon = () => {
+    return <Folder className="h-5 w-5" />;
   };
 
-  const getInvitationTypeLabel = (type: string) => {
-    switch (type) {
-      case 'document':
-        return 'Document';
-      case 'workspace':
-        return 'Workspace';
-      case 'bulk_documents':
-        return 'Multiple Documents';
-      default:
-        return 'Invitation';
-    }
+  const getInvitationTypeLabel = () => {
+    return 'Workspace';
   };
 
   const getInvitationDescription = (invitation: Invitation) => {
-    const data = invitation.invitation_data;
-    
-    if (invitation.invitation_type === 'document') {
-      return `Document: ${data.document_name}`;
-    } else if (invitation.invitation_type === 'workspace') {
-      return `Workspace: ${data.workspace_name}`;
-    } else if (invitation.invitation_type === 'bulk_documents') {
-      return `${data.document_count} documents`;
-    }
-    
-    return 'Collaboration invitation';
+    return `Workspace: ${invitation.workspace_name}`;
   };
 
   const handleAccept = async (invitationId: string) => {
@@ -119,41 +91,41 @@ export function InvitationsDialog({ open, onOpenChange }: InvitationsDialogProps
               <div className="space-y-4">
                 {invitations.map((invitation) => (
                   <div key={invitation.id} className="border rounded-lg p-4 space-y-3">
-                    {/* Header */}
+                     {/* Header */}
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         <div className="flex-shrink-0">
-                          {getInvitationIcon(invitation.invitation_type)}
+                          {getInvitationIcon()}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <h3 className="font-medium truncate">{invitation.title}</h3>
+                          <h3 className="font-medium truncate">Workspace Invitation</h3>
                           <p className="text-sm text-muted-foreground">
                             {getInvitationDescription(invitation)}
                           </p>
                         </div>
                       </div>
                       <Badge variant="secondary" className="flex-shrink-0">
-                        {getInvitationTypeLabel(invitation.invitation_type)}
+                        {getInvitationTypeLabel()}
                       </Badge>
                     </div>
 
                     {/* Message */}
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      {invitation.message}
+                      You've been invited to collaborate on this workspace.
                     </p>
 
                     {/* Invitation Details */}
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />
-                        <span>From: {invitation.invitation_data.inviter_email}</span>
+                        <span>From: {invitation.inviter_name}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         <span>{new Date(invitation.created_at).toLocaleDateString()}</span>
                       </div>
                       <Badge variant="outline" className="text-xs">
-                        {invitation.invitation_data.role}
+                        {invitation.role}
                       </Badge>
                     </div>
 

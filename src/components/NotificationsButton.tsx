@@ -15,7 +15,7 @@ export const NotificationsButton: React.FC = () => {
   const { unreadCount, notifications } = useNotifications();
   const { invitations } = useInvitations();
 
-  const pendingInvitationsCount = invitations.filter(inv => inv.status === 'pending').length;
+  const pendingInvitationsCount = invitations.length; // All invitations are pending
 
   // Debug logging for badge updates
   useEffect(() => {

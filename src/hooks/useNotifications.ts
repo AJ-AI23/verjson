@@ -7,7 +7,8 @@ import { toast } from 'sonner';
 export interface Notification {
   id: string;
   user_id: string;
-  document_id: string;
+  document_id?: string;
+  workspace_id?: string;
   type: string;
   title: string;
   message: string;
@@ -33,6 +34,7 @@ export const useNotifications = () => {
         .from('notifications')
         .select('*')
         .eq('user_id', user.id)
+        .neq('type', 'invitation') // Exclude invitations - they're handled by workspace_permissions
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -193,12 +195,10 @@ export const useNotifications = () => {
           setUnreadCount(prev => prev + 1);
         }
         
-        // Show toast for new notifications (except invitations)
-        if (newNotification.type !== 'invitation') {
-          toast.info(newNotification.title, {
-            description: newNotification.message,
-          });
-        }
+        // Show toast for new notifications
+        toast.info(newNotification.title, {
+          description: newNotification.message,
+        });
       } else if (payload.eventType === 'UPDATE') {
         const updatedNotification = payload.new as Notification;
         const oldNotification = payload.old as Notification;
