@@ -19,10 +19,11 @@ export interface Notification {
 
 export const useNotifications = () => {
   const { user } = useAuth();
-  const { subscribe, unsubscribe } = useRealtimeService();
+  const { subscribe, unsubscribe, connectionState } = useRealtimeService();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [lastFetch, setLastFetch] = useState<Date | null>(null);
 
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
@@ -181,15 +182,29 @@ export const useNotifications = () => {
     }
   }, [user, fetchNotifications]);
 
+  // Polling fallback when realtime fails
+  useEffect(() => {
+    if (connectionState.status === 'error' && connectionState.retryCount >= 5) {
+      console.log('Realtime failed, falling back to polling');
+      const interval = setInterval(() => {
+        fetchNotifications();
+      }, 10000); // Poll every 10 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [connectionState, fetchNotifications]);
+
   // Set up real-time subscription for notifications
   useEffect(() => {
     if (!user) return;
 
     console.log('Setting up notifications subscription for user:', user.id);
+    setLastFetch(new Date());
     
     const handleNotificationUpdate = (payload: any) => {
       console.log('Notifications real-time update received:', payload);
       console.log('Current unread count before processing:', unreadCount);
+      setLastFetch(new Date());
       
       if (payload.eventType === 'INSERT') {
         const newNotification = payload.new as Notification;
@@ -265,5 +280,7 @@ export const useNotifications = () => {
     markAsRead,
     markAllAsRead,
     createNotification,
+    connectionState,
+    lastFetch
   };
 };
