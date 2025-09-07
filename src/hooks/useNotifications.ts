@@ -176,8 +176,7 @@ export const useNotifications = () => {
 
       if (error) throw error;
       
-      // Refresh notifications
-      fetchNotifications();
+      // No need to manually refresh - real-time will handle it
     } catch (error) {
       console.error('Error creating notification:', error);
       toast.error('Failed to create notification');
@@ -233,14 +232,25 @@ export const useNotifications = () => {
     setLastFetch(new Date());
     
     const handleNotificationUpdate = (payload: any) => {
+      console.log('🔄 Real-time notification event received:', payload.eventType, payload);
       setLastFetch(new Date());
       
       if (payload.eventType === 'INSERT') {
         const newNotification = payload.new as Notification;
-        setNotifications(prev => [newNotification, ...prev]);
+        console.log('📨 New notification received:', newNotification);
+        
+        setNotifications(prev => {
+          console.log('📋 Current notifications count:', prev.length);
+          const updated = [newNotification, ...prev];
+          console.log('📋 Updated notifications count:', updated.length);
+          return updated;
+        });
         
         if (!newNotification.read_at) {
-          setUnreadCount(prev => prev + 1);
+          setUnreadCount(prev => {
+            console.log('🔔 Incrementing unread count from', prev, 'to', prev + 1);
+            return prev + 1;
+          });
         }
         
         // Handle type-specific updates
