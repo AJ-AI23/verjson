@@ -7,13 +7,11 @@ import { InvitationsDialog } from './InvitationsDialog';
 import { DebugToggle } from '@/components/DebugToggle';
 import { SupportButton } from './SupportButton';
 import { useNotifications } from '@/contexts/NotificationsContext';
-import { useInvitations } from '@/hooks/useInvitations';
 
 export const NotificationsButton: React.FC = () => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isInvitationsOpen, setIsInvitationsOpen] = useState(false);
-  const { unreadCount, notifications } = useNotifications();
-  const { invitations } = useInvitations();
+  const { unreadCount, notifications, invitations } = useNotifications();
 
   const pendingInvitationsCount = invitations.length; // All invitations are pending
 
