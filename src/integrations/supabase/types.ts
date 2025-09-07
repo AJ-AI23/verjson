@@ -611,6 +611,21 @@ export type Database = {
           username: string
         }[]
       }
+      get_user_all_permissions: {
+        Args: { target_user_id: string }
+        Returns: {
+          created_at: string
+          granted_by: string
+          id: string
+          resource_id: string
+          resource_name: string
+          role: Database["public"]["Enums"]["permission_role"]
+          status: string
+          type: string
+          updated_at: string
+          workspace_name: string
+        }[]
+      }
       get_user_invitations: {
         Args: { target_user_id: string }
         Returns: {

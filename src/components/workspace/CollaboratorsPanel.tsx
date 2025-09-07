@@ -25,6 +25,7 @@ import { useWorkspacePermissions, WorkspacePermission } from '@/hooks/useWorkspa
 // Extended type for display purposes
 type CollaboratorPermission = (DocumentPermission | WorkspacePermission) & {
   isWorkspaceLevel?: boolean;
+  hasWorkspaceAccess?: boolean;
 };
 import { InviteCollaboratorDialog } from './InviteCollaboratorDialog';
 import { ChangeAccessDialog } from './ChangeAccessDialog';
@@ -73,7 +74,18 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
       }
     });
     
-    return combined;
+    // Mark document collaborators who also have workspace access
+    const enriched = combined.map(perm => {
+      if (!perm.isWorkspaceLevel) {
+        const hasWorkspaceAccess = workspacePermissions.permissions.some(
+          workspacePerm => workspacePerm.user_id === perm.user_id
+        );
+        return { ...perm, hasWorkspaceAccess };
+      }
+      return perm;
+    });
+    
+    return enriched;
   }, [documentPermissions.permissions, workspacePermissions.permissions, showWorkspaceCollaborators]);
 
   const permissions = showWorkspaceCollaborators ? workspacePermissions : documentPermissions;
@@ -236,7 +248,7 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
                        <div className="flex items-center gap-3 min-w-0 flex-1">
                          <div className="flex items-center gap-2 min-w-0">
                            {getRoleIcon(permission.role)}
-                           {permission.isWorkspaceLevel && (
+                           {(permission.isWorkspaceLevel || permission.hasWorkspaceAccess) && (
                              <Folder className="h-4 w-4 text-muted-foreground" />
                            )}
                            <div className="flex flex-col min-w-0">
