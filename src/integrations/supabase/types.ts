@@ -557,10 +557,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      accept_invitation: {
-        Args: { notification_id: string }
-        Returns: boolean
-      }
       cleanup_old_collaboration_sessions: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -569,20 +565,15 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
-      create_invitation_notification: {
+      create_workspace_notification: {
         Args: {
-          inv_data: Json
-          inv_type: string
-          inviter_user_id: string
-          message: string
-          target_user_id: string
-          title: string
+          exclude_user_id?: string
+          notification_message: string
+          notification_title: string
+          notification_type: string
+          target_workspace_id: string
         }
-        Returns: string
-      }
-      decline_invitation: {
-        Args: { notification_id: string }
-        Returns: boolean
+        Returns: undefined
       }
       generate_content_hash: {
         Args: { content: string }
