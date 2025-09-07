@@ -4,6 +4,18 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRealtimeService } from './useRealtimeService';
 import { toast } from 'sonner';
 
+// Global event handlers for triggering updates in other hooks
+let globalInvitationUpdateHandler: (() => void) | null = null;
+let globalWorkspaceUpdateHandler: (() => void) | null = null;
+
+export const registerInvitationUpdateHandler = (handler: () => void) => {
+  globalInvitationUpdateHandler = handler;
+};
+
+export const registerWorkspaceUpdateHandler = (handler: () => void) => {
+  globalWorkspaceUpdateHandler = handler;
+};
+
 export interface Notification {
   id: string;
   user_id: string;
@@ -35,14 +47,12 @@ export const useNotifications = () => {
         .from('notifications')
         .select('*')
         .eq('user_id', user.id)
-        .neq('type', 'invitation') // Exclude invitations - they're handled by workspace_permissions
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
       setNotifications(data || []);
       const calculatedUnreadCount = data?.filter(n => !n.read_at).length || 0;
-      console.log('Fetched notifications:', data?.length, 'Unread:', calculatedUnreadCount);
       setUnreadCount(calculatedUnreadCount);
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -56,15 +66,10 @@ export const useNotifications = () => {
   const markAsRead = useCallback(async (notificationId: string) => {
     if (!user) return;
 
-    console.log('Marking notification as read:', notificationId);
-    console.log('Current unread count before update:', unreadCount);
-
     try {
       // Get the notification being marked as read
       const notificationToUpdate = notifications.find(n => n.id === notificationId);
       const wasUnread = notificationToUpdate?.read_at === null;
-      
-      console.log('Notification was unread:', wasUnread);
 
       // Optimistic update
       setNotifications(prev => {
@@ -73,61 +78,36 @@ export const useNotifications = () => {
             ? { ...n, read_at: new Date().toISOString() }
             : n
         );
-        console.log('Updated notifications:', updated.map(n => ({ id: n.id, read_at: n.read_at })));
         return updated;
       });
       
       // Update unread count immediately if it was unread
       if (wasUnread) {
-        setUnreadCount(current => {
-          const newCount = Math.max(0, current - 1);
-          console.log('Updating unread count from', current, 'to', newCount);
-          return newCount;
-        });
-      } else {
-        console.log('Notification was already read, not updating unread count');
+        setUnreadCount(current => Math.max(0, current - 1));
       }
 
       const updateTimestamp = new Date().toISOString();
-      console.log('Attempting to update notification with timestamp:', updateTimestamp);
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('notifications')
         .update({ read_at: updateTimestamp })
         .eq('id', notificationId)
-        .eq('user_id', user.id)
-        .select(); // Add select to see what was actually updated
-
-      console.log('Database update result:', { data, error });
+        .eq('user_id', user.id);
 
       if (error) {
         console.error('Error marking notification as read:', error);
         // Revert optimistic update on error
         await fetchNotifications();
-      } else {
-        console.log('Successfully marked notification as read in database');
-        console.log('Updated notification data:', data);
-        
-        // Verify the update by fetching fresh data
-        const { data: verifyData, error: verifyError } = await supabase
-          .from('notifications')
-          .select('*')
-          .eq('id', notificationId)
-          .single();
-        
-        console.log('Verification query result:', { verifyData, verifyError });
       }
     } catch (error) {
       console.error('Error marking notification as read:', error);
       await fetchNotifications();
     }
-  }, [user, fetchNotifications, notifications, unreadCount]);
+  }, [user, fetchNotifications, notifications]);
 
   // Mark all notifications as read
   const markAllAsRead = useCallback(async () => {
     if (!user) return;
-
-    console.log('Marking all notifications as read');
 
     try {
       // Optimistic update
@@ -194,16 +174,40 @@ export const useNotifications = () => {
     }
   }, [connectionState, fetchNotifications]);
 
+  // Handle notification type-based updates
+  const handleNotificationTypeUpdate = useCallback((notification: Notification) => {
+    switch (notification.type) {
+      case 'invitation':
+        // Trigger invitation refresh
+        if (globalInvitationUpdateHandler) {
+          globalInvitationUpdateHandler();
+        }
+        break;
+      case 'workspace_member_added':
+      case 'workspace_updated':
+      case 'workspace_member_removed':
+        // Trigger workspace refresh
+        if (globalWorkspaceUpdateHandler) {
+          globalWorkspaceUpdateHandler();
+        }
+        break;
+      case 'document_shared':
+      case 'document_updated':
+        // Could trigger document refresh in the future
+        break;
+      default:
+        // Generic notification, no special handling needed
+        break;
+    }
+  }, []);
+
   // Set up real-time subscription for notifications
   useEffect(() => {
     if (!user) return;
 
-    console.log('Setting up notifications subscription for user:', user.id);
     setLastFetch(new Date());
     
     const handleNotificationUpdate = (payload: any) => {
-      console.log('Notifications real-time update received:', payload);
-      console.log('Current unread count before processing:', unreadCount);
       setLastFetch(new Date());
       
       if (payload.eventType === 'INSERT') {
@@ -214,19 +218,17 @@ export const useNotifications = () => {
           setUnreadCount(prev => prev + 1);
         }
         
-        // Show toast for new notifications
-        toast.info(newNotification.title, {
-          description: newNotification.message,
-        });
+        // Handle type-specific updates
+        handleNotificationTypeUpdate(newNotification);
+        
+        // Show toast for new notifications (except invitations which are handled by other UI)
+        if (newNotification.type !== 'invitation') {
+          toast.info(newNotification.title, {
+            description: newNotification.message,
+          });
+        }
       } else if (payload.eventType === 'UPDATE') {
         const updatedNotification = payload.new as Notification;
-        const oldNotification = payload.old as Notification;
-        
-        console.log('Real-time UPDATE event:', {
-          id: updatedNotification.id,
-          oldReadAt: oldNotification?.read_at,
-          newReadAt: updatedNotification.read_at
-        });
         
         setNotifications(prev => {
           const updated = prev.map(n => 
@@ -237,8 +239,6 @@ export const useNotifications = () => {
           
           // Recalculate unread count based on actual data to ensure accuracy
           const newUnreadCount = updated.filter(n => !n.read_at).length;
-          console.log('Real-time UPDATE: Recalculating unread count to:', newUnreadCount);
-          console.log('Updated notifications after real-time event:', updated.map(n => ({ id: n.id, read_at: n.read_at })));
           setUnreadCount(newUnreadCount);
           
           return updated;
@@ -262,10 +262,9 @@ export const useNotifications = () => {
     });
 
     return () => {
-      console.log('Cleaning up notifications subscription');
       unsubscribe('notifications');
     };
-  }, [user, subscribe, unsubscribe]);
+  }, [user, subscribe, unsubscribe, handleNotificationTypeUpdate]);
 
   // Initial fetch
   useEffect(() => {

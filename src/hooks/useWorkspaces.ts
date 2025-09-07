@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRealtimeService } from './useRealtimeService';
+import { registerWorkspaceUpdateHandler } from './useNotifications';
 import { Workspace, CreateWorkspaceData } from '@/types/workspace';
 import { toast } from 'sonner';
 
 export function useWorkspaces() {
   const { user } = useAuth();
-  const { subscribe, unsubscribe } = useRealtimeService();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,14 +17,11 @@ export function useWorkspaces() {
     try {
       setLoading(true);
       
-      console.log('Fetching workspaces for user:', user.id);
-      
       // Fetch owned workspaces
       const { data: ownedWorkspaces, error: ownedError } = await supabase
         .from('workspaces')
         .select('*')
         .eq('user_id', user.id);
-      console.log('Owned workspaces result:', { data: ownedWorkspaces, error: ownedError });
 
       if (ownedError) throw ownedError;
 
@@ -39,7 +35,6 @@ export function useWorkspaces() {
         .eq('workspace_permissions.user_id', user.id)
         .eq('workspace_permissions.status', 'accepted')
         .neq('user_id', user.id); // Exclude owned workspaces to avoid duplicates
-      console.log('Invited workspaces result:', { data: invitedWorkspaces, error: invitedError });
 
       if (invitedError) throw invitedError;
       
@@ -56,8 +51,6 @@ export function useWorkspaces() {
       
       // Sort by created_at descending
       allWorkspaces.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      
-      console.log('Final workspaces:', allWorkspaces);
       
       setWorkspaces(allWorkspaces);
     } catch (err) {
@@ -135,42 +128,26 @@ export function useWorkspaces() {
     }
   };
 
-  // Set up real-time subscriptions for workspace changes
+  // Register for notification-based updates and custom events
   useEffect(() => {
     if (!user) return;
 
     fetchWorkspaces();
 
-    // Listen for workspace changes
-    const handleWorkspaceChange = () => {
-      console.log('Workspace change detected, refetching...');
-      fetchWorkspaces();
-    };
-
-    subscribe('workspaces', {
-      table: 'workspaces',
-      callback: handleWorkspaceChange
-    });
-
-    subscribe('workspace_permissions', {
-      table: 'workspace_permissions',
-      callback: handleWorkspaceChange
-    });
+    registerWorkspaceUpdateHandler(fetchWorkspaces);
 
     // Listen for custom workspace update events (from invitation acceptance)
     const handleCustomWorkspaceUpdate = () => {
-      console.log('Custom workspace update event received');
       fetchWorkspaces();
     };
 
     window.addEventListener('workspaceUpdated', handleCustomWorkspaceUpdate);
 
     return () => {
-      unsubscribe('workspaces');
-      unsubscribe('workspace_permissions');
+      registerWorkspaceUpdateHandler(() => {});
       window.removeEventListener('workspaceUpdated', handleCustomWorkspaceUpdate);
     };
-  }, [user, fetchWorkspaces, subscribe, unsubscribe]);
+  }, [user, fetchWorkspaces]);
 
   return {
     workspaces,
