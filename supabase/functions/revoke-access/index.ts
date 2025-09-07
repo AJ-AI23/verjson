@@ -190,57 +190,59 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Send email notification
-    console.log("Preparing to send revocation email...");
-    
-    if (!resend) {
-      console.error("Resend client not initialized - RESEND_API_KEY not configured");
-      console.info("Skipping email send - RESEND_API_KEY not configured");
-    } else {
-      try {
-        console.log("Sending revocation email to:", revokedUserEmail);
-        
-        const emailContent = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="text-align: center; margin-bottom: 40px;">
-          <h1 style="color: #dc2626; font-size: 28px; margin-bottom: 10px;">Access Revoked</h1>
-          <p style="color: #666; font-size: 18px; margin: 0;">
-            Your access has been removed
-          </p>
-        </div>
-        
-        <div style="background-color: #fef2f2; border-radius: 12px; padding: 30px; margin-bottom: 30px; border-left: 4px solid #dc2626;">
-          <h2 style="color: #333; font-size: 20px; margin-bottom: 15px;">
-            ${type === 'workspace' ? 'Workspace' : 'Document'}: ${resourceName}
-          </h2>
-          <p style="color: #666; font-size: 16px; margin: 0;">
-            Access revoked by: <strong>${revokerName || user.email}</strong>
-          </p>
-        </div>
+    // Send email notification only for accepted permissions, not pending invitations
+    if (!isPendingInvitation) {
+      console.log("Preparing to send revocation email...");
       
-      <p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
-        You no longer have access to this ${type}. If you believe this is an error, please contact the ${type} owner.
-      </p>
-      
-      <div style="border-top: 1px solid #e5e7eb; margin-top: 40px; padding-top: 20px; text-align: center;">
-        <p style="color: #9ca3af; font-size: 14px; margin: 0;">
-          This notification was sent by ${revokerName || user.email}
+      if (!resend) {
+        console.error("Resend client not initialized - RESEND_API_KEY not configured");
+        console.info("Skipping email send - RESEND_API_KEY not configured");
+      } else {
+        try {
+          console.log("Sending revocation email to:", revokedUserEmail);
+          
+          const emailContent = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 40px;">
+            <h1 style="color: #dc2626; font-size: 28px; margin-bottom: 10px;">Access Revoked</h1>
+            <p style="color: #666; font-size: 18px; margin: 0;">
+              Your access has been removed
+            </p>
+          </div>
+          
+          <div style="background-color: #fef2f2; border-radius: 12px; padding: 30px; margin-bottom: 30px; border-left: 4px solid #dc2626;">
+            <h2 style="color: #333; font-size: 20px; margin-bottom: 15px;">
+              ${type === 'workspace' ? 'Workspace' : 'Document'}: ${resourceName}
+            </h2>
+            <p style="color: #666; font-size: 16px; margin: 0;">
+              Access revoked by: <strong>${revokerName || user.email}</strong>
+            </p>
+          </div>
+        
+        <p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
+          You no longer have access to this ${type}. If you believe this is an error, please contact the ${type} owner.
         </p>
+        
+        <div style="border-top: 1px solid #e5e7eb; margin-top: 40px; padding-top: 20px; text-align: center;">
+          <p style="color: #9ca3af; font-size: 14px; margin: 0;">
+            This notification was sent by ${revokerName || user.email}
+          </p>
+        </div>
       </div>
-    </div>
-        `;
+          `;
 
-        const emailResult = await resend.emails.send({
-          from: "Lovable <onboarding@resend.dev>",
-          to: [revokedUserEmail],
-          subject: `Access Revoked: ${resourceName}`,
-          html: emailContent,
-        });
+          const emailResult = await resend.emails.send({
+            from: "Lovable <onboarding@resend.dev>",
+            to: [revokedUserEmail],
+            subject: `Access Revoked: ${resourceName}`,
+            html: emailContent,
+          });
 
-        console.log("Revocation email sent successfully:", emailResult);
-      } catch (emailError) {
-        console.error("Email sending failed:", emailError);
-        // Don't throw here - the revocation should still proceed
+          console.log("Revocation email sent successfully:", emailResult);
+        } catch (emailError) {
+          console.error("Email sending failed:", emailError);
+          // Don't throw here - the revocation should still proceed
+        }
       }
     } else {
       console.log("Skipping email notification for pending invitation cleanup");
