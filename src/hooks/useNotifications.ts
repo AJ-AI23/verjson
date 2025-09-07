@@ -243,15 +243,14 @@ export const useNotifications = () => {
           console.log('📋 Current notifications count:', prev.length);
           const updated = [newNotification, ...prev];
           console.log('📋 Updated notifications count:', updated.length);
+          
+          // Calculate unread count from the updated array
+          const newUnreadCount = updated.filter(n => !n.read_at).length;
+          setUnreadCount(newUnreadCount);
+          console.log('🔔 Setting unread count to:', newUnreadCount);
+          
           return updated;
         });
-        
-        if (!newNotification.read_at) {
-          setUnreadCount(prev => {
-            console.log('🔔 Incrementing unread count from', prev, 'to', prev + 1);
-            return prev + 1;
-          });
-        }
         
         // Handle type-specific updates
         handleNotificationTypeUpdate(newNotification);
