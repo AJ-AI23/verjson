@@ -83,6 +83,8 @@ export const useNotifications = () => {
           console.log('Updating unread count from', current, 'to', newCount);
           return newCount;
         });
+      } else {
+        console.log('Notification was already read, not updating unread count');
       }
 
       const updateTimestamp = new Date().toISOString();
@@ -186,7 +188,8 @@ export const useNotifications = () => {
     console.log('Setting up notifications subscription for user:', user.id);
     
     const handleNotificationUpdate = (payload: any) => {
-      console.log('Notifications real-time update:', payload);
+      console.log('Notifications real-time update received:', payload);
+      console.log('Current unread count before processing:', unreadCount);
       
       if (payload.eventType === 'INSERT') {
         const newNotification = payload.new as Notification;
@@ -217,9 +220,10 @@ export const useNotifications = () => {
               : n
           );
           
-          // Recalculate unread count based on actual data
+          // Recalculate unread count based on actual data to ensure accuracy
           const newUnreadCount = updated.filter(n => !n.read_at).length;
-          console.log('Recalculating unread count after real-time update:', newUnreadCount);
+          console.log('Real-time UPDATE: Recalculating unread count to:', newUnreadCount);
+          console.log('Updated notifications after real-time event:', updated.map(n => ({ id: n.id, read_at: n.read_at })));
           setUnreadCount(newUnreadCount);
           
           return updated;
@@ -238,6 +242,7 @@ export const useNotifications = () => {
     subscribe('notifications', {
       table: 'notifications',
       filter: `user_id=eq.${user.id}`,
+      event: '*',
       callback: handleNotificationUpdate
     });
 

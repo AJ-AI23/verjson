@@ -17,7 +17,7 @@ export function useRealtimeService() {
     subscription: RealtimeSubscription
   ) => {
     // Create a dedicated channel for each subscription to avoid conflicts
-    const channelName = `${subscription.table}-${id}-${Date.now()}`;
+    const channelName = `realtime-${subscription.table}-${id}`;
     console.log(`Creating realtime subscription: ${channelName}`);
     
     const channel = supabase.channel(channelName);
@@ -43,7 +43,19 @@ export function useRealtimeService() {
         console.log(`Successfully subscribed to ${id}`);
       } else if (status === 'CHANNEL_ERROR') {
         console.error(`Subscription error for ${id}`);
-        // Don't auto-retry to avoid infinite loops
+        // Retry connection after delay
+        setTimeout(() => {
+          console.log(`Retrying subscription for ${id}`);
+          channel.subscribe();
+        }, 2000);
+      } else if (status === 'CLOSED') {
+        console.warn(`Subscription ${id} was closed, attempting reconnect...`);
+        setTimeout(() => {
+          if (channelsRef.current.has(id)) {
+            console.log(`Reconnecting subscription for ${id}`);
+            channel.subscribe();
+          }
+        }, 1000);
       }
     });
 

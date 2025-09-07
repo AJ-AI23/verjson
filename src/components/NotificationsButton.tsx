@@ -21,7 +21,8 @@ export const NotificationsButton: React.FC = () => {
   useEffect(() => {
     console.log('NotificationsButton - Unread count changed:', unreadCount);
     console.log('NotificationsButton - Total notifications:', notifications.length);
-  }, [unreadCount, notifications.length]);
+    console.log('NotificationsButton - Unread notifications:', notifications.filter(n => !n.read_at).length);
+  }, [unreadCount, notifications]);
 
   useEffect(() => {
     console.log('NotificationsButton - Pending invitations count changed:', pendingInvitationsCount);
