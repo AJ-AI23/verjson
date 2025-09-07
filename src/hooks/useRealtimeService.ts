@@ -10,101 +10,61 @@ interface RealtimeSubscription {
 }
 
 export function useRealtimeService() {
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  const subscriptionsRef = useRef<Map<string, RealtimeSubscription>>(new Map());
+  const channelsRef = useRef<Map<string, RealtimeChannel>>(new Map());
 
   const subscribe = useCallback((
     id: string,
     subscription: RealtimeSubscription
   ) => {
-    subscriptionsRef.current.set(id, subscription);
+    // Create a dedicated channel for each subscription to avoid conflicts
+    const channelName = `${subscription.table}-${id}-${Date.now()}`;
+    console.log(`Creating realtime subscription: ${channelName}`);
     
-    // If channel doesn't exist, create it
-    if (!channelRef.current) {
-      const channel = supabase.channel('realtime-updates', {
-        config: {
-          broadcast: { self: false },
-          presence: { key: '' }
-        }
-      });
+    const channel = supabase.channel(channelName);
 
-      // Add all current subscriptions to the channel
-      subscriptionsRef.current.forEach((sub, subId) => {
-        const config: any = {
-          event: sub.event || '*',
-          schema: 'public',
-          table: sub.table
-        };
+    const config: any = {
+      event: subscription.event || '*',
+      schema: 'public',
+      table: subscription.table
+    };
 
-        if (sub.filter) {
-          config.filter = sub.filter;
-        }
-
-        channel.on('postgres_changes', config, (payload) => {
-          console.log(`Realtime event for ${subId}:`, payload);
-          sub.callback(payload);
-        });
-      });
-
-      channel.subscribe((status) => {
-        console.log('Realtime subscription status:', status);
-        if (status === 'SUBSCRIBED') {
-          console.log('Successfully subscribed to realtime updates');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('Realtime subscription error');
-          // Try to reconnect after a delay
-          setTimeout(() => {
-            if (channelRef.current) {
-              channelRef.current.unsubscribe();
-              channelRef.current = null;
-              // Re-subscribe with current subscriptions
-              const currentSubs = Array.from(subscriptionsRef.current.entries());
-              subscriptionsRef.current.clear();
-              currentSubs.forEach(([subId, sub]) => {
-                subscribe(subId, sub);
-              });
-            }
-          }, 2000);
-        }
-      });
-
-      channelRef.current = channel;
-    } else {
-      // Add new subscription to existing channel
-      const sub = subscription;
-      const config: any = {
-        event: sub.event || '*',
-        schema: 'public',
-        table: sub.table
-      };
-
-      if (sub.filter) {
-        config.filter = sub.filter;
-      }
-
-      channelRef.current.on('postgres_changes', config, (payload) => {
-        console.log(`Realtime event for ${id}:`, payload);
-        sub.callback(payload);
-      });
+    if (subscription.filter) {
+      config.filter = subscription.filter;
     }
+
+    channel.on('postgres_changes', config, (payload) => {
+      console.log(`Realtime event for ${id}:`, payload);
+      subscription.callback(payload);
+    });
+
+    channel.subscribe((status) => {
+      console.log(`Subscription ${id} status:`, status);
+      if (status === 'SUBSCRIBED') {
+        console.log(`Successfully subscribed to ${id}`);
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error(`Subscription error for ${id}`);
+        // Don't auto-retry to avoid infinite loops
+      }
+    });
+
+    channelsRef.current.set(id, channel);
   }, []);
 
   const unsubscribe = useCallback((id: string) => {
-    subscriptionsRef.current.delete(id);
-    
-    // If no more subscriptions, close the channel
-    if (subscriptionsRef.current.size === 0 && channelRef.current) {
-      channelRef.current.unsubscribe();
-      channelRef.current = null;
+    const channel = channelsRef.current.get(id);
+    if (channel) {
+      console.log(`Unsubscribing from ${id}`);
+      channel.unsubscribe();
+      channelsRef.current.delete(id);
     }
   }, []);
 
   const cleanup = useCallback(() => {
-    if (channelRef.current) {
-      channelRef.current.unsubscribe();
-      channelRef.current = null;
-    }
-    subscriptionsRef.current.clear();
+    console.log('Cleaning up all realtime subscriptions');
+    channelsRef.current.forEach((channel, id) => {
+      channel.unsubscribe();
+    });
+    channelsRef.current.clear();
   }, []);
 
   useEffect(() => {
