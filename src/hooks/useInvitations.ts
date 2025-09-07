@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { registerInvitationUpdateHandler } from './useNotifications';
+import { useRealtimeService } from './useRealtimeService';
 import { toast } from 'sonner';
 
 export interface Invitation {
@@ -19,6 +20,7 @@ export interface Invitation {
 
 export function useInvitations() {
   const { user } = useAuth();
+  const { subscribe, unsubscribe } = useRealtimeService();
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -164,16 +166,35 @@ export function useInvitations() {
     }
   }, [invitations]);
 
-  // Register for notification-based updates
+  // Register for notification-based updates and real-time subscription
   useEffect(() => {
     if (!user) return;
 
     registerInvitationUpdateHandler(fetchInvitations);
+
+    // Listen for revoke access notifications to remove cancelled invitations
+    const handleNotificationUpdate = (payload: any) => {
+      if (payload.eventType === 'INSERT') {
+        const notification = payload.new;
+        if (notification.type === 'access_revoked' && notification.title?.includes('invitation cancelled')) {
+          // Refetch invitations to ensure consistency
+          fetchInvitations();
+        }
+      }
+    };
+
+    subscribe('invitation-revoke-notifications', {
+      table: 'notifications',
+      filter: `user_id=eq.${user.id}`,
+      event: 'INSERT',
+      callback: handleNotificationUpdate
+    });
     
     return () => {
       registerInvitationUpdateHandler(() => {});
+      unsubscribe('invitation-revoke-notifications');
     };
-  }, [user, fetchInvitations]);
+  }, [user, fetchInvitations, subscribe, unsubscribe]);
 
   // Initial fetch
   useEffect(() => {
