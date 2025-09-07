@@ -69,6 +69,7 @@ export function useInvitations() {
   const acceptInvitation = useCallback(async (invitationId: string) => {
     try {
       // Optimistic update - remove immediately
+      const removedInvitation = invitations.find(inv => inv.id === invitationId);
       setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
       
       const { error } = await supabase
@@ -80,7 +81,10 @@ export function useInvitations() {
       if (error) {
         console.error('Error accepting invitation:', error);
         // Revert optimistic update on error
-        await fetchInvitations();
+        if (removedInvitation) {
+          setInvitations(prev => [...prev, removedInvitation]);
+        }
+        toast.error('Failed to accept invitation');
         return false;
       }
 
@@ -90,16 +94,21 @@ export function useInvitations() {
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to accept invitation';
+      // Revert optimistic update on error
+      const removedInvitation = invitations.find(inv => inv.id === invitationId);
+      if (removedInvitation) {
+        setInvitations(prev => [...prev, removedInvitation]);
+      }
       setError(message);
       toast.error(message);
-      await fetchInvitations();
       return false;
     }
-  }, [fetchInvitations, user?.id]);
+  }, [invitations, user?.id]);
 
   const declineInvitation = useCallback(async (invitationId: string) => {
     try {
       // Optimistic update - remove immediately
+      const removedInvitation = invitations.find(inv => inv.id === invitationId);
       setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
       
       const { error } = await supabase
@@ -111,7 +120,10 @@ export function useInvitations() {
       if (error) {
         console.error('Error declining invitation:', error);
         // Revert optimistic update on error
-        await fetchInvitations();
+        if (removedInvitation) {
+          setInvitations(prev => [...prev, removedInvitation]);
+        }
+        toast.error('Failed to decline invitation');
         return false;
       }
 
@@ -119,12 +131,16 @@ export function useInvitations() {
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to decline invitation';
+      // Revert optimistic update on error
+      const removedInvitation = invitations.find(inv => inv.id === invitationId);
+      if (removedInvitation) {
+        setInvitations(prev => [...prev, removedInvitation]);
+      }
       setError(message);
       toast.error(message);
-      await fetchInvitations();
       return false;
     }
-  }, [fetchInvitations, user?.id]);
+  }, [invitations, user?.id]);
 
   // Register for notification-based updates
   useEffect(() => {

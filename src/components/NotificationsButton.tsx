@@ -17,17 +17,6 @@ export const NotificationsButton: React.FC = () => {
 
   const pendingInvitationsCount = invitations.length; // All invitations are pending
 
-  // Debug logging for badge updates
-  useEffect(() => {
-    console.log('NotificationsButton - Unread count changed:', unreadCount);
-    console.log('NotificationsButton - Total notifications:', notifications.length);
-    console.log('NotificationsButton - Unread notifications:', notifications.filter(n => !n.read_at).length);
-  }, [unreadCount, notifications]);
-
-  useEffect(() => {
-    console.log('NotificationsButton - Pending invitations count changed:', pendingInvitationsCount);
-    console.log('NotificationsButton - Total invitations:', invitations.length);
-  }, [pendingInvitationsCount, invitations.length]);
 
   return (
     <div className="flex items-center gap-2">

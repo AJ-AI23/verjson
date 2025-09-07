@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRealtimeService } from './useRealtimeService';
@@ -71,6 +71,9 @@ export const useNotifications = () => {
       const notificationToUpdate = notifications.find(n => n.id === notificationId);
       const wasUnread = notificationToUpdate?.read_at === null;
 
+      // Track this as optimistic update to prevent real-time conflicts
+      optimisticUpdatesRef.current.add(notificationId);
+
       // Optimistic update
       setNotifications(prev => {
         const updated = prev.map(n => 
@@ -97,10 +100,17 @@ export const useNotifications = () => {
       if (error) {
         console.error('Error marking notification as read:', error);
         // Revert optimistic update on error
+        optimisticUpdatesRef.current.delete(notificationId);
         await fetchNotifications();
+      } else {
+        // Remove from optimistic tracking on success
+        setTimeout(() => {
+          optimisticUpdatesRef.current.delete(notificationId);
+        }, 100); // Small delay to ensure real-time event is handled
       }
     } catch (error) {
       console.error('Error marking notification as read:', error);
+      optimisticUpdatesRef.current.delete(notificationId);
       await fetchNotifications();
     }
   }, [user, fetchNotifications, notifications]);
@@ -110,6 +120,11 @@ export const useNotifications = () => {
     if (!user) return;
 
     try {
+      const unreadNotifications = notifications.filter(n => !n.read_at);
+      
+      // Track all unread notifications as optimistic updates
+      unreadNotifications.forEach(n => optimisticUpdatesRef.current.add(n.id));
+
       // Optimistic update
       const currentTime = new Date().toISOString();
       setNotifications(prev => 
@@ -126,15 +141,22 @@ export const useNotifications = () => {
       if (error) {
         console.error('Error marking all notifications as read:', error);
         // Revert optimistic update on error
+        unreadNotifications.forEach(n => optimisticUpdatesRef.current.delete(n.id));
         await fetchNotifications();
       } else {
         toast.success('All notifications marked as read');
+        // Remove from optimistic tracking on success
+        setTimeout(() => {
+          unreadNotifications.forEach(n => optimisticUpdatesRef.current.delete(n.id));
+        }, 100);
       }
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
+      const unreadNotifications = notifications.filter(n => !n.read_at);
+      unreadNotifications.forEach(n => optimisticUpdatesRef.current.delete(n.id));
       await fetchNotifications();
     }
-  }, [user, fetchNotifications]);
+  }, [user, fetchNotifications, notifications]);
 
   // Create a notification (for testing or manual creation)
   const createNotification = useCallback(async (documentId: string, title: string, message: string, workspaceId?: string) => {
@@ -201,6 +223,9 @@ export const useNotifications = () => {
     }
   }, []);
 
+  // Track optimistic updates to prevent real-time conflicts
+  const optimisticUpdatesRef = useRef<Set<string>>(new Set());
+
   // Set up real-time subscription for notifications
   useEffect(() => {
     if (!user) return;
@@ -229,6 +254,12 @@ export const useNotifications = () => {
         }
       } else if (payload.eventType === 'UPDATE') {
         const updatedNotification = payload.new as Notification;
+        
+        // Skip real-time update if we have an optimistic update in progress
+        if (optimisticUpdatesRef.current.has(updatedNotification.id)) {
+          optimisticUpdatesRef.current.delete(updatedNotification.id);
+          return;
+        }
         
         setNotifications(prev => {
           const updated = prev.map(n => 
