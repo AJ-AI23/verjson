@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
+import { EdgeFunctionLogger } from '../_shared/logger.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,11 +8,15 @@ const corsHeaders = {
 };
 
 const handler = async (req: Request): Promise<Response> => {
+  const logger = new EdgeFunctionLogger('document-content', 'handler');
+  
   if (req.method === 'OPTIONS') {
+    logger.debug('CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    logger.logRequest(req.method, req.url);
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -23,10 +28,13 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     // Get authenticated user
+    logger.debug('Authenticating user');
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     
+    logger.logAuth(user);
+    
     if (userError || !user) {
-      console.error('Authentication error:', userError);
+      logger.error('Authentication failed', userError);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -36,7 +44,10 @@ const handler = async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
     const documentId = url.searchParams.get('document_id');
 
+    logger.debug('Fetching document content', { documentId, userId: user.id });
+
     if (!documentId) {
+      logger.warn('Missing document_id parameter');
       return new Response(JSON.stringify({ error: 'document_id required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -44,6 +55,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Get document with Crowdin integration
+    logger.logDatabaseQuery('documents', 'SELECT with crowdin integration', { documentId });
     const { data: document, error: docError } = await supabaseClient
       .from('documents')
       .select(`
@@ -69,8 +81,10 @@ const handler = async (req: Request): Promise<Response> => {
       .eq('id', documentId)
       .single();
 
+    logger.logDatabaseResult('documents', 'SELECT with crowdin integration', document ? 1 : 0, docError);
+    
     if (docError || !document) {
-      console.error('Error fetching document:', docError);
+      logger.error('Document not found or access denied', docError);
       return new Response(JSON.stringify({ error: 'Document not found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -78,6 +92,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Get the latest selected version if available
+    logger.logDatabaseQuery('document_versions', 'SELECT selected version', { documentId });
     const { data: selectedVersion, error: versionError } = await supabaseClient
       .from('document_versions')
       .select('full_document')
@@ -87,14 +102,19 @@ const handler = async (req: Request): Promise<Response> => {
       .limit(1)
       .maybeSingle();
 
+    logger.logDatabaseResult('document_versions', 'SELECT selected version', selectedVersion ? 1 : 0, versionError);
+    
     if (versionError) {
-      console.error('Warning: Could not fetch document version:', versionError);
+      logger.warn('Could not fetch document version', versionError);
     }
 
     // Determine effective content
     let effectiveContent = document.content;
     if (selectedVersion?.full_document) {
       effectiveContent = selectedVersion.full_document;
+      logger.debug('Using selected version content');
+    } else {
+      logger.debug('Using base document content');
     }
 
     const result = {
@@ -102,12 +122,20 @@ const handler = async (req: Request): Promise<Response> => {
       content: effectiveContent
     };
 
+    logger.info('Successfully fetched document content', { 
+      documentId, 
+      hasVersionContent: !!selectedVersion?.full_document,
+      hasCrowdinIntegration: !!document.crowdin_integration_id 
+    });
+    
+    logger.logResponse(200, result);
     return new Response(JSON.stringify({ document: result }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Error in document-content function:', error);
+    logger.error('Unhandled error in document-content function', error);
+    logger.logResponse(500);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

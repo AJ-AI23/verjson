@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
+import { EdgeFunctionLogger } from '../_shared/logger.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,11 +22,15 @@ interface UpdateDocumentRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const logger = new EdgeFunctionLogger('document-management', 'handler');
+  
   if (req.method === 'OPTIONS') {
+    logger.debug('CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    logger.logRequest(req.method, req.url);
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -37,10 +42,13 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     // Get authenticated user
+    logger.debug('Authenticating user');
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     
+    logger.logAuth(user);
+    
     if (userError || !user) {
-      console.error('Authentication error:', userError);
+      logger.error('Authentication failed', userError);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -49,12 +57,17 @@ const handler = async (req: Request): Promise<Response> => {
 
     const url = new URL(req.url);
     const method = req.method;
+    
+    logger.info('Processing request', { method, userId: user.id });
 
     switch (method) {
       case 'GET':
         const workspaceId = url.searchParams.get('workspace_id');
         
+        logger.debug('Fetching documents for workspace', { workspaceId });
+        
         if (!workspaceId) {
+          logger.warn('Missing workspace_id parameter');
           return new Response(JSON.stringify({ error: 'workspace_id required' }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -62,6 +75,7 @@ const handler = async (req: Request): Promise<Response> => {
         }
 
         // Get documents for the workspace with proper joins
+        logger.logDatabaseQuery('documents', 'SELECT with joins', { workspaceId, userId: user.id });
         const { data: documents, error: fetchError } = await supabaseClient
           .from('documents')
           .select(`
@@ -86,14 +100,18 @@ const handler = async (req: Request): Promise<Response> => {
           .eq('workspace_id', workspaceId)
           .order('created_at', { ascending: false });
 
+        logger.logDatabaseResult('documents', 'SELECT with joins', documents?.length, fetchError);
+        
         if (fetchError) {
-          console.error('Error fetching documents:', fetchError);
+          logger.error('Failed to fetch documents', fetchError);
           return new Response(JSON.stringify({ error: fetchError.message }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
+        logger.info('Successfully fetched documents', { count: documents?.length || 0, workspaceId });
+        logger.logResponse(200, { documentsCount: documents?.length || 0 });
         return new Response(JSON.stringify({ documents: documents || [] }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -218,7 +236,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
   } catch (error) {
-    console.error('Error in document-management function:', error);
+    logger.error('Unhandled error in document-management function', error);
+    logger.logResponse(500);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

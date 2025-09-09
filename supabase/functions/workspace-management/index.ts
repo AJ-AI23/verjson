@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
+import { EdgeFunctionLogger } from '../_shared/logger.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,11 +19,15 @@ interface UpdateWorkspaceRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const logger = new EdgeFunctionLogger('workspace-management', 'handler');
+  
   if (req.method === 'OPTIONS') {
+    logger.debug('CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    logger.logRequest(req.method, req.url);
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -34,10 +39,13 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     // Get authenticated user
+    logger.debug('Authenticating user');
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     
+    logger.logAuth(user);
+    
     if (userError || !user) {
-      console.error('Authentication error:', userError);
+      logger.error('Authentication failed', userError);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -48,18 +56,25 @@ const handler = async (req: Request): Promise<Response> => {
     const method = req.method;
     const path = url.pathname.split('/').pop();
 
+    logger.info('Processing request', { method, path, userId: user.id });
+
     switch (method) {
       case 'GET':
         if (path === 'list' || !path) {
+          logger.debug('Fetching workspaces for user', { userId: user.id });
+          
           // Get user's own workspaces
+          logger.logDatabaseQuery('workspaces', 'SELECT own workspaces', { userId: user.id });
           const { data: ownWorkspaces, error: ownError } = await supabaseClient
             .from('workspaces')
             .select('*, collaboratorCount:workspace_permissions(count)')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
 
+          logger.logDatabaseResult('workspaces', 'SELECT own workspaces', ownWorkspaces?.length, ownError);
+          
           if (ownError) {
-            console.error('Error fetching own workspaces:', ownError);
+            logger.error('Failed to fetch own workspaces', ownError);
             return new Response(JSON.stringify({ error: ownError.message }), {
               status: 500,
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -67,6 +82,7 @@ const handler = async (req: Request): Promise<Response> => {
           }
 
           // Get workspaces user has been invited to
+          logger.logDatabaseQuery('workspace_permissions', 'SELECT invited workspaces', { userId: user.id });
           const { data: invitedWorkspaces, error: invitedError } = await supabaseClient
             .from('workspace_permissions')
             .select(`
@@ -86,8 +102,10 @@ const handler = async (req: Request): Promise<Response> => {
             .eq('status', 'accepted')
             .neq('role', 'owner');
 
+          logger.logDatabaseResult('workspace_permissions', 'SELECT invited workspaces', invitedWorkspaces?.length, invitedError);
+          
           if (invitedError) {
-            console.error('Error fetching invited workspaces:', invitedError);
+            logger.error('Failed to fetch invited workspaces', invitedError);
             return new Response(JSON.stringify({ error: invitedError.message }), {
               status: 500,
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -114,6 +132,13 @@ const handler = async (req: Request): Promise<Response> => {
           const allWorkspaces = [...formattedOwnWorkspaces, ...formattedInvitedWorkspaces]
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
+          logger.info('Successfully fetched workspaces', { 
+            ownCount: formattedOwnWorkspaces.length, 
+            invitedCount: formattedInvitedWorkspaces.length,
+            totalCount: allWorkspaces.length 
+          });
+          
+          logger.logResponse(200, { workspacesCount: allWorkspaces.length });
           return new Response(JSON.stringify({ workspaces: allWorkspaces }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
@@ -121,16 +146,20 @@ const handler = async (req: Request): Promise<Response> => {
         break;
 
       case 'POST':
+        logger.debug('Creating new workspace');
         let createData: CreateWorkspaceRequest;
         try {
           createData = await req.json();
+          logger.debug('Parsed request data', { name: createData.name, hasDescription: !!createData.description });
         } catch (e) {
+          logger.error('Invalid JSON in request body', e);
           return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
         
+        logger.logDatabaseQuery('workspaces', 'INSERT', { name: createData.name, userId: user.id });
         const { data: workspace, error: createError } = await supabaseClient
           .from('workspaces')
           .insert({
@@ -141,14 +170,18 @@ const handler = async (req: Request): Promise<Response> => {
           .select()
           .single();
 
+        logger.logDatabaseResult('workspaces', 'INSERT', 1, createError);
+        
         if (createError) {
-          console.error('Error creating workspace:', createError);
+          logger.error('Failed to create workspace', createError);
           return new Response(JSON.stringify({ error: createError.message }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
+        logger.info('Workspace created successfully', { workspaceId: workspace.id, name: workspace.name });
+        logger.logResponse(200, workspace);
         return new Response(JSON.stringify({ workspace }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -229,7 +262,8 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
   } catch (error) {
-    console.error('Error in workspace-management function:', error);
+    logger.error('Unhandled error in workspace-management function', error);
+    logger.logResponse(500);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

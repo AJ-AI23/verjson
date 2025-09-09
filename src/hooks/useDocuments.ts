@@ -29,7 +29,9 @@ export function useDocuments(workspaceId?: string) {
       setLoading(true);
       console.log('[useDocuments] Fetching documents for workspace:', workspaceId);
       
-      const { data, error } = await supabase.functions.invoke(`document-management?workspace_id=${workspaceId}`);
+      const { data, error } = await supabase.functions.invoke(`document-management?workspace_id=${workspaceId}`, {
+        method: 'GET'
+      });
 
       if (error) {
         console.error('[useDocuments] Fetch error:', error);
