@@ -351,6 +351,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
           translationData: exportData,
           splitByApiPaths,
           workspaceId,
+          documentId, // Pass documentId to edge function
           ...(selectedBranchId && selectedBranchId !== '__main__' && { branchId: selectedBranchId }),
           ...(selectedFolderId && selectedFolderId !== '__root__' && { folderId: selectedFolderId }),
         }
@@ -361,41 +362,15 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
         return;
       }
 
-      // Store Crowdin file information in the document record
-      if (documentId && (data.fileId || data.fileIds)) {
-        try {
-          const updateData: any = {
-            crowdin_project_id: selectedProjectId,
-          };
-
-          if (splitByApiPaths && data.fileIds) {
-            updateData.crowdin_file_ids = Object.values(data.fileIds);
-            updateData.crowdin_filenames = Object.values(data.fileNames);
-            updateData.crowdin_split_by_paths = true;
-          } else {
-            updateData.crowdin_file_id = data.fileId;
-            updateData.crowdin_filename = filename.trim();
-            updateData.crowdin_split_by_paths = false;
-          }
-
-          const { error: updateError } = await supabase
-            .from('documents')
-            .update(updateData)
-            .eq('id', documentId);
-
-          if (updateError) {
-            console.error('Failed to update document with Crowdin info:', updateError);
-            // Don't fail the entire export, just log the error
-          } else {
-            console.log('✅ Updated document with Crowdin file info');
-            // Notify parent that document was updated
-            if (onDocumentUpdated) {
-              onDocumentUpdated();
-            }
-          }
-        } catch (err) {
-          console.error('Error updating document:', err);
-          // Don't fail the entire export, just log the error
+      // Check if database update was successful (handled by edge function now)
+      if (data.databaseUpdate && data.databaseUpdate.error) {
+        console.warn('Database update failed:', data.databaseUpdate.error);
+        // Don't fail the export, but could show a warning
+      } else if (data.databaseUpdate && data.databaseUpdate.success) {
+        console.log('✅ Database updated successfully by edge function');
+        // Notify parent that document was updated
+        if (onDocumentUpdated) {
+          onDocumentUpdated();
         }
       }
 

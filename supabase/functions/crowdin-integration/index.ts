@@ -369,7 +369,7 @@ serve(async (req) => {
     }
 
     if (action === 'export') {
-      const { projectId, translationData, splitByApiPaths, branchId, folderId } = payload;
+      const { projectId, translationData, splitByApiPaths, branchId, folderId, documentId } = payload;
 
       if (!projectId || !translationData) {
         return new Response(JSON.stringify({ error: 'Missing required fields' }), {
@@ -461,11 +461,41 @@ serve(async (req) => {
 
           console.log('✅ Multi-file export completed:', results.length, 'files uploaded');
           
+          // Update document with Crowdin file information if documentId provided
+          let databaseUpdateResult = null;
+          if (documentId) {
+            try {
+              const updateData = {
+                crowdin_project_id: projectId,
+                crowdin_file_ids: results.map(r => r.fileId),
+                crowdin_filenames: results.map(r => r.fileName),
+                crowdin_split_by_paths: true,
+              };
+
+              const { error: updateError } = await supabaseClient
+                .from('documents')
+                .update(updateData)
+                .eq('id', documentId);
+
+              if (updateError) {
+                console.error('Failed to update document with Crowdin info:', updateError);
+                databaseUpdateResult = { error: updateError.message };
+              } else {
+                console.log('✅ Updated document with Crowdin file info');
+                databaseUpdateResult = { success: true };
+              }
+            } catch (err) {
+              console.error('Error updating document:', err);
+              databaseUpdateResult = { error: err.message };
+            }
+          }
+          
           return new Response(JSON.stringify({
             success: true,
             fileIds: results.map(r => r.fileId),
             fileNames: results.map(r => r.fileName),
-            message: `Successfully uploaded ${results.length} files to Crowdin`
+            message: `Successfully uploaded ${results.length} files to Crowdin`,
+            databaseUpdate: databaseUpdateResult
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
@@ -568,11 +598,41 @@ serve(async (req) => {
           const fileData = await fileResponse.json();
           console.log('✅ File created successfully:', fileData.data.name);
 
+          // Update document with Crowdin file information if documentId provided
+          let databaseUpdateResult = null;
+          if (documentId) {
+            try {
+              const updateData = {
+                crowdin_project_id: projectId,
+                crowdin_file_id: fileData.data.id,
+                crowdin_filename: filename,
+                crowdin_split_by_paths: false,
+              };
+
+              const { error: updateError } = await supabaseClient
+                .from('documents')
+                .update(updateData)
+                .eq('id', documentId);
+
+              if (updateError) {
+                console.error('Failed to update document with Crowdin info:', updateError);
+                databaseUpdateResult = { error: updateError.message };
+              } else {
+                console.log('✅ Updated document with Crowdin file info');
+                databaseUpdateResult = { success: true };
+              }
+            } catch (err) {
+              console.error('Error updating document:', err);
+              databaseUpdateResult = { error: err.message };
+            }
+          }
+
           return new Response(JSON.stringify({
             success: true,
             fileId: fileData.data.id,
             fileName: fileData.data.name,
-            message: 'File uploaded successfully to Crowdin'
+            message: 'File uploaded successfully to Crowdin',
+            databaseUpdate: databaseUpdateResult
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
