@@ -13,7 +13,7 @@ export const registerInvitationUpdateHandler = (handler: () => void) => {
   globalInvitationUpdateHandler = handler;
 };
 
-export const registerWorkspaceUpdateHandler = (handler: () => void) => {
+export const registerWorkspaceUpdateHandler = (handler: (() => void) | null) => {
   globalWorkspaceUpdateHandler = handler;
 };
 
@@ -230,8 +230,12 @@ export const useNotifications = () => {
       case 'document_access_revoked':
       case 'workspace_access_revoked':
         // Trigger both workspace and shared documents refresh when access changes
+        console.log('[useNotifications] Access revoked notification, triggering workspace refresh');
         if (globalWorkspaceUpdateHandler) {
+          console.log('[useNotifications] Calling globalWorkspaceUpdateHandler');
           globalWorkspaceUpdateHandler();
+        } else {
+          console.warn('[useNotifications] globalWorkspaceUpdateHandler is null/undefined');
         }
         if (globalSharedDocumentsUpdateHandler) {
           globalSharedDocumentsUpdateHandler();

@@ -108,7 +108,8 @@ export function useWorkspaces() {
     window.addEventListener('workspaceUpdated', handleCustomWorkspaceUpdate);
 
     return () => {
-      registerWorkspaceUpdateHandler(() => {});
+      // Only clear the handler if it's specifically our handler
+      registerWorkspaceUpdateHandler(null);
       window.removeEventListener('workspaceUpdated', handleCustomWorkspaceUpdate);
     };
   }, [user, fetchWorkspaces]);
