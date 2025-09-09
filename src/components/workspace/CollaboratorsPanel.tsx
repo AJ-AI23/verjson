@@ -177,11 +177,11 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
     }
   };
 
-  const handleInvite = async (email: string, role: 'editor' | 'viewer') => {
+  const handleInvite = async (email: string, role: 'editor' | 'viewer', emailNotifications: boolean) => {
     if (showWorkspaceCollaborators && workspaceId) {
-      return await workspacePermissions.inviteToWorkspace(email, 'Workspace', role);
+      return await workspacePermissions.inviteToWorkspace(email, 'Workspace', role, emailNotifications);
     } else if (document) {
-      return await documentPermissions.inviteCollaborator(email, document.name, role);
+      return await documentPermissions.inviteCollaborator(email, document.name, role, emailNotifications);
     }
     return false;
   };
