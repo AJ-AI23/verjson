@@ -220,25 +220,34 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
                 <p className="text-sm text-muted-foreground">Loading collaborators...</p>
               ) : (
                 <>
-                  {/* Owner */}
+                  {/* Owner or Current User Status */}
                   <div className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-2">
-                        <Crown className="h-4 w-4 text-yellow-600" />
-                        <div className="flex flex-col">
-                          <span className="font-medium">
-                            {ownerProfile && ownerProfile.username ? `@${ownerProfile.username}` : 'You'}
-                          </span>
-                          {ownerProfile && (
-                            <span className="text-xs text-muted-foreground">
-                              {ownerProfile.full_name || ownerProfile.email}
-                            </span>
-                          )}
-                        </div>
+                        {isOwner ? (
+                          <>
+                            <Crown className="h-4 w-4 text-yellow-600" />
+                            <div className="flex flex-col">
+                              <span className="font-medium">You</span>
+                            </div>
+                            <Badge className={getRoleColor('owner')}>
+                              Owner
+                            </Badge>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex flex-col">
+                              <span className="font-medium">Invited</span>
+                              <span className="text-xs text-muted-foreground">
+                                You have access to this {showWorkspaceCollaborators ? 'workspace' : 'document'}
+                              </span>
+                            </div>
+                            <Badge className={getRoleColor(allPermissions.find(p => p.user_id === user?.id)?.role || 'viewer')}>
+                              {allPermissions.find(p => p.user_id === user?.id)?.role || 'Viewer'}
+                            </Badge>
+                          </>
+                        )}
                       </div>
-                      <Badge className={getRoleColor('owner')}>
-                        Owner
-                      </Badge>
                     </div>
                   </div>
 
