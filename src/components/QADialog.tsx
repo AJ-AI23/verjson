@@ -44,12 +44,23 @@ export const QADialog: React.FC<QADialogProps> = ({
 
   // Check if Crowdin import is available based on crowdin_integration_id
   useEffect(() => {
+    console.log('🔍 QADialog - Checking Crowdin integration for document:', {
+      documentId: selectedDocument?.id,
+      crowdinIntegrationId: selectedDocument?.crowdin_integration_id,
+      crowdinIntegration: selectedDocument?.crowdin_integration,
+      selectedDocument: selectedDocument
+    });
+    
     const hasIntegration = selectedDocument?.crowdin_integration_id;
     setImportAvailable(!!hasIntegration);
     
     if (hasIntegration) {
       setCrowdinIntegration(selectedDocument.crowdin_integration);
+    } else {
+      setCrowdinIntegration(null);
     }
+    
+    console.log('📊 QADialog - Import available set to:', !!hasIntegration);
   }, [selectedDocument?.crowdin_integration_id, selectedDocument?.crowdin_integration]);
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [isRunningConsistencyCheck, setIsRunningConsistencyCheck] = useState(false);

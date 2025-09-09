@@ -22,10 +22,21 @@ export function useDocumentContent(documentId?: string) {
         setError(null);
         console.log('[useDocumentContent] Fetching content for document:', documentId);
 
-        // First get the basic document info
+        // First get the basic document info with Crowdin integration
         const { data: document, error: docError } = await supabase
           .from('documents')
-          .select('*')
+          .select(`
+            *,
+            crowdin_integration:document_crowdin_integrations (
+              id,
+              file_id,
+              file_ids,
+              filename,
+              filenames,
+              project_id,
+              split_by_paths
+            )
+          `)
           .eq('id', documentId)
           .single();
 
@@ -38,7 +49,10 @@ export function useDocumentContent(documentId?: string) {
           document.content
         );
 
-        console.log('[useDocumentContent] Content loaded for document:', documentId);
+        console.log('[useDocumentContent] Content loaded for document:', documentId, {
+          hasCrowdinIntegration: !!document.crowdin_integration_id,
+          crowdinIntegration: document.crowdin_integration
+        });
         setContent(effectiveContent);
       } catch (err) {
         console.error('[useDocumentContent] Error fetching content:', err);

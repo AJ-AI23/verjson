@@ -31,7 +31,25 @@ export function useDocuments(workspaceId?: string) {
       
       const query = supabase
         .from('documents')
-        .select('id, name, workspace_id, user_id, file_type, created_at, updated_at') // Only metadata, no content
+        .select(`
+          id, 
+          name, 
+          workspace_id, 
+          user_id, 
+          file_type, 
+          created_at, 
+          updated_at,
+          crowdin_integration_id,
+          crowdin_integration:document_crowdin_integrations (
+            id,
+            file_id,
+            file_ids,
+            filename,
+            filenames,
+            project_id,
+            split_by_paths
+          )
+        `) // Include Crowdin integration data
         .eq('workspace_id', workspaceId);
       
       console.log('[useDocuments] Applied workspace filter:', workspaceId);
@@ -43,12 +61,13 @@ export function useDocuments(workspaceId?: string) {
         throw error;
       }
       
-      console.log('[useDocuments] Raw documents fetched:', data?.length || 0);
-      console.log('[useDocuments] Documents details:', data?.map(d => ({ 
-        id: d.id, 
-        name: d.name, 
-        workspace_id: d.workspace_id 
-      })));
+      console.log('[useDocuments] Raw documents with Crowdin integration fetched:', data?.length || 0);
+      console.log('[useDocuments] Sample document with integration:', data?.[0] ? {
+        id: data[0].id,
+        name: data[0].name,
+        crowdin_integration_id: data[0].crowdin_integration_id,
+        crowdin_integration: data[0].crowdin_integration
+      } : 'No documents');
       
       // Store documents with metadata only - content will be loaded when document is selected
       console.log('[useDocuments] Documents metadata fetched:', data?.length || 0);

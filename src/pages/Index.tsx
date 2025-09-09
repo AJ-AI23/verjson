@@ -30,10 +30,14 @@ const Index = () => {
   }, [user, loading]);
 
   const handleDocumentSelect = async (document: Document) => {
-    console.log('Document selected:', document);
-    console.log('Document ID type:', typeof document?.id);
-    console.log('Document ID value:', document?.id);
-    console.log('Document structure:', JSON.stringify(document, null, 2));
+    console.log('🔍 Index: Document selected with full data:', {
+      id: document.id,
+      name: document.name,
+      crowdin_integration_id: document.crowdin_integration_id,
+      crowdin_integration: document.crowdin_integration,
+      hasIntegration: !!document.crowdin_integration_id
+    });
+    console.log('🔍 Index: Full document object:', document);
     
     // Check if document requires PIN
     const pinStatus = await checkDocumentPinStatus(document.id);
