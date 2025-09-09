@@ -609,33 +609,30 @@ async function handleApprovePendingVersion(supabaseClient: any, data: any, user:
     throw new Error('Operation not allowed for viewer role');
   }
 
-  // Find the currently selected version to deselect it
-  const { data: currentlySelected, error: currentSelectedError } = await serviceClient
+  // Get all versions for this document to determine the correct selection state
+  const { data: allVersions, error: allVersionsError } = await serviceClient
     .from('document_versions')
-    .select('id')
+    .select('id, created_at, is_selected')
     .eq('document_id', version.document_id)
-    .eq('is_selected', true)
-    .maybeSingle();
+    .order('created_at', { ascending: true });
 
-  if (currentSelectedError) {
-    logger.error('Failed to find currently selected version', currentSelectedError);
-    // Continue anyway, this is not critical
+  if (allVersionsError) {
+    logger.error('Failed to get all versions', allVersionsError);
+    throw allVersionsError;
   }
 
-  // Deselect the currently selected version (only the one that was selected)
-  if (currentlySelected) {
-    const { error: deselectError } = await serviceClient
-      .from('document_versions')
-      .update({ is_selected: false })
-      .eq('id', currentlySelected.id);
-
-    if (deselectError) {
-      logger.error('Failed to deselect current version', deselectError);
-      // Don't throw here, the main update is more important
-    }
+  // Sort versions by creation time to understand chronological order
+  const sortedVersions = allVersions.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  
+  // Find the index of the version being approved
+  const approvedVersionIndex = sortedVersions.findIndex(v => v.id === versionId);
+  
+  if (approvedVersionIndex === -1) {
+    logger.error('Approved version not found in version list', { versionId });
+    throw new Error('Version not found in document versions');
   }
 
-  // Update version status to visible and selected
+  // Update the approved version to visible and selected
   const { data: updatedVersion, error: updateError } = await serviceClient
     .from('document_versions')
     .update({ 
@@ -650,6 +647,29 @@ async function handleApprovePendingVersion(supabaseClient: any, data: any, user:
   if (updateError) {
     logger.error('Failed to update version status', updateError);
     throw updateError;
+  }
+
+  // Ensure all versions created before or at the same time as the approved version are selected (Applied)
+  // and versions created after are deselected (Skipped)
+  const approvedVersionTime = new Date(version.created_at).getTime();
+  
+  for (const v of sortedVersions) {
+    if (v.id === versionId) continue; // Already updated above
+    
+    const versionTime = new Date(v.created_at).getTime();
+    const shouldBeSelected = versionTime <= approvedVersionTime;
+    
+    // Only update if the selection state needs to change
+    if (v.is_selected !== shouldBeSelected) {
+      const { error: updateSelectionError } = await serviceClient
+        .from('document_versions')
+        .update({ is_selected: shouldBeSelected })
+        .eq('id', v.id);
+        
+      if (updateSelectionError) {
+        logger.error('Failed to update version selection state', { versionId: v.id, error: updateSelectionError });
+      }
+    }
   }
 
   // Update document content if we have full_document
@@ -671,7 +691,8 @@ async function handleApprovePendingVersion(supabaseClient: any, data: any, user:
   logger.info('Successfully approved pending version', { 
     versionId, 
     documentId: version.document_id,
-    userRole: access.role
+    userRole: access.role,
+    versionsUpdated: sortedVersions.length
   });
   
   return { version: updatedVersion, success: true };
