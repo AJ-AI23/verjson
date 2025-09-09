@@ -266,64 +266,85 @@ const handler = async (req: Request): Promise<Response> => {
       case 'listSharedDocuments':
         logger.debug('Fetching shared documents', { userId: user.id });
         
-        // Get documents that user has direct permissions to but no workspace access
-        logger.logDatabaseQuery('documents', 'SELECT shared documents with joins', { userId: user.id });
-        const { data: sharedDocs, error: sharedError } = await supabaseClient
-          .from('documents')
-          .select(`
-            id,
-            name,
-            workspace_id,
-            user_id,
-            file_type,
-            created_at,
-            updated_at,
-            crowdin_integration_id,
-            crowdin_integration:document_crowdin_integrations!documents_crowdin_integration_id_fkey(
-              id,
-              file_id,
-              file_ids,
-              filename,
-              filenames,
-              project_id,
-              split_by_paths
-            ),
-            workspace_name:workspaces!documents_workspace_id_fkey(name),
-            shared_role:document_permissions!document_permissions_document_id_fkey(role, status)
-          `)
-          .eq('document_permissions.user_id', user.id)
-          .eq('document_permissions.status', 'accepted')
-          .not('workspace_id', 'in', `(
-            SELECT wp.workspace_id 
-            FROM workspace_permissions wp 
-            WHERE wp.user_id = '${user.id}' 
-            AND wp.status = 'accepted'
-          )`)
-          .order('created_at', { ascending: false });
-
-        logger.logDatabaseResult('documents', 'SELECT shared documents', sharedDocs?.length, sharedError);
+        // Use raw SQL query through an RPC function to get shared documents
+        logger.logDatabaseQuery('RPC', 'get_shared_documents', { userId: user.id });
         
-        if (sharedError) {
-          logger.error('Failed to fetch shared documents', sharedError);
-          return new Response(JSON.stringify({ error: sharedError.message }), {
+        try {
+          // First, let's get documents with permissions using separate queries
+          const { data: sharedPermissions, error: permError } = await supabaseClient
+            .from('document_permissions')
+            .select('document_id, role')
+            .eq('user_id', user.id)
+            .eq('status', 'accepted');
+          
+          if (permError) throw permError;
+          
+          if (!sharedPermissions || sharedPermissions.length === 0) {
+            logger.info('No shared document permissions found');
+            logger.logResponse(200, { sharedDocumentsCount: 0 });
+            return new Response(JSON.stringify({ documents: [] }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          
+          const documentIds = sharedPermissions.map(p => p.document_id);
+          
+          // Get the actual documents with workspace info
+          const { data: docs, error: docsError } = await supabaseClient
+            .from('documents')
+            .select(`
+              id,
+              name,
+              workspace_id,
+              user_id,
+              file_type,
+              created_at,
+              updated_at,
+              crowdin_integration_id,
+              workspaces!inner(name)
+            `)
+            .in('id', documentIds);
+          
+          if (docsError) throw docsError;
+          
+          // Filter out documents where user has workspace access
+          const { data: workspacePerms, error: wsError } = await supabaseClient
+            .from('workspace_permissions')
+            .select('workspace_id')
+            .eq('user_id', user.id)
+            .eq('status', 'accepted');
+          
+          if (wsError) throw wsError;
+          
+          const userWorkspaceIds = new Set(workspacePerms?.map(wp => wp.workspace_id) || []);
+          
+          // Filter documents and add shared context
+          const sharedDocs = docs?.filter(doc => !userWorkspaceIds.has(doc.workspace_id))
+            .map(doc => {
+              const permission = sharedPermissions.find(p => p.document_id === doc.id);
+              return {
+                ...doc,
+                workspace_name: doc.workspaces?.name || 'Unknown Workspace',
+                shared_role: permission?.role || 'viewer',
+                is_shared: true
+              };
+            }) || [];
+
+          logger.logDatabaseResult('documents', 'SELECT shared documents', sharedDocs?.length, null);
+          logger.info('Successfully fetched shared documents', { count: sharedDocs.length });
+          logger.logResponse(200, { sharedDocumentsCount: sharedDocs.length });
+          
+          return new Response(JSON.stringify({ documents: sharedDocs }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+          
+        } catch (error) {
+          logger.error('Error in shared documents query', error);
+          return new Response(JSON.stringify({ error: error.message }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
-
-        // Transform the data to include workspace name and shared role
-        const transformedSharedDocs = sharedDocs?.map(doc => ({
-          ...doc,
-          workspace_name: doc.workspace_name?.[0]?.name || 'Unknown Workspace',
-          shared_role: doc.shared_role?.[0]?.role || 'viewer',
-          is_shared: true
-        })) || [];
-
-        logger.info('Successfully fetched shared documents', { count: transformedSharedDocs.length });
-        logger.logResponse(200, { sharedDocumentsCount: transformedSharedDocs.length });
-        return new Response(JSON.stringify({ documents: transformedSharedDocs }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
 
       default:
         logger.warn('Invalid action', { action });
