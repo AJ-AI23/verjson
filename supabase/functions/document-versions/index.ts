@@ -164,7 +164,7 @@ async function validateDocumentAccess(supabaseClient: any, documentId: string, u
   // If document wasn't found or user has no permissions, check if document exists at all
   // Use the get_document_permissions RPC which should work regardless of RLS
   const { data: anyPermissions, error: rpcError } = await supabaseClient
-    .rpc('get_document_permissions', { target_document_id: documentId });
+    .rpc('get_document_permissions', { doc_id: documentId });
 
   if (rpcError || !anyPermissions || anyPermissions.length === 0) {
     logger.error('Document not found', { documentId, error: docError || rpcError });
