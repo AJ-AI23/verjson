@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { triggerWorkspaceRefresh } from '@/lib/workspaceRefreshUtils';
 
 const VIRTUAL_SHARED_WORKSPACE_ID = '__shared_with_me__';
 
@@ -72,6 +73,7 @@ export function useWorkspacePermissions(workspaceId?: string) {
 
       toast.success(data.message || 'Workspace invitation sent successfully');
       await fetchPermissions(); // Refresh permissions
+      triggerWorkspaceRefresh(); // Refresh workspace dropdown
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to send workspace invitation';
@@ -98,6 +100,7 @@ export function useWorkspacePermissions(workspaceId?: string) {
       if (error) throw error;
 
       toast.success(data.message || 'Bulk document invitation sent successfully');
+      triggerWorkspaceRefresh(); // Refresh workspace dropdown for shared docs
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to send bulk document invitation';

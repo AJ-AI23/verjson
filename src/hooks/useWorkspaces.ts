@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { registerWorkspaceUpdateHandler } from './useNotifications';
 import { Workspace, CreateWorkspaceData } from '@/types/workspace';
 import { toast } from 'sonner';
+import { registerWorkspaceRefreshHandler } from '@/lib/workspaceRefreshUtils';
 
 export function useWorkspaces() {
   const { user } = useAuth();
@@ -99,6 +100,7 @@ export function useWorkspaces() {
     fetchWorkspaces();
 
     registerWorkspaceUpdateHandler(fetchWorkspaces);
+    registerWorkspaceRefreshHandler(fetchWorkspaces);
 
     // Listen for custom workspace update events (from invitation acceptance)
     const handleCustomWorkspaceUpdate = () => {
@@ -110,6 +112,7 @@ export function useWorkspaces() {
     return () => {
       // Only clear the handler if it's specifically our handler
       registerWorkspaceUpdateHandler(null);
+      registerWorkspaceRefreshHandler(null);
       window.removeEventListener('workspaceUpdated', handleCustomWorkspaceUpdate);
     };
   }, [user, fetchWorkspaces]);
