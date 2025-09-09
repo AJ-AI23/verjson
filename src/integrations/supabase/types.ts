@@ -206,9 +206,11 @@ export type Database = {
           document_id: string
           full_document: Json | null
           id: string
+          import_source: string | null
           is_released: boolean
           is_selected: boolean
           patches: Json | null
+          status: string | null
           tier: string
           updated_at: string
           user_id: string
@@ -222,9 +224,11 @@ export type Database = {
           document_id: string
           full_document?: Json | null
           id?: string
+          import_source?: string | null
           is_released?: boolean
           is_selected?: boolean
           patches?: Json | null
+          status?: string | null
           tier: string
           updated_at?: string
           user_id: string
@@ -238,9 +242,11 @@ export type Database = {
           document_id?: string
           full_document?: Json | null
           id?: string
+          import_source?: string | null
           is_released?: boolean
           is_selected?: boolean
           patches?: Json | null
+          status?: string | null
           tier?: string
           updated_at?: string
           user_id?: string

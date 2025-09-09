@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
+import { compare } from 'https://esm.sh/fast-json-patch@3.1.1';
 
 // Handle function shutdown gracefully
 addEventListener('beforeunload', (ev) => {
@@ -13,6 +14,96 @@ const corsHeaders = {
 };
 
 const CROWDIN_API_BASE = 'https://api.crowdin.com/api/v2';
+
+// Helper function to merge multiple translation files
+function mergeTranslations(baseContent: any, downloadedFiles: Record<string, any>): any {
+  let mergedContent = { ...baseContent };
+  
+  for (const [fileId, fileContent] of Object.entries(downloadedFiles)) {
+    console.log(`🔄 Merging content from file ${fileId}`);
+    
+    // If the file content has path-like keys, convert them to nested structure
+    const processedContent = pathsToNestedObject(fileContent);
+    
+    // Recursively merge the content
+    mergedContent = deepMerge(mergedContent, processedContent);
+  }
+  
+  return mergedContent;
+}
+
+// Helper function to convert path-based keys to nested objects
+function pathsToNestedObject(pathsObject: any): any {
+  const result: any = {};
+  
+  for (const [path, value] of Object.entries(pathsObject)) {
+    const pathParts = path.split(/[/.]/);
+    let current = result;
+    
+    // Navigate/create the nested structure
+    for (let i = 0; i < pathParts.length - 1; i++) {
+      const part = pathParts[i];
+      if (!current[part] || typeof current[part] !== 'object') {
+        current[part] = {};
+      }
+      current = current[part];
+    }
+    
+    // Set the final value
+    const lastPart = pathParts[pathParts.length - 1];
+    current[lastPart] = value;
+  }
+  
+  return result;
+}
+
+// Helper function to deeply merge two objects
+function deepMerge(target: any, source: any): any {
+  if (!source || typeof source !== 'object') {
+    return target;
+  }
+  
+  if (!target || typeof target !== 'object') {
+    return source;
+  }
+  
+  const merged = { ...target };
+  
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      if (merged[key] && typeof merged[key] === 'object' && !Array.isArray(merged[key])) {
+        merged[key] = deepMerge(merged[key], value);
+      } else {
+        merged[key] = value;
+      }
+    } else {
+      merged[key] = value;
+    }
+  }
+  
+  return merged;
+}
+
+// Helper function to compare document versions and generate patches
+function compareDocumentVersionsPartial(currentSchema: any, importSchema: any): any {
+  console.log('🔍 compareDocumentVersionsPartial called for Crowdin import:');
+  
+  // Generate patches between current and merged schemas
+  const patches = compare(currentSchema, importSchema);
+  console.log('Generated patches for partial import:', patches);
+  
+  // Filter out "remove" operations since we're doing a partial import
+  const filteredPatches = patches.filter(patch => patch.op !== 'remove');
+  
+  return {
+    patches: filteredPatches,
+    conflictCount: 0,
+    recommendedVersionTier: 'minor',
+    hasBreakingChanges: false,
+    mergeConflicts: [],
+    mergedSchema: importSchema,
+  };
+}
 
 // Proper encryption/decryption functions using AES-GCM
 const getEncryptionKey = async (): Promise<CryptoKey> => {
@@ -889,32 +980,67 @@ serve(async (req) => {
             const successfulCount = Object.keys(downloadedFiles).length;
             console.log(`✅ Background task completed: Successfully processed ${successfulCount}/${filesToImport.length} files`);
             
-            // Create success notification
+            // Create pending version instead of updating document directly
             if (successfulCount > 0) {
               try {
-                // Get document and workspace info for notification
+                // Get document base content and info
                 const { data: document } = await supabaseClient
                   .from('documents')
-                  .select('name, workspace_id')
+                  .select('name, workspace_id, content')
                   .eq('id', documentId)
                   .single();
                 
                 if (document) {
+                  // Merge all downloaded files with base content
+                  const mergedContent = mergeTranslations(document.content, downloadedFiles);
+                  
+                  // Create comparison for patches
+                  const comparison = compareDocumentVersionsPartial(document.content, mergedContent);
+                  
+                  // Create pending version
+                  const { data: newVersion, error: versionError } = await supabaseClient
+                    .from('document_versions')
+                    .insert({
+                      document_id: documentId,
+                      user_id: user.id,
+                      version_major: 0,
+                      version_minor: 1,
+                      version_patch: 0,
+                      description: `Crowdin import - ${successfulCount} file(s) processed`,
+                      tier: 'minor',
+                      is_released: false,
+                      is_selected: false,
+                      status: 'pending',
+                      import_source: 'crowdin',
+                      full_document: mergedContent,
+                      patches: comparison.patches || []
+                    })
+                    .select()
+                    .single();
+
+                  if (versionError) {
+                    console.error('❌ Background task: Failed to create pending version:', versionError);
+                    throw versionError;
+                  }
+
+                  console.log(`✅ Background task: Created pending version ${newVersion.id} for document ${documentId}`);
+                  
+                  // Create notification for pending import review
                   await supabaseClient
                     .from('notifications')
                     .insert({
                       user_id: user.id,
                       document_id: documentId,
                       workspace_id: document.workspace_id,
-                      type: 'crowdin_import',
-                      title: 'Crowdin Import Complete',
-                      message: `Successfully imported ${successfulCount} file(s) from Crowdin to "${document.name}"`
+                      type: 'crowdin_import_pending',
+                      title: 'Crowdin Import Ready for Review',
+                      message: `Imported ${successfulCount} file(s) from Crowdin to "${document.name}" - click to review changes`
                     });
                   
-                  console.log('✅ Background task: Notification created for successful import');
+                  console.log('✅ Background task: Notification created for pending import review');
                 }
-              } catch (notificationError) {
-                console.error('❌ Background task: Failed to create notification:', notificationError);
+              } catch (error) {
+                console.error('❌ Background task: Failed to create pending version:', error);
               }
             }
             
@@ -1010,49 +1136,82 @@ serve(async (req) => {
           }
         }
         
-        // Create success notification for synchronous imports
+        // Create pending version for synchronous imports
         try {
           const { data: document } = await supabaseClient
             .from('documents')
-            .select('name, workspace_id')
+            .select('name, workspace_id, content')
             .eq('id', documentId)
             .single();
           
           if (document) {
+            // Merge all downloaded files with base content
+            const mergedContent = mergeTranslations(document.content, downloadedFiles);
+            
+            // Create comparison for patches
+            const comparison = compareDocumentVersionsPartial(document.content, mergedContent);
+            
+            // Create pending version
+            const { data: newVersion, error: versionError } = await supabaseClient
+              .from('document_versions')
+              .insert({
+                document_id: documentId,
+                user_id: user.id,
+                version_major: 0,
+                version_minor: 1,
+                version_patch: 0,
+                description: `Crowdin import - ${filesToImport.length} file(s) processed`,
+                tier: 'minor',
+                is_released: false,
+                is_selected: false,
+                status: 'pending',
+                import_source: 'crowdin',
+                full_document: mergedContent,
+                patches: comparison.patches || []
+              })
+              .select()
+              .single();
+
+            if (versionError) {
+              console.error('❌ Failed to create pending version:', versionError);
+              throw versionError;
+            }
+
+            console.log(`✅ Created pending version ${newVersion.id} for document ${documentId}`);
+            
+            // Create notification for pending import review
             await supabaseClient
               .from('notifications')
               .insert({
                 user_id: user.id,
                 document_id: documentId,
                 workspace_id: document.workspace_id,
-                type: 'crowdin_import',
-                title: 'Crowdin Import Complete',
-                message: `Successfully imported ${filesToImport.length} file(s) from Crowdin to "${document.name}"`
+                type: 'crowdin_import_pending',
+                title: 'Crowdin Import Ready for Review',
+                message: `Imported ${filesToImport.length} file(s) from Crowdin to "${document.name}" - click to review changes`
               });
             
-            console.log('✅ Notification created for successful synchronous import');
-          }
-        } catch (notificationError) {
-          console.error('❌ Failed to create notification:', notificationError);
-        }
-
-        // Return the downloaded files
-        const result = filesToImport.length === 1 
-          ? {
-              success: true,
-              content: downloadedFiles[filesToImport[0]],
-              message: 'File imported successfully from Crowdin'
-            }
-          : {
-              success: true,
-              content: downloadedFiles,
-              isMultiFile: true,
-              message: `${filesToImport.length} files imported successfully from Crowdin`
-            };
+            console.log('✅ Notification created for pending synchronous import review');
             
-        return new Response(JSON.stringify(result), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+            // Return success with pending version info
+            return new Response(JSON.stringify({
+              success: true,
+              pendingVersion: true,
+              versionId: newVersion.id,
+              message: 'Import ready for review - check notifications to preview changes'
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        } catch (error) {
+          console.error('❌ Failed to create pending version:', error);
+          return new Response(JSON.stringify({ 
+            error: `Failed to create pending version: ${error.message}` 
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
       } catch (error) {
         console.error('❌ Error importing from Crowdin:', error);
         return new Response(JSON.stringify({ 
