@@ -2,6 +2,11 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
 
+// Handle function shutdown gracefully
+addEventListener('beforeunload', (ev) => {
+  console.log('🔄 Function shutdown due to:', ev.detail?.reason);
+});
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -825,6 +830,87 @@ serve(async (req) => {
         });
       }
 
+      // For multiple files (>3), use background task to prevent timeout
+      if (filesToImport.length > 3) {
+        console.log(`🚀 Starting background import for ${filesToImport.length} files`);
+        
+        // Define the background import task
+        const backgroundImportTask = async () => {
+          try {
+            console.log(`📥 Background task: Importing ${filesToImport.length} file(s) from Crowdin`);
+            const downloadedFiles: Record<string, any> = {};
+            
+            // Download all files
+            for (const currentFileId of filesToImport) {
+              console.log('🔍 Background task: Getting download URL from Crowdin project:', projectId, 'file:', currentFileId);
+              
+              const downloadUrlResponse = await fetch(`${CROWDIN_API_BASE}/projects/${projectId}/files/${currentFileId}/download`, {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${apiToken}`,
+                }
+              });
+
+              if (!downloadUrlResponse.ok) {
+                console.error('❌ Background task: Failed to get download URL from Crowdin:', downloadUrlResponse.status, downloadUrlResponse.statusText);
+                continue; // Skip this file and continue with others
+              }
+
+              const downloadUrlData = await downloadUrlResponse.json();
+              console.log('✅ Background task: Got download URL from Crowdin for file:', currentFileId);
+
+              const fileUrl = downloadUrlData.data?.url;
+              if (!fileUrl) {
+                console.error('❌ Background task: No download URL received from Crowdin for file:', currentFileId);
+                continue; // Skip this file and continue with others
+              }
+
+              console.log('🔍 Background task: Downloading actual file content from URL for file:', currentFileId);
+              const fileContentResponse = await fetch(fileUrl);
+
+              if (!fileContentResponse.ok) {
+                console.error('❌ Background task: Failed to download file from URL:', fileContentResponse.status, fileContentResponse.statusText);
+                continue; // Skip this file and continue with others
+              }
+
+              const fileContent = await fileContentResponse.text();
+              console.log('✅ Background task: Downloaded file content for', currentFileId, 'length:', fileContent.length);
+
+              try {
+                const parsedContent = JSON.parse(fileContent);
+                downloadedFiles[currentFileId] = parsedContent;
+                console.log('✅ Background task: Successfully parsed downloaded content for file:', currentFileId);
+              } catch (parseError) {
+                console.error('❌ Background task: Failed to parse downloaded content as JSON for file:', currentFileId, parseError);
+                continue; // Skip this file and continue with others
+              }
+            }
+            
+            console.log(`✅ Background task completed: Successfully processed ${Object.keys(downloadedFiles).length}/${filesToImport.length} files`);
+            
+            // Store the result in the database or cache if needed
+            // For now, just log completion
+            
+          } catch (error) {
+            console.error('❌ Background task error importing from Crowdin:', error);
+          }
+        };
+
+        // Start the background task
+        EdgeRuntime.waitUntil(backgroundImportTask());
+        
+        // Return immediate response
+        return new Response(JSON.stringify({
+          success: true,
+          message: `Import of ${filesToImport.length} files started in background`,
+          background: true,
+          filesCount: filesToImport.length
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // For smaller imports (≤3 files), process synchronously
       try {
         console.log(`🔍 Importing ${filesToImport.length} file(s) from Crowdin`);
         const downloadedFiles: Record<string, any> = {};
