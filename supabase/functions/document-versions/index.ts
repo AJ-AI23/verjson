@@ -116,54 +116,64 @@ serve(async (req) => {
 async function validateDocumentAccess(supabaseClient: any, documentId: string, userId: string, logger: EdgeFunctionLogger) {
   logger.debug('Validating document access', { documentId, userId });
 
-  // Check if user owns the document
-  const { data: document, error: docError } = await supabaseClient
-    .from('documents')
-    .select('created_by, workspace_id')
-    .eq('id', documentId)
-    .single();
-
-  if (docError || !document) {
-    logger.error('Document not found', { documentId, error: docError });
-    throw new Error('Document not found');
-  }
-
-  // If user owns the document, they have owner permissions
-  if (document.created_by === userId) {
-    logger.debug('User is document owner', { documentId, userId });
-    return { role: 'owner', hasAccess: true };
-  }
-
-  // Check workspace permissions
-  const { data: workspacePermissions, error: wpError } = await supabaseClient
-    .from('workspace_permissions')
+  // First check direct document permissions (works for invited users)
+  const { data: docPermissions, error: dpError } = await supabaseClient
+    .from('document_permissions')
     .select('role, status')
-    .eq('workspace_id', document.workspace_id)
+    .eq('document_id', documentId)
     .eq('user_id', userId)
     .eq('status', 'accepted')
-    .single();
+    .maybeSingle();
 
-  if (wpError || !workspacePermissions) {
-    // Check document permissions as fallback
-    const { data: docPermissions, error: dpError } = await supabaseClient
-      .from('document_permissions')
-      .select('role, status')
-      .eq('document_id', documentId)
-      .eq('user_id', userId)
-      .eq('status', 'accepted')
-      .single();
-
-    if (dpError || !docPermissions) {
-      logger.warn('User has no access to document', { documentId, userId });
-      throw new Error('Access denied - insufficient permissions');
-    }
-
+  if (docPermissions) {
     logger.debug('User has document permissions', { documentId, userId, role: docPermissions.role });
     return { role: docPermissions.role, hasAccess: true };
   }
 
-  logger.debug('User has workspace permissions', { documentId, userId, role: workspacePermissions.role });
-  return { role: workspacePermissions.role, hasAccess: true };
+  // Try to get document info (might fail for invited users due to RLS)
+  const { data: document, error: docError } = await supabaseClient
+    .from('documents')
+    .select('created_by, workspace_id')
+    .eq('id', documentId)
+    .maybeSingle();
+
+  if (document) {
+    // If user owns the document, they have owner permissions
+    if (document.created_by === userId) {
+      logger.debug('User is document owner', { documentId, userId });
+      return { role: 'owner', hasAccess: true };
+    }
+
+    // Check workspace permissions if we have workspace_id
+    if (document.workspace_id) {
+      const { data: workspacePermissions, error: wpError } = await supabaseClient
+        .from('workspace_permissions')
+        .select('role, status')
+        .eq('workspace_id', document.workspace_id)
+        .eq('user_id', userId)
+        .eq('status', 'accepted')
+        .maybeSingle();
+
+      if (workspacePermissions) {
+        logger.debug('User has workspace permissions', { documentId, userId, role: workspacePermissions.role });
+        return { role: workspacePermissions.role, hasAccess: true };
+      }
+    }
+  }
+
+  // If document wasn't found or user has no permissions, check if document exists at all
+  // Use the get_document_permissions RPC which should work regardless of RLS
+  const { data: anyPermissions, error: rpcError } = await supabaseClient
+    .rpc('get_document_permissions', { target_document_id: documentId });
+
+  if (rpcError || !anyPermissions || anyPermissions.length === 0) {
+    logger.error('Document not found', { documentId, error: docError || rpcError });
+    throw new Error('Document not found');
+  }
+
+  // Document exists but user has no access
+  logger.warn('User has no access to document', { documentId, userId });
+  throw new Error('Access denied - insufficient permissions');
 }
 
 async function handleListDocumentVersions(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
