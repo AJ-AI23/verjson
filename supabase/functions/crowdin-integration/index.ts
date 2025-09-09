@@ -886,10 +886,37 @@ serve(async (req) => {
               }
             }
             
-            console.log(`✅ Background task completed: Successfully processed ${Object.keys(downloadedFiles).length}/${filesToImport.length} files`);
+            const successfulCount = Object.keys(downloadedFiles).length;
+            console.log(`✅ Background task completed: Successfully processed ${successfulCount}/${filesToImport.length} files`);
             
-            // Store the result in the database or cache if needed
-            // For now, just log completion
+            // Create success notification
+            if (successfulCount > 0) {
+              try {
+                // Get document and workspace info for notification
+                const { data: document } = await supabaseClient
+                  .from('documents')
+                  .select('name, workspace_id')
+                  .eq('id', documentId)
+                  .single();
+                
+                if (document) {
+                  await supabaseClient
+                    .from('notifications')
+                    .insert({
+                      user_id: user.id,
+                      document_id: documentId,
+                      workspace_id: document.workspace_id,
+                      type: 'crowdin_import',
+                      title: 'Crowdin Import Complete',
+                      message: `Successfully imported ${successfulCount} file(s) from Crowdin to "${document.name}"`
+                    });
+                  
+                  console.log('✅ Background task: Notification created for successful import');
+                }
+              } catch (notificationError) {
+                console.error('❌ Background task: Failed to create notification:', notificationError);
+              }
+            }
             
           } catch (error) {
             console.error('❌ Background task error importing from Crowdin:', error);
@@ -983,6 +1010,32 @@ serve(async (req) => {
           }
         }
         
+        // Create success notification for synchronous imports
+        try {
+          const { data: document } = await supabaseClient
+            .from('documents')
+            .select('name, workspace_id')
+            .eq('id', documentId)
+            .single();
+          
+          if (document) {
+            await supabaseClient
+              .from('notifications')
+              .insert({
+                user_id: user.id,
+                document_id: documentId,
+                workspace_id: document.workspace_id,
+                type: 'crowdin_import',
+                title: 'Crowdin Import Complete',
+                message: `Successfully imported ${filesToImport.length} file(s) from Crowdin to "${document.name}"`
+              });
+            
+            console.log('✅ Notification created for successful synchronous import');
+          }
+        } catch (notificationError) {
+          console.error('❌ Failed to create notification:', notificationError);
+        }
+
         // Return the downloaded files
         const result = filesToImport.length === 1 
           ? {
