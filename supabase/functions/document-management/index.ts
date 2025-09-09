@@ -285,7 +285,7 @@ const handler = async (req: Request): Promise<Response> => {
           
         } catch (error) {
           logger.error('Error in shared documents query', error);
-          return new Response(JSON.stringify({ error: error.message }), {
+          return new Response(JSON.stringify({ error: error.message || 'Failed to fetch shared documents' }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
