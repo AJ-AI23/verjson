@@ -114,66 +114,190 @@ serve(async (req) => {
 })
 
 async function validateDocumentAccess(supabaseClient: any, documentId: string, userId: string, logger: EdgeFunctionLogger) {
-  logger.debug('Validating document access', { documentId, userId });
+  logger.debug('🔍 Starting document access validation', { documentId, userId });
 
-  // First check direct document permissions (works for invited users)
-  const { data: docPermissions, error: dpError } = await supabaseClient
-    .from('document_permissions')
-    .select('role, status')
-    .eq('document_id', documentId)
-    .eq('user_id', userId)
-    .eq('status', 'accepted')
-    .maybeSingle();
+  try {
+    // First check direct document permissions
+    logger.debug('📋 Step 1: Checking direct document permissions');
+    const { data: docPermissions, error: dpError } = await supabaseClient
+      .from('document_permissions')
+      .select('role, status')
+      .eq('document_id', documentId)
+      .eq('user_id', userId)
+      .eq('status', 'accepted')
+      .maybeSingle();
 
-  if (docPermissions) {
-    logger.debug('User has document permissions', { documentId, userId, role: docPermissions.role });
-    return { role: docPermissions.role, hasAccess: true };
-  }
+    logger.debug('📋 Document permissions query result', { 
+      docPermissions, 
+      error: dpError?.message,
+      errorCode: dpError?.code,
+      hasPermissions: !!docPermissions
+    });
 
-  // Try to get document info (might fail for invited users due to RLS)
-  const { data: document, error: docError } = await supabaseClient
-    .from('documents')
-    .select('created_by, workspace_id')
-    .eq('id', documentId)
-    .maybeSingle();
-
-  if (document) {
-    // If user owns the document, they have owner permissions
-    if (document.created_by === userId) {
-      logger.debug('User is document owner', { documentId, userId });
-      return { role: 'owner', hasAccess: true };
+    if (dpError) {
+      logger.error('❌ Error checking document permissions', dpError);
+      throw dpError;
     }
 
-    // Check workspace permissions if we have workspace_id
-    if (document.workspace_id) {
-      const { data: workspacePermissions, error: wpError } = await supabaseClient
-        .from('workspace_permissions')
-        .select('role, status')
-        .eq('workspace_id', document.workspace_id)
-        .eq('user_id', userId)
-        .eq('status', 'accepted')
-        .maybeSingle();
+    if (docPermissions) {
+      logger.debug('✅ User has direct document permissions', { documentId, userId, role: docPermissions.role });
+      return { hasAccess: true, role: docPermissions.role };
+    }
 
-      if (workspacePermissions) {
-        logger.debug('User has workspace permissions', { documentId, userId, role: workspacePermissions.role });
-        return { role: workspacePermissions.role, hasAccess: true };
+    // Check if user is document owner via documents table
+    logger.debug('🏠 Step 2: Checking document ownership via documents table');
+    const { data: document, error: docError } = await supabaseClient
+      .from('documents')
+      .select('created_by, workspace_id, user_id')
+      .eq('id', documentId)
+      .maybeSingle();
+
+    logger.debug('🏠 Documents table query result', { 
+      document, 
+      error: docError?.message,
+      errorCode: docError?.code,
+      hasDocument: !!document,
+      isOwnerViaCreatedBy: document ? document.created_by === userId : false,
+      isOwnerViaUserId: document ? document.user_id === userId : false
+    });
+
+    if (docError) {
+      logger.debug('⚠️ Error accessing documents table (might be due to RLS)', { error: docError });
+    } else if (document) {
+      // Check both created_by and user_id fields for ownership
+      if (document.created_by === userId || document.user_id === userId) {
+        logger.debug('✅ User is document owner', { documentId, userId });
+        return { hasAccess: true, role: 'owner' };
+      }
+
+      // Check workspace permissions if we have workspace_id
+      if (document.workspace_id) {
+        logger.debug('🏢 Step 2.1: Checking workspace permissions for document workspace');
+        const { data: workspacePermissions, error: wpError } = await supabaseClient
+          .from('workspace_permissions')
+          .select('role, status')
+          .eq('workspace_id', document.workspace_id)
+          .eq('user_id', userId)
+          .eq('status', 'accepted')
+          .maybeSingle();
+
+        logger.debug('🏢 Workspace permissions query result', { 
+          workspaceId: document.workspace_id,
+          workspacePermissions, 
+          error: wpError?.message,
+          errorCode: wpError?.code,
+          hasWorkspaceAccess: !!workspacePermissions
+        });
+
+        if (workspacePermissions) {
+          logger.debug('✅ User has workspace permissions', { documentId, userId, role: workspacePermissions.role });
+          return { hasAccess: true, role: workspacePermissions.role };
+        }
       }
     }
+
+    // Use RPC to get document permissions which bypasses RLS
+    logger.debug('🔧 Step 3: Using RPC to get document permissions');
+    const { data: rpcPermissions, error: rpcError } = await supabaseClient
+      .rpc('get_document_permissions', { doc_id: documentId });
+
+    logger.debug('🔧 RPC permissions query result', { 
+      rpcPermissions, 
+      error: rpcError?.message,
+      errorCode: rpcError?.code,
+      permissionCount: rpcPermissions?.length || 0,
+      allPermissions: rpcPermissions?.map((p: any) => ({ 
+        user_id: p.user_id, 
+        role: p.role, 
+        status: p.status 
+      }))
+    });
+
+    if (rpcError) {
+      logger.error('❌ Error calling get_document_permissions RPC', rpcError);
+      throw rpcError;
+    }
+
+    if (!rpcPermissions || rpcPermissions.length === 0) {
+      logger.error('❌ Document not found - no permissions returned by RPC', { documentId });
+      throw new Error('Document not found');
+    }
+
+    const userPermission = rpcPermissions?.find((p: any) => p.user_id === userId && p.status === 'accepted');
+    logger.debug('🔍 Looking for user permission in RPC results', { 
+      userPermission,
+      searchingFor: { userId, status: 'accepted' }
+    });
+
+    if (userPermission) {
+      logger.debug('✅ User has permissions via RPC', { documentId, userId, role: userPermission.role });
+      return { hasAccess: true, role: userPermission.role };
+    }
+
+    // Check all workspace permissions as a final fallback
+    logger.debug('🏢 Step 4: Checking all user workspace permissions');
+    const { data: allWorkspacePermissions, error: allWpError } = await supabaseClient
+      .from('workspace_permissions')
+      .select('role, status, workspace_id')
+      .eq('user_id', userId)
+      .eq('status', 'accepted');
+
+    logger.debug('🏢 All workspace permissions query result', { 
+      allWorkspacePermissions, 
+      error: allWpError?.message,
+      errorCode: allWpError?.code,
+      workspaceCount: allWorkspacePermissions?.length || 0
+    });
+
+    if (allWpError) {
+      logger.error('❌ Error checking all workspace permissions', allWpError);
+      throw allWpError;
+    }
+
+    if (allWorkspacePermissions && allWorkspacePermissions.length > 0) {
+      logger.debug('🔍 Checking if document belongs to any user workspaces');
+      // Check if any of these workspaces contain the document
+      for (const wp of allWorkspacePermissions) {
+        logger.debug('🏢 Checking workspace', { workspaceId: wp.workspace_id, role: wp.role });
+        
+        const { data: workspaceDoc, error: wdError } = await supabaseClient
+          .from('documents')
+          .select('id')
+          .eq('id', documentId)
+          .eq('workspace_id', wp.workspace_id)
+          .maybeSingle();
+        
+        logger.debug('🏢 Workspace document check result', { 
+          workspaceId: wp.workspace_id,
+          workspaceDoc, 
+          error: wdError?.message,
+          errorCode: wdError?.code,
+          foundInWorkspace: !!workspaceDoc
+        });
+        
+        if (workspaceDoc) {
+          logger.debug('✅ User has workspace access to document', { 
+            documentId, 
+            userId, 
+            workspaceId: wp.workspace_id, 
+            role: wp.role 
+          });
+          return { hasAccess: true, role: wp.role };
+        }
+      }
+    }
+
+    logger.warn('❌ User has no access to document after all checks', { documentId, userId });
+    throw new Error('Access denied - insufficient permissions');
+
+  } catch (error) {
+    if (error.message === 'Document not found' || error.message === 'Access denied - insufficient permissions') {
+      logger.error('🚫 Permission validation failed', { documentId, userId, errorMessage: error.message });
+      throw error;
+    }
+    logger.error('💥 Unexpected error in validateDocumentAccess', error);
+    throw error;
   }
-
-  // If document wasn't found or user has no permissions, check if document exists at all
-  // Use the get_document_permissions RPC which should work regardless of RLS
-  const { data: anyPermissions, error: rpcError } = await supabaseClient
-    .rpc('get_document_permissions', { doc_id: documentId });
-
-  if (rpcError || !anyPermissions || anyPermissions.length === 0) {
-    logger.error('Document not found', { documentId, error: docError || rpcError });
-    throw new Error('Document not found');
-  }
-
-  // Document exists but user has no access
-  logger.warn('User has no access to document', { documentId, userId });
-  throw new Error('Access denied - insufficient permissions');
 }
 
 async function handleListDocumentVersions(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
