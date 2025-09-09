@@ -119,7 +119,7 @@ async function validateDocumentAccess(supabaseClient: any, documentId: string, u
   // Check if user owns the document
   const { data: document, error: docError } = await supabaseClient
     .from('documents')
-    .select('user_id, workspace_id')
+    .select('created_by, workspace_id')
     .eq('id', documentId)
     .single();
 
@@ -129,7 +129,7 @@ async function validateDocumentAccess(supabaseClient: any, documentId: string, u
   }
 
   // If user owns the document, they have owner permissions
-  if (document.user_id === userId) {
+  if (document.created_by === userId) {
     logger.debug('User is document owner', { documentId, userId });
     return { role: 'owner', hasAccess: true };
   }
