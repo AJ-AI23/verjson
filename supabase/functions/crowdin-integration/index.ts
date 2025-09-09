@@ -368,6 +368,72 @@ serve(async (req) => {
       });
     }
 
+    if (action === 'listFiles') {
+      const { projectId, branchId, directoryId } = payload;
+      
+      if (!projectId) {
+        return new Response(JSON.stringify({ error: 'Project ID is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log('📂 ListFiles action started for project:', projectId);
+      
+      try {
+        let url = `${CROWDIN_API_BASE}/projects/${projectId}/files`;
+        const params = new URLSearchParams();
+        
+        if (branchId && branchId !== '__main__') {
+          params.append('branchId', branchId);
+        }
+        if (directoryId && directoryId !== '__root__') {
+          params.append('directoryId', directoryId);
+        }
+        
+        if (params.toString()) {
+          url += `?${params.toString()}`;
+        }
+
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${apiToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ Crowdin files fetch failed:', response.status, errorText);
+          return new Response(JSON.stringify({ error: 'Failed to fetch files from Crowdin' }), {
+            status: response.status,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        const data = await response.json();
+        const files = data.data.map((item: any) => ({
+          id: item.data.id,
+          name: item.data.name,
+          path: item.data.path,
+          type: item.data.type,
+          createdAt: item.data.createdAt,
+        }));
+
+        console.log('✅ Successfully fetched files:', files.length, 'files found');
+
+        return new Response(JSON.stringify({ files }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (error) {
+        console.error('❌ Error fetching files:', error);
+        return new Response(JSON.stringify({ error: 'Failed to fetch files' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     if (action === 'export') {
       const { projectId, translationData, splitByApiPaths, branchId, folderId, documentId } = payload;
 
@@ -377,6 +443,61 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+
+      // Helper function to check if file exists
+      const checkFileExists = async (filename: string, branchId?: string, directoryId?: string) => {
+        try {
+          let url = `${CROWDIN_API_BASE}/projects/${projectId}/files`;
+          const params = new URLSearchParams();
+          
+          if (branchId && branchId !== '__main__') {
+            params.append('branchId', branchId);
+          }
+          if (directoryId && directoryId !== '__root__') {
+            params.append('directoryId', directoryId);
+          }
+          
+          if (params.toString()) {
+            url += `?${params.toString()}`;
+          }
+
+          const response = await fetch(url, {
+            headers: {
+              'Authorization': `Bearer ${apiToken}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (!response.ok) {
+            return null;
+          }
+
+          const data = await response.json();
+          const existingFile = data.data.find((item: any) => item.data.name === filename);
+          return existingFile ? existingFile.data : null;
+        } catch (error) {
+          console.error('Error checking file existence:', error);
+          return null;
+        }
+      };
+
+      // Helper function to update existing file
+      const updateExistingFile = async (fileId: string, storageId: number) => {
+        const response = await fetch(`${CROWDIN_API_BASE}/projects/${projectId}/files/${fileId}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${apiToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ storageId }),
+        });
+
+        if (response.ok) {
+          return await response.json();
+        } else {
+          throw new Error(`Failed to update file ${fileId}: ${response.status}`);
+        }
+      };
 
       try {
         if (splitByApiPaths && translationData.splitFiles) {
@@ -416,39 +537,64 @@ serve(async (req) => {
             const storageData = await storageResponse.json();
             const storageId = storageData.data.id;
 
-            // Step 2: Add file to project
-            const fileRequestBody: any = {
-              storageId: storageId,
-              name: filename,
-              type: 'json',
-            };
+            // Step 2: Check if file exists
+            const existingFile = await checkFileExists(filename, branchId, folderId);
 
-            if (branchId) {
-              fileRequestBody.branchId = parseInt(branchId);
-            }
-            if (folderId) {
-              fileRequestBody.directoryId = parseInt(folderId);
-            }
-
-            const fileResponse = await fetch(`${CROWDIN_API_BASE}/projects/${projectId}/files`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${apiToken}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(fileRequestBody),
-            });
-
-            if (fileResponse.ok) {
-              const fileData = await fileResponse.json();
-              results.push({
-                fileId: fileData.data.id,
-                fileName: fileData.data.name,
-                filename: filename
-              });
-              console.log('✅ Successfully uploaded file:', filename);
+            let fileResponse;
+            if (existingFile) {
+              // Update existing file
+              console.log('📝 Updating existing file:', filename);
+              try {
+                const updateData = await updateExistingFile(existingFile.id, storageId);
+                results.push({
+                  fileId: updateData.data.id,
+                  fileName: updateData.data.name,
+                  filename: filename,
+                  action: 'updated'
+                });
+                console.log('✅ Successfully updated file:', filename);
+                continue;
+              } catch (updateError) {
+                console.error('❌ File update failed for:', filename, updateError);
+                continue;
+              }
             } else {
-              console.error('❌ File creation failed for:', filename, fileResponse.status);
+              // Create new file
+              console.log('➕ Creating new file:', filename);
+              const fileRequestBody: any = {
+                storageId: storageId,
+                name: filename,
+                type: 'json',
+              };
+
+              if (branchId && branchId !== '__main__') {
+                fileRequestBody.branchId = parseInt(branchId);
+              }
+              if (folderId && folderId !== '__root__') {
+                fileRequestBody.directoryId = parseInt(folderId);
+              }
+
+              fileResponse = await fetch(`${CROWDIN_API_BASE}/projects/${projectId}/files`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${apiToken}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(fileRequestBody),
+              });
+
+              if (fileResponse.ok) {
+                const fileData = await fileResponse.json();
+                results.push({
+                  fileId: fileData.data.id,
+                  fileName: fileData.data.name,
+                  filename: filename,
+                  action: 'created'
+                });
+                console.log('✅ Successfully created file:', filename);
+              } else {
+                console.error('❌ File creation failed for:', filename, fileResponse.status);
+              }
             }
           }
 
@@ -604,7 +750,7 @@ serve(async (req) => {
             try {
               const updateData = {
                 crowdin_project_id: projectId,
-                crowdin_file_id: fileData.data.id,
+                crowdin_file_id: finalResult.fileId,
                 crowdin_filename: filename,
                 crowdin_split_by_paths: false,
               };
@@ -629,9 +775,9 @@ serve(async (req) => {
 
           return new Response(JSON.stringify({
             success: true,
-            fileId: fileData.data.id,
-            fileName: fileData.data.name,
-            message: 'File uploaded successfully to Crowdin',
+            fileId: finalResult.fileId,
+            fileName: finalResult.fileName,
+            message: `File ${finalResult.action} successfully in Crowdin`,
             databaseUpdate: databaseUpdateResult
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },

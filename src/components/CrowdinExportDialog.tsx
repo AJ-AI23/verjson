@@ -13,6 +13,7 @@ import { Loader2, Upload, CheckCircle, AlertCircle, ExternalLink, ChevronDown, F
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { previewExportFiles, splitTranslationDataByApiPaths, generateSplitFilenames, type ExportPreviewFile } from '@/lib/translationUtils';
+import { CrowdinExportPreviewDialog } from '@/components/CrowdinExportPreviewDialog';
 
 interface CrowdinProject {
   id: number;
@@ -72,6 +73,8 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
   const [hasExistingToken, setHasExistingToken] = useState(false);
   const [splitByApiPaths, setSplitByApiPaths] = useState(false);
   const [previewFiles, setPreviewFiles] = useState<ExportPreviewFile[]>([]);
+  const [showExportPreview, setShowExportPreview] = useState(false);
+  const [fileStatuses, setFileStatuses] = useState<any[]>([]);
 
   // Check for existing API token when dialog opens
   useEffect(() => {
@@ -325,6 +328,75 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       setIsExporting(true);
       setError('');
 
+      // First, check file existence to show preview
+      await checkFileExistenceAndShowPreview();
+      
+    } catch (err) {
+      console.error('Error checking files:', err);
+      setError('Failed to check file existence');
+      setIsExporting(false);
+    }
+  };
+
+  const checkFileExistenceAndShowPreview = async () => {
+    try {
+      // Get list of existing files
+      const { data: filesData, error: filesError } = await supabase.functions.invoke('crowdin-integration', {
+        body: {
+          action: 'listFiles',
+          projectId: selectedProjectId,
+          workspaceId,
+          ...(selectedBranchId && selectedBranchId !== '__main__' && { branchId: selectedBranchId }),
+          ...(selectedFolderId && selectedFolderId !== '__root__' && { directoryId: selectedFolderId }),
+        }
+      });
+
+      if (filesError || filesData.error) {
+        console.error('Error fetching files:', filesError || filesData.error);
+        // If we can't fetch files, proceed with export anyway
+        await performExport();
+        return;
+      }
+
+      const existingFiles = filesData.files || [];
+      const existingFileNames = new Set(existingFiles.map((f: any) => f.name));
+
+      // Determine which files will be created/updated
+      let filesToExport: string[] = [];
+      if (splitByApiPaths) {
+        const splitData = splitTranslationDataByApiPaths(translationData);
+        const filenames = generateSplitFilenames(filename.trim(), Object.keys(splitData));
+        filesToExport = Object.values(filenames);
+      } else {
+        filesToExport = [filename.trim()];
+      }
+
+      const fileStatuses = filesToExport.map(fname => {
+        const exists = existingFileNames.has(fname);
+        return {
+          filename: fname,
+          exists,
+          action: exists ? 'update' : 'create',
+          existingFileId: exists ? existingFiles.find((f: any) => f.name === fname)?.id : undefined
+        };
+      });
+
+      setFileStatuses(fileStatuses);
+      setShowExportPreview(true);
+      setIsExporting(false);
+
+    } catch (err) {
+      console.error('Error checking file existence:', err);
+      // If file check fails, proceed with export
+      await performExport();
+    }
+  };
+
+  const performExport = async () => {
+    try {
+      setIsExporting(true);
+      setError('');
+
       // Prepare export data
       let exportData;
       if (splitByApiPaths) {
@@ -375,6 +447,8 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       }
 
       setExportSuccess(true);
+      setShowExportPreview(false);
+      
       if (splitByApiPaths) {
         toast.success(`Successfully exported ${previewFiles.length} files to Crowdin`);
       } else {
@@ -386,6 +460,16 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const handleConfirmExport = () => {
+    setShowExportPreview(false);
+    performExport();
+  };
+
+  const handleCancelExport = () => {
+    setShowExportPreview(false);
+    setIsExporting(false);
   };
 
   const handleUseNewToken = () => {
@@ -414,6 +498,8 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
     setHasExistingToken(false);
     setSplitByApiPaths(false);
     setPreviewFiles([]);
+    setShowExportPreview(false);
+    setFileStatuses([]);
   };
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -426,7 +512,19 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <>
+      <CrowdinExportPreviewDialog
+        open={showExportPreview}
+        onOpenChange={setShowExportPreview}
+        fileStatuses={fileStatuses}
+        onConfirmExport={handleConfirmExport}
+        onCancel={handleCancelExport}
+        projectName={projects.find(p => p.id.toString() === selectedProjectId)?.name || 'Unknown Project'}
+        branchName={selectedBranchId !== '__main__' ? branches.find(b => b.id.toString() === selectedBranchId)?.name : undefined}
+        folderName={selectedFolderId !== '__root__' ? folders.find(f => f.id.toString() === selectedFolderId)?.name : undefined}
+      />
+      
+      <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
@@ -763,6 +861,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
           </div>
         </div>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+    </>
   );
 };

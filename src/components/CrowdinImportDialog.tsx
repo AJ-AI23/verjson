@@ -7,6 +7,7 @@ import { Loader2, Download, CheckCircle, AlertCircle, FileText } from 'lucide-re
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { ImportVersionConflictPreview } from '@/components/ImportVersionConflictPreview';
+import { CrowdinFileValidationDialog } from '@/components/CrowdinFileValidationDialog';
 import { compareDocumentVersionsPartial } from '@/lib/importVersionUtils';
 
 interface CrowdinImportDialogProps {
@@ -37,10 +38,11 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
   const [importedContent, setImportedContent] = useState<any>(null);
   const [comparison, setComparison] = useState<any>(null);
   const [error, setError] = useState<string>('');
-  const [step, setStep] = useState<'import' | 'preview'>('import');
+  const [step, setStep] = useState<'import' | 'validation' | 'preview'>('import');
+  const [fileValidation, setFileValidation] = useState<any>(null);
 
   const handleImport = async () => {
-    if (!document.crowdin_file_id) {
+    if (!document.crowdin_file_id && (!document.crowdin_file_ids || document.crowdin_file_ids.length === 0)) {
       setError('No Crowdin file ID found for this document');
       return;
     }
@@ -70,35 +72,63 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
         return;
       }
 
-      let finalContent: any;
-      
-      if (data.isMultiFile) {
-        // Merge multiple files back into original document structure
-        const { mergeTranslationFiles, applyTranslationsToDocument } = await import('@/lib/translationUtils');
-        const mergedTranslations = mergeTranslationFiles(data.content);
-        finalContent = applyTranslationsToDocument(document.content, mergedTranslations);
-      } else {
-        finalContent = data.content;
+      // Check if this is a partial import (some files missing)
+      if (data.fileValidation && data.partialImport) {
+        setFileValidation(data);
+        setStep('validation');
+        return;
       }
 
-      setImportedContent(finalContent);
+      // Process the import data
+      await processImportData(data);
       
-      // Compare current document content with imported content using partial comparison for Crowdin
-      const comparisonResult = compareDocumentVersionsPartial(
-        document.content,
-        finalContent
-      );
-      
-      setComparison(comparisonResult);
-      setStep('preview');
-      
-      toast.success('Successfully imported from Crowdin');
     } catch (err) {
       console.error('Error importing from Crowdin:', err);
       setError('Failed to import from Crowdin');
     } finally {
       setIsImporting(false);
     }
+  };
+
+  const processImportData = async (data: any) => {
+    let finalContent: any;
+    
+    if (data.isMultiFile) {
+      // Merge multiple files back into original document structure
+      const { mergeTranslationFiles, applyTranslationsToDocument } = await import('@/lib/translationUtils');
+      const mergedTranslations = mergeTranslationFiles(data.content);
+      finalContent = applyTranslationsToDocument(document.content, mergedTranslations);
+    } else {
+      finalContent = data.content;
+    }
+
+    setImportedContent(finalContent);
+    
+    // Compare current document content with imported content using partial comparison for Crowdin
+    const comparisonResult = compareDocumentVersionsPartial(
+      document.content,
+      finalContent
+    );
+    
+    setComparison(comparisonResult);
+    setStep('preview');
+    
+    toast.success('Successfully imported from Crowdin');
+  };
+
+  const handleContinuePartialImport = async () => {
+    if (fileValidation) {
+      // Process the partial import data
+      await processImportData(fileValidation);
+      if (fileValidation.missingFiles > 0) {
+        toast.success(`Imported ${fileValidation.availableFiles} of ${fileValidation.availableFiles + fileValidation.missingFiles} files from Crowdin`);
+      }
+    }
+  };
+
+  const handleCancelValidation = () => {
+    setStep('import');
+    setFileValidation(null);
   };
 
   const handleConfirmImport = () => {
@@ -114,14 +144,20 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
     setStep('import');
     setImportedContent(null);
     setComparison(null);
+    setFileValidation(null);
     setError('');
     onOpenChange(false);
   };
 
   const handleBack = () => {
-    setStep('import');
-    setImportedContent(null);
-    setComparison(null);
+    if (step === 'validation') {
+      setStep('import');
+      setFileValidation(null);
+    } else {
+      setStep('import');
+      setImportedContent(null);
+      setComparison(null);
+    }
     setError('');
   };
 
@@ -136,6 +172,19 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden">
+          {step === 'validation' && fileValidation && (
+            <CrowdinFileValidationDialog
+              open={true}
+              onOpenChange={() => {}}
+              fileValidation={fileValidation.fileValidation || []}
+              availableFiles={fileValidation.availableFiles || 0}
+              missingFiles={fileValidation.missingFiles || 0}
+              onContinuePartial={handleContinuePartialImport}
+              onCancel={handleCancelValidation}
+              documentName={document.name}
+            />
+          )}
+
           {step === 'import' && (
             <div className="space-y-6 p-1">
               {/* Document Info */}
@@ -192,13 +241,13 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
                   
                   <Button
                     onClick={handleImport}
-                    disabled={isImporting || !document.crowdin_file_id}
+                    disabled={isImporting || (!document.crowdin_file_id && (!document.crowdin_file_ids || document.crowdin_file_ids.length === 0))}
                     className="w-full"
                   >
                     {isImporting ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Importing from Crowdin...
+                        Validating & Importing from Crowdin...
                       </>
                     ) : (
                       <>
@@ -208,7 +257,7 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
                     )}
                   </Button>
                   
-                  {!document.crowdin_file_id && (
+                  {!document.crowdin_file_id && (!document.crowdin_file_ids || document.crowdin_file_ids.length === 0) && (
                     <p className="text-xs text-muted-foreground mt-2">
                       This document has not been exported to Crowdin yet.
                     </p>
