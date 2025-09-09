@@ -98,10 +98,18 @@ export function useInvitations() {
       }
 
       toast.success(result.message);
-      // Trigger refresh events
+      
+      // Trigger appropriate refresh events based on invitation type
+      console.log('[useInvitations] Invitation accepted, triggering refreshes for type:', invitation.type);
       if (invitation.type === 'workspace') {
+        // Trigger workspace refresh for workspace invitation acceptance
+        window.dispatchEvent(new CustomEvent('workspaceUpdated'));
+      } else if (invitation.type === 'document') {
+        // For document invitations, trigger both workspace and shared documents refresh
+        // as it might affect the "Shared with me" workspace
         window.dispatchEvent(new CustomEvent('workspaceUpdated'));
       }
+      
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to accept invitation';

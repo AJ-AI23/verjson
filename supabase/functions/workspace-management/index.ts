@@ -247,6 +247,33 @@ const handler = async (req: Request): Promise<Response> => {
           });
         }
         
+        // Get workspace info and members before deletion
+        logger.logDatabaseQuery('workspaces', 'SELECT workspace info', { id: requestBody.id });
+        const { data: workspaceInfo, error: workspaceError } = await supabaseClient
+          .from('workspaces')
+          .select('name')
+          .eq('id', requestBody.id)
+          .eq('user_id', user.id)
+          .single();
+
+        if (workspaceError || !workspaceInfo) {
+          logger.error('Workspace not found or not owned by user', workspaceError);
+          return new Response(JSON.stringify({ error: 'Workspace not found or not authorized' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Get all workspace members to notify them
+        logger.logDatabaseQuery('workspace_permissions', 'SELECT members', { workspaceId: requestBody.id });
+        const { data: members, error: membersError } = await supabaseClient
+          .from('workspace_permissions')
+          .select('user_id')
+          .eq('workspace_id', requestBody.id)
+          .eq('status', 'accepted');
+
+        logger.logDatabaseResult('workspace_permissions', 'SELECT members', members?.length, membersError);
+        
         logger.logDatabaseQuery('workspaces', 'DELETE', { id: requestBody.id, userId: user.id });
         const { error: deleteError } = await supabaseClient
           .from('workspaces')
@@ -262,6 +289,38 @@ const handler = async (req: Request): Promise<Response> => {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
+        }
+
+        // Send notifications to all workspace members about deletion
+        if (members && members.length > 0) {
+          const notificationTitle = `Workspace "${workspaceInfo.name}" was deleted`;
+          const notificationMessage = `The workspace "${workspaceInfo.name}" has been deleted by its owner.`;
+
+          for (const member of members) {
+            if (member.user_id !== user.id) { // Don't notify the owner who deleted it
+              try {
+                logger.logDatabaseQuery('notifications', 'INSERT deletion notification', { userId: member.user_id });
+                await supabaseClient
+                  .from('notifications')
+                  .insert({
+                    user_id: member.user_id,
+                    workspace_id: requestBody.id,
+                    type: 'workspace_deleted',
+                    title: notificationTitle,
+                    message: notificationMessage
+                  });
+                logger.info('Sent workspace deletion notification', { 
+                  workspaceId: requestBody.id, 
+                  userId: member.user_id 
+                });
+              } catch (notificationError) {
+                logger.warn('Failed to send deletion notification to user', { 
+                  userId: member.user_id, 
+                  error: notificationError 
+                });
+              }
+            }
+          }
         }
 
         logger.info('Workspace deleted successfully', { workspaceId: requestBody.id });

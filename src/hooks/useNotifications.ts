@@ -196,37 +196,56 @@ export const useNotifications = () => {
 
   // Handle notification type-based updates
   const handleNotificationTypeUpdate = useCallback((notification: Notification) => {
+    console.log('[useNotifications] Processing notification type:', notification.type, notification);
+    
     switch (notification.type) {
       case 'invitation':
-        // Trigger invitation refresh AND workspace refresh (for when invitations are accepted)
+        // Only trigger invitation refresh, NOT workspace refresh
+        // Workspace refresh happens when invitation is accepted, not received
+        console.log('[useNotifications] Invitation notification received, refreshing invitations only');
         if (globalInvitationUpdateHandler) {
           globalInvitationUpdateHandler();
         }
-        if (globalWorkspaceUpdateHandler) {
-          globalWorkspaceUpdateHandler();
-        }
         break;
+        
       case 'workspace_member_added':
       case 'workspace_updated':
       case 'workspace_member_removed':
         // Trigger workspace refresh
+        console.log('[useNotifications] Workspace change notification, refreshing workspaces');
         if (globalWorkspaceUpdateHandler) {
           globalWorkspaceUpdateHandler();
         }
         break;
-      case 'document_shared':
-      case 'document_updated':
-        // Could trigger document refresh in the future
-        break;
-      case 'document_deleted':
-        // Trigger both workspace and shared documents refresh for document deletion
+        
+      case 'workspace_deleted':
+        // Trigger both workspace and shared documents refresh for workspace deletion
+        console.log('[useNotifications] Workspace deleted notification, refreshing workspaces and shared documents');
         if (globalWorkspaceUpdateHandler) {
           globalWorkspaceUpdateHandler();
         }
         if (globalSharedDocumentsUpdateHandler) {
           globalSharedDocumentsUpdateHandler();
         }
+        toast.error(notification.title, {
+          description: notification.message,
+        });
         break;
+        
+      case 'document_deleted':
+        // Trigger both workspace and shared documents refresh for document deletion
+        console.log('[useNotifications] Document deleted notification, refreshing workspaces and shared documents');
+        if (globalWorkspaceUpdateHandler) {
+          globalWorkspaceUpdateHandler();
+        }
+        if (globalSharedDocumentsUpdateHandler) {
+          globalSharedDocumentsUpdateHandler();
+        }
+        toast.info(notification.title, {
+          description: notification.message,
+        });
+        break;
+        
       case 'document_access_revoked':
       case 'workspace_access_revoked':
         // Trigger both workspace and shared documents refresh when access changes
@@ -240,19 +259,23 @@ export const useNotifications = () => {
         if (globalSharedDocumentsUpdateHandler) {
           globalSharedDocumentsUpdateHandler();
         }
-        // Show toast for access revocation
-        if (notification.type === 'document_access_revoked' || notification.type === 'workspace_access_revoked') {
-          toast.error(notification.title, {
-            description: notification.message,
-          });
-        } else if (notification.type === 'document_deleted') {
-          toast.info(notification.title, {
-            description: notification.message,
-          });
+        toast.error(notification.title, {
+          description: notification.message,
+        });
+        break;
+        
+      case 'document_shared':
+      case 'document_updated':
+        // Trigger shared documents refresh for document permission changes
+        console.log('[useNotifications] Document shared/updated notification, refreshing shared documents');
+        if (globalSharedDocumentsUpdateHandler) {
+          globalSharedDocumentsUpdateHandler();
         }
         break;
+        
       default:
         // Generic notification, no special handling needed
+        console.log('[useNotifications] Unknown notification type, no special handling:', notification.type);
         break;
     }
   }, []);
