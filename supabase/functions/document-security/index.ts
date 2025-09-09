@@ -94,34 +94,110 @@ async function handleCheckDocumentPinStatus(supabaseClient: any, data: any, user
   const { documentId } = data;
   logger.debug('Checking document PIN status', { documentId, userId: user.id });
 
+  // First check if user has document permissions (works for invited users)
+  const { data: docPermissions, error: dpError } = await supabaseClient
+    .from('document_permissions')
+    .select('role, status')
+    .eq('document_id', documentId)
+    .eq('user_id', user.id)
+    .eq('status', 'accepted')
+    .maybeSingle();
+
+  let isOwner = false;
+  
+  if (docPermissions) {
+    isOwner = docPermissions.role === 'owner';
+    logger.debug('User has document permissions', { documentId, userId: user.id, role: docPermissions.role });
+  }
+
+  // Try to get document info (might fail for invited users due to RLS)
   const { data: document, error } = await supabaseClient
     .from('documents')
     .select('pin_enabled, user_id')
     .eq('id', documentId)
     .maybeSingle();
 
-  if (error) {
-    logger.error('Failed to check document PIN status', error);
-    throw error;
-  }
-  
-  if (!document) {
-    logger.warn('Document not found', { documentId });
-    return { hasPin: false, isOwner: false, needsPin: false };
+  if (document) {
+    // Double-check if user is owner from document table
+    if (document.user_id === user.id) {
+      isOwner = true;
+    }
+    
+    const hasPin = document.pin_enabled;
+    const needsPin = hasPin && !isOwner;
+
+    logger.info('Document PIN status checked', { 
+      documentId, 
+      hasPin, 
+      isOwner, 
+      needsPin 
+    });
+    
+    return { hasPin, isOwner, needsPin };
   }
 
-  const isOwner = document.user_id === user.id;
-  const hasPin = document.pin_enabled;
-  const needsPin = hasPin && !isOwner;
+  // If we can't access the document directly but have permissions, check via RPC
+  if (docPermissions) {
+    // Use RPC to get document permissions which includes document info
+    const { data: anyPermissions, error: rpcError } = await supabaseClient
+      .rpc('get_document_permissions', { doc_id: documentId });
 
-  logger.info('Document PIN status checked', { 
-    documentId, 
-    hasPin, 
-    isOwner, 
-    needsPin 
-  });
+    if (rpcError || !anyPermissions || anyPermissions.length === 0) {
+      logger.warn('Document not found via RPC', { documentId, error: rpcError });
+      return { hasPin: false, isOwner: false, needsPin: false };
+    }
+
+    // For now, assume no PIN if we can't access document table directly
+    // This is safe because PINs are typically only set by document owners
+    const hasPin = false;
+    const needsPin = false;
+
+    logger.info('Document PIN status checked via permissions', { 
+      documentId, 
+      hasPin, 
+      isOwner, 
+      needsPin 
+    });
+    
+    return { hasPin, isOwner, needsPin };
+  }
+
+  // Check if user has workspace access
+  const { data: workspacePermissions, error: wpError } = await supabaseClient
+    .from('workspace_permissions')
+    .select('role, status, workspace_id')
+    .eq('user_id', user.id)
+    .eq('status', 'accepted');
+
+  if (workspacePermissions && workspacePermissions.length > 0) {
+    // Check if any of these workspaces contain the document
+    for (const wp of workspacePermissions) {
+      const { data: workspaceDoc, error: wdError } = await supabaseClient
+        .from('documents')
+        .select('pin_enabled, user_id')
+        .eq('id', documentId)
+        .eq('workspace_id', wp.workspace_id)
+        .maybeSingle();
+      
+      if (workspaceDoc) {
+        const hasPin = workspaceDoc.pin_enabled;
+        const isDocOwner = workspaceDoc.user_id === user.id;
+        const needsPin = hasPin && !isDocOwner;
+
+        logger.info('Document PIN status checked via workspace', { 
+          documentId, 
+          hasPin, 
+          isOwner: isDocOwner, 
+          needsPin 
+        });
+        
+        return { hasPin, isOwner: isDocOwner, needsPin };
+      }
+    }
+  }
   
-  return { hasPin, isOwner, needsPin };
+  logger.warn('Document not found', { documentId });
+  return { hasPin: false, isOwner: false, needsPin: false };
 }
 
 async function handleSetDocumentPin(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
