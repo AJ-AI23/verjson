@@ -17,13 +17,15 @@ interface CrowdinImportDialogProps {
     id: string;
     name: string;
     content: any;
-    crowdin_file_id?: string;
-    crowdin_file_ids?: string[];
-    crowdin_project_id?: string;
-    crowdin_filename?: string;
-    crowdin_filenames?: string[];
-    crowdin_split_by_paths?: boolean;
     workspace_id: string;
+  };
+  crowdinIntegration?: {
+    project_id?: string;
+    file_id?: string;
+    file_ids?: string[];
+    filename?: string;
+    filenames?: string[];
+    split_by_paths?: boolean;
   };
   onImportConfirm: (importedSchema: any, comparison: any, sourceDocumentName: string) => void;
 }
@@ -32,6 +34,7 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
   open,
   onOpenChange,
   document,
+  crowdinIntegration,
   onImportConfirm,
 }) => {
   const [isImporting, setIsImporting] = useState(false);
@@ -42,7 +45,7 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
   const [fileValidation, setFileValidation] = useState<any>(null);
 
   const handleImport = async () => {
-    if (!document.crowdin_file_id && (!document.crowdin_file_ids || document.crowdin_file_ids.length === 0)) {
+    if (!crowdinIntegration?.file_id && (!crowdinIntegration?.file_ids || crowdinIntegration.file_ids.length === 0)) {
       setError('No Crowdin file ID found for this document');
       return;
     }
@@ -52,16 +55,16 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
       setError('');
 
       // Support both single file and multiple files
-      const hasMultipleFiles = document.crowdin_file_ids && Array.isArray(document.crowdin_file_ids);
+      const hasMultipleFiles = crowdinIntegration?.file_ids && Array.isArray(crowdinIntegration.file_ids);
       
       const { data, error } = await supabase.functions.invoke('crowdin-integration', {
         body: {
           action: 'import',
           ...(hasMultipleFiles 
-            ? { fileIds: document.crowdin_file_ids }
-            : { fileId: document.crowdin_file_id }
+            ? { fileIds: crowdinIntegration.file_ids }
+            : { fileId: crowdinIntegration.file_id }
           ),
-          projectId: document.crowdin_project_id,
+          projectId: crowdinIntegration.project_id,
           documentId: document.id,
           workspaceId: document.workspace_id,
         }
@@ -135,7 +138,7 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
     if (comparison) {
       // Use the mergedSchema if available (for partial imports) or fall back to importedContent
       const finalSchema = comparison.mergedSchema || importedContent;
-      onImportConfirm(finalSchema, comparison, `Crowdin: ${document.crowdin_filename || 'Unknown'}`);
+      onImportConfirm(finalSchema, comparison, `Crowdin: ${crowdinIntegration?.filename || 'Unknown'}`);
       handleClose();
     }
   };
@@ -202,18 +205,31 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
                       <p className="text-muted-foreground">{document.name}</p>
                     </div>
                     <div>
-                      <span className="font-medium">Crowdin File:</span>
-                      <p className="text-muted-foreground">
-                        {document.crowdin_filename || 'Unknown filename'}
-                      </p>
+                      <span className="font-medium">Crowdin Files:</span>
+                      <div className="text-muted-foreground">
+                        {crowdinIntegration?.filenames && Array.isArray(crowdinIntegration.filenames) ? (
+                          <div className="space-y-1">
+                            <p className="text-sm">
+                              {crowdinIntegration.filenames.length} files will be imported:
+                            </p>
+                            <ul className="text-xs space-y-1 max-h-16 overflow-y-auto">
+                              {crowdinIntegration.filenames.map((filename, index) => (
+                                <li key={index} className="truncate">• {filename}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : (
+                          <p>{crowdinIntegration?.filename || 'Unknown filename'}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                   
-                  {document.crowdin_project_id && (
+                  {crowdinIntegration?.project_id && (
                     <div className="text-sm">
                       <span className="font-medium">Project ID:</span>
                       <span className="text-muted-foreground ml-2">
-                        {document.crowdin_project_id}
+                        {crowdinIntegration.project_id}
                       </span>
                     </div>
                   )}
@@ -241,7 +257,7 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
                   
                   <Button
                     onClick={handleImport}
-                    disabled={isImporting || (!document.crowdin_file_id && (!document.crowdin_file_ids || document.crowdin_file_ids.length === 0))}
+                    disabled={isImporting || (!crowdinIntegration?.file_id && (!crowdinIntegration?.file_ids || crowdinIntegration.file_ids.length === 0))}
                     className="w-full"
                   >
                     {isImporting ? (
@@ -257,7 +273,7 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
                     )}
                   </Button>
                   
-                  {!document.crowdin_file_id && (!document.crowdin_file_ids || document.crowdin_file_ids.length === 0) && (
+                  {!crowdinIntegration?.file_id && (!crowdinIntegration?.file_ids || crowdinIntegration.file_ids.length === 0) && (
                     <p className="text-xs text-muted-foreground mt-2">
                       This document has not been exported to Crowdin yet.
                     </p>
@@ -283,7 +299,7 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
                   currentSchema={document.content}
                   importSchema={comparison.mergedSchema || importedContent}
                   comparison={comparison}
-                  sourceDocumentName={`Crowdin: ${document.crowdin_filename || 'Unknown'}`}
+                  sourceDocumentName={`Crowdin: ${crowdinIntegration?.filename || 'Unknown'}`}
                 />
               </div>
 

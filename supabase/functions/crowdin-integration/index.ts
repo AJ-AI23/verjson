@@ -1021,26 +1021,38 @@ serve(async (req) => {
       console.log('📋 Checking import availability for document:', documentId);
 
       try {
-        // Query the document from database to get Crowdin file information
+        // Query the document and its Crowdin integration
         const { data: document, error: documentError } = await supabaseClient
           .from('documents')
-          .select('crowdin_file_id, crowdin_file_ids, crowdin_filename, crowdin_filenames')
+          .select(`
+            id,
+            crowdin_integration_id,
+            document_crowdin_integrations!inner (
+              file_id,
+              file_ids,
+              filename,
+              filenames,
+              project_id
+            )
+          `)
           .eq('id', documentId)
           .single();
 
         if (documentError || !document) {
-          console.log('❌ Document not found:', documentId);
+          console.log('❌ Document not found or no Crowdin integration:', documentId);
           return new Response(JSON.stringify({ 
             available: false, 
-            reason: 'Document not found' 
+            reason: 'Document not found or no Crowdin integration' 
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
+        const integration = document.document_crowdin_integrations;
+        
         // Check if document has Crowdin file references
-        const hasSingleFile = !!document.crowdin_file_id;
-        const hasMultipleFiles = document.crowdin_file_ids && Array.isArray(document.crowdin_file_ids) && document.crowdin_file_ids.length > 0;
+        const hasSingleFile = !!integration.file_id;
+        const hasMultipleFiles = integration.file_ids && Array.isArray(integration.file_ids) && integration.file_ids.length > 0;
 
         if (!hasSingleFile && !hasMultipleFiles) {
           console.log('❌ No Crowdin file references found for document:', documentId);
@@ -1061,7 +1073,7 @@ serve(async (req) => {
           fileCount = 1;
         } else {
           fileType = 'multiple';
-          fileCount = document.crowdin_file_ids.length;
+          fileCount = integration.file_ids.length;
         }
 
         console.log('✅ Import available for document:', documentId, 'Type:', fileType, 'Count:', fileCount);
@@ -1069,7 +1081,14 @@ serve(async (req) => {
         return new Response(JSON.stringify({ 
           available: true,
           fileType,
-          fileCount
+          fileCount,
+          integration: {
+            file_id: integration.file_id,
+            file_ids: integration.file_ids,
+            filename: integration.filename,
+            filenames: integration.filenames,
+            project_id: integration.project_id
+          }
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });

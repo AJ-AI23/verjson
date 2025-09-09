@@ -39,8 +39,18 @@ export const QADialog: React.FC<QADialogProps> = ({
   const [filterValue, setFilterValue] = useState('');
   const [crowdinDialogOpen, setCrowdinDialogOpen] = useState(false);
   const [crowdinImportDialogOpen, setCrowdinImportDialogOpen] = useState(false);
-  const [importAvailable, setImportAvailable] = useState<boolean | null>(null);
-  const [importAvailabilityLoading, setImportAvailabilityLoading] = useState(false);
+  const [importAvailable, setImportAvailable] = useState(false);
+  const [crowdinIntegration, setCrowdinIntegration] = useState<any>(null);
+
+  // Check if Crowdin import is available based on crowdin_integration_id
+  useEffect(() => {
+    const hasIntegration = selectedDocument?.crowdin_integration_id;
+    setImportAvailable(!!hasIntegration);
+    
+    if (hasIntegration) {
+      setCrowdinIntegration(selectedDocument.crowdin_integration);
+    }
+  }, [selectedDocument?.crowdin_integration_id, selectedDocument?.crowdin_integration]);
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [isRunningConsistencyCheck, setIsRunningConsistencyCheck] = useState(false);
   const [consistencyRefreshKey, setConsistencyRefreshKey] = useState(0);
@@ -57,42 +67,6 @@ export const QADialog: React.FC<QADialogProps> = ({
     console.log('Configuration changed, forcing consistency refresh:', consistencyConfig);
     setConsistencyRefreshKey(prev => prev + 1);
   }, [consistencyConfig]);
-
-  // Function to check import availability using edge function
-  const checkImportAvailability = async (documentId: string, workspaceId: string) => {
-    setImportAvailabilityLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('crowdin-integration', {
-        body: {
-          action: 'checkImportAvailability',
-          documentId,
-          workspaceId
-        }
-      });
-
-      if (error) {
-        console.error('Error checking import availability:', error);
-        setImportAvailable(false);
-        return;
-      }
-
-      setImportAvailable(data.available);
-    } catch (error) {
-      console.error('Error checking import availability:', error);
-      setImportAvailable(false);
-    } finally {
-      setImportAvailabilityLoading(false);
-    }
-  };
-
-  // Check import availability when dialog opens or document changes
-  useEffect(() => {
-    if (open && selectedDocument?.id && selectedWorkspace?.id) {
-      checkImportAvailability(selectedDocument.id, selectedWorkspace.id);
-    } else {
-      setImportAvailable(null);
-    }
-  }, [open, selectedDocument?.id, selectedWorkspace?.id]);
 
   const translationData = useMemo(() => {
     console.log('=== QADialog - Recalculating translation data ===');
@@ -453,22 +427,22 @@ export const QADialog: React.FC<QADialogProps> = ({
                        <span className="sm:hidden">Export</span>
                      </Button>
                      
-                       {/* Crowdin Import Button - Show if import is available */}
-                       {importAvailable && (
-                         <Button 
-                           size="sm" 
-                           variant="outline" 
-                           onClick={() => setCrowdinImportDialogOpen(true)}
-                           className="gap-2"
-                           disabled={!selectedWorkspace || importAvailabilityLoading}
-                         >
-                           <Download className="h-4 w-4" />
-                           <span className="hidden sm:inline">
-                             {importAvailabilityLoading ? 'Checking...' : 'Crowdin Import'}
-                           </span>
-                           <span className="sm:hidden">Import</span>
-                         </Button>
-                       )}
+                        {/* Crowdin Import Button - Show if import is available */}
+                        {importAvailable && (
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => setCrowdinImportDialogOpen(true)}
+                            className="gap-2"
+                            disabled={!selectedWorkspace}
+                          >
+                            <Download className="h-4 w-4" />
+                            <span className="hidden sm:inline">
+                              Crowdin Import
+                            </span>
+                            <span className="sm:hidden">Import</span>
+                          </Button>
+                        )}
                  </div>
               </CardContent>
             </Card>
@@ -990,6 +964,7 @@ export const QADialog: React.FC<QADialogProps> = ({
                 open={crowdinImportDialogOpen}
                 onOpenChange={setCrowdinImportDialogOpen}
                 document={selectedDocument}
+                crowdinIntegration={crowdinIntegration}
                 onImportConfirm={(importedSchema: any, comparison: any, sourceDocumentName: string) => {
                   // Handle the import confirmation if needed
                   console.log('Import confirmed:', { importedSchema, comparison, sourceDocumentName });

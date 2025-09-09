@@ -10,6 +10,19 @@ export interface Workspace {
   collaboratorCount?: number;
 }
 
+export interface CrowdinIntegration {
+  id: string;
+  document_id: string;
+  project_id?: string;
+  file_id?: string;
+  file_ids?: string[];
+  filename?: string;
+  filenames?: string[];
+  split_by_paths?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Document {
   id: string;
   workspace_id: string;
@@ -19,12 +32,8 @@ export interface Document {
   file_type: 'json-schema' | 'openapi';
   pin_code?: string;
   pin_enabled: boolean;
-  crowdin_file_id?: string;
-  crowdin_file_ids?: string[];
-  crowdin_project_id?: string;
-  crowdin_filename?: string;
-  crowdin_filenames?: string[];
-  crowdin_split_by_paths?: boolean;
+  crowdin_integration_id?: string;
+  crowdin_integration?: CrowdinIntegration;
   created_at: string;
   updated_at: string;
 }

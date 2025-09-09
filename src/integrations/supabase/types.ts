@@ -104,6 +104,53 @@ export type Database = {
           },
         ]
       }
+      document_crowdin_integrations: {
+        Row: {
+          created_at: string
+          document_id: string
+          file_id: string | null
+          file_ids: Json | null
+          filename: string | null
+          filenames: Json | null
+          id: string
+          project_id: string | null
+          split_by_paths: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          file_id?: string | null
+          file_ids?: Json | null
+          filename?: string | null
+          filenames?: Json | null
+          id?: string
+          project_id?: string | null
+          split_by_paths?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          file_id?: string | null
+          file_ids?: Json | null
+          filename?: string | null
+          filenames?: Json | null
+          id?: string
+          project_id?: string | null
+          split_by_paths?: boolean | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_document_crowdin_integrations_document_id"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_permissions: {
         Row: {
           created_at: string
@@ -226,6 +273,7 @@ export type Database = {
           crowdin_file_ids: Json | null
           crowdin_filename: string | null
           crowdin_filenames: Json | null
+          crowdin_integration_id: string | null
           crowdin_project_id: string | null
           crowdin_split_by_paths: boolean | null
           file_type: string
@@ -244,6 +292,7 @@ export type Database = {
           crowdin_file_ids?: Json | null
           crowdin_filename?: string | null
           crowdin_filenames?: Json | null
+          crowdin_integration_id?: string | null
           crowdin_project_id?: string | null
           crowdin_split_by_paths?: boolean | null
           file_type?: string
@@ -262,6 +311,7 @@ export type Database = {
           crowdin_file_ids?: Json | null
           crowdin_filename?: string | null
           crowdin_filenames?: Json | null
+          crowdin_integration_id?: string | null
           crowdin_project_id?: string | null
           crowdin_split_by_paths?: boolean | null
           file_type?: string
@@ -274,6 +324,13 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "documents_crowdin_integration_id_fkey"
+            columns: ["crowdin_integration_id"]
+            isOneToOne: false
+            referencedRelation: "document_crowdin_integrations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "documents_workspace_id_fkey"
             columns: ["workspace_id"]
