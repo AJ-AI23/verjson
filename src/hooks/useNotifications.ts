@@ -198,9 +198,12 @@ export const useNotifications = () => {
   const handleNotificationTypeUpdate = useCallback((notification: Notification) => {
     switch (notification.type) {
       case 'invitation':
-        // Trigger invitation refresh
+        // Trigger invitation refresh AND workspace refresh (for when invitations are accepted)
         if (globalInvitationUpdateHandler) {
           globalInvitationUpdateHandler();
+        }
+        if (globalWorkspaceUpdateHandler) {
+          globalWorkspaceUpdateHandler();
         }
         break;
       case 'workspace_member_added':
@@ -216,9 +219,20 @@ export const useNotifications = () => {
         // Could trigger document refresh in the future
         break;
       case 'document_deleted':
+        // Trigger both workspace and shared documents refresh for document deletion
+        if (globalWorkspaceUpdateHandler) {
+          globalWorkspaceUpdateHandler();
+        }
+        if (globalSharedDocumentsUpdateHandler) {
+          globalSharedDocumentsUpdateHandler();
+        }
+        break;
       case 'document_access_revoked':
       case 'workspace_access_revoked':
-        // Trigger shared documents refresh when access changes
+        // Trigger both workspace and shared documents refresh when access changes
+        if (globalWorkspaceUpdateHandler) {
+          globalWorkspaceUpdateHandler();
+        }
         if (globalSharedDocumentsUpdateHandler) {
           globalSharedDocumentsUpdateHandler();
         }
