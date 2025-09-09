@@ -97,10 +97,68 @@ export function useDocumentVersions(documentId?: string) {
       setVersions(prev => [...prev, newVersion]);
       return newVersion;
     } catch (err) {
+      // Handle duplicate initial version gracefully
+      if (err instanceof Error && err.message.includes('duplicate key') && patch.description === 'Initial version') {
+        console.log('Initial version already exists, fetching existing version');
+        try {
+          const { data: existingVersion, error: fetchError } = await supabase
+            .from('document_versions')
+            .select('*')
+            .eq('document_id', documentId)
+            .eq('description', 'Initial version')
+            .single();
+            
+          if (!fetchError && existingVersion) {
+            // Add to local state if not already there
+            setVersions(prev => {
+              const exists = prev.find(v => v.id === existingVersion.id);
+              return exists ? prev : [...prev, existingVersion as DocumentVersion];
+            });
+            return existingVersion as DocumentVersion;
+          }
+        } catch (fetchErr) {
+          console.error('Failed to fetch existing initial version:', fetchErr);
+        }
+      }
+      
       const message = err instanceof Error ? err.message : 'Failed to create version';
       setError(message);
       console.error('Error creating document version:', err);
       toast.error(message);
+      return null;
+    }
+  };
+
+  const createInitialVersionSafe = async (content: any): Promise<DocumentVersion | null> => {
+    if (!user || !documentId) return null;
+
+    try {
+      const { data, error } = await supabase.rpc('create_initial_version_safe', {
+        p_document_id: documentId,
+        p_user_id: user.id,
+        p_content: content
+      });
+
+      if (error) throw error;
+
+      // Fetch the created/existing version
+      const { data: versionData, error: fetchError } = await supabase
+        .from('document_versions')
+        .select('*')
+        .eq('id', data)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const version = versionData as DocumentVersion;
+      setVersions(prev => {
+        const exists = prev.find(v => v.id === version.id);
+        return exists ? prev : [...prev, version];
+      });
+      
+      return version;
+    } catch (err) {
+      console.error('Error creating initial version:', err);
       return null;
     }
   };
@@ -240,6 +298,7 @@ export function useDocumentVersions(documentId?: string) {
     loading,
     error,
     createVersion,
+    createInitialVersionSafe,
     updateVersion,
     deleteVersion,
     refetch: fetchVersions,

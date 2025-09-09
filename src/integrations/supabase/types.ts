@@ -574,6 +574,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      create_initial_version_safe: {
+        Args: { p_content: Json; p_document_id: string; p_user_id: string }
+        Returns: string
+      }
       create_workspace_notification: {
         Args: {
           exclude_user_id?: string

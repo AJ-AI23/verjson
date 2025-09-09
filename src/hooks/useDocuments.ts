@@ -81,6 +81,23 @@ export function useDocuments(workspaceId?: string) {
       if (error) throw error;
       
       console.log('[useDocuments] Document created:', document);
+      
+      // Create initial version if content is not empty
+      if (data.content && typeof data.content === 'object' && Object.keys(data.content).length > 0) {
+        try {
+          console.log('[useDocuments] Creating initial version for document:', document.id);
+          await supabase.rpc('create_initial_version_safe', {
+            p_document_id: document.id,
+            p_user_id: user.id,
+            p_content: data.content
+          });
+          console.log('[useDocuments] Initial version created successfully');
+        } catch (versionError) {
+          console.error('[useDocuments] Failed to create initial version:', versionError);
+          // Don't fail document creation if version creation fails
+        }
+      }
+      
       setDocuments(prev => [document as Document, ...prev]);
       toast.success('Document created successfully');
       return document as Document;

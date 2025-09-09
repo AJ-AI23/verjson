@@ -117,82 +117,16 @@ export const useVersioning = ({
     }
   }, [patches, loading, calculateDatabaseVersion]);
 
-  // Create initial version when document is loaded (only once per document)
+  // Initial version creation has been moved to useDocuments.createDocument to prevent race conditions
+  // This effect now only handles loading the initial version when document is opened
   useEffect(() => {
-    // Early returns to prevent unnecessary processing
-    if (!documentId) {
+    if (!documentId || loading) {
       return;
     }
 
-    // Check if versions have loaded
-    if (loading) {
-      return; // Wait for versions to load
-    }
-
-    // Don't create if we've already attempted for this document
-    if (initialVersionAttempted.current === documentId) {
-      return;
-    }
-
-    // Check if any version already exists (not just initial version)
-    if (versions.length > 0) {
-      initialVersionAttempted.current = documentId;
-      return;
-    }
-    
-    // Only create if no versions exist at all - with additional database check
-    const createInitialVersion = async () => {
-      try {
-        // Mark attempt immediately to prevent concurrent creation
-        initialVersionAttempted.current = documentId;
-        
-        // Double-check database to ensure no versions exist before creating
-        const { data: existingVersions } = await supabase
-          .from('document_versions')
-          .select('id')
-          .eq('document_id', documentId)
-          .limit(1);
-          
-        if (existingVersions && existingVersions.length > 0) {
-          debugToast('Initial version already exists in database, skipping creation');
-          return;
-        }
-        
-        // Use saved schema for initial version creation (the one loaded from document)
-        const currentSchemaToUse = savedSchema;
-        if (!currentSchemaToUse || currentSchemaToUse.trim() === '{}' || currentSchemaToUse.trim() === '') {
-          return;
-        }
-        
-        const parsedSchema = JSON.parse(currentSchemaToUse);
-        // Only create initial version if the schema has actual content
-        if (Object.keys(parsedSchema).length > 0) {
-          const initialPatch = generatePatch(
-            {}, // Empty previous schema
-            parsedSchema,
-            { major: 0, minor: 1, patch: 0 },
-            'minor',
-            'Initial version',
-            true // Mark as released
-          );
-          
-          const result = await createVersion(initialPatch);
-          if (result) {
-            setDatabaseVersion(currentSchemaToUse);
-          } else {
-            // Reset attempt tracking if creation failed
-            initialVersionAttempted.current = null;
-          }
-        }
-      } catch (err) {
-        console.error('Failed to create initial version:', err);
-        // Reset attempt tracking if creation failed
-        initialVersionAttempted.current = null;
-      }
-    };
-    
-    createInitialVersion();
-  }, [documentId, loading, versions.length]); // Removed savedSchema from dependencies to prevent duplicate initial versions
+    // Mark this document as seen to prevent any legacy initial version creation attempts
+    initialVersionAttempted.current = documentId;
+  }, [documentId, loading]);
 
   // Reset tracking when document changes
   useEffect(() => {
