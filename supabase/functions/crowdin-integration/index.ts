@@ -593,10 +593,13 @@ serve(async (req) => {
     if (action === 'import') {
       console.log('🔍 Import action started');
       
-      const { fileId, documentId, projectId } = payload;
+      const { fileId, fileIds, documentId, projectId } = payload;
       
-      if (!fileId) {
-        return new Response(JSON.stringify({ error: 'File ID is required' }), {
+      // Support both single file and multiple files import
+      const filesToImport = fileIds && Array.isArray(fileIds) ? fileIds : (fileId ? [fileId] : []);
+      
+      if (filesToImport.length === 0) {
+        return new Response(JSON.stringify({ error: 'File ID(s) are required' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -617,79 +620,94 @@ serve(async (req) => {
       }
 
       try {
-        // Step 1: Get download URL from Crowdin
-        console.log('🔍 Getting download URL from Crowdin project:', projectId, 'file:', fileId);
+        console.log(`🔍 Importing ${filesToImport.length} file(s) from Crowdin`);
+        const downloadedFiles: Record<string, any> = {};
         
-        const downloadUrlResponse = await fetch(`${CROWDIN_API_BASE}/projects/${projectId}/files/${fileId}/download`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${apiToken}`,
-          }
-        });
-
-        if (!downloadUrlResponse.ok) {
-          console.error('❌ Failed to get download URL from Crowdin:', downloadUrlResponse.status, downloadUrlResponse.statusText);
-          const errorText = await downloadUrlResponse.text();
-          console.error('❌ Crowdin error response:', errorText);
-          return new Response(JSON.stringify({ 
-            error: `Failed to get download URL from Crowdin: ${downloadUrlResponse.statusText}` 
-          }), {
-            status: downloadUrlResponse.status,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-
-        const downloadUrlData = await downloadUrlResponse.json();
-        console.log('✅ Got download URL from Crowdin:', downloadUrlData.data?.url ? 'URL received' : 'No URL');
-
-        // Step 2: Download actual file content from the URL
-        const fileUrl = downloadUrlData.data?.url;
-        if (!fileUrl) {
-          console.error('❌ No download URL received from Crowdin');
-          return new Response(JSON.stringify({ 
-            error: 'No download URL received from Crowdin' 
-          }), {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-
-        console.log('🔍 Downloading actual file content from URL...');
-        const fileContentResponse = await fetch(fileUrl);
-
-        if (!fileContentResponse.ok) {
-          console.error('❌ Failed to download file from URL:', fileContentResponse.status, fileContentResponse.statusText);
-          return new Response(JSON.stringify({ 
-            error: `Failed to download file content: ${fileContentResponse.statusText}` 
-          }), {
-            status: fileContentResponse.status,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-
-        const fileContent = await fileContentResponse.text();
-        console.log('✅ Downloaded file content, length:', fileContent.length);
-
-        try {
-          const parsedContent = JSON.parse(fileContent);
-          console.log('✅ Successfully parsed downloaded content');
+        // Download all files
+        for (const currentFileId of filesToImport) {
+          console.log('🔍 Getting download URL from Crowdin project:', projectId, 'file:', currentFileId);
           
-          return new Response(JSON.stringify({
-            success: true,
-            content: parsedContent,
-            message: 'File imported successfully from Crowdin'
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          const downloadUrlResponse = await fetch(`${CROWDIN_API_BASE}/projects/${projectId}/files/${currentFileId}/download`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${apiToken}`,
+            }
           });
-        } catch (parseError) {
-          console.error('❌ Failed to parse downloaded content as JSON:', parseError);
-          return new Response(JSON.stringify({ 
-            error: 'Downloaded file is not valid JSON' 
-          }), {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
+
+          if (!downloadUrlResponse.ok) {
+            console.error('❌ Failed to get download URL from Crowdin:', downloadUrlResponse.status, downloadUrlResponse.statusText);
+            const errorText = await downloadUrlResponse.text();
+            console.error('❌ Crowdin error response:', errorText);
+            return new Response(JSON.stringify({ 
+              error: `Failed to get download URL from Crowdin for file ${currentFileId}: ${downloadUrlResponse.statusText}` 
+            }), {
+              status: downloadUrlResponse.status,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+
+          const downloadUrlData = await downloadUrlResponse.json();
+          console.log('✅ Got download URL from Crowdin for file:', currentFileId);
+
+          const fileUrl = downloadUrlData.data?.url;
+          if (!fileUrl) {
+            console.error('❌ No download URL received from Crowdin for file:', currentFileId);
+            return new Response(JSON.stringify({ 
+              error: `No download URL received from Crowdin for file ${currentFileId}` 
+            }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+
+          console.log('🔍 Downloading actual file content from URL for file:', currentFileId);
+          const fileContentResponse = await fetch(fileUrl);
+
+          if (!fileContentResponse.ok) {
+            console.error('❌ Failed to download file from URL:', fileContentResponse.status, fileContentResponse.statusText);
+            return new Response(JSON.stringify({ 
+              error: `Failed to download file content for ${currentFileId}: ${fileContentResponse.statusText}` 
+            }), {
+              status: fileContentResponse.status,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+
+          const fileContent = await fileContentResponse.text();
+          console.log('✅ Downloaded file content for', currentFileId, 'length:', fileContent.length);
+
+          try {
+            const parsedContent = JSON.parse(fileContent);
+            downloadedFiles[currentFileId] = parsedContent;
+            console.log('✅ Successfully parsed downloaded content for file:', currentFileId);
+          } catch (parseError) {
+            console.error('❌ Failed to parse downloaded content as JSON for file:', currentFileId, parseError);
+            return new Response(JSON.stringify({ 
+              error: `Downloaded file ${currentFileId} is not valid JSON` 
+            }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
         }
+        
+        // Return the downloaded files
+        const result = filesToImport.length === 1 
+          ? {
+              success: true,
+              content: downloadedFiles[filesToImport[0]],
+              message: 'File imported successfully from Crowdin'
+            }
+          : {
+              success: true,
+              content: downloadedFiles,
+              isMultiFile: true,
+              message: `${filesToImport.length} files imported successfully from Crowdin`
+            };
+            
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       } catch (error) {
         console.error('❌ Error importing from Crowdin:', error);
         return new Response(JSON.stringify({ 

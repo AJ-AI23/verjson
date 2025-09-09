@@ -369,11 +369,13 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
           };
 
           if (splitByApiPaths && data.fileIds) {
-            updateData.crowdin_file_ids = data.fileIds;
-            updateData.crowdin_filenames = data.fileNames;
+            updateData.crowdin_file_ids = Object.values(data.fileIds);
+            updateData.crowdin_filenames = Object.values(data.fileNames);
+            updateData.crowdin_split_by_paths = true;
           } else {
             updateData.crowdin_file_id = data.fileId;
             updateData.crowdin_filename = filename.trim();
+            updateData.crowdin_split_by_paths = false;
           }
 
           const { error: updateError } = await supabase

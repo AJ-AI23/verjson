@@ -262,6 +262,49 @@ export function extractApiPathsFromTranslationKeys(translationData: Record<strin
   return Array.from(pathSet).sort();
 }
 
+// Merge multiple translation files back into a single translation index
+export function mergeTranslationFiles(translationFiles: Record<string, Record<string, string>>): Record<string, string> {
+  const mergedTranslations: Record<string, string> = {};
+  
+  Object.values(translationFiles).forEach(fileTranslations => {
+    Object.entries(fileTranslations).forEach(([key, value]) => {
+      mergedTranslations[key] = value;
+    });
+  });
+  
+  return mergedTranslations;
+}
+
+// Apply merged translations to original document content
+export function applyTranslationsToDocument(originalDocument: any, mergedTranslations: Record<string, string>): any {
+  const result = JSON.parse(JSON.stringify(originalDocument)); // Deep clone
+  
+  Object.entries(mergedTranslations).forEach(([keyPath, translatedValue]) => {
+    // Convert dot notation path back to nested object access
+    const pathParts = keyPath.split('.');
+    let current = result;
+    
+    // Navigate to the parent of the final property
+    for (let i = 0; i < pathParts.length - 1; i++) {
+      const part = pathParts[i];
+      if (current && typeof current === 'object' && part in current) {
+        current = current[part];
+      } else {
+        // Path doesn't exist in the original document, skip this translation
+        return;
+      }
+    }
+    
+    // Set the translated value
+    const finalProperty = pathParts[pathParts.length - 1];
+    if (current && typeof current === 'object' && finalProperty in current) {
+      current[finalProperty] = translatedValue;
+    }
+  });
+  
+  return result;
+}
+
 // Split translation data by API base paths
 export function splitTranslationDataByApiPaths(translationData: Record<string, string>): Record<string, Record<string, string>> {
   const apiPaths = extractApiPathsFromTranslationKeys(translationData);

@@ -17,8 +17,11 @@ interface CrowdinImportDialogProps {
     name: string;
     content: any;
     crowdin_file_id?: string;
+    crowdin_file_ids?: string[];
     crowdin_project_id?: string;
     crowdin_filename?: string;
+    crowdin_filenames?: string[];
+    crowdin_split_by_paths?: boolean;
     workspace_id: string;
   };
   onImportConfirm: (importedSchema: any, comparison: any, sourceDocumentName: string) => void;
@@ -46,10 +49,16 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
       setIsImporting(true);
       setError('');
 
+      // Support both single file and multiple files
+      const hasMultipleFiles = document.crowdin_file_ids && Array.isArray(document.crowdin_file_ids);
+      
       const { data, error } = await supabase.functions.invoke('crowdin-integration', {
         body: {
           action: 'import',
-          fileId: document.crowdin_file_id,
+          ...(hasMultipleFiles 
+            ? { fileIds: document.crowdin_file_ids }
+            : { fileId: document.crowdin_file_id }
+          ),
           projectId: document.crowdin_project_id,
           documentId: document.id,
           workspaceId: document.workspace_id,
@@ -61,12 +70,23 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
         return;
       }
 
-      setImportedContent(data.content);
+      let finalContent: any;
+      
+      if (data.isMultiFile) {
+        // Merge multiple files back into original document structure
+        const { mergeTranslationFiles, applyTranslationsToDocument } = await import('@/lib/translationUtils');
+        const mergedTranslations = mergeTranslationFiles(data.content);
+        finalContent = applyTranslationsToDocument(document.content, mergedTranslations);
+      } else {
+        finalContent = data.content;
+      }
+
+      setImportedContent(finalContent);
       
       // Compare current document content with imported content using partial comparison for Crowdin
       const comparisonResult = compareDocumentVersionsPartial(
         document.content,
-        data.content
+        finalContent
       );
       
       setComparison(comparisonResult);

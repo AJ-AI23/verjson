@@ -414,20 +414,20 @@ export const QADialog: React.FC<QADialogProps> = ({
                        <span className="sm:hidden">Export</span>
                      </Button>
                      
-                     {/* Crowdin Import Button - Show only if document has Crowdin file ID */}
-                     {selectedDocument?.crowdin_file_id && (
-                       <Button 
-                         size="sm" 
-                         variant="outline" 
-                         onClick={() => setCrowdinImportDialogOpen(true)}
-                         className="gap-2"
-                         disabled={!selectedWorkspace}
-                       >
-                         <Download className="h-4 w-4" />
-                         <span className="hidden sm:inline">Crowdin Import</span>
-                         <span className="sm:hidden">Import</span>
-                       </Button>
-                     )}
+                      {/* Crowdin Import Button - Show if document has either single or multiple Crowdin files */}
+                      {(selectedDocument?.crowdin_file_id || selectedDocument?.crowdin_file_ids) && (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => setCrowdinImportDialogOpen(true)}
+                          className="gap-2"
+                          disabled={!selectedWorkspace}
+                        >
+                          <Download className="h-4 w-4" />
+                          <span className="hidden sm:inline">Crowdin Import</span>
+                          <span className="sm:hidden">Import</span>
+                        </Button>
+                      )}
                  </div>
               </CardContent>
             </Card>

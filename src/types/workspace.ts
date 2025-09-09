@@ -19,6 +19,12 @@ export interface Document {
   file_type: 'json-schema' | 'openapi';
   pin_code?: string;
   pin_enabled: boolean;
+  crowdin_file_id?: string;
+  crowdin_file_ids?: string[];
+  crowdin_project_id?: string;
+  crowdin_filename?: string;
+  crowdin_filenames?: string[];
+  crowdin_split_by_paths?: boolean;
   created_at: string;
   updated_at: string;
 }
