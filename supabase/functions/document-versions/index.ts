@@ -77,6 +77,35 @@ serve(async (req) => {
 
   } catch (error) {
     logger.logError('Request processing failed', error);
+    
+    // Handle specific permission errors with appropriate status codes
+    const errorMessage = error.message || 'Internal server error';
+    
+    if (errorMessage === 'Document not found') {
+      return new Response(
+        JSON.stringify({ error: 'Document not found' }),
+        { status: 404, headers: corsHeaders }
+      );
+    }
+    
+    if (errorMessage.includes('Access denied') || 
+        errorMessage.includes('insufficient permissions') ||
+        errorMessage.includes('Operation not allowed') ||
+        errorMessage.includes('Only document owners') ||
+        errorMessage.includes('You can only update versions')) {
+      return new Response(
+        JSON.stringify({ error: errorMessage }),
+        { status: 403, headers: corsHeaders }
+      );
+    }
+    
+    if (errorMessage.includes('Cannot delete selected version')) {
+      return new Response(
+        JSON.stringify({ error: errorMessage }),
+        { status: 400, headers: corsHeaders }
+      );
+    }
+    
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: corsHeaders }
@@ -84,15 +113,71 @@ serve(async (req) => {
   }
 })
 
+async function validateDocumentAccess(supabaseClient: any, documentId: string, userId: string, logger: EdgeFunctionLogger) {
+  logger.debug('Validating document access', { documentId, userId });
+
+  // Check if user owns the document
+  const { data: document, error: docError } = await supabaseClient
+    .from('documents')
+    .select('user_id, workspace_id')
+    .eq('id', documentId)
+    .single();
+
+  if (docError || !document) {
+    logger.error('Document not found', { documentId, error: docError });
+    throw new Error('Document not found');
+  }
+
+  // If user owns the document, they have owner permissions
+  if (document.user_id === userId) {
+    logger.debug('User is document owner', { documentId, userId });
+    return { role: 'owner', hasAccess: true };
+  }
+
+  // Check workspace permissions
+  const { data: workspacePermissions, error: wpError } = await supabaseClient
+    .from('workspace_permissions')
+    .select('role, status')
+    .eq('workspace_id', document.workspace_id)
+    .eq('user_id', userId)
+    .eq('status', 'accepted')
+    .single();
+
+  if (wpError || !workspacePermissions) {
+    // Check document permissions as fallback
+    const { data: docPermissions, error: dpError } = await supabaseClient
+      .from('document_permissions')
+      .select('role, status')
+      .eq('document_id', documentId)
+      .eq('user_id', userId)
+      .eq('status', 'accepted')
+      .single();
+
+    if (dpError || !docPermissions) {
+      logger.warn('User has no access to document', { documentId, userId });
+      throw new Error('Access denied - insufficient permissions');
+    }
+
+    logger.debug('User has document permissions', { documentId, userId, role: docPermissions.role });
+    return { role: docPermissions.role, hasAccess: true };
+  }
+
+  logger.debug('User has workspace permissions', { documentId, userId, role: workspacePermissions.role });
+  return { role: workspacePermissions.role, hasAccess: true };
+}
+
 async function handleListDocumentVersions(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
   const { documentId } = data;
   logger.debug('Listing document versions', { documentId, userId: user.id });
 
+  // Validate user has access to the document
+  const access = await validateDocumentAccess(supabaseClient, documentId, user.id, logger);
+  
+  // All roles (owner, editor, viewer) can view version history
   const { data: versions, error } = await supabaseClient
     .from('document_versions')
     .select('*')
     .eq('document_id', documentId)
-    .eq('user_id', user.id)
     .order('created_at', { ascending: true });
 
   if (error) {
@@ -102,15 +187,24 @@ async function handleListDocumentVersions(supabaseClient: any, data: any, user: 
 
   logger.info('Successfully retrieved document versions', { 
     documentId, 
-    versionCount: versions?.length || 0 
+    versionCount: versions?.length || 0,
+    userRole: access.role
   });
   
-  return { versions };
+  return { versions, userRole: access.role };
 }
 
 async function handleCreateDocumentVersion(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
   const { documentId, patch } = data;
   logger.debug('Creating document version', { documentId, description: patch.description });
+
+  // Validate user has editor or owner permissions
+  const access = await validateDocumentAccess(supabaseClient, documentId, user.id, logger);
+  
+  if (access.role === 'viewer') {
+    logger.warn('User attempted to create version with viewer permissions', { documentId, userId: user.id });
+    throw new Error('Operation not allowed for viewer role');
+  }
 
   const versionData = {
     document_id: documentId,
@@ -157,7 +251,8 @@ async function handleCreateDocumentVersion(supabaseClient: any, data: any, user:
   logger.info('Successfully created document version', { 
     documentId, 
     versionId: version.id,
-    description: patch.description
+    description: patch.description,
+    userRole: access.role
   });
   
   return { version };
@@ -166,6 +261,14 @@ async function handleCreateDocumentVersion(supabaseClient: any, data: any, user:
 async function handleCreateInitialDocumentVersion(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
   const { documentId, content } = data;
   logger.debug('Creating initial document version', { documentId, userId: user.id });
+
+  // Validate user has editor or owner permissions
+  const access = await validateDocumentAccess(supabaseClient, documentId, user.id, logger);
+  
+  if (access.role === 'viewer') {
+    logger.warn('User attempted to create initial version with viewer permissions', { documentId, userId: user.id });
+    throw new Error('Operation not allowed for viewer role');
+  }
 
   const { data: versionId, error } = await supabaseClient.rpc('create_initial_version_safe', {
     p_document_id: documentId,
@@ -192,7 +295,8 @@ async function handleCreateInitialDocumentVersion(supabaseClient: any, data: any
 
   logger.info('Successfully created initial document version', { 
     documentId, 
-    versionId: versionData.id 
+    versionId: versionData.id,
+    userRole: access.role
   });
   
   return { version: versionData };
@@ -202,11 +306,37 @@ async function handleUpdateDocumentVersion(supabaseClient: any, data: any, user:
   const { versionId, updates } = data;
   logger.debug('Updating document version', { versionId, userId: user.id });
 
-  const { data: version, error } = await supabaseClient
+  // First, get the version to check document access and version ownership
+  const { data: version, error: versionError } = await supabaseClient
+    .from('document_versions')
+    .select('document_id, user_id')
+    .eq('id', versionId)
+    .single();
+
+  if (versionError || !version) {
+    logger.error('Version not found', { versionId, error: versionError });
+    throw new Error('Version not found');
+  }
+
+  // Validate user has access to the document
+  const access = await validateDocumentAccess(supabaseClient, version.document_id, user.id, logger);
+  
+  if (access.role === 'viewer') {
+    logger.warn('User attempted to update version with viewer permissions', { versionId, userId: user.id });
+    throw new Error('Operation not allowed for viewer role');
+  }
+
+  // Additional check: Users can only update versions they created (except owners can update any)
+  if (access.role !== 'owner' && version.user_id !== user.id) {
+    logger.warn('User attempted to update version they did not create', { versionId, userId: user.id, versionCreator: version.user_id });
+    throw new Error('You can only update versions you created');
+  }
+
+  const { data: updatedVersion, error } = await supabaseClient
     .from('document_versions')
     .update(updates)
     .eq('id', versionId)
-    .eq('user_id', user.id)
+    .eq('user_id', access.role === 'owner' ? version.user_id : user.id) // Allow owners to update any version
     .select()
     .single();
 
@@ -217,28 +347,55 @@ async function handleUpdateDocumentVersion(supabaseClient: any, data: any, user:
 
   logger.info('Successfully updated document version', { 
     versionId, 
-    updatedFields: Object.keys(updates)
+    updatedFields: Object.keys(updates),
+    userRole: access.role
   });
   
-  return { version };
+  return { version: updatedVersion };
 }
 
 async function handleDeleteDocumentVersion(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
   const { versionId } = data;
   logger.debug('Deleting document version', { versionId, userId: user.id });
 
+  // First, get the version to check document access
+  const { data: version, error: versionError } = await supabaseClient
+    .from('document_versions')
+    .select('document_id, user_id, is_selected')
+    .eq('id', versionId)
+    .single();
+
+  if (versionError || !version) {
+    logger.error('Version not found', { versionId, error: versionError });
+    throw new Error('Version not found');
+  }
+
+  // Validate user has access to the document
+  const access = await validateDocumentAccess(supabaseClient, version.document_id, user.id, logger);
+  
+  // Only owners can delete versions
+  if (access.role !== 'owner') {
+    logger.warn('User attempted to delete version without owner permissions', { versionId, userId: user.id, userRole: access.role });
+    throw new Error('Only document owners can delete versions');
+  }
+
+  // Prevent deleting selected versions to maintain document integrity
+  if (version.is_selected) {
+    logger.warn('User attempted to delete selected version', { versionId, userId: user.id });
+    throw new Error('Cannot delete selected version. Please deselect it first.');
+  }
+
   const { error } = await supabaseClient
     .from('document_versions')
     .delete()
-    .eq('id', versionId)
-    .eq('user_id', user.id);
+    .eq('id', versionId);
 
   if (error) {
     logger.error('Failed to delete document version', error);
     throw error;
   }
 
-  logger.info('Successfully deleted document version', { versionId });
+  logger.info('Successfully deleted document version', { versionId, userRole: access.role });
   
   return { success: true, message: 'Version deleted successfully' };
 }

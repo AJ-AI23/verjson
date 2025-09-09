@@ -28,6 +28,7 @@ import { Package, Tag, Trash2, Eye, Download } from 'lucide-react';
 
 interface VersionHistoryProps {
   documentId: string;
+  userRole?: 'owner' | 'editor' | 'viewer' | null;
   onToggleSelection?: (patchId: string) => void;
   onMarkAsReleased?: (patchId: string) => void;
   onDeleteVersion?: (patchId: string) => void;
@@ -38,6 +39,7 @@ interface VersionHistoryProps {
 
 export const VersionHistory: React.FC<VersionHistoryProps> = ({ 
   documentId, 
+  userRole,
   onToggleSelection, 
   onMarkAsReleased, 
   onDeleteVersion,
@@ -51,7 +53,10 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   
   // Fetch document versions directly from database - use versions state directly for reactivity
-  const { versions, loading, error } = useDocumentVersions(documentId);
+  const { versions, userRole: hookUserRole, loading, error } = useDocumentVersions(documentId);
+  
+  // Use userRole from hook if available, otherwise fall back to prop
+  const effectiveUserRole = hookUserRole || userRole;
   
   // Convert versions to patches - memoize to avoid unnecessary recalculations
   const patches = useMemo(() => {
@@ -373,7 +378,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                 {(onMarkAsReleased || onDeleteVersion) && (
                   <td className="px-3 py-2">
                     <div className="flex gap-1">
-                      {onMarkAsReleased && !patch.isReleased && !isInitial && patch.isSelected && (
+                      {onMarkAsReleased && !patch.isReleased && !isInitial && patch.isSelected && effectiveUserRole !== 'viewer' && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -386,7 +391,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                         </Button>
                       )}
                       
-                      {onDeleteVersion && canDelete(patch) && (
+                      {onDeleteVersion && canDelete(patch) && effectiveUserRole === 'owner' && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button

@@ -11,6 +11,7 @@ import { Download } from 'lucide-react';
 
 interface VersionControlsProps {
   version: Version;
+  userRole?: 'owner' | 'editor' | 'viewer' | null;
   onVersionBump: (newVersion: Version, tier: VersionTier, description: string, isReleased?: boolean) => void;
   isModified: boolean;
   schema?: string;
@@ -22,6 +23,7 @@ interface VersionControlsProps {
 
 export const VersionControls: React.FC<VersionControlsProps> = ({ 
   version, 
+  userRole,
   onVersionBump,
   isModified,
   schema,

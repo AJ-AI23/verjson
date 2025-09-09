@@ -28,6 +28,7 @@ export function useDocumentVersions(documentId?: string) {
   const { debugToast } = useDebug();
   const { user } = useAuth();
   const [versions, setVersions] = useState<DocumentVersion[]>([]);
+  const [userRole, setUserRole] = useState<'owner' | 'editor' | 'viewer' | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,6 +55,7 @@ export function useDocumentVersions(documentId?: string) {
       
       debugToast('🔔 fetchVersions: Retrieved versions', {
         count: data.versions?.length || 0,
+        userRole: data.userRole,
         versions: data.versions?.map(v => ({ 
           id: v.id, 
           description: v.description, 
@@ -63,6 +65,7 @@ export function useDocumentVersions(documentId?: string) {
       });
       
       setVersions(data.versions || []);
+      setUserRole(data.userRole || null);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch versions';
       setError(message);
@@ -93,7 +96,15 @@ export function useDocumentVersions(documentId?: string) {
       const message = err instanceof Error ? err.message : 'Failed to create version';
       setError(message);
       console.error('Error creating document version:', err);
-      toast.error(message);
+      
+      // Handle permission-based errors with specific messaging
+      if (message.includes('Operation not allowed for viewer role')) {
+        toast.error('You need editor permissions to create versions');
+      } else if (message.includes('Access denied') || message.includes('insufficient permissions')) {
+        toast.error('You do not have permission to access this document');
+      } else {
+        toast.error(message);
+      }
       return null;
     }
   };
@@ -146,7 +157,17 @@ export function useDocumentVersions(documentId?: string) {
       const message = err instanceof Error ? err.message : 'Failed to update version';
       setError(message);
       console.error('Error updating document version:', err);
-      toast.error(message);
+      
+      // Handle permission-based errors with specific messaging
+      if (message.includes('Operation not allowed for viewer role')) {
+        toast.error('You need editor permissions to update versions');
+      } else if (message.includes('You can only update versions you created')) {
+        toast.error('You can only update versions you created');
+      } else if (message.includes('Access denied') || message.includes('insufficient permissions')) {
+        toast.error('You do not have permission to access this document');
+      } else {
+        toast.error(message);
+      }
       return null;
     }
   };
@@ -183,7 +204,17 @@ export function useDocumentVersions(documentId?: string) {
       const message = err instanceof Error ? err.message : 'Failed to delete version';
       setError(message);
       console.error('🗑️ deleteVersion: Error deleting document version:', err);
-      toast.error(message);
+      
+      // Handle permission-based errors with specific messaging
+      if (message.includes('Only document owners can delete versions')) {
+        toast.error('Only document owners can delete versions');
+      } else if (message.includes('Cannot delete selected version')) {
+        toast.error('Cannot delete selected version. Please deselect it first.');
+      } else if (message.includes('Access denied') || message.includes('insufficient permissions')) {
+        toast.error('You do not have permission to access this document');
+      } else {
+        toast.error(message);
+      }
       return false;
     }
   };
@@ -348,6 +379,7 @@ export function useDocumentVersions(documentId?: string) {
 
   return {
     versions,
+    userRole,
     loading,
     error,
     createVersion,
