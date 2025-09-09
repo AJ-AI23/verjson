@@ -61,14 +61,14 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   const [collaborationEnabled, setCollaborationEnabled] = useState(() => {
     if (!documentId) return false;
     const saved = localStorage.getItem(`collaboration-enabled-${documentId}`);
-    return saved !== null ? JSON.parse(saved) : true;
+    return saved !== null ? JSON.parse(saved) : false;
   });
 
   // Reset collaboration setting when document changes
   useEffect(() => {
     if (documentId) {
       const saved = localStorage.getItem(`collaboration-enabled-${documentId}`);
-      setCollaborationEnabled(saved !== null ? JSON.parse(saved) : true);
+      setCollaborationEnabled(saved !== null ? JSON.parse(saved) : false);
     }
   }, [documentId]);
 
@@ -262,7 +262,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
               <DialogHeader>
                 <DialogTitle>Collaborative Editing</DialogTitle>
                 <DialogDescription>
-                  Real-time collaboration powered by Yjs
+                  Real-time collaboration powered by Yjs (Experimental)
                 </DialogDescription>
               </DialogHeader>
               
