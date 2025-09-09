@@ -16,6 +16,8 @@ interface EditorVersionDialogProps {
   onImportVersion?: (importedSchema: any, comparison: any, sourceDocumentName: string) => void;
   currentSchema?: any;
   currentFileType?: string;
+  userRole: 'owner' | 'editor' | 'viewer';
+  isOwner: boolean;
 }
 
 export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({
@@ -27,7 +29,9 @@ export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({
   onDeleteVersion,
   onImportVersion,
   currentSchema,
-  currentFileType
+  currentFileType,
+  userRole,
+  isOwner
 }) => {
   const { debugToast } = useDebug();
   
@@ -47,6 +51,8 @@ export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({
           onImportVersion={onImportVersion}
           currentSchema={currentSchema}
           currentFileType={currentFileType}
+          userRole={userRole}
+          isOwner={isOwner}
         />
       </DialogContent>
     </Dialog>

@@ -29,6 +29,7 @@ import { Package, Tag, Trash2, Eye, Download } from 'lucide-react';
 interface VersionHistoryProps {
   documentId: string;
   userRole?: 'owner' | 'editor' | 'viewer' | null;
+  isOwner?: boolean;
   onToggleSelection?: (patchId: string) => void;
   onMarkAsReleased?: (patchId: string) => void;
   onDeleteVersion?: (patchId: string) => void;
@@ -40,6 +41,7 @@ interface VersionHistoryProps {
 export const VersionHistory: React.FC<VersionHistoryProps> = ({ 
   documentId, 
   userRole,
+  isOwner,
   onToggleSelection, 
   onMarkAsReleased, 
   onDeleteVersion,

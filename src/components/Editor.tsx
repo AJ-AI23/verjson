@@ -7,6 +7,8 @@ import { useEditorState } from './editor/useEditorState';
 import { EditorVersionDialog } from './editor/EditorVersionDialog';
 import { detectSchemaType } from '@/lib/schemaUtils';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
+import { useDocumentPermissions } from '@/hooks/useDocumentPermissions';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface EditorProps {
   initialSchema?: any;
@@ -18,6 +20,7 @@ interface EditorProps {
 }
 
 export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, onClearRequest, onClose }: EditorProps) => {
+  const { user } = useAuth();
   
   // Convert initialSchema to string if it's an object to prevent crashes in versioning hooks
   const schemaAsString = React.useMemo(() => {
@@ -28,6 +31,32 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
   }, [initialSchema]);
   
   const { settings, updateGroupProperties } = useEditorSettings();
+  const { permissions } = useDocumentPermissions(selectedDocument?.id, selectedDocument);
+  
+  // Calculate user permissions for version history access
+  const userPermissions = React.useMemo(() => {
+    if (!user || !selectedDocument) {
+      return { role: 'viewer' as const, isOwner: false };
+    }
+    
+    // Check if user is the document owner
+    const isOwner = selectedDocument.created_by === user.id;
+    if (isOwner) {
+      return { role: 'owner' as const, isOwner: true };
+    }
+    
+    // Check document permissions for invited users
+    const userPermission = permissions.find(p => p.user_id === user.id);
+    if (userPermission) {
+      return { 
+        role: userPermission.role, 
+        isOwner: false 
+      };
+    }
+    
+    // Default to viewer if no explicit permissions found
+    return { role: 'viewer' as const, isOwner: false };
+  }, [user, selectedDocument, permissions]);
   const {
     schema,
     setSchema,
@@ -111,6 +140,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         collapsedPaths={collapsedPaths}
         groupProperties={settings.groupProperties}
         maxDepth={settings.maxDepth}
+        userRole={userPermissions.role}
         onEditorChange={handleEditorChange}
         onVersionBump={handleVersionBump}
         onToggleCollapse={handleToggleCollapse}
@@ -130,6 +160,8 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         onToggleSelection={handleToggleSelection}
         onMarkAsReleased={handleMarkAsReleased}
         onDeleteVersion={handleDeleteVersion}
+        userRole={userPermissions.role}
+        isOwner={userPermissions.isOwner}
       />
     </div>
   );

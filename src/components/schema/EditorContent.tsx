@@ -17,6 +17,7 @@ interface EditorContentProps {
   collapsedPaths: CollapsedState;
   groupProperties: boolean;
   maxDepth: number;
+  userRole?: 'owner' | 'editor' | 'viewer';
   onEditorChange: (value: string) => void;
   onVersionBump: (newVersion: Version, tier: VersionTier, description: string) => void;
   onToggleCollapse: (path: string, isCollapsed: boolean) => void;
@@ -37,6 +38,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
   collapsedPaths,
   groupProperties,
   maxDepth,
+  userRole,
   onEditorChange,
   onVersionBump,
   onToggleCollapse,
@@ -61,6 +63,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
         />
         <VersionControls 
           version={currentVersion} 
+          userRole={userRole}
           onVersionBump={onVersionBump}
           isModified={isModified}
           schema={schema}
