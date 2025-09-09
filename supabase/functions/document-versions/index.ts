@@ -307,8 +307,17 @@ async function handleListDocumentVersions(supabaseClient: any, data: any, user: 
   // Validate user has access to the document
   const access = await validateDocumentAccess(supabaseClient, documentId, user.id, logger);
   
+  // Use service role client to bypass RLS for versions query since 
+  // document_versions table RLS policy doesn't properly handle document_permissions
+  const serviceClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+  
+  logger.debug('Querying document versions with service role', { documentId });
+  
   // All roles (owner, editor, viewer) can view version history
-  const { data: versions, error } = await supabaseClient
+  const { data: versions, error } = await serviceClient
     .from('document_versions')
     .select('*')
     .eq('document_id', documentId)
