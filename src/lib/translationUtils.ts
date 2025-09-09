@@ -241,6 +241,128 @@ export function downloadJsonFile(data: any, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+// Extract API base paths from translation keys (e.g., root.paths./v1/parcels -> /v1/parcels)
+export function extractApiPathsFromTranslationKeys(translationData: Record<string, string>): string[] {
+  const pathSet = new Set<string>();
+  const pathRegex = /root\.paths\.([^.]+)/;
+  
+  Object.keys(translationData).forEach(key => {
+    const match = key.match(pathRegex);
+    if (match) {
+      const fullPath = match[1];
+      // Extract base path (first resource after version)
+      // e.g., /v1/delivery-options/zones -> /v1/delivery-options
+      const basePathMatch = fullPath.match(/^(\/v\d+\/[^/]+)/);
+      if (basePathMatch) {
+        pathSet.add(basePathMatch[1]);
+      }
+    }
+  });
+  
+  return Array.from(pathSet).sort();
+}
+
+// Split translation data by API base paths
+export function splitTranslationDataByApiPaths(translationData: Record<string, string>): Record<string, Record<string, string>> {
+  const apiPaths = extractApiPathsFromTranslationKeys(translationData);
+  const result: Record<string, Record<string, string>> = {};
+  
+  // Initialize containers for each API path
+  apiPaths.forEach(path => {
+    result[path] = {};
+  });
+  
+  // Add entries that don't belong to any API path to a 'general' container
+  result['general'] = {};
+  
+  // Group translation entries by their API path
+  Object.entries(translationData).forEach(([key, value]) => {
+    const pathMatch = key.match(/root\.paths\.([^.]+)/);
+    
+    if (pathMatch) {
+      const fullPath = pathMatch[1];
+      const basePathMatch = fullPath.match(/^(\/v\d+\/[^/]+)/);
+      
+      if (basePathMatch) {
+        const basePath = basePathMatch[1];
+        result[basePath][key] = value;
+      } else {
+        result['general'][key] = value;
+      }
+    } else {
+      result['general'][key] = value;
+    }
+  });
+  
+  // Remove empty containers
+  Object.keys(result).forEach(path => {
+    if (Object.keys(result[path]).length === 0) {
+      delete result[path];
+    }
+  });
+  
+  return result;
+}
+
+// Generate filenames for split files
+export function generateSplitFilenames(baseFilename: string, apiPaths: string[]): Record<string, string> {
+  const result: Record<string, string> = {};
+  const baseName = baseFilename.replace(/\.[^/.]+$/, ''); // Remove extension
+  const extension = baseFilename.includes('.') ? baseFilename.split('.').pop() : 'json';
+  
+  apiPaths.forEach(path => {
+    if (path === 'general') {
+      result[path] = `${baseName}-general.${extension}`;
+    } else {
+      // Sanitize path for filename (replace slashes and special chars)
+      const sanitizedPath = path.replace(/^\//, '').replace(/\//g, '-').replace(/[^a-zA-Z0-9-_]/g, '');
+      result[path] = `${baseName}-${sanitizedPath}.${extension}`;
+    }
+  });
+  
+  return result;
+}
+
+// Generate preview data for export files
+export interface ExportPreviewFile {
+  path: string;
+  filename: string;
+  entryCount: number;
+  sampleKeys: string[];
+}
+
+export function previewExportFiles(
+  translationData: Record<string, string>, 
+  baseFilename: string, 
+  splitByApiPaths: boolean
+): ExportPreviewFile[] {
+  if (!splitByApiPaths) {
+    // Single file export
+    return [{
+      path: 'single',
+      filename: baseFilename,
+      entryCount: Object.keys(translationData).length,
+      sampleKeys: Object.keys(translationData).slice(0, 3)
+    }];
+  }
+  
+  // Multi-file export
+  const splitData = splitTranslationDataByApiPaths(translationData);
+  const filenames = generateSplitFilenames(baseFilename, Object.keys(splitData));
+  
+  return Object.entries(splitData).map(([path, data]) => ({
+    path,
+    filename: filenames[path],
+    entryCount: Object.keys(data).length,
+    sampleKeys: Object.keys(data).slice(0, 3)
+  })).sort((a, b) => {
+    // Sort with 'general' last
+    if (a.path === 'general') return 1;
+    if (b.path === 'general') return -1;
+    return a.path.localeCompare(b.path);
+  });
+}
+
 // Collect all enum values from the schema for consistency checking
 export function collectEnumValues(obj: any, path: string[] = []): Record<string, string[]> {
   const enumMap: Record<string, string[]> = {};

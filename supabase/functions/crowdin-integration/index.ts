@@ -370,112 +370,224 @@ serve(async (req) => {
     }
 
     if (action === 'export') {
-      const { projectId, filename, translationData, branchId, folderId } = payload;
+      const { projectId, translationData, splitByApiPaths, branchId, folderId } = payload;
 
-      if (!projectId || !filename || !translationData) {
+      if (!projectId || !translationData) {
         return new Response(JSON.stringify({ error: 'Missing required fields' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
-      // Step 1: Create storage - try raw binary upload instead of FormData
-      console.log('🔍 Raw translation data keys:', Object.keys(translationData || {}));
-      console.log('🔍 Translation data sample:', JSON.stringify(translationData).substring(0, 200));
+      try {
+        if (splitByApiPaths && translationData.splitFiles) {
+          // Handle multiple files export
+          console.log('🔍 Exporting multiple files:', translationData.splitFiles.length);
+          
+          const results = [];
+          
+          for (const fileData of translationData.splitFiles) {
+            const { filename, data } = fileData;
+            
+            if (!filename || !data || typeof data !== 'object' || Object.keys(data).length === 0) {
+              console.warn('⚠️ Skipping empty file:', filename);
+              continue;
+            }
 
-      if (!translationData || typeof translationData !== 'object' || Object.keys(translationData).length === 0) {
-        return new Response(JSON.stringify({ error: 'Translation data is empty or invalid' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
+            const jsonContent = JSON.stringify(data, null, 2);
+            const encoder = new TextEncoder();
+            const bodyData = encoder.encode(jsonContent);
 
-      const jsonContent = JSON.stringify(translationData, null, 2);
-      console.log('📄 JSON content length:', jsonContent.length);
-      console.log('🔍 Filename:', filename);
-      
-      if (!jsonContent || jsonContent.length === 0 || jsonContent === '{}') {
-        return new Response(JSON.stringify({ error: 'Generated JSON content is empty' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
+            // Step 1: Create storage for this file
+            const storageResponse = await fetch(`${CROWDIN_API_BASE}/storages`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${apiToken}`,
+                'Content-Type': 'application/octet-stream',
+                'Crowdin-API-FileName': filename,
+              },
+              body: bodyData,
+            });
 
-      // Send raw binary data with Crowdin-API-FileName header (not multipart/form-data)
-      const encoder = new TextEncoder();
-      const bodyData = encoder.encode(jsonContent);
-      console.log('🔍 Binary file data size:', bodyData.length);
-      console.log('🔍 Sending filename in header:', filename);
+            if (!storageResponse.ok) {
+              console.error('❌ Storage creation failed for file:', filename, storageResponse.status);
+              continue;
+            }
 
-      const storageResponse = await fetch(`${CROWDIN_API_BASE}/storages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiToken}`,
-          'Content-Type': 'application/octet-stream',
-          'Crowdin-API-FileName': filename,
-        },
-        body: bodyData,
-      });
+            const storageData = await storageResponse.json();
+            const storageId = storageData.data.id;
 
-      console.log('🔍 Storage response status:', storageResponse.status);
-      console.log('🔍 Storage response headers:', Object.fromEntries(storageResponse.headers.entries()));
+            // Step 2: Add file to project
+            const fileRequestBody: any = {
+              storageId: storageId,
+              name: filename,
+              type: 'json',
+            };
 
-      if (!storageResponse.ok) {
-        console.error('Crowdin storage creation failed:', storageResponse.status, await storageResponse.text());
-        return new Response(JSON.stringify({ error: 'Failed to create storage in Crowdin' }), {
-          status: storageResponse.status,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
+            if (branchId) {
+              fileRequestBody.branchId = parseInt(branchId);
+            }
+            if (folderId) {
+              fileRequestBody.directoryId = parseInt(folderId);
+            }
 
-      const storageData = await storageResponse.json();
-      const storageId = storageData.data.id;
+            const fileResponse = await fetch(`${CROWDIN_API_BASE}/projects/${projectId}/files`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${apiToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(fileRequestBody),
+            });
 
-      // Step 2: Add file to project with optional branch and folder
-      const fileRequestBody: any = {
-        storageId: storageId,
-        name: filename,
-        type: 'json',
-      };
+            if (fileResponse.ok) {
+              const fileData = await fileResponse.json();
+              results.push({
+                fileId: fileData.data.id,
+                fileName: fileData.data.name,
+                filename: filename
+              });
+              console.log('✅ Successfully uploaded file:', filename);
+            } else {
+              console.error('❌ File creation failed for:', filename, fileResponse.status);
+            }
+          }
 
-      // Add branch and folder if specified
-      if (branchId) {
-        fileRequestBody.branchId = parseInt(branchId);
-      }
-      if (folderId) {
-        fileRequestBody.directoryId = parseInt(folderId);
-      }
+          if (results.length === 0) {
+            return new Response(JSON.stringify({ error: 'No files were successfully uploaded' }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
 
-      const fileResponse = await fetch(`${CROWDIN_API_BASE}/projects/${projectId}/files`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(fileRequestBody),
-      });
+          console.log('✅ Multi-file export completed:', results.length, 'files uploaded');
+          
+          return new Response(JSON.stringify({
+            success: true,
+            fileIds: results.map(r => r.fileId),
+            fileNames: results.map(r => r.fileName),
+            message: `Successfully uploaded ${results.length} files to Crowdin`
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
 
-      if (!fileResponse.ok) {
-        const errorText = await fileResponse.text();
-        console.error('Crowdin file creation failed:', fileResponse.status, errorText);
+        } else {
+          // Handle single file export (existing logic)
+          const { filename, data } = translationData;
+          
+          if (!filename || !data) {
+            return new Response(JSON.stringify({ error: 'Missing filename or data for single file export' }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+
+          // Step 1: Create storage - try raw binary upload instead of FormData
+          console.log('🔍 Raw translation data keys:', Object.keys(data || {}));
+          console.log('🔍 Translation data sample:', JSON.stringify(data).substring(0, 200));
+
+          if (!data || typeof data !== 'object' || Object.keys(data).length === 0) {
+            return new Response(JSON.stringify({ error: 'Translation data is empty or invalid' }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+
+          const jsonContent = JSON.stringify(data, null, 2);
+          console.log('📄 JSON content length:', jsonContent.length);
+          console.log('🔍 Filename:', filename);
+          
+          if (!jsonContent || jsonContent.length === 0 || jsonContent === '{}') {
+            return new Response(JSON.stringify({ error: 'Generated JSON content is empty' }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+
+          // Send raw binary data with Crowdin-API-FileName header (not multipart/form-data)
+          const encoder = new TextEncoder();
+          const bodyData = encoder.encode(jsonContent);
+          console.log('🔍 Binary file data size:', bodyData.length);
+          console.log('🔍 Sending filename in header:', filename);
+
+          const storageResponse = await fetch(`${CROWDIN_API_BASE}/storages`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiToken}`,
+              'Content-Type': 'application/octet-stream',
+              'Crowdin-API-FileName': filename,
+            },
+            body: bodyData,
+          });
+
+          console.log('🔍 Storage response status:', storageResponse.status);
+          console.log('🔍 Storage response headers:', Object.fromEntries(storageResponse.headers.entries()));
+
+          if (!storageResponse.ok) {
+            console.error('Crowdin storage creation failed:', storageResponse.status, await storageResponse.text());
+            return new Response(JSON.stringify({ error: 'Failed to create storage in Crowdin' }), {
+              status: storageResponse.status,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+
+          const storageData = await storageResponse.json();
+          const storageId = storageData.data.id;
+
+          // Step 2: Add file to project with optional branch and folder
+          const fileRequestBody: any = {
+            storageId: storageId,
+            name: filename,
+            type: 'json',
+          };
+
+          // Add branch and folder if specified
+          if (branchId) {
+            fileRequestBody.branchId = parseInt(branchId);
+          }
+          if (folderId) {
+            fileRequestBody.directoryId = parseInt(folderId);
+          }
+
+          const fileResponse = await fetch(`${CROWDIN_API_BASE}/projects/${projectId}/files`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(fileRequestBody),
+          });
+
+          if (!fileResponse.ok) {
+            console.error('Crowdin file creation failed:', fileResponse.status, await fileResponse.text());
+            return new Response(JSON.stringify({ error: 'Failed to create file in Crowdin project' }), {
+              status: fileResponse.status,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+
+          const fileData = await fileResponse.json();
+          console.log('✅ File created successfully:', fileData.data.name);
+
+          return new Response(JSON.stringify({
+            success: true,
+            fileId: fileData.data.id,
+            fileName: fileData.data.name,
+            message: 'File uploaded successfully to Crowdin'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+      } catch (error) {
+        console.error('❌ Export error:', error);
         return new Response(JSON.stringify({ 
-          error: 'Failed to add file to Crowdin project',
-          details: errorText 
+          error: `Export failed: ${error.message}` 
         }), {
-          status: fileResponse.status,
+          status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-
-      const fileResponseData = await fileResponse.json();
-      
-      return new Response(JSON.stringify({ 
-        success: true, 
-        fileId: fileResponseData.data.id,
-        fileName: fileResponseData.data.name 
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
     }
 
     // Import file from Crowdin

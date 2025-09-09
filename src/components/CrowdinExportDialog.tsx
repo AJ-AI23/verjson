@@ -7,9 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Upload, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Loader2, Upload, CheckCircle, AlertCircle, ExternalLink, ChevronDown, Files, File } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { previewExportFiles, splitTranslationDataByApiPaths, generateSplitFilenames, type ExportPreviewFile } from '@/lib/translationUtils';
 
 interface CrowdinProject {
   id: number;
@@ -67,6 +70,8 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
   const [error, setError] = useState<string>('');
   const [exportSuccess, setExportSuccess] = useState(false);
   const [hasExistingToken, setHasExistingToken] = useState(false);
+  const [splitByApiPaths, setSplitByApiPaths] = useState(false);
+  const [previewFiles, setPreviewFiles] = useState<ExportPreviewFile[]>([]);
 
   // Check for existing API token when dialog opens
   useEffect(() => {
@@ -80,6 +85,14 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
   useEffect(() => {
     setFilename(`${documentName}-translations.json`);
   }, [documentName]);
+
+  // Update preview when filename, split option, or translation data changes
+  useEffect(() => {
+    if (translationData && Object.keys(translationData).length > 0) {
+      const preview = previewExportFiles(translationData, filename, splitByApiPaths);
+      setPreviewFiles(preview);
+    }
+  }, [filename, splitByApiPaths, translationData]);
 
   const checkExistingToken = async () => {
     try {
@@ -314,12 +327,31 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       setIsExporting(true);
       setError('');
 
+      // Prepare export data
+      let exportData;
+      if (splitByApiPaths) {
+        const splitData = splitTranslationDataByApiPaths(translationData);
+        const filenames = generateSplitFilenames(filename.trim(), Object.keys(splitData));
+        
+        exportData = {
+          splitFiles: Object.entries(splitData).map(([path, data]) => ({
+            filename: filenames[path],
+            data
+          }))
+        };
+      } else {
+        exportData = {
+          filename: filename.trim(),
+          data: translationData
+        };
+      }
+
       const { data, error } = await supabase.functions.invoke('crowdin-integration', {
         body: {
           action: 'export',
           projectId: selectedProjectId,
-          filename: filename.trim(),
-          translationData,
+          translationData: exportData,
+          splitByApiPaths,
           workspaceId,
           ...(selectedBranchId && selectedBranchId !== '__main__' && { branchId: selectedBranchId }),
           ...(selectedFolderId && selectedFolderId !== '__root__' && { folderId: selectedFolderId }),
@@ -332,15 +364,23 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       }
 
       // Store Crowdin file information in the document record
-      if (documentId && data.fileId) {
+      if (documentId && (data.fileId || data.fileIds)) {
         try {
+          const updateData: any = {
+            crowdin_project_id: selectedProjectId,
+          };
+
+          if (splitByApiPaths && data.fileIds) {
+            updateData.crowdin_file_ids = data.fileIds;
+            updateData.crowdin_filenames = data.fileNames;
+          } else {
+            updateData.crowdin_file_id = data.fileId;
+            updateData.crowdin_filename = filename.trim();
+          }
+
           const { error: updateError } = await supabase
             .from('documents')
-            .update({
-              crowdin_file_id: data.fileId,
-              crowdin_project_id: selectedProjectId,
-              crowdin_filename: filename.trim()
-            })
+            .update(updateData)
             .eq('id', documentId);
 
           if (updateError) {
@@ -360,7 +400,11 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       }
 
       setExportSuccess(true);
-      toast.success(`Successfully exported to Crowdin: ${data.fileName}`);
+      if (splitByApiPaths) {
+        toast.success(`Successfully exported ${previewFiles.length} files to Crowdin`);
+      } else {
+        toast.success(`Successfully exported to Crowdin: ${data.fileName}`);
+      }
     } catch (err) {
       console.error('Error exporting:', err);
       setError('Failed to export to Crowdin');
@@ -393,6 +437,8 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
     setError('');
     setExportSuccess(false);
     setHasExistingToken(false);
+    setSplitByApiPaths(false);
+    setPreviewFiles([]);
   };
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -620,11 +666,78 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
                         />
                       </div>
 
+                      {/* Split by API Paths Option */}
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="split-by-paths"
+                            checked={splitByApiPaths}
+                            onCheckedChange={(checked) => setSplitByApiPaths(checked === true)}
+                          />
+                          <Label htmlFor="split-by-paths" className="text-sm font-medium">
+                            Split by API paths
+                          </Label>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Create separate files for each API base path (e.g., /v1/parcels, /v1/carriers)
+                        </p>
+                      </div>
+
+                      {/* Export Preview */}
+                      {previewFiles.length > 0 && (
+                        <Card>
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              {splitByApiPaths ? <Files className="h-4 w-4" /> : <File className="h-4 w-4" />}
+                              Export Preview ({previewFiles.length} file{previewFiles.length !== 1 ? 's' : ''})
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <div className="space-y-2">
+                              {previewFiles.map((file, index) => (
+                                <Collapsible key={index}>
+                                  <CollapsibleTrigger className="flex w-full items-center justify-between p-2 rounded-md border hover:bg-accent">
+                                    <div className="flex items-center gap-2 text-left">
+                                      <File className="h-3 w-3 flex-shrink-0" />
+                                      <div>
+                                        <div className="text-sm font-medium">{file.filename}</div>
+                                        <div className="text-xs text-muted-foreground">
+                                          {file.entryCount} strings
+                                          {file.path !== 'single' && file.path !== 'general' && (
+                                            <span className="ml-1">• {file.path}</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <ChevronDown className="h-3 w-3" />
+                                  </CollapsibleTrigger>
+                                  <CollapsibleContent className="px-2 pb-2">
+                                    <div className="text-xs text-muted-foreground">
+                                      Sample keys: {file.sampleKeys.join(', ')}
+                                      {file.sampleKeys.length < file.entryCount && '...'}
+                                    </div>
+                                  </CollapsibleContent>
+                                </Collapsible>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
                       <Alert>
                         <AlertCircle className="h-4 w-4" />
                         <AlertDescription>
-                          This will upload {Object.keys(translationData).length} translation strings
-                          as a JSON file to your Crowdin project
+                          {splitByApiPaths ? (
+                            <>
+                              This will upload {previewFiles.length} files with a total of {Object.keys(translationData).length} translation strings
+                              to your Crowdin project
+                            </>
+                          ) : (
+                            <>
+                              This will upload {Object.keys(translationData).length} translation strings
+                              as a JSON file to your Crowdin project
+                            </>
+                          )}
                           {selectedBranchId && selectedBranchId !== '__main__' ? ` in branch "${branches.find(b => b.id.toString() === selectedBranchId)?.name || 'selected branch'}"` : ''}
                           {selectedFolderId && selectedFolderId !== '__root__' ? ` in folder "${folders.find(f => f.id.toString() === selectedFolderId)?.path || 'selected folder'}"` : ' in the root folder'}.
                         </AlertDescription>
