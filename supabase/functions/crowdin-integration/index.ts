@@ -180,16 +180,15 @@ serve(async (req) => {
 
     console.log('✅ User authenticated:', user.id);
 
-    // Verify user has access to workspace
-    const { data: workspace, error: workspaceError } = await supabaseClient
-      .from('workspaces')
-      .select('id, name, user_id')
-      .eq('id', workspaceId)
-      .eq('user_id', user.id)
-      .single();
+    // Verify user has access to workspace (owner or has workspace permissions)
+    const { data: hasAccess, error: accessError } = await supabaseClient
+      .rpc('user_has_workspace_access', {
+        workspace_id: workspaceId,
+        user_id: user.id
+      });
 
-    if (workspaceError || !workspace) {
-      console.error('Workspace access error:', workspaceError);
+    if (accessError || !hasAccess) {
+      console.error('Workspace access error:', accessError);
       return new Response(JSON.stringify({ error: 'Workspace not found or access denied' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -99,37 +99,35 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       console.log('🔍 Checking for existing token for workspace:', workspaceId);
       setError('');
 
-      // Query the database directly instead of using edge function
-      const { data: tokenData, error: tokenError } = await supabase
-        .from('workspace_crowdin_settings')
-        .select('encrypted_api_token')
-        .eq('workspace_id', workspaceId)
-        .maybeSingle();
+      // Use edge function to check for existing token
+      const { data, error: tokenError } = await supabase.functions.invoke('crowdin-integration', {
+        body: { 
+          action: 'checkToken', 
+          workspaceId 
+        }
+      });
 
-      console.log('🔍 Database query result:', { tokenData, tokenError });
+      console.log('🔍 Edge function response:', { data, tokenError });
 
       if (tokenError) {
-        console.error('❌ Error querying database:', tokenError);
+        console.error('❌ Error checking token:', tokenError);
         setHasExistingToken(false);
         setShowTokenInput(true);
         return;
       }
 
-      if (!tokenData || !tokenData.encrypted_api_token) {
-        console.log('❌ No token found in database');
+      if (data?.hasToken) {
+        console.log('✅ Found existing token for workspace');
+        setHasExistingToken(true);
+        setShowTokenInput(false);
+        // Now try to load projects using the edge function
+        console.log('🔍 Loading projects...');
+        await loadProjects();
+      } else {
+        console.log('🔍 No existing token found');
         setHasExistingToken(false);
         setShowTokenInput(true);
-        return;
       }
-
-      // Token exists in database
-      console.log('✅ Token found in database');
-      setHasExistingToken(true);
-      setShowTokenInput(false);
-
-      // Now try to load projects using the edge function
-      console.log('🔍 Loading projects...');
-      await loadProjects();
     } catch (err) {
       console.error('❌ Error checking token:', err);
       setError('Failed to check existing API token');
