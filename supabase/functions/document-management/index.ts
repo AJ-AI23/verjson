@@ -74,7 +74,7 @@ const handler = async (req: Request): Promise<Response> => {
     logger.info('Processing request', { action, userId: user.id });
 
     switch (action) {
-      case 'list':
+      case 'listDocumentsByWorkspace':
         const workspaceId = requestBody.workspace_id;
         
         logger.debug('Fetching documents for workspace', { workspaceId });
@@ -131,7 +131,7 @@ const handler = async (req: Request): Promise<Response> => {
         
         break;
 
-      case 'create':
+      case 'createDocument':
         if (!requestBody.workspace_id || !requestBody.name || !requestBody.file_type) {
           logger.error('Missing required fields');
           return new Response(JSON.stringify({ error: 'workspace_id, name, and file_type are required' }), {
@@ -190,7 +190,7 @@ const handler = async (req: Request): Promise<Response> => {
         
         break;
 
-      case 'update':
+      case 'updateDocument':
         if (!requestBody.id) {
           logger.error('Missing required field: id');
           return new Response(JSON.stringify({ error: 'ID is required' }), {
@@ -230,7 +230,7 @@ const handler = async (req: Request): Promise<Response> => {
         
         break;
 
-      case 'delete':
+      case 'deleteDocument':
         if (!requestBody.id) {
           logger.error('Missing required field: id');
           return new Response(JSON.stringify({ error: 'ID is required' }), {
@@ -265,7 +265,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       default:
         logger.warn('Invalid action', { action });
-        return new Response(JSON.stringify({ error: 'Invalid action. Supported actions: list, create, update, delete' }), {
+        return new Response(JSON.stringify({ error: 'Invalid action. Supported actions: listDocumentsByWorkspace, createDocument, updateDocument, deleteDocument' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });

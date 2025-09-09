@@ -73,7 +73,7 @@ const handler = async (req: Request): Promise<Response> => {
     logger.info('Processing request', { action, userId: user.id });
 
     switch (action) {
-      case 'list':
+      case 'listUserWorkspaces':
           logger.debug('Fetching workspaces for user', { userId: user.id });
           
           // Get user's own workspaces
@@ -158,7 +158,7 @@ const handler = async (req: Request): Promise<Response> => {
         
         break;
 
-      case 'create':
+      case 'createWorkspace':
         logger.debug('Creating new workspace');
         if (!requestBody.name) {
           logger.error('Missing required field: name');
@@ -199,7 +199,7 @@ const handler = async (req: Request): Promise<Response> => {
         
         break;
 
-      case 'update':
+      case 'updateWorkspace':
         if (!requestBody.id) {
           logger.error('Missing required field: id');
           return new Response(JSON.stringify({ error: 'ID is required' }), {
@@ -238,7 +238,7 @@ const handler = async (req: Request): Promise<Response> => {
         
         break;
 
-      case 'delete':
+      case 'deleteWorkspace':
         if (!requestBody.id) {
           logger.error('Missing required field: id');
           return new Response(JSON.stringify({ error: 'ID is required' }), {
@@ -272,7 +272,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       default:
         logger.warn('Invalid action', { action });
-        return new Response(JSON.stringify({ error: 'Invalid action. Supported actions: list, create, update, delete' }), {
+        return new Response(JSON.stringify({ error: 'Invalid action. Supported actions: listUserWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });

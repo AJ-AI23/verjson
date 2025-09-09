@@ -23,7 +23,7 @@ export function useDocumentContent(documentId?: string) {
       console.log('[useDocumentContent] Fetching content for document:', documentId);
 
       const { data, error } = await supabase.functions.invoke('document-content', {
-        body: { action: 'get', document_id: documentId }
+        body: { action: 'fetchDocumentWithContent', document_id: documentId }
       });
 
       if (error) throw error;

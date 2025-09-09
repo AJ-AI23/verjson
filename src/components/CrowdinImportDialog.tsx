@@ -59,7 +59,7 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
       
       const { data, error } = await supabase.functions.invoke('crowdin-integration', {
         body: {
-          action: 'import',
+          action: 'importTranslationsFromCrowdin',
           ...(hasMultipleFiles 
             ? { fileIds: crowdinIntegration.file_ids }
             : { fileId: crowdinIntegration.file_id }

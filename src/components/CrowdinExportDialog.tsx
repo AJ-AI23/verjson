@@ -105,7 +105,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       // Use edge function to check for existing token
       const { data, error: tokenError } = await supabase.functions.invoke('crowdin-integration', {
         body: { 
-          action: 'checkToken', 
+          action: 'validateCrowdinToken', 
           workspaceId 
         }
       });
@@ -160,7 +160,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       setError('');
 
       const requestPayload = { 
-        action: 'saveToken',
+        action: 'storeCrowdinToken',
         apiToken: apiToken.trim(),
         workspaceId 
       };
@@ -205,7 +205,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       setIsLoadingBranches(true);
       setError('');
 
-      const requestBody = { action: 'listBranches', projectId: parseInt(projectId), workspaceId };
+      const requestBody = { action: 'fetchCrowdinBranches', projectId: parseInt(projectId), workspaceId };
       console.log('🔍 Loading branches for project:', projectId);
 
       const { data, error } = await supabase.functions.invoke('crowdin-integration', {
@@ -234,7 +234,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       setError('');
 
       const requestBody = { 
-        action: 'listFolders', 
+        action: 'fetchCrowdinFolders', 
         projectId: parseInt(projectId), 
         workspaceId,
         ...(branchId && { branchId: parseInt(branchId) })
@@ -295,7 +295,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
 
       console.log('🔍 Loading projects for workspace:', workspaceId);
       
-      const requestBody = { action: 'listProjects', workspaceId };
+      const requestBody = { action: 'fetchCrowdinProjects', workspaceId };
       console.log('📤 Sending request body:', JSON.stringify(requestBody));
 
       const { data, error } = await supabase.functions.invoke('crowdin-integration', {
@@ -343,7 +343,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
       // Get list of existing files
       const { data: filesData, error: filesError } = await supabase.functions.invoke('crowdin-integration', {
         body: {
-          action: 'listFiles',
+          action: 'fetchCrowdinFiles',
           projectId: selectedProjectId,
           workspaceId,
           ...(selectedBranchId && selectedBranchId !== '__main__' && { branchId: selectedBranchId }),
@@ -418,7 +418,7 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
 
       const { data, error } = await supabase.functions.invoke('crowdin-integration', {
         body: {
-          action: 'export',
+          action: 'exportDocumentToCrowdin',
           projectId: selectedProjectId,
           translationData: exportData,
           splitByApiPaths,

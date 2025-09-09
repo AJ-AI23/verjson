@@ -195,7 +195,7 @@ serve(async (req) => {
       });
     }
 
-    if (action === 'checkToken') {
+    if (action === 'validateCrowdinToken') {
       console.log('CheckToken action started. WorkspaceId:', workspaceId);
       
       try {
@@ -236,7 +236,7 @@ serve(async (req) => {
       }
     }
 
-    if (action === 'saveToken') {
+    if (action === 'storeCrowdinToken') {
       const { apiToken } = payload;
       
       console.log('SaveToken action started. WorkspaceId:', workspaceId, 'Has apiToken:', !!apiToken);
@@ -329,7 +329,7 @@ serve(async (req) => {
       });
     }
 
-    if (action === 'listProjects') {
+    if (action === 'fetchCrowdinProjects') {
       console.log('🔍 ListProjects action started');
       console.log('🔑 Attempting to decrypt token...');
       console.log('🌐 Making Crowdin API request to fetch projects...');
@@ -368,7 +368,7 @@ serve(async (req) => {
       });
     }
 
-    if (action === 'listFiles') {
+    if (action === 'fetchCrowdinFiles') {
       const { projectId, branchId, directoryId } = payload;
       
       if (!projectId) {
@@ -434,7 +434,7 @@ serve(async (req) => {
       }
     }
 
-    if (action === 'export') {
+    if (action === 'exportDocumentToCrowdin') {
       const { projectId, translationData, splitByApiPaths, branchId, folderId, documentId } = payload;
 
       if (!projectId || !translationData) {
@@ -796,7 +796,7 @@ serve(async (req) => {
     }
 
     // Import file from Crowdin
-    if (action === 'import') {
+    if (action === 'importTranslationsFromCrowdin') {
       console.log('🔍 Import action started');
       
       const { fileId, fileIds, documentId, projectId } = payload;
@@ -925,7 +925,7 @@ serve(async (req) => {
       }
     }
 
-    if (action === 'listBranches') {
+    if (action === 'fetchCrowdinBranches') {
       const { projectId } = payload;
 
       if (!projectId) {
@@ -964,7 +964,7 @@ serve(async (req) => {
       });
     }
 
-    if (action === 'listFolders') {
+    if (action === 'fetchCrowdinFolders') {
       const { projectId, branchId } = payload;
 
       if (!projectId) {
@@ -1008,7 +1008,7 @@ serve(async (req) => {
       });
     }
 
-    if (action === 'checkImportAvailability') {
+    if (action === 'validateImportAvailability') {
       const { documentId } = payload;
 
       if (!documentId) {

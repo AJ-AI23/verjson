@@ -30,7 +30,7 @@ export function useDocuments(workspaceId?: string) {
       console.log('[useDocuments] Fetching documents for workspace:', workspaceId);
       
       const { data, error } = await supabase.functions.invoke('document-management', {
-        body: { action: 'list', workspace_id: workspaceId }
+        body: { action: 'listDocumentsByWorkspace', workspace_id: workspaceId }
       });
 
       if (error) {
@@ -63,7 +63,7 @@ export function useDocuments(workspaceId?: string) {
       console.log('[useDocuments] Creating document:', data);
       
       const { data: result, error } = await supabase.functions.invoke('document-management', {
-        body: { action: 'create', ...data }
+        body: { action: 'createDocument', ...data }
       });
 
       if (error) throw error;
@@ -86,7 +86,7 @@ export function useDocuments(workspaceId?: string) {
       console.log('[useDocuments] Updating document:', id, updates);
       
       const { data, error } = await supabase.functions.invoke('document-management', {
-        body: { action: 'update', id, ...updates }
+        body: { action: 'updateDocument', id, ...updates }
       });
 
       if (error) throw error;
@@ -107,7 +107,7 @@ export function useDocuments(workspaceId?: string) {
       console.log('[useDocuments] Deleting document:', id);
       
       const { data, error } = await supabase.functions.invoke('document-management', {
-        body: { action: 'delete', id }
+        body: { action: 'deleteDocument', id }
       });
 
       if (error) throw error;
