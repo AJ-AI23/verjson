@@ -141,6 +141,20 @@ const reverseOperation = (op: Operation): Operation => {
   }
 };
 
+// Safely create nested objects for a given path
+const createNestedPath = (obj: any, path: string): void => {
+  const parts = path.split('/').filter(part => part !== '');
+  let current = obj;
+  
+  for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i];
+    if (!(part in current) || typeof current[part] !== 'object' || current[part] === null) {
+      current[part] = {};
+    }
+    current = current[part];
+  }
+};
+
 // Apply selected patches to build the current schema
 export const applySelectedPatches = (patches: SchemaPatch[], upToTimestamp?: number): any => {
   
@@ -198,16 +212,25 @@ export const applySelectedPatches = (patches: SchemaPatch[], upToTimestamp?: num
     const patch = filteredPatches[i];
     if (patch.isSelected && patch.patches && patch.patches.length > 0) {
       try {
+        // Pre-create paths for add operations to prevent "obj is undefined" errors
+        for (const operation of patch.patches) {
+          if (operation.op === 'add' && operation.path) {
+            createNestedPath(schema, operation.path);
+          }
+        }
+        
         schema = applyPatch(schema, patch.patches).newDocument;
       } catch (err) {
-        console.error('Failed to apply patch:', patch, err);
-        toast.error(`Failed to apply version ${formatVersion(patch.version)}`);
-        throw err;
+        console.error('Failed to apply patch:', patch, 'Error:', err);
+        console.error('Current schema state:', JSON.stringify(schema, null, 2));
+        
+        // More informative error message
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        toast.error(`Failed to apply version ${formatVersion(patch.version)}: ${errorMessage}`);
+        throw new Error(`Failed to apply version ${formatVersion(patch.version)}: ${errorMessage}`);
       }
     }
   }
-  
-  
   
   // Final validation - ensure the resulting schema is not empty
   if (!schema || (typeof schema === 'object' && Object.keys(schema).length === 0)) {
