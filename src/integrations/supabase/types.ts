@@ -269,13 +269,7 @@ export type Database = {
         Row: {
           content: Json
           created_at: string
-          crowdin_file_id: string | null
-          crowdin_file_ids: Json | null
-          crowdin_filename: string | null
-          crowdin_filenames: Json | null
           crowdin_integration_id: string | null
-          crowdin_project_id: string | null
-          crowdin_split_by_paths: boolean | null
           file_type: string
           id: string
           name: string
@@ -288,13 +282,7 @@ export type Database = {
         Insert: {
           content?: Json
           created_at?: string
-          crowdin_file_id?: string | null
-          crowdin_file_ids?: Json | null
-          crowdin_filename?: string | null
-          crowdin_filenames?: Json | null
           crowdin_integration_id?: string | null
-          crowdin_project_id?: string | null
-          crowdin_split_by_paths?: boolean | null
           file_type?: string
           id?: string
           name: string
@@ -307,13 +295,7 @@ export type Database = {
         Update: {
           content?: Json
           created_at?: string
-          crowdin_file_id?: string | null
-          crowdin_file_ids?: Json | null
-          crowdin_filename?: string | null
-          crowdin_filenames?: Json | null
           crowdin_integration_id?: string | null
-          crowdin_project_id?: string | null
-          crowdin_split_by_paths?: boolean | null
           file_type?: string
           id?: string
           name?: string
