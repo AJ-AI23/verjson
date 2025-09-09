@@ -40,18 +40,19 @@ export function useDocumentVersions(documentId?: string) {
     try {
       debugToast('🔔 fetchVersions: Fetching versions for document', documentId);
       setLoading(true);
-      const { data, error } = await supabase
-        .from('document_versions')
-        .select('*')
-        .eq('document_id', documentId)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: true });
+      
+      const { data, error } = await supabase.functions.invoke('document-versions', {
+        body: {
+          action: 'listDocumentVersions',
+          documentId
+        }
+      });
 
       if (error) throw error;
       
       debugToast('🔔 fetchVersions: Retrieved versions', {
-        count: data?.length || 0,
-        versions: data?.map(v => ({ 
+        count: data.versions?.length || 0,
+        versions: data.versions?.map(v => ({ 
           id: v.id, 
           description: v.description, 
           isSelected: v.is_selected,
@@ -59,7 +60,7 @@ export function useDocumentVersions(documentId?: string) {
         })) || []
       });
       
-      setVersions(data as DocumentVersion[] || []);
+      setVersions(data.versions || []);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch versions';
       setError(message);
@@ -73,54 +74,20 @@ export function useDocumentVersions(documentId?: string) {
     if (!user || !documentId) return null;
 
     try {
-      const { data, error } = await supabase
-        .from('document_versions')
-        .insert({
-          document_id: documentId,
-          user_id: user.id,
-          version_major: patch.version.major,
-          version_minor: patch.version.minor,
-          version_patch: patch.version.patch,
-          description: patch.description,
-          tier: patch.tier,
-          is_released: patch.isReleased || false,
-          is_selected: patch.isSelected !== false,
-          patches: patch.patches ? JSON.stringify(patch.patches) : null,
-          full_document: patch.fullDocument || null,
-        })
-        .select()
-        .single();
+      const { data, error } = await supabase.functions.invoke('document-versions', {
+        body: {
+          action: 'createDocumentVersion',
+          documentId,
+          patch
+        }
+      });
 
       if (error) throw error;
 
-      const newVersion = data as DocumentVersion;
+      const newVersion = data.version as DocumentVersion;
       setVersions(prev => [...prev, newVersion]);
       return newVersion;
     } catch (err) {
-      // Handle duplicate initial version gracefully
-      if (err instanceof Error && err.message.includes('duplicate key') && patch.description === 'Initial version') {
-        console.log('Initial version already exists, fetching existing version');
-        try {
-          const { data: existingVersion, error: fetchError } = await supabase
-            .from('document_versions')
-            .select('*')
-            .eq('document_id', documentId)
-            .eq('description', 'Initial version')
-            .single();
-            
-          if (!fetchError && existingVersion) {
-            // Add to local state if not already there
-            setVersions(prev => {
-              const exists = prev.find(v => v.id === existingVersion.id);
-              return exists ? prev : [...prev, existingVersion as DocumentVersion];
-            });
-            return existingVersion as DocumentVersion;
-          }
-        } catch (fetchErr) {
-          console.error('Failed to fetch existing initial version:', fetchErr);
-        }
-      }
-      
       const message = err instanceof Error ? err.message : 'Failed to create version';
       setError(message);
       console.error('Error creating document version:', err);
@@ -133,24 +100,17 @@ export function useDocumentVersions(documentId?: string) {
     if (!user || !documentId) return null;
 
     try {
-      const { data, error } = await supabase.rpc('create_initial_version_safe', {
-        p_document_id: documentId,
-        p_user_id: user.id,
-        p_content: content
+      const { data, error } = await supabase.functions.invoke('document-versions', {
+        body: {
+          action: 'createInitialDocumentVersion',
+          documentId,
+          content
+        }
       });
 
       if (error) throw error;
 
-      // Fetch the created/existing version
-      const { data: versionData, error: fetchError } = await supabase
-        .from('document_versions')
-        .select('*')
-        .eq('id', data)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      const version = versionData as DocumentVersion;
+      const version = data.version as DocumentVersion;
       setVersions(prev => {
         const exists = prev.find(v => v.id === version.id);
         return exists ? prev : [...prev, version];
@@ -167,17 +127,17 @@ export function useDocumentVersions(documentId?: string) {
     if (!user) return null;
 
     try {
-      const { data, error } = await supabase
-        .from('document_versions')
-        .update(updates)
-        .eq('id', versionId)
-        .eq('user_id', user.id)
-        .select()
-        .single();
+      const { data, error } = await supabase.functions.invoke('document-versions', {
+        body: {
+          action: 'updateDocumentVersion',
+          versionId,
+          updates
+        }
+      });
 
       if (error) throw error;
 
-      const updatedVersion = data as DocumentVersion;
+      const updatedVersion = data.version as DocumentVersion;
       setVersions(prev => prev.map(v => v.id === versionId ? updatedVersion : v));
       return updatedVersion;
     } catch (err) {
@@ -194,11 +154,13 @@ export function useDocumentVersions(documentId?: string) {
 
     try {
       debugToast('🗑️ deleteVersion: Attempting to delete version', versionId);
-      const { error } = await supabase
-        .from('document_versions')
-        .delete()
-        .eq('id', versionId)
-        .eq('user_id', user.id);
+      
+      const { data, error } = await supabase.functions.invoke('document-versions', {
+        body: {
+          action: 'deleteDocumentVersion',
+          versionId
+        }
+      });
 
       if (error) throw error;
 
@@ -212,6 +174,8 @@ export function useDocumentVersions(documentId?: string) {
         });
         return updated;
       });
+      
+      toast.success(data.message || 'Version deleted successfully');
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete version';
