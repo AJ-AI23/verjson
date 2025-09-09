@@ -450,15 +450,15 @@ export const CrowdinExportDialog: React.FC<CrowdinExportDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
             Export to Crowdin
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-y-auto flex-1 min-h-0 pr-2">
           {exportSuccess ? (
             <Card className="border-green-200 bg-green-50">
               <CardContent className="flex items-center gap-3 pt-6">
