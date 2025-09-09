@@ -265,24 +265,24 @@ export function generateMergeConflicts(
       case 'remove':
         conflictType = 'property_removed';
         severity = path.includes('/properties/') || path.includes('/paths/') ? 'high' : 'medium';
-        description = `Property at "${path}" will be removed`;
+        description = `Property at "${formatJsonPath(path)}" will be removed`;
         break;
         
       case 'add':
         conflictType = 'property_added';
         severity = 'low';
-        description = `New property at "${path}" will be added`;
+        description = `New property at "${formatJsonPath(path)}" will be added`;
         break;
         
       case 'replace':
         if (path.endsWith('/type')) {
           conflictType = 'type_changed';
           severity = 'high';
-          description = `Type at "${path}" will change from "${getCurrentValue(currentSchema, path)}" to "${patch.value}"`;
+          description = `Type at "${formatJsonPath(path)}" will change from "${getCurrentValue(currentSchema, path)}" to "${patch.value}"`;
         } else {
           conflictType = 'value_changed';
           severity = 'medium';
-          description = `Value at "${path}" will change`;
+          description = `Value at "${formatJsonPath(path)}" will change`;
         }
         break;
         
@@ -291,10 +291,10 @@ export function generateMergeConflicts(
     }
     
     conflicts.push({
-      path,
+      path: formatJsonPath(path),
       conflictType,
       currentValue: getCurrentValue(currentSchema, path),
-      importValue: patch.op === 'remove' ? null : patch.value,
+      importValue: patch.op === 'remove' ? null : getImportValueAtPath(importSchema, path),
       description,
       severity,
     });
@@ -330,6 +330,30 @@ export function calculateImportVersionTier(
 }
 
 /**
+ * Convert JSON Pointer path to readable dot notation
+ */
+export function formatJsonPath(path: string): string {
+  if (!path || path === '/') return 'root';
+  
+  // Remove leading slash and split by '/'
+  const parts = path.slice(1).split('/');
+  
+  // Convert URL-encoded characters back to readable format
+  const decodedParts = parts.map(part => {
+    // Handle common URL encodings
+    return part
+      .replace(/~1/g, '/')  // JSON Pointer escape for /
+      .replace(/~0/g, '~')  // JSON Pointer escape for ~
+      .replace(/%7B/g, '{') // URL encoding for {
+      .replace(/%7D/g, '}') // URL encoding for }
+      .replace(/%2F/g, '/') // URL encoding for /
+      .replace(/\{([^}]+)\}/g, '{$1}'); // Ensure path parameters are readable
+  });
+  
+  return 'root.' + decodedParts.join('.');
+}
+
+/**
  * Helper function to get current value at a JSON path
  */
 function getCurrentValue(obj: any, path: string): any {
@@ -340,10 +364,21 @@ function getCurrentValue(obj: any, path: string): any {
     if (current === null || current === undefined) {
       return undefined;
     }
-    current = current[part];
+    // Handle URL-encoded path parts
+    const decodedPart = part
+      .replace(/~1/g, '/')
+      .replace(/~0/g, '~');
+    current = current[decodedPart];
   }
   
   return current;
+}
+
+/**
+ * Get the relevant import value for a specific path
+ */
+export function getImportValueAtPath(importSchema: any, path: string): any {
+  return getCurrentValue(importSchema, path);
 }
 
 /**

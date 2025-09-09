@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { DocumentVersionComparison, MergeConflict } from "@/lib/importVersionUtils";
+import { DocumentVersionComparison, MergeConflict, formatJsonPath } from "@/lib/importVersionUtils";
 import { applyImportPatches } from "@/lib/importVersionUtils";
 import { AlertTriangle, CheckCircle, FileText, GitMerge } from "lucide-react";
 
@@ -252,7 +252,7 @@ export const ImportVersionConflictPreview: React.FC<ImportVersionConflictPreview
                       {patch.op.toUpperCase()}
                     </Badge>
                     <code className="font-mono text-xs bg-muted px-1 rounded">
-                      {patch.path}
+                      {formatJsonPath(patch.path)}
                     </code>
                   </div>
                   {patch.op !== 'remove' && 'value' in patch && (
