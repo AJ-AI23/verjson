@@ -257,6 +257,12 @@ export function generateMergeConflicts(
   
   patches.forEach(patch => {
     const path = patch.path;
+    
+    // Skip root-level changes that would show the entire document
+    if (path === '' || path === '/' || path === '/root') {
+      return;
+    }
+    
     let conflictType: MergeConflict['conflictType'];
     let severity: MergeConflict['severity'] = 'low';
     let description = '';
