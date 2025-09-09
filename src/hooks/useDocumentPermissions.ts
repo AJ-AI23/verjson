@@ -53,17 +53,29 @@ export function useDocumentPermissions(documentId?: string, document?: any) {
 
   const inviteCollaborator = async (email: string, documentName: string, role: 'editor' | 'viewer' = 'editor', emailNotifications: boolean = true) => {
     if (!user || !documentId) return false;
+    
+    console.log('🔔 useDocumentPermissions - inviteCollaborator called with:', {
+      email,
+      documentName,
+      role,
+      emailNotifications,
+      emailNotificationsType: typeof emailNotifications
+    });
 
     try {
+      const requestBody = {
+        action: 'inviteToDocument',
+        email,
+        resourceId: documentId,
+        resourceName: documentName,
+        role,
+        emailNotificationsEnabled: emailNotifications
+      };
+      
+      console.log('🔔 useDocumentPermissions - Request body being sent:', requestBody);
+
       const { data, error } = await supabase.functions.invoke('permissions-management', {
-        body: {
-          action: 'inviteToDocument',
-          email,
-          resourceId: documentId,
-          resourceName: documentName,
-          role,
-          emailNotificationsEnabled: emailNotifications
-        }
+        body: requestBody
       });
 
       if (error) throw error;

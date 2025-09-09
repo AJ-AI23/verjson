@@ -42,6 +42,12 @@ export function InviteCollaboratorDialog({
     if (!email.trim()) return;
 
     setIsInviting(true);
+    console.log('🔔 InviteCollaboratorDialog - State values:', {
+      email,
+      role,
+      emailNotifications,
+      emailNotificationsChecked: emailNotifications
+    });
     console.log('🔔 InviteCollaboratorDialog - Sending invitation with emailNotifications:', emailNotifications);
     const success = await onInvite(email, role, emailNotifications);
     
@@ -119,7 +125,14 @@ export function InviteCollaboratorDialog({
             <Checkbox
               id="emailNotifications"
               checked={emailNotifications}
-              onCheckedChange={(checked) => setEmailNotifications(checked === true)}
+              onCheckedChange={(checked) => {
+                console.log('🔔 InviteCollaboratorDialog - Checkbox changed:', {
+                  checked,
+                  checkedType: typeof checked,
+                  newValue: checked === true
+                });
+                setEmailNotifications(checked === true);
+              }}
             />
             <Label htmlFor="emailNotifications" className="text-sm">
               Send invitation and future notifications by email for this document

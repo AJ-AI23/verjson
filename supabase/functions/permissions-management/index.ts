@@ -328,7 +328,17 @@ async function handleInviteToDocument(supabaseClient: any, data: any, user: any,
   logger.debug('Raw invitation data received', data);
   const { email, resourceId: documentId, resourceName: documentName, role = 'editor', emailNotificationsEnabled } = data;
   const emailNotifications = emailNotificationsEnabled !== false; // Default to true only if not explicitly false
-  logger.info('Processing document invitation', { email, documentId, documentName, role, emailNotifications, originalEmailNotificationsEnabled: emailNotificationsEnabled });
+  
+  logger.info('Processing document invitation with detailed values', { 
+    email, 
+    documentId, 
+    documentName, 
+    role, 
+    emailNotifications,
+    originalEmailNotificationsEnabled: emailNotificationsEnabled,
+    emailNotificationsEnabledType: typeof emailNotificationsEnabled,
+    emailNotificationsType: typeof emailNotifications
+  });
 
   if (!email || !documentId || !documentName || !role) {
     throw new Error("Missing required parameters");
@@ -342,6 +352,15 @@ async function handleInviteToDocument(supabaseClient: any, data: any, user: any,
 
   if (targetUserId) {
     // Create pending permission
+    logger.info('Creating document permission with values', {
+      document_id: documentId,
+      user_id: targetUserId,
+      role: role,
+      granted_by: user.id,
+      status: 'pending',
+      email_notifications_enabled: emailNotifications
+    });
+    
     const { error: permissionError } = await supabaseClient
       .from("document_permissions")
       .insert({
@@ -365,8 +384,17 @@ async function handleInviteToDocument(supabaseClient: any, data: any, user: any,
   }
 
   // Send email if enabled
+  logger.info('Email sending decision', {
+    emailNotifications,
+    emailNotificationsType: typeof emailNotifications,
+    willSendEmail: emailNotifications
+  });
+  
   if (emailNotifications) {
+    logger.info('Sending invitation email');
     await sendInvitationEmail(email, user.email, 'document', documentName, role, !!targetUserId, logger);
+  } else {
+    logger.info('Skipping email send - notifications disabled');
   }
 
   logger.info('Document invitation completed successfully', { email, documentId, role });
