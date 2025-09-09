@@ -29,49 +29,16 @@ export const useUserProfile = () => {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      
+      const { data, error } = await supabase.functions.invoke('user-profile', {
+        body: {
+          action: 'getUserProfile'
+        }
+      });
 
       if (error) throw error;
 
-      // If no profile exists, create one
-      if (!data) {
-        console.log('No profile found, creating one for user:', user.id);
-        const { data: newProfile, error: insertError } = await supabase
-          .from('profiles')
-          .insert({
-            user_id: user.id,
-            email: user.email,
-            full_name: user.user_metadata?.full_name || user.email,
-            username: user.user_metadata?.username || user.email?.split('@')[0] || 'user'
-          })
-          .select()
-          .single();
-
-        if (insertError) {
-          // Handle unique constraint errors gracefully
-          if (insertError.code === '23505') {
-            console.log('Profile creation conflict, trying to fetch existing profile');
-            const { data: existingProfile, error: fetchError } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('user_id', user.id)
-              .single();
-            
-            if (fetchError) throw fetchError;
-            setProfile(existingProfile);
-          } else {
-            throw insertError;
-          }
-        } else {
-          setProfile(newProfile);
-        }
-      } else {
-        setProfile(data);
-      }
+      setProfile(data.profile);
     } catch (error) {
       console.error('Error fetching/creating profile:', error);
       toast.error('Failed to load profile');
@@ -85,27 +52,27 @@ export const useUserProfile = () => {
     if (!user || !profile) return;
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id);
+      const { data, error } = await supabase.functions.invoke('user-profile', {
+        body: {
+          action: 'updateUserProfile',
+          updates
+        }
+      });
 
       if (error) throw error;
 
+      if (!data.success) {
+        toast.error(data.error);
+        return false;
+      }
+
       // Update local state
-      setProfile(prev => prev ? { ...prev, ...updates } : null);
-      toast.success('Profile updated successfully');
+      setProfile(data.profile);
+      toast.success(data.message || 'Profile updated successfully');
       return true;
     } catch (error) {
       console.error('Error updating profile:', error);
-      if (error.message?.includes('duplicate key')) {
-        toast.error('Username is already taken. Please choose a different one.');
-      } else {
-        toast.error('Failed to update profile');
-      }
+      toast.error('Failed to update profile');
       return false;
     }
   };
