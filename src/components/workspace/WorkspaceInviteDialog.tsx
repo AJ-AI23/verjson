@@ -18,11 +18,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Building, Mail } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface WorkspaceInviteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onInvite: (email: string, role: 'editor' | 'viewer') => Promise<boolean>;
+  onInvite: (email: string, role: 'editor' | 'viewer', emailNotifications: boolean) => Promise<boolean>;
   workspaceName: string;
 }
 
@@ -34,17 +35,19 @@ export function WorkspaceInviteDialog({
 }: WorkspaceInviteDialogProps) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'editor' | 'viewer'>('editor');
+  const [emailNotifications, setEmailNotifications] = useState(true);
   const [isInviting, setIsInviting] = useState(false);
 
   const handleInvite = async () => {
     if (!email.trim()) return;
 
     setIsInviting(true);
-    const success = await onInvite(email, role);
+    const success = await onInvite(email, role, emailNotifications);
     
     if (success) {
       setEmail('');
       setRole('editor');
+      setEmailNotifications(true);
       onOpenChange(false);
     }
     
@@ -110,6 +113,17 @@ export function WorkspaceInviteDialog({
                 </SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="emailNotifications"
+              checked={emailNotifications}
+              onCheckedChange={(checked) => setEmailNotifications(checked === true)}
+            />
+            <Label htmlFor="emailNotifications" className="text-sm">
+              Send invitation and future notifications by email for this workspace
+            </Label>
           </div>
         </div>
 

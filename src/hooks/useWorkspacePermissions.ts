@@ -16,6 +16,7 @@ export interface WorkspacePermission {
   user_email?: string;
   user_name?: string;
   username?: string;
+  email_notifications_enabled?: boolean;
 }
 
 export function useWorkspacePermissions(workspaceId?: string) {
@@ -52,7 +53,7 @@ export function useWorkspacePermissions(workspaceId?: string) {
     }
   };
 
-  const inviteToWorkspace = async (email: string, workspaceName: string, role: 'editor' | 'viewer' = 'editor') => {
+  const inviteToWorkspace = async (email: string, workspaceName: string, role: 'editor' | 'viewer' = 'editor', emailNotifications: boolean = true) => {
     if (!user || !workspaceId || workspaceId === VIRTUAL_SHARED_WORKSPACE_ID) return false;
 
     try {
@@ -62,7 +63,8 @@ export function useWorkspacePermissions(workspaceId?: string) {
           invitationType: 'workspace',
           resourceId: workspaceId,
           resourceName: workspaceName,
-          role
+          role,
+          emailNotificationsEnabled: emailNotifications
         }
       });
 
@@ -153,7 +155,8 @@ export function useWorkspacePermissions(workspaceId?: string) {
           permissionId,
           userEmail: permissionToRemove.user_email,
           userName: permissionToRemove.user_name || permissionToRemove.username,
-          resourceName: workspaceData?.workspace?.name || 'Unknown Workspace'
+          resourceName: workspaceData?.workspace?.name || 'Unknown Workspace',
+          emailNotificationsEnabled: permissionToRemove.email_notifications_enabled
         }
       });
 

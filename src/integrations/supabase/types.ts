@@ -155,6 +155,7 @@ export type Database = {
         Row: {
           created_at: string
           document_id: string
+          email_notifications_enabled: boolean
           granted_by: string
           id: string
           role: Database["public"]["Enums"]["permission_role"]
@@ -165,6 +166,7 @@ export type Database = {
         Insert: {
           created_at?: string
           document_id: string
+          email_notifications_enabled?: boolean
           granted_by: string
           id?: string
           role?: Database["public"]["Enums"]["permission_role"]
@@ -175,6 +177,7 @@ export type Database = {
         Update: {
           created_at?: string
           document_id?: string
+          email_notifications_enabled?: boolean
           granted_by?: string
           id?: string
           role?: Database["public"]["Enums"]["permission_role"]
@@ -481,6 +484,7 @@ export type Database = {
       workspace_permissions: {
         Row: {
           created_at: string
+          email_notifications_enabled: boolean
           granted_by: string
           id: string
           role: Database["public"]["Enums"]["permission_role"]
@@ -491,6 +495,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          email_notifications_enabled?: boolean
           granted_by: string
           id?: string
           role?: Database["public"]["Enums"]["permission_role"]
@@ -501,6 +506,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          email_notifications_enabled?: boolean
           granted_by?: string
           id?: string
           role?: Database["public"]["Enums"]["permission_role"]
@@ -658,6 +664,7 @@ export type Database = {
         Returns: {
           created_at: string
           document_id: string
+          email_notifications_enabled: boolean
           granted_by: string
           id: string
           role: Database["public"]["Enums"]["permission_role"]
@@ -720,6 +727,7 @@ export type Database = {
         Args: { ws_id: string }
         Returns: {
           created_at: string
+          email_notifications_enabled: boolean
           granted_by: string
           id: string
           role: Database["public"]["Enums"]["permission_role"]

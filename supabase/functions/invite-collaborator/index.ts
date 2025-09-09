@@ -22,6 +22,7 @@ interface InviteCollaboratorRequest {
   resourceIds?: string[];
   resourceName: string;
   role: 'editor' | 'viewer';
+  emailNotificationsEnabled?: boolean;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -62,10 +63,11 @@ const handler = async (req: Request): Promise<Response> => {
       resourceIds,
       resourceName,
       role,
+      emailNotificationsEnabled = true, // Default to true for backward compatibility
     }: InviteCollaboratorRequest = await req.json();
 
     console.log("Request body:", JSON.stringify({
-      email, invitationType, resourceId, resourceIds, resourceName, role
+      email, invitationType, resourceId, resourceIds, resourceName, role, emailNotificationsEnabled
     }, null, 2));
 
     if (!email || !invitationType || !resourceName || !role) {
@@ -160,7 +162,8 @@ const handler = async (req: Request): Promise<Response> => {
             user_id: targetUserProfile.user_id,
             role: role,
             granted_by: user.id,
-            status: 'pending'
+            status: 'pending',
+            email_notifications_enabled: emailNotificationsEnabled
           });
 
         if (permissionError) {
@@ -188,7 +191,8 @@ const handler = async (req: Request): Promise<Response> => {
             user_id: targetUserProfile.user_id,
             role: role,
             granted_by: user.id,
-            status: 'pending'
+            status: 'pending',
+            email_notifications_enabled: emailNotificationsEnabled
           });
 
         if (permissionError) {
@@ -214,7 +218,8 @@ const handler = async (req: Request): Promise<Response> => {
           user_id: targetUserProfile.user_id,
           role: role,
           granted_by: user.id,
-          status: 'pending'
+          status: 'pending',
+          email_notifications_enabled: emailNotificationsEnabled
         }));
 
         const { error: permissionError } = await supabaseClient
@@ -258,10 +263,13 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("No existing user, notification will be created when user signs up");
     }
 
-    // Send email invitation
+    // Send email invitation only if email notifications are enabled
     console.log("Preparing to send email invitation...");
+    console.log("Email notifications enabled:", emailNotificationsEnabled);
     
-    if (!resend) {
+    if (!emailNotificationsEnabled) {
+      console.log("Email notifications disabled for this invitation - skipping email send");
+    } else if (!resend) {
       console.error("Resend client not initialized - RESEND_API_KEY not configured");
       console.info("Skipping email send - RESEND_API_KEY not configured");
     } else {

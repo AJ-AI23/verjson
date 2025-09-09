@@ -167,13 +167,13 @@ async function handleUpdateWorkspacePermission(supabaseClient: any, data: any, l
 }
 
 async function handleRemoveDocumentPermission(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
-  const { permissionId, userEmail, userName, resourceName } = data;
+  const { permissionId, userEmail, userName, resourceName, emailNotificationsEnabled } = data;
   logger.debug('Removing document permission', { permissionId });
 
   // Get permission details before removing it
   const { data: permissionData, error: getPermError } = await supabaseClient
     .from('document_permissions')
-    .select('user_id, document_id')
+    .select('user_id, document_id, email_notifications_enabled')
     .eq('id', permissionId)
     .single();
 
@@ -216,8 +216,9 @@ async function handleRemoveDocumentPermission(supabaseClient: any, data: any, us
     logger.warn('Error creating access revocation notification', notificationError);
   }
 
-  // Send email notification if user details provided
-  if (userEmail) {
+  // Send email notification if email notifications are enabled for this permission
+  const shouldSendEmail = emailNotificationsEnabled ?? permissionData.email_notifications_enabled;
+  if (userEmail && shouldSendEmail) {
     try {
       await supabaseClient.functions.invoke('revoke-access', {
         body: {
@@ -234,6 +235,11 @@ async function handleRemoveDocumentPermission(supabaseClient: any, data: any, us
       logger.warn('Failed to send revocation email notification', notificationError);
       // Continue despite notification failure
     }
+  } else {
+    logger.debug('Skipping email notification', { 
+      hasUserEmail: !!userEmail, 
+      emailNotificationsEnabled: shouldSendEmail 
+    });
   }
 
   logger.info('Successfully removed document permission', { permissionId });
@@ -241,13 +247,13 @@ async function handleRemoveDocumentPermission(supabaseClient: any, data: any, us
 }
 
 async function handleRemoveWorkspacePermission(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
-  const { permissionId, userEmail, userName, resourceName } = data;
+  const { permissionId, userEmail, userName, resourceName, emailNotificationsEnabled } = data;
   logger.debug('Removing workspace permission', { permissionId });
 
   // Get permission details before removing it
   const { data: permissionData, error: getPermError } = await supabaseClient
     .from('workspace_permissions')
-    .select('user_id, workspace_id')
+    .select('user_id, workspace_id, email_notifications_enabled')
     .eq('id', permissionId)
     .single();
 
@@ -290,8 +296,9 @@ async function handleRemoveWorkspacePermission(supabaseClient: any, data: any, u
     logger.warn('Error creating access revocation notification', notificationError);
   }
 
-  // Send email notification if user details provided
-  if (userEmail) {
+  // Send email notification if email notifications are enabled for this permission
+  const shouldSendEmail = emailNotificationsEnabled ?? permissionData.email_notifications_enabled;
+  if (userEmail && shouldSendEmail) {
     try {
       await supabaseClient.functions.invoke('revoke-access', {
         body: {
@@ -308,6 +315,11 @@ async function handleRemoveWorkspacePermission(supabaseClient: any, data: any, u
       logger.warn('Failed to send revocation email notification', notificationError);
       // Continue despite notification failure
     }
+  } else {
+    logger.debug('Skipping email notification', { 
+      hasUserEmail: !!userEmail, 
+      emailNotificationsEnabled: shouldSendEmail 
+    });
   }
 
   logger.info('Successfully removed workspace permission', { permissionId });

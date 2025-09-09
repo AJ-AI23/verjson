@@ -14,6 +14,7 @@ export interface DocumentPermission {
   user_email?: string;
   user_name?: string;
   username?: string;
+  email_notifications_enabled?: boolean;
 }
 
 export function useDocumentPermissions(documentId?: string, document?: any) {
@@ -50,7 +51,7 @@ export function useDocumentPermissions(documentId?: string, document?: any) {
     }
   };
 
-  const inviteCollaborator = async (email: string, documentName: string, role: 'editor' | 'viewer' = 'editor') => {
+  const inviteCollaborator = async (email: string, documentName: string, role: 'editor' | 'viewer' = 'editor', emailNotifications: boolean = true) => {
     if (!user || !documentId) return false;
 
     try {
@@ -60,7 +61,8 @@ export function useDocumentPermissions(documentId?: string, document?: any) {
           invitationType: 'document',
           resourceId: documentId,
           resourceName: documentName,
-          role
+          role,
+          emailNotificationsEnabled: emailNotifications
         }
       });
 
@@ -116,7 +118,8 @@ export function useDocumentPermissions(documentId?: string, document?: any) {
           permissionId,
           userEmail: permissionToRemove.user_email,
           userName: permissionToRemove.user_name || permissionToRemove.username,
-          resourceName: document?.name || 'Unknown Document'
+          resourceName: document?.name || 'Unknown Document',
+          emailNotificationsEnabled: permissionToRemove.email_notifications_enabled
         }
       });
 
