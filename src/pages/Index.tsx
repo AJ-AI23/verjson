@@ -154,7 +154,7 @@ const Index = () => {
               ) : (
                 <div className="h-full animate-fade-in">
                   <Editor 
-                    initialSchema={documentContent}
+                    initialSchema={documentContent?.content}
                     onSave={handleDocumentSave}
                     documentName={selectedDocument?.name}
                     selectedDocument={selectedDocument}
