@@ -363,7 +363,16 @@ async function handleCreateDocumentVersion(supabaseClient: any, data: any, user:
     full_document: patch.fullDocument || null,
   };
 
-  const { data: version, error } = await supabaseClient
+  // Use service role client to bypass RLS for version creation since 
+  // document_versions table RLS policy doesn't properly handle document_permissions
+  const serviceClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
+  logger.debug('Creating document version with service role', { documentId, userId: user.id });
+
+  const { data: version, error } = await serviceClient
     .from('document_versions')
     .insert(versionData)
     .select()
@@ -374,7 +383,7 @@ async function handleCreateDocumentVersion(supabaseClient: any, data: any, user:
     if (error.message.includes('duplicate key') && patch.description === 'Initial version') {
       logger.debug('Initial version already exists, fetching existing version');
       
-      const { data: existingVersion, error: fetchError } = await supabaseClient
+      const { data: existingVersion, error: fetchError } = await serviceClient
         .from('document_versions')
         .select('*')
         .eq('document_id', documentId)
@@ -449,8 +458,14 @@ async function handleUpdateDocumentVersion(supabaseClient: any, data: any, user:
   const { versionId, updates } = data;
   logger.debug('Updating document version', { versionId, userId: user.id });
 
+  // Use service role client to bypass RLS for version queries
+  const serviceClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
   // First, get the version to check document access and version ownership
-  const { data: version, error: versionError } = await supabaseClient
+  const { data: version, error: versionError } = await serviceClient
     .from('document_versions')
     .select('document_id, user_id')
     .eq('id', versionId)
@@ -475,7 +490,9 @@ async function handleUpdateDocumentVersion(supabaseClient: any, data: any, user:
     throw new Error('You can only update versions you created');
   }
 
-  const { data: updatedVersion, error } = await supabaseClient
+  logger.debug('Updating document version with service role', { versionId, userId: user.id });
+
+  const { data: updatedVersion, error } = await serviceClient
     .from('document_versions')
     .update(updates)
     .eq('id', versionId)
@@ -501,8 +518,14 @@ async function handleDeleteDocumentVersion(supabaseClient: any, data: any, user:
   const { versionId } = data;
   logger.debug('Deleting document version', { versionId, userId: user.id });
 
+  // Use service role client to bypass RLS for version operations
+  const serviceClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
   // First, get the version to check document access
-  const { data: version, error: versionError } = await supabaseClient
+  const { data: version, error: versionError } = await serviceClient
     .from('document_versions')
     .select('document_id, user_id, is_selected')
     .eq('id', versionId)
@@ -528,7 +551,9 @@ async function handleDeleteDocumentVersion(supabaseClient: any, data: any, user:
     throw new Error('Cannot delete selected version. Please deselect it first.');
   }
 
-  const { error } = await supabaseClient
+  logger.debug('Deleting document version with service role', { versionId });
+
+  const { error } = await serviceClient
     .from('document_versions')
     .delete()
     .eq('id', versionId);
