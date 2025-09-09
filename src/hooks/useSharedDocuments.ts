@@ -77,20 +77,36 @@ export function useSharedDocuments() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('[useSharedDocuments] Permission change detected:', payload.eventType);
+          console.log('[useSharedDocuments] Document permission change detected:', payload.eventType);
           fetchSharedDocuments();
         }
       )
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'DELETE',
           schema: 'public',
           table: 'workspace_permissions',
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('[useSharedDocuments] Workspace permission change detected:', payload.eventType);
+          console.log('[useSharedDocuments] Workspace permission DELETED:', payload.old);
+          // When workspace permission is removed, refresh shared documents
+          // as documents may now appear in "Shared with me" if they have individual permissions
+          fetchSharedDocuments();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'workspace_permissions',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('[useSharedDocuments] Workspace permission UPDATED:', payload.eventType, payload.new);
+          // Status changes (accepted/pending/declined) should trigger refresh
           fetchSharedDocuments();
         }
       )
