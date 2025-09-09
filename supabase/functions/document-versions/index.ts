@@ -609,6 +609,32 @@ async function handleApprovePendingVersion(supabaseClient: any, data: any, user:
     throw new Error('Operation not allowed for viewer role');
   }
 
+  // Find the currently selected version to deselect it
+  const { data: currentlySelected, error: currentSelectedError } = await serviceClient
+    .from('document_versions')
+    .select('id')
+    .eq('document_id', version.document_id)
+    .eq('is_selected', true)
+    .maybeSingle();
+
+  if (currentSelectedError) {
+    logger.error('Failed to find currently selected version', currentSelectedError);
+    // Continue anyway, this is not critical
+  }
+
+  // Deselect the currently selected version (only the one that was selected)
+  if (currentlySelected) {
+    const { error: deselectError } = await serviceClient
+      .from('document_versions')
+      .update({ is_selected: false })
+      .eq('id', currentlySelected.id);
+
+    if (deselectError) {
+      logger.error('Failed to deselect current version', deselectError);
+      // Don't throw here, the main update is more important
+    }
+  }
+
   // Update version status to visible and selected
   const { data: updatedVersion, error: updateError } = await serviceClient
     .from('document_versions')
@@ -624,18 +650,6 @@ async function handleApprovePendingVersion(supabaseClient: any, data: any, user:
   if (updateError) {
     logger.error('Failed to update version status', updateError);
     throw updateError;
-  }
-
-  // Deselect other versions for this document
-  const { error: deselectError } = await serviceClient
-    .from('document_versions')
-    .update({ is_selected: false })
-    .eq('document_id', version.document_id)
-    .neq('id', versionId);
-
-  if (deselectError) {
-    logger.error('Failed to deselect other versions', deselectError);
-    // Don't throw here, the main update succeeded
   }
 
   // Update document content if we have full_document

@@ -233,7 +233,7 @@ export function useDocumentVersions(documentId?: string) {
       
       if (error) throw error;
       
-      // Refresh versions to get updated state
+      // Manually refresh versions to ensure immediate UI update
       await fetchVersions();
       
       console.log('✅ Successfully approved pending version');
@@ -261,7 +261,7 @@ export function useDocumentVersions(documentId?: string) {
       
       if (error) throw error;
       
-      // Refresh versions to get updated state
+      // Manually refresh versions to ensure immediate UI update
       await fetchVersions();
       
       console.log('✅ Successfully rejected pending version');
