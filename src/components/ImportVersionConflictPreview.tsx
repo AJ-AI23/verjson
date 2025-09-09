@@ -241,28 +241,34 @@ export const ImportVersionConflictPreview: React.FC<ImportVersionConflictPreview
 
         <TabsContent value="changes" className="space-y-2">
           <div className="max-h-96 overflow-auto space-y-2">
-            {comparison.patches.map((patch, index) => (
-              <Card key={index} className="text-sm">
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge 
-                      variant={patch.op === 'add' ? 'default' : patch.op === 'replace' ? 'secondary' : 'destructive'}
-                      className="text-xs"
-                    >
-                      {patch.op.toUpperCase()}
-                    </Badge>
-                    <code className="font-mono text-xs bg-muted px-1 rounded">
-                      {patch.path}
-                    </code>
-                  </div>
-                  {patch.op !== 'remove' && 'value' in patch && (
-                    <pre className="bg-muted p-2 rounded text-xs overflow-auto max-h-16">
-                      {formatJsonValue(patch.value)}
-                    </pre>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+            {comparison.patches.map((patch, index) => {
+              // Normalize path for display
+              const normalizedPath = patch.path === '/' || !patch.path ? 'root' : 
+                'root.' + patch.path.slice(1).replace(/~1/g, '/').replace(/~0/g, '~').split('/').join('.');
+              
+              return (
+                <Card key={index} className="text-sm">
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge 
+                        variant={patch.op === 'add' ? 'default' : patch.op === 'replace' ? 'secondary' : 'destructive'}
+                        className="text-xs"
+                      >
+                        {patch.op.toUpperCase()}
+                      </Badge>
+                      <code className="font-mono text-xs bg-muted px-1 rounded">
+                        {normalizedPath}
+                      </code>
+                    </div>
+                    {patch.op !== 'remove' && 'value' in patch && (
+                      <pre className="bg-muted p-2 rounded text-xs overflow-auto max-h-16">
+                        {formatJsonValue(patch.value)}
+                      </pre>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </TabsContent>
 
