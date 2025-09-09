@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
+const VIRTUAL_SHARED_WORKSPACE_ID = '__shared_with_me__';
+
 export interface WorkspacePermission {
   id: string;
   workspace_id: string;
@@ -23,7 +25,7 @@ export function useWorkspacePermissions(workspaceId?: string) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchPermissions = async () => {
-    if (!user || !workspaceId) return;
+    if (!user || !workspaceId || workspaceId === VIRTUAL_SHARED_WORKSPACE_ID) return;
     
     try {
       setLoading(true);
@@ -51,7 +53,7 @@ export function useWorkspacePermissions(workspaceId?: string) {
   };
 
   const inviteToWorkspace = async (email: string, workspaceName: string, role: 'editor' | 'viewer' = 'editor') => {
-    if (!user || !workspaceId) return false;
+    if (!user || !workspaceId || workspaceId === VIRTUAL_SHARED_WORKSPACE_ID) return false;
 
     try {
       const { data, error } = await supabase.functions.invoke('invite-collaborator', {
@@ -168,7 +170,7 @@ export function useWorkspacePermissions(workspaceId?: string) {
 
   // Set up real-time subscription for permission changes
   useEffect(() => {
-    if (!user || !workspaceId) return;
+    if (!user || !workspaceId || workspaceId === VIRTUAL_SHARED_WORKSPACE_ID) return;
 
     fetchPermissions();
 
