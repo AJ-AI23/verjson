@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -9,9 +9,10 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Check, FileText, MoreHorizontal } from 'lucide-react';
+import { Check, FileText, MoreHorizontal, Eye } from 'lucide-react';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { Notification } from '@/hooks/useNotifications';
+import { ImportReviewDialog } from '@/components/ImportReviewDialog';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -32,6 +33,18 @@ export const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
     markAllAsRead 
   } = useNotifications();
 
+  const [reviewDialog, setReviewDialog] = useState<{
+    open: boolean;
+    documentId: string;
+    versionId: string;
+    document: { name: string; content: any };
+  }>({
+    open: false,
+    documentId: '',
+    versionId: '',
+    document: { name: '', content: null }
+  });
+
   // Debug logging
   console.log('🗂️ NotificationsDialog - Total notifications:', notifications.length);
   console.log('🗂️ NotificationsDialog - Unread count:', unreadCount);
@@ -43,10 +56,36 @@ export const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
     }
   };
 
+  const handleReviewImport = async (notification: Notification) => {
+    if (!notification.document_id) {
+      console.error('No document_id in notification');
+      return;
+    }
+
+    try {
+      // Find the pending version for this document
+      // We'll need to fetch this from the useDocumentVersions hook
+      // For now, we'll open the dialog with the available information
+      setReviewDialog({
+        open: true,
+        documentId: notification.document_id,
+        versionId: '', // Will be filled by the ImportReviewDialog
+        document: { 
+          name: 'Loading...', 
+          content: {} 
+        }
+      });
+    } catch (error) {
+      console.error('Error opening import review:', error);
+    }
+  };
+
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'notation':
         return <FileText className="h-4 w-4 text-blue-500" />;
+      case 'crowdin_import_pending':
+        return <FileText className="h-4 w-4 text-orange-500" />;
       default:
         return <FileText className="h-4 w-4 text-gray-500" />;
     }
@@ -130,9 +169,26 @@ export const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
                       {notification.message}
                     </p>
                     
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
-                    </p>
+                    <div className="flex items-center justify-between mt-2">
+                      <p className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+                      </p>
+                      
+                      {notification.type === 'crowdin_import_pending' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReviewImport(notification);
+                          }}
+                          className="text-xs h-6"
+                        >
+                          <Eye className="h-3 w-3 mr-1" />
+                          Review
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -140,6 +196,14 @@ export const NotificationsDialog: React.FC<NotificationsDialogProps> = ({
           )}
         </ScrollArea>
       </DialogContent>
+
+      <ImportReviewDialog
+        open={reviewDialog.open}
+        onOpenChange={(open) => setReviewDialog(prev => ({ ...prev, open }))}
+        documentId={reviewDialog.documentId}
+        versionId={reviewDialog.versionId}
+        document={reviewDialog.document}
+      />
     </Dialog>
   );
 };

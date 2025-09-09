@@ -36,29 +36,51 @@ export const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
 
   // Load the pending version and create comparison
   useEffect(() => {
-    if (open && versionId) {
-      const version = versions.find(v => v.id === versionId && v.status === 'pending');
-      if (version) {
-        setPendingVersion(version);
+    if (open && documentId) {
+      // If versionId is provided, use it directly
+      if (versionId) {
+        const version = versions.find(v => v.id === versionId && v.status === 'pending');
+        if (version) {
+          setPendingVersion(version);
+          
+          // Create comparison between current document and pending version
+          if (version.full_document) {
+            const comparisonResult = compareDocumentVersionsPartial(
+              document.content,
+              version.full_document
+            );
+            setComparison(comparisonResult);
+          }
+        }
+      } else {
+        // Find the most recent pending version for this document
+        const pendingVersions = versions.filter(v => v.status === 'pending');
+        const latestPending = pendingVersions.sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )[0];
         
-        // Create comparison between current document and pending version
-        if (version.full_document) {
-          const comparisonResult = compareDocumentVersionsPartial(
-            document.content,
-            version.full_document
-          );
-          setComparison(comparisonResult);
+        if (latestPending) {
+          setPendingVersion(latestPending);
+          
+          // Create comparison between current document and pending version
+          if (latestPending.full_document) {
+            const comparisonResult = compareDocumentVersionsPartial(
+              document.content,
+              latestPending.full_document
+            );
+            setComparison(comparisonResult);
+          }
         }
       }
     }
-  }, [open, versionId, versions, document.content]);
+  }, [open, documentId, versionId, versions, document.content]);
 
   const handleApprove = async () => {
     setStep('applying');
     setIsLoading(true);
     
     try {
-      const result = await approvePendingVersion(versionId);
+      const result = await approvePendingVersion(pendingVersion.id);
       if (result.success) {
         toast.success('Import applied successfully');
         onOpenChange(false);
@@ -79,7 +101,7 @@ export const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
     setIsLoading(true);
     
     try {
-      const result = await rejectPendingVersion(versionId);
+      const result = await rejectPendingVersion(pendingVersion.id);
       if (result.success) {
         toast.success('Import rejected');
         onOpenChange(false);
