@@ -43,17 +43,14 @@ export const useNotifications = () => {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.functions.invoke('notifications-management', {
+        body: { action: 'getUserNotifications' }
+      });
 
       if (error) throw error;
 
-      setNotifications(data || []);
-      const calculatedUnreadCount = data?.filter(n => !n.read_at).length || 0;
-      setUnreadCount(calculatedUnreadCount);
+      setNotifications(data.notifications || []);
+      setUnreadCount(data.unreadCount || 0);
     } catch (error) {
       console.error('Error fetching notifications:', error);
       toast.error('Failed to load notifications');
@@ -89,13 +86,12 @@ export const useNotifications = () => {
         setUnreadCount(current => Math.max(0, current - 1));
       }
 
-      const updateTimestamp = new Date().toISOString();
-
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read_at: updateTimestamp })
-        .eq('id', notificationId)
-        .eq('user_id', user.id);
+      const { data, error } = await supabase.functions.invoke('notifications-management', {
+        body: { 
+          action: 'markNotificationAsRead',
+          notificationId 
+        }
+      });
 
       if (error) {
         console.error('Error marking notification as read:', error);
@@ -132,11 +128,9 @@ export const useNotifications = () => {
       );
       setUnreadCount(0);
 
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read_at: currentTime })
-        .eq('user_id', user.id)
-        .is('read_at', null);
+      const { data, error } = await supabase.functions.invoke('notifications-management', {
+        body: { action: 'markAllNotificationsAsRead' }
+      });
 
       if (error) {
         console.error('Error marking all notifications as read:', error);
@@ -163,16 +157,16 @@ export const useNotifications = () => {
     if (!user) return;
 
     try {
-      const { error } = await supabase
-        .from('notifications')
-        .insert({
-          user_id: user.id,
-          document_id: documentId,
-          workspace_id: workspaceId, // Include workspace_id if provided
-          type: 'notation',
+      const { data, error } = await supabase.functions.invoke('notifications-management', {
+        body: { 
+          action: 'createNotification',
+          documentId,
           title,
-          message
-        });
+          message,
+          workspaceId,
+          type: 'notation'
+        }
+      });
 
       if (error) throw error;
       
