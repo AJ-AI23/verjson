@@ -75,6 +75,14 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
         return;
       }
 
+      // Handle background processing response
+      if (data.background) {
+        toast.success(data.message || `Import of ${data.filesCount} files started in background`);
+        toast.info('Large imports are processed in the background. You can continue working while files are being processed.');
+        onOpenChange(false); // Close the dialog
+        return;
+      }
+
       // Check if this is a partial import (some files missing)
       if (data.fileValidation && data.partialImport) {
         setFileValidation(data);
@@ -82,7 +90,7 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
         return;
       }
 
-      // Process the import data
+      // Process the import data (only for synchronous imports)
       await processImportData(data);
       
     } catch (err) {
