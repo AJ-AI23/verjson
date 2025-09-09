@@ -332,6 +332,7 @@ export function useDocumentVersions(documentId?: string) {
         isReleased: version.is_released,
         fullDocument: version.full_document || undefined,
         isSelected: version.is_selected,
+        status: version.status || 'visible',
       }));
     };
   }, []); // Empty dependency array since the function logic is static

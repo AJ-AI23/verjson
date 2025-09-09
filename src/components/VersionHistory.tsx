@@ -24,7 +24,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Package, Tag, Trash2, Eye, Download } from 'lucide-react';
+import { Package, Tag, Trash2, Eye, Download, FileCheck } from 'lucide-react';
+import { ImportReviewDialog } from '@/components/ImportReviewDialog';
 
 interface VersionHistoryProps {
   documentId: string;
@@ -53,6 +54,8 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewPatches, setPreviewPatches] = useState<SchemaPatch[]>([]);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [selectedVersionForReview, setSelectedVersionForReview] = useState<string | null>(null);
   
   // Fetch document versions directly from database - use versions state directly for reactivity
   const { versions, userRole: hookUserRole, loading, error } = useDocumentVersions(documentId);
@@ -86,6 +89,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
       isReleased: version.is_released,
       fullDocument: version.full_document || undefined,
       isSelected: version.is_selected,
+      status: version.status || 'visible',
     }));
     
     return convertedPatches;
@@ -162,6 +166,12 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   const handleImportVersion = (importedSchema: any, comparison: DocumentVersionComparison, sourceDocumentName: string) => {
     onImportVersion?.(importedSchema, comparison, sourceDocumentName);
     setImportDialogOpen(false);
+  };
+
+  // Handle review version
+  const handleReviewVersion = (versionId: string) => {
+    setSelectedVersionForReview(versionId);
+    setReviewDialogOpen(true);
   };
 
   // Get summary of schema for display
@@ -380,6 +390,19 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                 {(onMarkAsReleased || onDeleteVersion) && (
                   <td className="px-3 py-2">
                     <div className="flex gap-1">
+                      {patch.status === 'pending' && (effectiveUserRole === 'owner' || effectiveUserRole === 'editor') && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          onClick={() => handleReviewVersion(patch.id)}
+                          title="Review this pending version"
+                        >
+                          <FileCheck size={10} />
+                          Review
+                        </Button>
+                      )}
+                      
                       {onMarkAsReleased && !patch.isReleased && !isInitial && patch.isSelected && effectiveUserRole !== 'viewer' && (
                         <Button
                           size="sm"
@@ -550,6 +573,18 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
           currentFileType={currentFileType}
         />
       )}
+
+      {/* Review Dialog */}
+      <ImportReviewDialog
+        open={reviewDialogOpen}
+        onOpenChange={setReviewDialogOpen}
+        documentId={documentId}
+        versionId={selectedVersionForReview || ''}
+        document={{
+          name: documentInfo?.name || 'Document',
+          content: currentSchema || calculatedCurrentSchema
+        }}
+      />
     </div>
   );
 };

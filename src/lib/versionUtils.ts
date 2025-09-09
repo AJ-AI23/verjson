@@ -24,6 +24,7 @@ export interface SchemaPatch {
   isReleased?: boolean; // Whether this version stores full document
   fullDocument?: any; // Full document for released versions
   isSelected?: boolean; // Whether this version is currently applied
+  status?: string; // Version status (visible, pending, etc.)
 }
 
 // Format version as string (e.g., "1.0.0")
