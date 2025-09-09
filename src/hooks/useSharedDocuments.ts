@@ -27,7 +27,7 @@ export function useSharedDocuments() {
     
     try {
       setLoading(true);
-      console.log('[useSharedDocuments] Fetching shared documents');
+      console.log('[useSharedDocuments] Fetching shared documents for user:', user.id, user.email);
       
       const { data, error } = await supabase.functions.invoke('document-management', {
         body: { action: 'listSharedDocuments' }
@@ -38,7 +38,11 @@ export function useSharedDocuments() {
         throw error;
       }
       
+      console.log('[useSharedDocuments] Raw response from backend:', data);
       console.log('[useSharedDocuments] Shared documents fetched:', data.documents?.length || 0);
+      if (data.documents?.length > 0) {
+        console.log('[useSharedDocuments] First shared document:', data.documents[0]);
+      }
       setDocuments(data.documents || []);
     } catch (err) {
       console.error('[useSharedDocuments] Error in fetchSharedDocuments:', err);

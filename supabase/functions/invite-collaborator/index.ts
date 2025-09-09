@@ -266,6 +266,8 @@ const handler = async (req: Request): Promise<Response> => {
     // Send email invitation only if email notifications are enabled
     console.log("Preparing to send email invitation...");
     console.log("Email notifications enabled:", emailNotificationsEnabled);
+    console.log("Raw emailNotificationsEnabled value type:", typeof emailNotificationsEnabled);
+    console.log("Raw emailNotificationsEnabled value:", JSON.stringify(emailNotificationsEnabled));
     
     if (!emailNotificationsEnabled) {
       console.log("Email notifications disabled for this invitation - skipping email send");

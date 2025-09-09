@@ -42,6 +42,7 @@ export function WorkspaceInviteDialog({
     if (!email.trim()) return;
 
     setIsInviting(true);
+    console.log('🔔 WorkspaceInviteDialog - Sending invitation with emailNotifications:', emailNotifications);
     const success = await onInvite(email, role, emailNotifications);
     
     if (success) {

@@ -55,6 +55,7 @@ export function useDocumentPermissions(documentId?: string, document?: any) {
     if (!user || !documentId) return false;
 
     try {
+      console.log('🔔 useDocumentPermissions - Invoking invite with emailNotifications:', emailNotifications);
       const { data, error } = await supabase.functions.invoke('invite-collaborator', {
         body: {
           email,

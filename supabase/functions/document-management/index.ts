@@ -333,7 +333,7 @@ const handler = async (req: Request): Promise<Response> => {
         });
 
       case 'listSharedDocuments':
-        logger.debug('Fetching shared documents', { userId: user.id });
+        logger.debug('Fetching shared documents', { userId: user.id, userEmail: user.email });
         
         // Use the database function to get shared documents
         logger.logDatabaseQuery('RPC', 'get_shared_documents', { userId: user.id });
@@ -345,7 +345,16 @@ const handler = async (req: Request): Promise<Response> => {
           if (sharedError) throw sharedError;
 
           logger.logDatabaseResult('RPC', 'get_shared_documents', sharedDocs?.length, null);
-          logger.info('Successfully fetched shared documents', { count: sharedDocs?.length || 0 });
+          logger.info('Successfully fetched shared documents', { 
+            count: sharedDocs?.length || 0, 
+            userEmail: user.email,
+            firstDoc: sharedDocs?.[0] ? {
+              id: sharedDocs[0].id,
+              name: sharedDocs[0].name,
+              workspace_name: sharedDocs[0].workspace_name,
+              shared_role: sharedDocs[0].shared_role
+            } : null
+          });
           logger.logResponse(200, { sharedDocumentsCount: sharedDocs?.length || 0 });
           
           return new Response(JSON.stringify({ documents: sharedDocs || [] }), {
