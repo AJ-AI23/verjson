@@ -19,34 +19,70 @@ serve(async (req) => {
   try {
     logger.debug('Authenticating user');
     
-    // Create authenticated Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
-    )
-
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
-    if (authError || !user) {
-      logger.error('Authentication failed', authError);
+    // Parse request to determine client type needed
+    const { action } = await req.clone().json();
+    const authHeader = req.headers.get('Authorization');
+    
+    if (!authHeader) {
+      logger.error('Missing Authorization header');
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: corsHeaders }
       )
     }
 
+    let supabaseClient;
+    let user;
+
+    // For invitation operations that need elevated permissions, use service role key
+    if (['inviteToDocument', 'inviteToWorkspace', 'inviteBulkDocuments'].includes(action)) {
+      supabaseClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      );
+      
+      // Get user from token for invitation operations
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user: authUser }, error: authError } = await supabaseClient.auth.getUser(token);
+      if (authError || !authUser) {
+        logger.error('Authentication failed', authError);
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: corsHeaders }
+        )
+      }
+      user = authUser;
+    } else {
+      // For regular permission operations, use user's auth token
+      supabaseClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+        {
+          global: {
+            headers: { Authorization: authHeader },
+          },
+        }
+      )
+
+      const { data: { user: authUser }, error: authError } = await supabaseClient.auth.getUser()
+      if (authError || !authUser) {
+        logger.error('Authentication failed', authError);
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: corsHeaders }
+        )
+      }
+      user = authUser;
+    }
+
     logger.logAuth(user);
 
-    const { action, ...requestData } = await req.json()
-    logger.debug('Parsed request body', { action, hasData: !!requestData });
+    const { action: requestAction, ...requestData } = await req.json()
+    logger.debug('Parsed request body', { action: requestAction, hasData: !!requestData });
 
     let result;
 
-    switch (action) {
+    switch (requestAction) {
       case 'getDocumentPermissions':
         result = await handleGetDocumentPermissions(supabaseClient, requestData, logger);
         break;
@@ -68,8 +104,17 @@ serve(async (req) => {
       case 'getWorkspaceForPermission':
         result = await handleGetWorkspaceForPermission(supabaseClient, requestData, logger);
         break;
+      case 'inviteToDocument':
+        result = await handleInviteToDocument(supabaseClient, requestData, user, logger);
+        break;
+      case 'inviteToWorkspace':
+        result = await handleInviteToWorkspace(supabaseClient, requestData, user, logger);
+        break;
+      case 'inviteBulkDocuments':
+        result = await handleInviteBulkDocuments(supabaseClient, requestData, user, logger);
+        break;
       default:
-        logger.warn('Unknown action requested', { action });
+        logger.warn('Unknown action requested', { action: requestAction });
         return new Response(
           JSON.stringify({ error: 'Unknown action' }),
           { status: 400, headers: corsHeaders }
@@ -89,6 +134,8 @@ serve(async (req) => {
     )
   }
 })
+
+// ============== PERMISSION QUERY HANDLERS ==============
 
 async function handleGetDocumentPermissions(supabaseClient: any, data: any, logger: EdgeFunctionLogger) {
   const { documentId } = data;
@@ -130,6 +177,8 @@ async function handleGetWorkspacePermissions(supabaseClient: any, data: any, log
   return { permissions };
 }
 
+// ============== PERMISSION UPDATE HANDLERS ==============
+
 async function handleUpdateDocumentPermission(supabaseClient: any, data: any, logger: EdgeFunctionLogger) {
   const { permissionId, role } = data;
   logger.debug('Updating document permission', { permissionId, role });
@@ -166,6 +215,8 @@ async function handleUpdateWorkspacePermission(supabaseClient: any, data: any, l
   return { success: true, message: 'Permission updated successfully' };
 }
 
+// ============== PERMISSION REMOVAL HANDLERS ==============
+
 async function handleRemoveDocumentPermission(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
   const { permissionId, userEmail, userName, resourceName, emailNotificationsEnabled } = data;
   logger.debug('Removing document permission', { permissionId });
@@ -194,98 +245,15 @@ async function handleRemoveDocumentPermission(supabaseClient: any, data: any, us
   }
 
   // Create notification for the affected user
-  try {
-    const notificationData = {
-      user_id: permissionData.user_id,
-      document_id: permissionData.document_id,
-      type: 'document_access_revoked',
-      title: `Access removed from "${resourceName || 'Document'}"`,
-      message: `Your access to the document "${resourceName || 'Unknown Document'}" has been removed.`,
-    };
+  await createNotification(supabaseClient, permissionData.user_id, 'document_access_revoked', 
+    `Access removed from "${resourceName || 'Document'}"`,
+    `Your access to the document "${resourceName || 'Unknown Document'}" has been removed.`,
+    logger, { document_id: permissionData.document_id });
 
-    const { error: notifyError } = await supabaseClient
-      .from('notifications')
-      .insert([notificationData]);
-
-    if (notifyError) {
-      logger.warn('Failed to create access revocation notification', notifyError);
-    } else {
-      logger.info('Access revocation notification created', { userId: permissionData.user_id });
-    }
-  } catch (notificationError) {
-    logger.warn('Error creating access revocation notification', notificationError);
-  }
-
-  // Send email notification if email notifications are enabled for this permission
+  // Send email notification if enabled
   const shouldSendEmail = emailNotificationsEnabled ?? permissionData.email_notifications_enabled;
-  logger.debug('Email notification check', { 
-    hasUserEmail: !!userEmail, 
-    emailNotificationsEnabled,
-    permissionEmailNotifications: permissionData.email_notifications_enabled,
-    shouldSendEmail
-  });
-
   if (userEmail && shouldSendEmail) {
-    try {
-      // Get Resend API key
-      const resendApiKey = Deno.env.get("RESEND_API_KEY");
-      if (!resendApiKey) {
-        logger.warn('RESEND_API_KEY not configured - skipping email notification');
-        return { success: true, message: 'Permission removed successfully' };
-      }
-
-      // Send email notification directly using fetch
-      const emailContent = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 40px;">
-            <h1 style="color: #dc2626; font-size: 28px; margin-bottom: 10px;">Access Revoked</h1>
-            <p style="color: #666; font-size: 18px; margin: 0;">Your access has been removed</p>
-          </div>
-          
-          <div style="background-color: #fef2f2; border-radius: 12px; padding: 30px; margin-bottom: 30px; border-left: 4px solid #dc2626;">
-            <h2 style="color: #333; font-size: 20px; margin-bottom: 15px;">Document: ${resourceName || 'Unknown Document'}</h2>
-            <p style="color: #666; font-size: 16px; margin: 0;">Access revoked by: <strong>${user.email}</strong></p>
-          </div>
-        
-          <p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
-            You no longer have access to this document. If you believe this is an error, please contact the document owner.
-          </p>
-        
-          <div style="border-top: 1px solid #e5e7eb; margin-top: 40px; padding-top: 20px; text-align: center;">
-            <p style="color: #9ca3af; font-size: 14px; margin: 0;">This notification was sent by ${user.email}</p>
-          </div>
-        </div>
-      `;
-
-      const emailResponse = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${resendApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: "Lovable <onboarding@resend.dev>",
-          to: [userEmail],
-          subject: `Access Revoked: ${resourceName || 'Document'}`,
-          html: emailContent,
-        }),
-      });
-
-      if (emailResponse.ok) {
-        logger.info('Revocation email sent successfully', { userEmail });
-      } else {
-        const errorText = await emailResponse.text();
-        logger.warn('Failed to send revocation email', { userEmail, error: errorText });
-      }
-    } catch (emailError) {
-      logger.warn('Error sending revocation email notification', emailError);
-      // Continue despite email failure
-    }
-  } else {
-    logger.debug('Skipping email notification', { 
-      hasUserEmail: !!userEmail, 
-      emailNotificationsEnabled: shouldSendEmail 
-    });
+    await sendRevocationEmail(userEmail, user.email, 'document', resourceName || 'Unknown Document', logger);
   }
 
   logger.info('Successfully removed document permission', { permissionId });
@@ -320,98 +288,15 @@ async function handleRemoveWorkspacePermission(supabaseClient: any, data: any, u
   }
 
   // Create notification for the affected user
-  try {
-    const notificationData = {
-      user_id: permissionData.user_id,
-      workspace_id: permissionData.workspace_id,
-      type: 'workspace_access_revoked',
-      title: `Access removed from "${resourceName || 'Workspace'}"`,
-      message: `Your access to the workspace "${resourceName || 'Unknown Workspace'}" has been removed.`,
-    };
+  await createNotification(supabaseClient, permissionData.user_id, 'workspace_access_revoked',
+    `Access removed from "${resourceName || 'Workspace'}"`,
+    `Your access to the workspace "${resourceName || 'Unknown Workspace'}" has been removed.`,
+    logger, { workspace_id: permissionData.workspace_id });
 
-    const { error: notifyError } = await supabaseClient
-      .from('notifications')
-      .insert([notificationData]);
-
-    if (notifyError) {
-      logger.warn('Failed to create access revocation notification', notifyError);
-    } else {
-      logger.info('Access revocation notification created', { userId: permissionData.user_id });
-    }
-  } catch (notificationError) {
-    logger.warn('Error creating access revocation notification', notificationError);
-  }
-
-  // Send email notification if email notifications are enabled for this permission
+  // Send email notification if enabled
   const shouldSendEmail = emailNotificationsEnabled ?? permissionData.email_notifications_enabled;
-  logger.debug('Email notification check', { 
-    hasUserEmail: !!userEmail, 
-    emailNotificationsEnabled,
-    permissionEmailNotifications: permissionData.email_notifications_enabled,
-    shouldSendEmail
-  });
-
   if (userEmail && shouldSendEmail) {
-    try {
-      // Get Resend API key
-      const resendApiKey = Deno.env.get("RESEND_API_KEY");
-      if (!resendApiKey) {
-        logger.warn('RESEND_API_KEY not configured - skipping email notification');
-        return { success: true, message: 'Permission removed successfully' };
-      }
-
-      // Send email notification directly using fetch
-      const emailContent = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 40px;">
-            <h1 style="color: #dc2626; font-size: 28px; margin-bottom: 10px;">Access Revoked</h1>
-            <p style="color: #666; font-size: 18px; margin: 0;">Your access has been removed</p>
-          </div>
-          
-          <div style="background-color: #fef2f2; border-radius: 12px; padding: 30px; margin-bottom: 30px; border-left: 4px solid #dc2626;">
-            <h2 style="color: #333; font-size: 20px; margin-bottom: 15px;">Workspace: ${resourceName || 'Unknown Workspace'}</h2>
-            <p style="color: #666; font-size: 16px; margin: 0;">Access revoked by: <strong>${user.email}</strong></p>
-          </div>
-        
-          <p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
-            You no longer have access to this workspace. If you believe this is an error, please contact the workspace owner.
-          </p>
-        
-          <div style="border-top: 1px solid #e5e7eb; margin-top: 40px; padding-top: 20px; text-align: center;">
-            <p style="color: #9ca3af; font-size: 14px; margin: 0;">This notification was sent by ${user.email}</p>
-          </div>
-        </div>
-      `;
-
-      const emailResponse = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${resendApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: "Lovable <onboarding@resend.dev>",
-          to: [userEmail],
-          subject: `Access Revoked: ${resourceName || 'Workspace'}`,
-          html: emailContent,
-        }),
-      });
-
-      if (emailResponse.ok) {
-        logger.info('Revocation email sent successfully', { userEmail });
-      } else {
-        const errorText = await emailResponse.text();
-        logger.warn('Failed to send revocation email', { userEmail, error: errorText });
-      }
-    } catch (emailError) {
-      logger.warn('Error sending revocation email notification', emailError);
-      // Continue despite email failure
-    }
-  } else {
-    logger.debug('Skipping email notification', { 
-      hasUserEmail: !!userEmail, 
-      emailNotificationsEnabled: shouldSendEmail 
-    });
+    await sendRevocationEmail(userEmail, user.email, 'workspace', resourceName || 'Unknown Workspace', logger);
   }
 
   logger.info('Successfully removed workspace permission', { permissionId });
@@ -435,4 +320,373 @@ async function handleGetWorkspaceForPermission(supabaseClient: any, data: any, l
 
   logger.info('Successfully retrieved workspace details', { workspaceId, name: workspace?.name });
   return { workspace };
+}
+
+// ============== INVITATION HANDLERS ==============
+
+async function handleInviteToDocument(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
+  const { email, resourceId: documentId, resourceName: documentName, role = 'editor', emailNotificationsEnabled = true } = data;
+  logger.info('Processing document invitation', { email, documentId, documentName, role, emailNotificationsEnabled });
+
+  if (!email || !documentId || !documentName || !role) {
+    throw new Error("Missing required parameters");
+  }
+
+  // Find or create user profile
+  const targetUserId = await findOrCreateUserProfile(supabaseClient, email, logger);
+
+  let notificationTitle = `Invitation to collaborate on "${documentName}"`;
+  let notificationMessage = `You have been invited to collaborate on the document "${documentName}" as ${role}.`;
+
+  if (targetUserId) {
+    // Create pending permission
+    const { error: permissionError } = await supabaseClient
+      .from("document_permissions")
+      .insert({
+        document_id: documentId,
+        user_id: targetUserId,
+        role: role,
+        granted_by: user.id,
+        status: 'pending',
+        email_notifications_enabled: emailNotificationsEnabled
+      });
+
+    if (permissionError) {
+      logger.error("Document permission creation error", permissionError);
+      throw new Error(`Failed to create document permission: ${permissionError.message}`);
+    }
+
+    // Create notification
+    await createNotification(supabaseClient, targetUserId, 'invitation', notificationTitle, notificationMessage, logger, {
+      document_id: documentId
+    });
+  }
+
+  // Send email if enabled
+  if (emailNotificationsEnabled) {
+    await sendInvitationEmail(email, user.email, 'document', documentName, role, !!targetUserId, logger);
+  }
+
+  logger.info('Document invitation completed successfully', { email, documentId, role });
+  return {
+    success: true,
+    message: `Invitation sent successfully to ${email}`,
+    userExists: !!targetUserId
+  };
+}
+
+async function handleInviteToWorkspace(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
+  const { email, resourceId: workspaceId, resourceName: workspaceName, role = 'editor', emailNotificationsEnabled = true } = data;
+  logger.info('Processing workspace invitation', { email, workspaceId, workspaceName, role, emailNotificationsEnabled });
+
+  if (!email || !workspaceId || !workspaceName || !role) {
+    throw new Error("Missing required parameters");
+  }
+
+  // Validate workspace ownership
+  const { data: workspace, error: workspaceError } = await supabaseClient
+    .from('workspaces')
+    .select('id, name, user_id')
+    .eq('id', workspaceId)
+    .single();
+
+  if (workspaceError || !workspace) {
+    logger.error('Workspace not found', workspaceError);
+    throw new Error(`Workspace not found: ${workspaceId}`);
+  }
+
+  if (workspace.user_id !== user.id) {
+    logger.error('User does not own workspace', { workspaceOwnerId: workspace.user_id, inviterId: user.id });
+    throw new Error('Unauthorized: You do not own this workspace');
+  }
+
+  // Find or create user profile
+  const targetUserId = await findOrCreateUserProfile(supabaseClient, email, logger);
+
+  let notificationTitle = `Invitation to workspace "${workspace.name}"`;
+  let notificationMessage = `You have been invited to collaborate on the workspace "${workspace.name}" as ${role}.`;
+
+  if (targetUserId) {
+    // Create pending permission
+    const { error: permissionError } = await supabaseClient
+      .from("workspace_permissions")
+      .insert({
+        workspace_id: workspaceId,
+        user_id: targetUserId,
+        role: role,
+        granted_by: user.id,
+        status: 'pending',
+        email_notifications_enabled: emailNotificationsEnabled
+      });
+
+    if (permissionError) {
+      logger.error("Workspace permission creation error", permissionError);
+      throw new Error(`Failed to create workspace permission: ${permissionError.message}`);
+    }
+
+    // Create notification
+    await createNotification(supabaseClient, targetUserId, 'invitation', notificationTitle, notificationMessage, logger, {
+      workspace_id: workspaceId
+    });
+  }
+
+  // Send email if enabled
+  if (emailNotificationsEnabled) {
+    await sendInvitationEmail(email, user.email, 'workspace', workspace.name, role, !!targetUserId, logger);
+  }
+
+  logger.info('Workspace invitation completed successfully', { email, workspaceId, role });
+  return {
+    success: true,
+    message: `Invitation sent successfully to ${email}`,
+    userExists: !!targetUserId
+  };
+}
+
+async function handleInviteBulkDocuments(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
+  const { email, resourceIds: documentIds, role = 'editor', emailNotificationsEnabled = true } = data;
+  logger.info('Processing bulk document invitation', { email, documentIds, role, emailNotificationsEnabled });
+
+  if (!email || !documentIds || !documentIds.length || !role) {
+    throw new Error("Missing required parameters");
+  }
+
+  // Find or create user profile
+  const targetUserId = await findOrCreateUserProfile(supabaseClient, email, logger);
+
+  let notificationTitle = `Invitation to ${documentIds.length} documents`;
+  let notificationMessage = `You have been invited to collaborate on ${documentIds.length} documents as ${role}.`;
+
+  if (targetUserId) {
+    // Create pending permissions for all documents
+    const permissions = documentIds.map((docId: string) => ({
+      document_id: docId,
+      user_id: targetUserId,
+      role: role,
+      granted_by: user.id,
+      status: 'pending',
+      email_notifications_enabled: emailNotificationsEnabled
+    }));
+
+    const { error: permissionError } = await supabaseClient
+      .from("document_permissions")
+      .insert(permissions);
+
+    if (permissionError) {
+      logger.error("Bulk document permission creation error", permissionError);
+      throw new Error(`Failed to create document permissions: ${permissionError.message}`);
+    }
+
+    // Create notification
+    await createNotification(supabaseClient, targetUserId, 'invitation', notificationTitle, notificationMessage, logger);
+  }
+
+  // Send email if enabled
+  if (emailNotificationsEnabled) {
+    await sendInvitationEmail(email, user.email, 'documents', `${documentIds.length} documents`, role, !!targetUserId, logger);
+  }
+
+  logger.info('Bulk document invitation completed successfully', { email, documentCount: documentIds.length, role });
+  return {
+    success: true,
+    message: `Invitation sent successfully to ${email}`,
+    userExists: !!targetUserId
+  };
+}
+
+// ============== HELPER FUNCTIONS ==============
+
+async function findOrCreateUserProfile(supabaseClient: any, email: string, logger: EdgeFunctionLogger): Promise<string | null> {
+  logger.debug('Looking up user profile', { email });
+
+  // Check if user exists in profiles
+  const { data: targetUserProfile } = await supabaseClient
+    .from("profiles")
+    .select("user_id, email, full_name, username")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (targetUserProfile?.user_id) {
+    logger.debug('Found existing user profile', { userId: targetUserProfile.user_id });
+    return targetUserProfile.user_id;
+  }
+
+  // Check auth.users table for existing user without profile
+  const { data: authUsers } = await supabaseClient.auth.admin.listUsers();
+  const existingAuthUser = authUsers.users?.find((u: any) => u.email === email);
+  
+  if (existingAuthUser) {
+    logger.debug('Found existing auth user without profile, creating profile', { userId: existingAuthUser.id });
+    
+    // Create missing profile
+    const { error: profileCreateError } = await supabaseClient
+      .from("profiles")
+      .insert({
+        user_id: existingAuthUser.id,
+        email: existingAuthUser.email,
+        full_name: existingAuthUser.user_metadata?.full_name || existingAuthUser.email,
+        username: existingAuthUser.user_metadata?.username || existingAuthUser.email?.split('@')[0]
+      });
+      
+    if (profileCreateError) {
+      logger.warn("Failed to create missing profile", profileCreateError);
+    } else {
+      logger.info("Profile created successfully for existing auth user");
+    }
+    
+    return existingAuthUser.id;
+  }
+
+  logger.debug('No existing user found for email', { email });
+  return null;
+}
+
+async function createNotification(supabaseClient: any, userId: string, type: string, title: string, message: string, logger: EdgeFunctionLogger, extra: any = {}) {
+  try {
+    const { error: notificationError } = await supabaseClient
+      .from("notifications")
+      .insert({
+        user_id: userId,
+        type,
+        title,
+        message,
+        ...extra
+      });
+
+    if (notificationError) {
+      logger.warn("Failed to create notification", notificationError);
+    } else {
+      logger.info("Notification created successfully", { userId, type });
+    }
+  } catch (error) {
+    logger.warn("Error creating notification", error);
+  }
+}
+
+async function sendInvitationEmail(email: string, inviterEmail: string, resourceType: string, resourceName: string, role: string, userExists: boolean, logger: EdgeFunctionLogger) {
+  try {
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) {
+      logger.warn('RESEND_API_KEY not configured - skipping email notification');
+      return;
+    }
+
+    const emailContent = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 40px;">
+          <h1 style="color: #333; font-size: 28px; margin-bottom: 10px;">You're Invited!</h1>
+          <p style="color: #666; font-size: 18px; margin: 0;">
+            ${inviterEmail} has invited you to collaborate
+          </p>
+        </div>
+        
+        <div style="background-color: #f9fafb; border-radius: 12px; padding: 30px; margin-bottom: 30px; border-left: 4px solid #4F46E5;">
+          <h2 style="color: #333; font-size: 20px; margin-bottom: 15px;">
+            ${resourceType}: ${resourceName}
+          </h2>
+          <p style="color: #666; font-size: 16px; margin: 0;">
+            Role: <strong>${role}</strong>
+          </p>
+        </div>
+      
+        <p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
+          ${userExists ? 
+            'To accept this invitation, please log in to your account and check your notifications.' :
+            'To accept this invitation, please sign up for an account and the invitation will be waiting for you.'
+          }
+        </p>
+      
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${Deno.env.get("SUPABASE_URL")?.replace('/v1', '') || 'https://your-app.com'}" 
+             style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500;">
+            ${userExists ? 'Login & View Invitation' : 'Sign Up & Accept'}
+          </a>
+        </div>
+      
+        <div style="border-top: 1px solid #e5e7eb; margin-top: 40px; padding-top: 20px; text-align: center;">
+          <p style="color: #9ca3af; font-size: 14px; margin: 0;">
+            This invitation was sent by ${inviterEmail}
+          </p>
+        </div>
+      </div>
+    `;
+
+    const emailResponse = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: "Lovable <onboarding@resend.dev>",
+        to: [email],
+        subject: `Invitation to collaborate on ${resourceName}`,
+        html: emailContent,
+      }),
+    });
+
+    if (emailResponse.ok) {
+      logger.info('Invitation email sent successfully', { email });
+    } else {
+      const errorText = await emailResponse.text();
+      logger.warn('Failed to send invitation email', { email, error: errorText });
+    }
+  } catch (emailError) {
+    logger.warn('Error sending invitation email', emailError);
+  }
+}
+
+async function sendRevocationEmail(email: string, revokerEmail: string, resourceType: string, resourceName: string, logger: EdgeFunctionLogger) {
+  try {
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) {
+      logger.warn('RESEND_API_KEY not configured - skipping email notification');
+      return;
+    }
+
+    const emailContent = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 40px;">
+          <h1 style="color: #dc2626; font-size: 28px; margin-bottom: 10px;">Access Revoked</h1>
+          <p style="color: #666; font-size: 18px; margin: 0;">Your access has been removed</p>
+        </div>
+        
+        <div style="background-color: #fef2f2; border-radius: 12px; padding: 30px; margin-bottom: 30px; border-left: 4px solid #dc2626;">
+          <h2 style="color: #333; font-size: 20px; margin-bottom: 15px;">${resourceType}: ${resourceName}</h2>
+          <p style="color: #666; font-size: 16px; margin: 0;">Access revoked by: <strong>${revokerEmail}</strong></p>
+        </div>
+      
+        <p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
+          You no longer have access to this ${resourceType.toLowerCase()}. If you believe this is an error, please contact the ${resourceType.toLowerCase()} owner.
+        </p>
+      
+        <div style="border-top: 1px solid #e5e7eb; margin-top: 40px; padding-top: 20px; text-align: center;">
+          <p style="color: #9ca3af; font-size: 14px; margin: 0;">This notification was sent by ${revokerEmail}</p>
+        </div>
+      </div>
+    `;
+
+    const emailResponse = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: "Lovable <onboarding@resend.dev>",
+        to: [email],
+        subject: `Access Revoked: ${resourceName}`,
+        html: emailContent,
+      }),
+    });
+
+    if (emailResponse.ok) {
+      logger.info('Revocation email sent successfully', { email });
+    } else {
+      const errorText = await emailResponse.text();
+      logger.warn('Failed to send revocation email', { email, error: errorText });
+    }
+  } catch (emailError) {
+    logger.warn('Error sending revocation email', emailError);
+  }
 }

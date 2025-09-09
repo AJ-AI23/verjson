@@ -22,7 +22,7 @@ verify_jwt = true
 [functions.document-content]
 verify_jwt = true
 
-[functions.invite-collaborator]
+[functions.permissions-management]
 verify_jwt = true
 
 [functions.public-document]

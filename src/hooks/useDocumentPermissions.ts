@@ -55,10 +55,10 @@ export function useDocumentPermissions(documentId?: string, document?: any) {
     if (!user || !documentId) return false;
 
     try {
-      const { data, error } = await supabase.functions.invoke('invite-collaborator', {
+      const { data, error } = await supabase.functions.invoke('permissions-management', {
         body: {
+          action: 'inviteToDocument',
           email,
-          invitationType: 'document',
           resourceId: documentId,
           resourceName: documentName,
           role,

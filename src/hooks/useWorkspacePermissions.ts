@@ -57,10 +57,10 @@ export function useWorkspacePermissions(workspaceId?: string) {
     if (!user || !workspaceId || workspaceId === VIRTUAL_SHARED_WORKSPACE_ID) return false;
 
     try {
-      const { data, error } = await supabase.functions.invoke('invite-collaborator', {
+      const { data, error } = await supabase.functions.invoke('permissions-management', {
         body: {
+          action: 'inviteToWorkspace',
           email,
-          invitationType: 'workspace',
           resourceId: workspaceId,
           resourceName: workspaceName,
           role,
@@ -85,10 +85,10 @@ export function useWorkspacePermissions(workspaceId?: string) {
     if (!user || !documentIds.length) return false;
 
     try {
-      const { data, error } = await supabase.functions.invoke('invite-collaborator', {
+      const { data, error } = await supabase.functions.invoke('permissions-management', {
         body: {
+          action: 'inviteBulkDocuments',
           email,
-          invitationType: 'bulk_documents',
           resourceIds: documentIds,
           resourceName: `${documentIds.length} documents`,
           role
