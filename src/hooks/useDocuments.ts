@@ -29,49 +29,24 @@ export function useDocuments(workspaceId?: string) {
       setLoading(true);
       console.log('[useDocuments] Fetching documents for workspace:', workspaceId);
       
-      const query = supabase
-        .from('documents')
-        .select(`
-          id, 
-          name, 
-          workspace_id, 
-          user_id, 
-          file_type, 
-          created_at, 
-          updated_at,
-          crowdin_integration_id,
-          crowdin_integration:document_crowdin_integrations (
-            id,
-            file_id,
-            file_ids,
-            filename,
-            filenames,
-            project_id,
-            split_by_paths
-          )
-        `) // Include Crowdin integration data
-        .eq('workspace_id', workspaceId);
-      
-      console.log('[useDocuments] Applied workspace filter:', workspaceId);
-      
-      const { data, error } = await query.order('created_at', { ascending: false });
+      const { data, error } = await supabase.functions.invoke('document-management', {
+        body: { workspace_id: workspaceId }
+      });
 
       if (error) {
         console.error('[useDocuments] Fetch error:', error);
         throw error;
       }
       
-      console.log('[useDocuments] Raw documents with Crowdin integration fetched:', data?.length || 0);
-      console.log('[useDocuments] Sample document with integration:', data?.[0] ? {
-        id: data[0].id,
-        name: data[0].name,
-        crowdin_integration_id: data[0].crowdin_integration_id,
-        crowdin_integration: data[0].crowdin_integration
+      console.log('[useDocuments] Documents fetched:', data.documents?.length || 0);
+      console.log('[useDocuments] Sample document with integration:', data.documents?.[0] ? {
+        id: data.documents[0].id,
+        name: data.documents[0].name,
+        crowdin_integration_id: data.documents[0].crowdin_integration_id,
+        crowdin_integration: data.documents[0].crowdin_integration
       } : 'No documents');
       
-      // Store documents with metadata only - content will be loaded when document is selected
-      console.log('[useDocuments] Documents metadata fetched:', data?.length || 0);
-      setDocuments((data || []) as Document[]);
+      setDocuments(data.documents || []);
     } catch (err) {
       console.error('[useDocuments] Error in fetchDocuments:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch documents');
@@ -85,41 +60,19 @@ export function useDocuments(workspaceId?: string) {
     if (!user) return null;
 
     try {
-      const { data: document, error } = await supabase
-        .from('documents')
-        .insert({
-          user_id: user.id,
-          workspace_id: data.workspace_id,
-          name: data.name,
-          content: data.content,
-          file_type: data.file_type,
-        })
-        .select()
-        .single();
+      console.log('[useDocuments] Creating document:', data);
+      
+      const { data: result, error } = await supabase.functions.invoke('document-management', {
+        body: data
+      });
 
       if (error) throw error;
       
-      console.log('[useDocuments] Document created:', document);
+      console.log('[useDocuments] Document created:', result.document);
       
-      // Create initial version if content is not empty
-      if (data.content && typeof data.content === 'object' && Object.keys(data.content).length > 0) {
-        try {
-          console.log('[useDocuments] Creating initial version for document:', document.id);
-          await supabase.rpc('create_initial_version_safe', {
-            p_document_id: document.id,
-            p_user_id: user.id,
-            p_content: data.content
-          });
-          console.log('[useDocuments] Initial version created successfully');
-        } catch (versionError) {
-          console.error('[useDocuments] Failed to create initial version:', versionError);
-          // Don't fail document creation if version creation fails
-        }
-      }
-      
-      setDocuments(prev => [document as Document, ...prev]);
+      await fetchDocuments(); // Refresh the list
       toast.success('Document created successfully');
-      return document as Document;
+      return result.document;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create document';
       setError(message);
@@ -130,18 +83,17 @@ export function useDocuments(workspaceId?: string) {
 
   const updateDocument = async (id: string, updates: Partial<Pick<Document, 'name' | 'content' | 'file_type'>>) => {
     try {
-      const { data, error } = await supabase
-        .from('documents')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
+      console.log('[useDocuments] Updating document:', id, updates);
+      
+      const { data, error } = await supabase.functions.invoke('document-management', {
+        body: { id, ...updates }
+      });
 
       if (error) throw error;
       
-      console.log('[useDocuments] Document updated:', data);
-      setDocuments(prev => prev.map(d => d.id === id ? data as Document : d));
-      return data as Document;
+      console.log('[useDocuments] Document updated');
+      await fetchDocuments(); // Refresh the list
+      return data.document;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update document';
       setError(message);
@@ -152,15 +104,16 @@ export function useDocuments(workspaceId?: string) {
 
   const deleteDocument = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('documents')
-        .delete()
-        .eq('id', id);
+      console.log('[useDocuments] Deleting document:', id);
+      
+      const { data, error } = await supabase.functions.invoke('document-management', {
+        body: { id }
+      });
 
       if (error) throw error;
       
-      console.log('[useDocuments] Document deleted:', id);
-      setDocuments(prev => prev.filter(d => d.id !== id));
+      console.log('[useDocuments] Document deleted');
+      await fetchDocuments(); // Refresh the list
       toast.success('Document and all associated versions deleted successfully');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete document';

@@ -22,38 +22,17 @@ export function useDocumentContent(documentId?: string) {
         setError(null);
         console.log('[useDocumentContent] Fetching content for document:', documentId);
 
-        // First get the basic document info with Crowdin integration
-        const { data: document, error: docError } = await supabase
-          .from('documents')
-          .select(`
-            *,
-            crowdin_integration:document_crowdin_integrations (
-              id,
-              file_id,
-              file_ids,
-              filename,
-              filenames,
-              project_id,
-              split_by_paths
-            )
-          `)
-          .eq('id', documentId)
-          .single();
+        const { data, error } = await supabase.functions.invoke('document-content', {
+          body: { document_id: documentId }
+        });
 
-        if (docError) throw docError;
-        if (!document) throw new Error('Document not found');
-
-        // Get effective content with versioning
-        const effectiveContent = await getEffectiveDocumentContentForEditor(
-          documentId,
-          document.content
-        );
+        if (error) throw error;
 
         console.log('[useDocumentContent] Content loaded for document:', documentId, {
-          hasCrowdinIntegration: !!document.crowdin_integration_id,
-          crowdinIntegration: document.crowdin_integration
+          hasCrowdinIntegration: !!data.document.crowdin_integration_id,
+          crowdinIntegration: data.document.crowdin_integration
         });
-        setContent(effectiveContent);
+        setContent(data.document);
       } catch (err) {
         console.error('[useDocumentContent] Error fetching content:', err);
         setError(err instanceof Error ? err.message : 'Failed to load document content');
