@@ -140,7 +140,7 @@ export const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
@@ -148,7 +148,7 @@ export const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
           </DialogTitle>
         </DialogHeader>
         
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-auto min-h-0">
           {step === 'review' && (
             <div className="space-y-4">
               <Card>
@@ -178,14 +178,12 @@ export const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
               </Card>
 
               {comparison && (
-                <div className="flex-1 overflow-hidden">
-                  <ImportVersionConflictPreview
-                    comparison={comparison}
-                    currentSchema={document.content}
-                    importSchema={pendingVersion.full_document}
-                    sourceDocumentName="Crowdin Import"
-                  />
-                </div>
+                <ImportVersionConflictPreview
+                  comparison={comparison}
+                  currentSchema={document.content}
+                  importSchema={pendingVersion.full_document}
+                  sourceDocumentName="Crowdin Import"
+                />
               )}
 
               <Alert>
@@ -207,7 +205,7 @@ export const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
           )}
         </div>
 
-        <div className="flex justify-between pt-4 border-t">
+        <div className="flex justify-between pt-4 border-t mt-4 bg-background">
           <Button
             variant="outline"
             onClick={handleClose}
