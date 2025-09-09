@@ -29,15 +29,18 @@ export function useDocumentPermissions(documentId?: string, document?: any) {
       setLoading(true);
       setError(null);
       
-      // Use the database function that already handles the JOIN correctly
-      const { data: permissionsData, error } = await supabase
-        .rpc('get_document_permissions', { doc_id: documentId });
+      const { data, error } = await supabase.functions.invoke('permissions-management', {
+        body: {
+          action: 'getDocumentPermissions',
+          documentId
+        }
+      });
 
       if (error) throw error;
 
-      console.log('Document permissions from function:', permissionsData);
+      console.log('Document permissions from edge function:', data.permissions);
       
-      setPermissions(permissionsData || []);
+      setPermissions(data.permissions || []);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch permissions';
       setError(message);
@@ -76,17 +79,20 @@ export function useDocumentPermissions(documentId?: string, document?: any) {
 
   const updatePermission = async (permissionId: string, role: 'editor' | 'viewer') => {
     try {
-      const { error } = await supabase
-        .from('document_permissions')
-        .update({ role })
-        .eq('id', permissionId);
+      const { data, error } = await supabase.functions.invoke('permissions-management', {
+        body: {
+          action: 'updateDocumentPermission',
+          permissionId,
+          role
+        }
+      });
 
       if (error) throw error;
 
       setPermissions(prev => prev.map(p => 
         p.id === permissionId ? { ...p, role } : p
       ));
-      toast.success('Permission updated successfully');
+      toast.success(data.message || 'Permission updated successfully');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update permission';
       setError(message);
@@ -104,37 +110,20 @@ export function useDocumentPermissions(documentId?: string, document?: any) {
 
       console.log('Permission to remove:', permissionToRemove);
 
-      // Only send notification if we have user email
-      if (permissionToRemove.user_email) {
-        try {
-          await supabase.functions.invoke('revoke-access', {
-            body: {
-              permissionId,
-              type: 'document',
-              revokedUserEmail: permissionToRemove.user_email,
-              revokedUserName: permissionToRemove.user_name || permissionToRemove.username,
-              resourceName: document?.name || 'Unknown Document',
-              revokerName: user?.email
-            }
-          });
-        } catch (notificationError) {
-          console.error('Failed to send revocation notification:', notificationError);
-          // Continue with removal even if notification fails
+      const { data, error } = await supabase.functions.invoke('permissions-management', {
+        body: {
+          action: 'removeDocumentPermission',
+          permissionId,
+          userEmail: permissionToRemove.user_email,
+          userName: permissionToRemove.user_name || permissionToRemove.username,
+          resourceName: document?.name || 'Unknown Document'
         }
-      } else {
-        console.warn('No user email found for permission, skipping notification');
-      }
-
-      // Remove the permission
-      const { error } = await supabase
-        .from('document_permissions')
-        .delete()
-        .eq('id', permissionId);
+      });
 
       if (error) throw error;
 
       setPermissions(prev => prev.filter(p => p.id !== permissionId));
-      toast.success('Permission removed and user notified');
+      toast.success(data.message || 'Permission removed successfully');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to remove permission';
       setError(message);

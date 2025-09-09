@@ -29,15 +29,18 @@ export function useWorkspacePermissions(workspaceId?: string) {
       setLoading(true);
       setError(null);
       
-      // Use the database function that already handles the JOIN correctly
-      const { data: permissionsData, error } = await supabase
-        .rpc('get_workspace_permissions', { ws_id: workspaceId });
+      const { data, error } = await supabase.functions.invoke('permissions-management', {
+        body: {
+          action: 'getWorkspacePermissions',
+          workspaceId
+        }
+      });
 
       if (error) throw error;
 
-      console.log('Workspace permissions from function:', permissionsData);
+      console.log('Workspace permissions from edge function:', data.permissions);
       
-      setPermissions(permissionsData || []);
+      setPermissions(data.permissions || []);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch permissions';
       setError(message);
@@ -103,17 +106,20 @@ export function useWorkspacePermissions(workspaceId?: string) {
 
   const updatePermission = async (permissionId: string, role: 'editor' | 'viewer') => {
     try {
-      const { error } = await supabase
-        .from('workspace_permissions')
-        .update({ role })
-        .eq('id', permissionId);
+      const { data, error } = await supabase.functions.invoke('permissions-management', {
+        body: {
+          action: 'updateWorkspacePermission',
+          permissionId,
+          role
+        }
+      });
 
       if (error) throw error;
 
       setPermissions(prev => prev.map(p => 
         p.id === permissionId ? { ...p, role } : p
       ));
-      toast.success('Permission updated successfully');
+      toast.success(data.message || 'Permission updated successfully');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update permission';
       setError(message);
@@ -132,43 +138,27 @@ export function useWorkspacePermissions(workspaceId?: string) {
       console.log('Permission to remove:', permissionToRemove);
 
       // Get workspace name for the notification
-      const { data: workspace } = await supabase
-        .from('workspaces')
-        .select('name')
-        .eq('id', workspaceId)
-        .single();
-
-      // Only send notification if we have user email
-      if (permissionToRemove.user_email) {
-        try {
-          await supabase.functions.invoke('revoke-access', {
-            body: {
-              permissionId,
-              type: 'workspace',
-              revokedUserEmail: permissionToRemove.user_email,
-              revokedUserName: permissionToRemove.user_name || permissionToRemove.username,
-              resourceName: workspace?.name || 'Unknown Workspace',
-              revokerName: user?.email
-            }
-          });
-        } catch (notificationError) {
-          console.error('Failed to send revocation notification:', notificationError);
-          // Continue with removal even if notification fails
+      const { data: workspaceData } = await supabase.functions.invoke('permissions-management', {
+        body: {
+          action: 'getWorkspaceForPermission',
+          workspaceId
         }
-      } else {
-        console.warn('No user email found for permission, skipping notification');
-      }
+      });
 
-      // Remove the permission
-      const { error } = await supabase
-        .from('workspace_permissions')
-        .delete()
-        .eq('id', permissionId);
+      const { data, error } = await supabase.functions.invoke('permissions-management', {
+        body: {
+          action: 'removeWorkspacePermission',
+          permissionId,
+          userEmail: permissionToRemove.user_email,
+          userName: permissionToRemove.user_name || permissionToRemove.username,
+          resourceName: workspaceData?.workspace?.name || 'Unknown Workspace'
+        }
+      });
 
       if (error) throw error;
 
       setPermissions(prev => prev.filter(p => p.id !== permissionId));
-      toast.success('Permission removed and user notified');
+      toast.success(data.message || 'Permission removed successfully');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to remove permission';
       setError(message);
