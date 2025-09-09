@@ -266,75 +266,20 @@ const handler = async (req: Request): Promise<Response> => {
       case 'listSharedDocuments':
         logger.debug('Fetching shared documents', { userId: user.id });
         
-        // Use raw SQL query through an RPC function to get shared documents
+        // Use the database function to get shared documents
         logger.logDatabaseQuery('RPC', 'get_shared_documents', { userId: user.id });
         
         try {
-          // First, let's get documents with permissions using separate queries
-          const { data: sharedPermissions, error: permError } = await supabaseClient
-            .from('document_permissions')
-            .select('document_id, role')
-            .eq('user_id', user.id)
-            .eq('status', 'accepted');
+          const { data: sharedDocs, error: sharedError } = await supabaseClient
+            .rpc('get_shared_documents', { target_user_id: user.id });
           
-          if (permError) throw permError;
-          
-          if (!sharedPermissions || sharedPermissions.length === 0) {
-            logger.info('No shared document permissions found');
-            logger.logResponse(200, { sharedDocumentsCount: 0 });
-            return new Response(JSON.stringify({ documents: [] }), {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            });
-          }
-          
-          const documentIds = sharedPermissions.map(p => p.document_id);
-          
-          // Get the actual documents with workspace info
-          const { data: docs, error: docsError } = await supabaseClient
-            .from('documents')
-            .select(`
-              id,
-              name,
-              workspace_id,
-              user_id,
-              file_type,
-              created_at,
-              updated_at,
-              crowdin_integration_id,
-              workspaces!inner(name)
-            `)
-            .in('id', documentIds);
-          
-          if (docsError) throw docsError;
-          
-          // Filter out documents where user has workspace access
-          const { data: workspacePerms, error: wsError } = await supabaseClient
-            .from('workspace_permissions')
-            .select('workspace_id')
-            .eq('user_id', user.id)
-            .eq('status', 'accepted');
-          
-          if (wsError) throw wsError;
-          
-          const userWorkspaceIds = new Set(workspacePerms?.map(wp => wp.workspace_id) || []);
-          
-          // Filter documents and add shared context
-          const sharedDocs = docs?.filter(doc => !userWorkspaceIds.has(doc.workspace_id))
-            .map(doc => {
-              const permission = sharedPermissions.find(p => p.document_id === doc.id);
-              return {
-                ...doc,
-                workspace_name: doc.workspaces?.name || 'Unknown Workspace',
-                shared_role: permission?.role || 'viewer',
-                is_shared: true
-              };
-            }) || [];
+          if (sharedError) throw sharedError;
 
-          logger.logDatabaseResult('documents', 'SELECT shared documents', sharedDocs?.length, null);
-          logger.info('Successfully fetched shared documents', { count: sharedDocs.length });
-          logger.logResponse(200, { sharedDocumentsCount: sharedDocs.length });
+          logger.logDatabaseResult('RPC', 'get_shared_documents', sharedDocs?.length, null);
+          logger.info('Successfully fetched shared documents', { count: sharedDocs?.length || 0 });
+          logger.logResponse(200, { sharedDocumentsCount: sharedDocs?.length || 0 });
           
-          return new Response(JSON.stringify({ documents: sharedDocs }), {
+          return new Response(JSON.stringify({ documents: sharedDocs || [] }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
           

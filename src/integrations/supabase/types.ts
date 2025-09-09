@@ -669,6 +669,23 @@ export type Database = {
           username: string
         }[]
       }
+      get_shared_documents: {
+        Args: { target_user_id: string }
+        Returns: {
+          created_at: string
+          crowdin_integration: Json
+          crowdin_integration_id: string
+          file_type: string
+          id: string
+          is_shared: boolean
+          name: string
+          shared_role: Database["public"]["Enums"]["permission_role"]
+          updated_at: string
+          user_id: string
+          workspace_id: string
+          workspace_name: string
+        }[]
+      }
       get_user_all_permissions: {
         Args: { target_user_id: string }
         Returns: {
