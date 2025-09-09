@@ -155,7 +155,8 @@ const handler = async (req: Request): Promise<Response> => {
           return new Response(JSON.stringify({ workspaces: allWorkspaces }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
-        }
+        
+        break;
 
       case 'create':
         logger.debug('Creating new workspace');
@@ -195,6 +196,8 @@ const handler = async (req: Request): Promise<Response> => {
         return new Response(JSON.stringify({ workspace }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+        
+        break;
 
       case 'update':
         if (!requestBody.id) {
@@ -232,6 +235,8 @@ const handler = async (req: Request): Promise<Response> => {
         return new Response(JSON.stringify({ workspace: updatedWorkspace }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+        
+        break;
 
       case 'delete':
         if (!requestBody.id) {

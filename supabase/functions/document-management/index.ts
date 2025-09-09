@@ -128,6 +128,8 @@ const handler = async (req: Request): Promise<Response> => {
         return new Response(JSON.stringify({ documents: documents || [] }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+        
+        break;
 
       case 'create':
         if (!requestBody.workspace_id || !requestBody.name || !requestBody.file_type) {
@@ -185,6 +187,8 @@ const handler = async (req: Request): Promise<Response> => {
         return new Response(JSON.stringify({ document }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+        
+        break;
 
       case 'update':
         if (!requestBody.id) {
@@ -223,6 +227,8 @@ const handler = async (req: Request): Promise<Response> => {
         return new Response(JSON.stringify({ document: updatedDocument }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+        
+        break;
 
       case 'delete':
         if (!requestBody.id) {
