@@ -1008,6 +1008,84 @@ serve(async (req) => {
       });
     }
 
+    if (action === 'checkImportAvailability') {
+      const { documentId } = payload;
+
+      if (!documentId) {
+        return new Response(JSON.stringify({ error: 'Document ID is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log('📋 Checking import availability for document:', documentId);
+
+      try {
+        // Query the document from database to get Crowdin file information
+        const { data: document, error: documentError } = await supabaseClient
+          .from('documents')
+          .select('crowdin_file_id, crowdin_file_ids, crowdin_filename, crowdin_filenames')
+          .eq('id', documentId)
+          .single();
+
+        if (documentError || !document) {
+          console.log('❌ Document not found:', documentId);
+          return new Response(JSON.stringify({ 
+            available: false, 
+            reason: 'Document not found' 
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Check if document has Crowdin file references
+        const hasSingleFile = !!document.crowdin_file_id;
+        const hasMultipleFiles = document.crowdin_file_ids && Array.isArray(document.crowdin_file_ids) && document.crowdin_file_ids.length > 0;
+
+        if (!hasSingleFile && !hasMultipleFiles) {
+          console.log('❌ No Crowdin file references found for document:', documentId);
+          return new Response(JSON.stringify({ 
+            available: false, 
+            reason: 'No Crowdin files associated with this document' 
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Determine file type and count
+        let fileType: 'single' | 'multiple';
+        let fileCount: number;
+
+        if (hasSingleFile) {
+          fileType = 'single';
+          fileCount = 1;
+        } else {
+          fileType = 'multiple';
+          fileCount = document.crowdin_file_ids.length;
+        }
+
+        console.log('✅ Import available for document:', documentId, 'Type:', fileType, 'Count:', fileCount);
+
+        return new Response(JSON.stringify({ 
+          available: true,
+          fileType,
+          fileCount
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+
+      } catch (error) {
+        console.error('❌ Error checking import availability:', error);
+        return new Response(JSON.stringify({ 
+          available: false, 
+          reason: 'Failed to check import availability' 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     return new Response(JSON.stringify({ error: 'Invalid action' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
