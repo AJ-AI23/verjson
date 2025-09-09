@@ -32,14 +32,17 @@ export function useInvitations() {
       setLoading(true);
       setError(null);
       
-      // Use the database function to get all invitations
-      const { data, error } = await supabase
-        .rpc('get_user_invitations', { target_user_id: user.id });
+      // Use the permissions-management edge function
+      const { data, error } = await supabase.functions.invoke('permissions-management', {
+        body: {
+          action: 'getUserInvitations'
+        }
+      });
 
       if (error) throw error;
 
       // Format the data to match our interface
-      const formattedInvitations = data?.map(invitation => ({
+      const formattedInvitations = data?.invitations?.map(invitation => ({
         id: invitation.id,
         workspace_id: invitation.workspace_id,
         document_id: invitation.document_id,
@@ -74,12 +77,14 @@ export function useInvitations() {
       // Optimistic update - remove immediately
       setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
       
-      // Use the database function to accept the invitation
-      const { data, error } = await supabase
-        .rpc('accept_invitation', { 
-          invitation_id: invitationId, 
-          invitation_type: invitation.type 
-        });
+      // Use the permissions-management edge function
+      const { data, error } = await supabase.functions.invoke('permissions-management', {
+        body: {
+          action: 'acceptInvitation',
+          invitationId: invitationId,
+          invitationType: invitation.type
+        }
+      });
 
       if (error) {
         console.error('Error accepting invitation:', error);
@@ -89,15 +94,14 @@ export function useInvitations() {
         return false;
       }
 
-      const result = data?.[0];
-      if (!result?.success) {
+      if (!data?.success) {
         // Revert optimistic update on error
         setInvitations(prev => [...prev, invitation]);
-        toast.error(result?.message || 'Failed to accept invitation');
+        toast.error(data?.message || 'Failed to accept invitation');
         return false;
       }
 
-      toast.success(result.message);
+      toast.success(data.message);
       
       // Trigger appropriate refresh events based on invitation type
       console.log('[useInvitations] Invitation accepted, triggering refreshes for type:', invitation.type);
@@ -136,12 +140,14 @@ export function useInvitations() {
       // Optimistic update - remove immediately
       setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
       
-      // Use the database function to decline the invitation
-      const { data, error } = await supabase
-        .rpc('decline_invitation', { 
-          invitation_id: invitationId, 
-          invitation_type: invitation.type 
-        });
+      // Use the permissions-management edge function
+      const { data, error } = await supabase.functions.invoke('permissions-management', {
+        body: {
+          action: 'declineInvitation',
+          invitationId: invitationId,
+          invitationType: invitation.type
+        }
+      });
 
       if (error) {
         console.error('Error declining invitation:', error);
@@ -151,15 +157,14 @@ export function useInvitations() {
         return false;
       }
 
-      const result = data?.[0];
-      if (!result?.success) {
+      if (!data?.success) {
         // Revert optimistic update on error
         setInvitations(prev => [...prev, invitation]);
-        toast.error(result?.message || 'Failed to decline invitation');
+        toast.error(data?.message || 'Failed to decline invitation');
         return false;
       }
 
-      toast.success(result.message);
+      toast.success(data.message);
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to decline invitation';

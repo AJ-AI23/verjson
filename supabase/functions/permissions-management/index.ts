@@ -113,6 +113,15 @@ serve(async (req) => {
       case 'inviteBulkDocuments':
         result = await handleInviteBulkDocuments(supabaseClient, requestData, user, logger);
         break;
+      case 'getUserInvitations':
+        result = await handleGetUserInvitations(supabaseClient, requestData, user, logger);
+        break;
+      case 'acceptInvitation':
+        result = await handleAcceptInvitation(supabaseClient, requestData, user, logger);
+        break;
+      case 'declineInvitation':
+        result = await handleDeclineInvitation(supabaseClient, requestData, user, logger);
+        break;
       default:
         logger.warn('Unknown action requested', { action: requestAction });
         return new Response(
@@ -320,6 +329,92 @@ async function handleGetWorkspaceForPermission(supabaseClient: any, data: any, l
 
   logger.info('Successfully retrieved workspace details', { workspaceId, name: workspace?.name });
   return { workspace };
+}
+
+// ============== USER INVITATION HANDLERS ==============
+
+async function handleGetUserInvitations(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
+  logger.debug('Getting user invitations', { userId: user.id });
+
+  const { data: invitations, error } = await supabaseClient
+    .rpc('get_user_invitations', { target_user_id: user.id });
+
+  if (error) {
+    logger.error('Failed to get user invitations', error);
+    throw error;
+  }
+
+  logger.info('Successfully retrieved user invitations', { 
+    userId: user.id, 
+    invitationCount: invitations?.length || 0 
+  });
+  
+  return { invitations };
+}
+
+async function handleAcceptInvitation(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
+  const { invitationId, invitationType } = data;
+  logger.debug('Accepting invitation', { invitationId, invitationType, userId: user.id });
+
+  const { data: result, error } = await supabaseClient
+    .rpc('accept_invitation', { 
+      invitation_id: invitationId, 
+      invitation_type: invitationType 
+    });
+
+  if (error) {
+    logger.error('Failed to accept invitation', error);
+    throw error;
+  }
+
+  const acceptResult = result?.[0];
+  if (!acceptResult?.success) {
+    logger.error('Invitation acceptance failed', { message: acceptResult?.message });
+    throw new Error(acceptResult?.message || 'Failed to accept invitation');
+  }
+
+  logger.info('Successfully accepted invitation', { 
+    invitationId, 
+    invitationType,
+    workspaceId: acceptResult.workspace_id,
+    documentId: acceptResult.document_id 
+  });
+  
+  return {
+    success: true,
+    message: acceptResult.message,
+    workspaceId: acceptResult.workspace_id,
+    documentId: acceptResult.document_id
+  };
+}
+
+async function handleDeclineInvitation(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
+  const { invitationId, invitationType } = data;
+  logger.debug('Declining invitation', { invitationId, invitationType, userId: user.id });
+
+  const { data: result, error } = await supabaseClient
+    .rpc('decline_invitation', { 
+      invitation_id: invitationId, 
+      invitation_type: invitationType 
+    });
+
+  if (error) {
+    logger.error('Failed to decline invitation', error);
+    throw error;
+  }
+
+  const declineResult = result?.[0];
+  if (!declineResult?.success) {
+    logger.error('Invitation decline failed', { message: declineResult?.message });
+    throw new Error(declineResult?.message || 'Failed to decline invitation');
+  }
+
+  logger.info('Successfully declined invitation', { invitationId, invitationType });
+  
+  return {
+    success: true,
+    message: declineResult.message
+  };
 }
 
 // ============== INVITATION HANDLERS ==============
