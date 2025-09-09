@@ -62,6 +62,12 @@ serve(async (req) => {
       case 'deleteDocumentVersion':
         result = await handleDeleteDocumentVersion(supabaseClient, requestData, user, logger);
         break;
+      case 'approvePendingVersion':
+        result = await handleApprovePendingVersion(supabaseClient, requestData, user, logger);
+        break;
+      case 'rejectPendingVersion':
+        result = await handleRejectPendingVersion(supabaseClient, requestData, user, logger);
+        break;
       default:
         logger.warn('Unknown action requested', { action });
         return new Response(
@@ -566,4 +572,148 @@ async function handleDeleteDocumentVersion(supabaseClient: any, data: any, user:
   logger.info('Successfully deleted document version', { versionId, userRole: access.role });
   
   return { success: true, message: 'Version deleted successfully' };
+}
+
+async function handleApprovePendingVersion(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
+  const { versionId } = data;
+  logger.debug('Approving pending version', { versionId, userId: user.id });
+
+  // Use service role client to bypass RLS
+  const serviceClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
+  // First, get the version to check document access and verify it's pending
+  const { data: version, error: versionError } = await serviceClient
+    .from('document_versions')
+    .select('*')
+    .eq('id', versionId)
+    .single();
+
+  if (versionError || !version) {
+    logger.error('Version not found', { versionId, error: versionError });
+    throw new Error('Version not found');
+  }
+
+  if (version.status !== 'pending') {
+    logger.warn('Attempted to approve non-pending version', { versionId, status: version.status });
+    throw new Error('Version is not pending approval');
+  }
+
+  // Validate user has access to the document (editors and owners can approve)
+  const access = await validateDocumentAccess(supabaseClient, version.document_id, user.id, logger);
+  
+  if (access.role === 'viewer') {
+    logger.warn('User attempted to approve version with viewer permissions', { versionId, userId: user.id });
+    throw new Error('Operation not allowed for viewer role');
+  }
+
+  // Update version status to visible and selected
+  const { data: updatedVersion, error: updateError } = await serviceClient
+    .from('document_versions')
+    .update({ 
+      status: 'visible', 
+      is_selected: true,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', versionId)
+    .select()
+    .single();
+
+  if (updateError) {
+    logger.error('Failed to update version status', updateError);
+    throw updateError;
+  }
+
+  // Deselect other versions for this document
+  const { error: deselectError } = await serviceClient
+    .from('document_versions')
+    .update({ is_selected: false })
+    .eq('document_id', version.document_id)
+    .neq('id', versionId);
+
+  if (deselectError) {
+    logger.error('Failed to deselect other versions', deselectError);
+    // Don't throw here, the main update succeeded
+  }
+
+  // Update document content if we have full_document
+  if (version.full_document) {
+    const { error: docUpdateError } = await serviceClient
+      .from('documents')
+      .update({ 
+        content: version.full_document,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', version.document_id);
+
+    if (docUpdateError) {
+      logger.error('Failed to update document content', docUpdateError);
+      throw docUpdateError;
+    }
+  }
+
+  logger.info('Successfully approved pending version', { 
+    versionId, 
+    documentId: version.document_id,
+    userRole: access.role
+  });
+  
+  return { version: updatedVersion, success: true };
+}
+
+async function handleRejectPendingVersion(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
+  const { versionId } = data;
+  logger.debug('Rejecting pending version', { versionId, userId: user.id });
+
+  // Use service role client to bypass RLS
+  const serviceClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
+  // First, get the version to check document access and verify it's pending
+  const { data: version, error: versionError } = await serviceClient
+    .from('document_versions')
+    .select('document_id, status')
+    .eq('id', versionId)
+    .single();
+
+  if (versionError || !version) {
+    logger.error('Version not found', { versionId, error: versionError });
+    throw new Error('Version not found');
+  }
+
+  if (version.status !== 'pending') {
+    logger.warn('Attempted to reject non-pending version', { versionId, status: version.status });
+    throw new Error('Version is not pending approval');
+  }
+
+  // Validate user has access to the document (editors and owners can reject)
+  const access = await validateDocumentAccess(supabaseClient, version.document_id, user.id, logger);
+  
+  if (access.role === 'viewer') {
+    logger.warn('User attempted to reject version with viewer permissions', { versionId, userId: user.id });
+    throw new Error('Operation not allowed for viewer role');
+  }
+
+  // Delete the pending version
+  const { error: deleteError } = await serviceClient
+    .from('document_versions')
+    .delete()
+    .eq('id', versionId);
+
+  if (deleteError) {
+    logger.error('Failed to delete pending version', deleteError);
+    throw deleteError;
+  }
+
+  logger.info('Successfully rejected pending version', { 
+    versionId, 
+    documentId: version.document_id,
+    userRole: access.role
+  });
+  
+  return { success: true, message: 'Pending version rejected' };
 }

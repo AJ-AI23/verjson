@@ -224,47 +224,23 @@ export function useDocumentVersions(documentId?: string) {
     try {
       setLoading(true);
       
-      // Get the pending version
-      const pendingVersion = versions.find(v => v.id === versionId && v.status === 'pending');
-      if (!pendingVersion) {
-        throw new Error('Pending version not found');
-      }
-      
-      // Update the version to visible status
-      const { error: updateError } = await supabase.functions.invoke('document-versions', {
+      const { data, error } = await supabase.functions.invoke('document-versions', {
         body: {
-          action: 'updateDocumentVersion',
-          versionId: versionId,
-          updates: {
-            status: 'visible',
-            is_selected: true
-          }
+          action: 'approvePendingVersion',
+          versionId: versionId
         }
       });
       
-      if (updateError) throw updateError;
+      if (error) throw error;
       
-      // Update the document content with the merged content
-      const { error: docError } = await supabase
-        .from('documents')
-        .update({ 
-          content: pendingVersion.full_document,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', documentId);
-      
-      if (docError) throw docError;
-      
-      // Refresh versions
+      // Refresh versions to get updated state
       await fetchVersions();
       
       console.log('✅ Successfully approved pending version');
-      toast.success('Import applied successfully');
       return { success: true };
     } catch (error) {
       console.error('❌ Error approving pending version:', error);
       setError(error.message);
-      toast.error(`Failed to approve import: ${error.message}`);
       return { success: false, error: error.message };
     } finally {
       setLoading(false);
@@ -276,25 +252,23 @@ export function useDocumentVersions(documentId?: string) {
     try {
       setLoading(true);
       
-      const { error } = await supabase.functions.invoke('document-versions', {
+      const { data, error } = await supabase.functions.invoke('document-versions', {
         body: {
-          action: 'deleteDocumentVersion',
+          action: 'rejectPendingVersion',
           versionId: versionId
         }
       });
       
       if (error) throw error;
       
-      // Refresh versions
+      // Refresh versions to get updated state
       await fetchVersions();
       
       console.log('✅ Successfully rejected pending version');
-      toast.success('Import rejected');
       return { success: true };
     } catch (error) {
       console.error('❌ Error rejecting pending version:', error);
       setError(error.message);
-      toast.error(`Failed to reject import: ${error.message}`);
       return { success: false, error: error.message };
     } finally {
       setLoading(false);
