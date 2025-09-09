@@ -325,8 +325,10 @@ async function handleGetWorkspaceForPermission(supabaseClient: any, data: any, l
 // ============== INVITATION HANDLERS ==============
 
 async function handleInviteToDocument(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
-  const { email, resourceId: documentId, resourceName: documentName, role = 'editor', emailNotificationsEnabled = true } = data;
-  logger.info('Processing document invitation', { email, documentId, documentName, role, emailNotificationsEnabled });
+  logger.debug('Raw invitation data received', data);
+  const { email, resourceId: documentId, resourceName: documentName, role = 'editor', emailNotificationsEnabled } = data;
+  const emailNotifications = emailNotificationsEnabled !== false; // Default to true only if not explicitly false
+  logger.info('Processing document invitation', { email, documentId, documentName, role, emailNotifications, originalEmailNotificationsEnabled: emailNotificationsEnabled });
 
   if (!email || !documentId || !documentName || !role) {
     throw new Error("Missing required parameters");
@@ -348,7 +350,7 @@ async function handleInviteToDocument(supabaseClient: any, data: any, user: any,
         role: role,
         granted_by: user.id,
         status: 'pending',
-        email_notifications_enabled: emailNotificationsEnabled
+        email_notifications_enabled: emailNotifications
       });
 
     if (permissionError) {
@@ -363,7 +365,7 @@ async function handleInviteToDocument(supabaseClient: any, data: any, user: any,
   }
 
   // Send email if enabled
-  if (emailNotificationsEnabled) {
+  if (emailNotifications) {
     await sendInvitationEmail(email, user.email, 'document', documentName, role, !!targetUserId, logger);
   }
 
@@ -376,8 +378,10 @@ async function handleInviteToDocument(supabaseClient: any, data: any, user: any,
 }
 
 async function handleInviteToWorkspace(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
-  const { email, resourceId: workspaceId, resourceName: workspaceName, role = 'editor', emailNotificationsEnabled = true } = data;
-  logger.info('Processing workspace invitation', { email, workspaceId, workspaceName, role, emailNotificationsEnabled });
+  logger.debug('Raw workspace invitation data received', data);
+  const { email, resourceId: workspaceId, resourceName: workspaceName, role = 'editor', emailNotificationsEnabled } = data;
+  const emailNotifications = emailNotificationsEnabled !== false; // Default to true only if not explicitly false
+  logger.info('Processing workspace invitation', { email, workspaceId, workspaceName, role, emailNotifications, originalEmailNotificationsEnabled: emailNotificationsEnabled });
 
   if (!email || !workspaceId || !workspaceName || !role) {
     throw new Error("Missing required parameters");
@@ -416,7 +420,7 @@ async function handleInviteToWorkspace(supabaseClient: any, data: any, user: any
         role: role,
         granted_by: user.id,
         status: 'pending',
-        email_notifications_enabled: emailNotificationsEnabled
+        email_notifications_enabled: emailNotifications
       });
 
     if (permissionError) {
@@ -431,7 +435,7 @@ async function handleInviteToWorkspace(supabaseClient: any, data: any, user: any
   }
 
   // Send email if enabled
-  if (emailNotificationsEnabled) {
+  if (emailNotifications) {
     await sendInvitationEmail(email, user.email, 'workspace', workspace.name, role, !!targetUserId, logger);
   }
 
@@ -444,8 +448,10 @@ async function handleInviteToWorkspace(supabaseClient: any, data: any, user: any
 }
 
 async function handleInviteBulkDocuments(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
-  const { email, resourceIds: documentIds, role = 'editor', emailNotificationsEnabled = true } = data;
-  logger.info('Processing bulk document invitation', { email, documentIds, role, emailNotificationsEnabled });
+  logger.debug('Raw bulk invitation data received', data);
+  const { email, resourceIds: documentIds, role = 'editor', emailNotificationsEnabled } = data;
+  const emailNotifications = emailNotificationsEnabled !== false; // Default to true only if not explicitly false
+  logger.info('Processing bulk document invitation', { email, documentIds, role, emailNotifications, originalEmailNotificationsEnabled: emailNotificationsEnabled });
 
   if (!email || !documentIds || !documentIds.length || !role) {
     throw new Error("Missing required parameters");
@@ -465,7 +471,7 @@ async function handleInviteBulkDocuments(supabaseClient: any, data: any, user: a
       role: role,
       granted_by: user.id,
       status: 'pending',
-      email_notifications_enabled: emailNotificationsEnabled
+      email_notifications_enabled: emailNotifications
     }));
 
     const { error: permissionError } = await supabaseClient
@@ -482,7 +488,7 @@ async function handleInviteBulkDocuments(supabaseClient: any, data: any, user: a
   }
 
   // Send email if enabled
-  if (emailNotificationsEnabled) {
+  if (emailNotifications) {
     await sendInvitationEmail(email, user.email, 'documents', `${documentIds.length} documents`, role, !!targetUserId, logger);
   }
 
