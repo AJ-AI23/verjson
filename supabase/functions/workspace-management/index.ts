@@ -53,14 +53,27 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const url = new URL(req.url);
-    const method = req.method;
-    const path = url.pathname.split('/').pop();
+    
+    // Parse request body for action-based routing
+    let requestBody: any = {};
+    let action = '';
+    
+    try {
+      requestBody = await req.json();
+      action = requestBody.action || '';
+      logger.debug('Parsed request body', { action, hasData: Object.keys(requestBody).length > 1 });
+    } catch (e) {
+      logger.error('Invalid JSON in request body', e);
+      return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-    logger.info('Processing request', { method, path, userId: user.id });
+    logger.info('Processing request', { action, userId: user.id });
 
-    switch (method) {
-      case 'GET':
-        if (path === 'list' || !path) {
+    switch (action) {
+      case 'list':
           logger.debug('Fetching workspaces for user', { userId: user.id });
           
           // Get user's own workspaces
@@ -143,28 +156,25 @@ const handler = async (req: Request): Promise<Response> => {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
-        break;
 
-      case 'POST':
+      case 'create':
         logger.debug('Creating new workspace');
-        let createData: CreateWorkspaceRequest;
-        try {
-          createData = await req.json();
-          logger.debug('Parsed request data', { name: createData.name, hasDescription: !!createData.description });
-        } catch (e) {
-          logger.error('Invalid JSON in request body', e);
-          return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+        if (!requestBody.name) {
+          logger.error('Missing required field: name');
+          return new Response(JSON.stringify({ error: 'Name is required' }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
         
-        logger.logDatabaseQuery('workspaces', 'INSERT', { name: createData.name, userId: user.id });
+        logger.debug('Parsed request data', { name: requestBody.name, hasDescription: !!requestBody.description });
+        
+        logger.logDatabaseQuery('workspaces', 'INSERT', { name: requestBody.name, userId: user.id });
         const { data: workspace, error: createError } = await supabaseClient
           .from('workspaces')
           .insert({
-            name: createData.name,
-            description: createData.description,
+            name: requestBody.name,
+            description: requestBody.description,
             user_id: user.id,
           })
           .select()
@@ -186,77 +196,84 @@ const handler = async (req: Request): Promise<Response> => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
 
-      case 'PUT':
-        let updateData: UpdateWorkspaceRequest;
-        try {
-          updateData = await req.json();
-        } catch (e) {
-          return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+      case 'update':
+        if (!requestBody.id) {
+          logger.error('Missing required field: id');
+          return new Response(JSON.stringify({ error: 'ID is required' }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
         
+        logger.logDatabaseQuery('workspaces', 'UPDATE', { id: requestBody.id, userId: user.id });
         const { data: updatedWorkspace, error: updateError } = await supabaseClient
           .from('workspaces')
           .update({
-            name: updateData.name,
-            description: updateData.description,
+            name: requestBody.name,
+            description: requestBody.description,
           })
-          .eq('id', updateData.id)
+          .eq('id', requestBody.id)
           .eq('user_id', user.id)
           .select()
           .single();
 
+        logger.logDatabaseResult('workspaces', 'UPDATE', updatedWorkspace ? 1 : 0, updateError);
+        
         if (updateError) {
-          console.error('Error updating workspace:', updateError);
+          logger.error('Failed to update workspace', updateError);
           return new Response(JSON.stringify({ error: updateError.message }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
+        logger.info('Workspace updated successfully', { workspaceId: updatedWorkspace.id });
+        logger.logResponse(200, updatedWorkspace);
         return new Response(JSON.stringify({ workspace: updatedWorkspace }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
 
-      case 'DELETE':
-        let deleteData;
-        try {
-          deleteData = await req.json();
-        } catch (e) {
-          return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+      case 'delete':
+        if (!requestBody.id) {
+          logger.error('Missing required field: id');
+          return new Response(JSON.stringify({ error: 'ID is required' }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
         
+        logger.logDatabaseQuery('workspaces', 'DELETE', { id: requestBody.id, userId: user.id });
         const { error: deleteError } = await supabaseClient
           .from('workspaces')
           .delete()
-          .eq('id', deleteData.id)
+          .eq('id', requestBody.id)
           .eq('user_id', user.id);
 
+        logger.logDatabaseResult('workspaces', 'DELETE', deleteError ? 0 : 1, deleteError);
+        
         if (deleteError) {
-          console.error('Error deleting workspace:', deleteError);
+          logger.error('Failed to delete workspace', deleteError);
           return new Response(JSON.stringify({ error: deleteError.message }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
+        logger.info('Workspace deleted successfully', { workspaceId: requestBody.id });
+        logger.logResponse(200);
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
 
       default:
-        return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-          status: 405,
+        logger.warn('Invalid action', { action });
+        return new Response(JSON.stringify({ error: 'Invalid action. Supported actions: list, create, update, delete' }), {
+          status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
     }
 
-    return new Response(JSON.stringify({ error: 'Invalid request' }), {
+    return new Response(JSON.stringify({ error: 'Invalid action' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

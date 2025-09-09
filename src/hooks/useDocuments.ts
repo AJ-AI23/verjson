@@ -29,8 +29,8 @@ export function useDocuments(workspaceId?: string) {
       setLoading(true);
       console.log('[useDocuments] Fetching documents for workspace:', workspaceId);
       
-      const { data, error } = await supabase.functions.invoke(`document-management?workspace_id=${workspaceId}`, {
-        method: 'GET'
+      const { data, error } = await supabase.functions.invoke('document-management', {
+        body: { action: 'list', workspace_id: workspaceId }
       });
 
       if (error) {
@@ -63,8 +63,7 @@ export function useDocuments(workspaceId?: string) {
       console.log('[useDocuments] Creating document:', data);
       
       const { data: result, error } = await supabase.functions.invoke('document-management', {
-        method: 'POST',
-        body: data
+        body: { action: 'create', ...data }
       });
 
       if (error) throw error;
@@ -87,8 +86,7 @@ export function useDocuments(workspaceId?: string) {
       console.log('[useDocuments] Updating document:', id, updates);
       
       const { data, error } = await supabase.functions.invoke('document-management', {
-        method: 'PUT',
-        body: { id, ...updates }
+        body: { action: 'update', id, ...updates }
       });
 
       if (error) throw error;
@@ -109,8 +107,7 @@ export function useDocuments(workspaceId?: string) {
       console.log('[useDocuments] Deleting document:', id);
       
       const { data, error } = await supabase.functions.invoke('document-management', {
-        method: 'DELETE',
-        body: { id }
+        body: { action: 'delete', id }
       });
 
       if (error) throw error;

@@ -19,7 +19,7 @@ export function useWorkspaces() {
       console.log('[useWorkspaces] Fetching workspaces for user:', user.id);
       
       const { data, error } = await supabase.functions.invoke('workspace-management', {
-        method: 'GET'
+        body: { action: 'list' }
       });
       
       if (error) throw error;
@@ -40,8 +40,7 @@ export function useWorkspaces() {
 
     try {
       const { data: result, error } = await supabase.functions.invoke('workspace-management', {
-        method: 'POST',
-        body: data
+        body: { action: 'create', ...data }
       });
 
       if (error) throw error;
@@ -60,8 +59,7 @@ export function useWorkspaces() {
   const updateWorkspace = async (id: string, updates: Partial<CreateWorkspaceData>) => {
     try {
       const { data, error } = await supabase.functions.invoke('workspace-management', {
-        method: 'PUT',
-        body: { id, ...updates }
+        body: { action: 'update', id, ...updates }
       });
 
       if (error) throw error;
@@ -80,8 +78,7 @@ export function useWorkspaces() {
   const deleteWorkspace = async (id: string) => {
     try {
       const { data, error } = await supabase.functions.invoke('workspace-management', {
-        method: 'DELETE',
-        body: { id }
+        body: { action: 'delete', id }
       });
 
       if (error) throw error;

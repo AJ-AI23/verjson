@@ -41,10 +41,33 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    const url = new URL(req.url);
-    const documentId = url.searchParams.get('document_id');
+    // Parse request body for action-based routing
+    let requestBody: any = {};
+    let action = '';
+    
+    try {
+      requestBody = await req.json();
+      action = requestBody.action || '';
+      logger.debug('Parsed request body', { action, hasData: Object.keys(requestBody).length > 1 });
+    } catch (e) {
+      logger.error('Invalid JSON in request body', e);
+      return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-    logger.debug('Fetching document content', { documentId, userId: user.id });
+    const documentId = requestBody.document_id;
+
+    logger.debug('Processing document content request', { action, documentId, userId: user.id });
+
+    if (action !== 'get') {
+      logger.warn('Invalid action for document-content', { action });
+      return new Response(JSON.stringify({ error: 'Invalid action. Only "get" is supported' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (!documentId) {
       logger.warn('Missing document_id parameter');

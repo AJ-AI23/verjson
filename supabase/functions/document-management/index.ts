@@ -55,14 +55,27 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    const url = new URL(req.url);
-    const method = req.method;
+    // Parse request body for action-based routing
+    let requestBody: any = {};
+    let action = '';
     
-    logger.info('Processing request', { method, userId: user.id });
+    try {
+      requestBody = await req.json();
+      action = requestBody.action || '';
+      logger.debug('Parsed request body', { action, hasData: Object.keys(requestBody).length > 1 });
+    } catch (e) {
+      logger.error('Invalid JSON in request body', e);
+      return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    logger.info('Processing request', { action, userId: user.id });
 
-    switch (method) {
-      case 'GET':
-        const workspaceId = url.searchParams.get('workspace_id');
+    switch (action) {
+      case 'list':
+        const workspaceId = requestBody.workspace_id;
         
         logger.debug('Fetching documents for workspace', { workspaceId });
         
@@ -116,32 +129,35 @@ const handler = async (req: Request): Promise<Response> => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
 
-      case 'POST':
-        let createData: CreateDocumentRequest;
-        try {
-          createData = await req.json();
-        } catch (e) {
-          return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+      case 'create':
+        if (!requestBody.workspace_id || !requestBody.name || !requestBody.file_type) {
+          logger.error('Missing required fields');
+          return new Response(JSON.stringify({ error: 'workspace_id, name, and file_type are required' }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
         
+        logger.debug('Creating document', { name: requestBody.name, workspaceId: requestBody.workspace_id });
+        
         // Create document
+        logger.logDatabaseQuery('documents', 'INSERT', { name: requestBody.name, workspaceId: requestBody.workspace_id });
         const { data: document, error: createError } = await supabaseClient
           .from('documents')
           .insert({
-            workspace_id: createData.workspace_id,
-            name: createData.name,
-            content: createData.content,
-            file_type: createData.file_type,
+            workspace_id: requestBody.workspace_id,
+            name: requestBody.name,
+            content: requestBody.content,
+            file_type: requestBody.file_type,
             user_id: user.id,
           })
           .select()
           .single();
 
+        logger.logDatabaseResult('documents', 'INSERT', document ? 1 : 0, createError);
+        
         if (createError) {
-          console.error('Error creating document:', createError);
+          logger.error('Failed to create document', createError);
           return new Response(JSON.stringify({ error: createError.message }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -149,88 +165,102 @@ const handler = async (req: Request): Promise<Response> => {
         }
 
         // Create initial version using the database function
+        logger.logDatabaseQuery('database function', 'create_initial_version_safe', { documentId: document.id });
         const { data: versionData, error: versionError } = await supabaseClient
           .rpc('create_initial_version_safe', {
             p_document_id: document.id,
             p_user_id: user.id,
-            p_content: createData.content
+            p_content: requestBody.content
           });
 
         if (versionError) {
-          console.error('Warning: Could not create initial version:', versionError);
+          logger.warn('Could not create initial version', versionError);
           // Don't fail the document creation, just log the warning
+        } else {
+          logger.logDatabaseResult('database function', 'create_initial_version_safe', 1, null);
         }
 
+        logger.info('Document created successfully', { documentId: document.id, name: document.name });
+        logger.logResponse(200, document);
         return new Response(JSON.stringify({ document }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
 
-      case 'PUT':
-        let updateData: UpdateDocumentRequest;
-        try {
-          updateData = await req.json();
-        } catch (e) {
-          return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+      case 'update':
+        if (!requestBody.id) {
+          logger.error('Missing required field: id');
+          return new Response(JSON.stringify({ error: 'ID is required' }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
         
+        logger.debug('Updating document', { id: requestBody.id });
+        logger.logDatabaseQuery('documents', 'UPDATE', { id: requestBody.id });
         const { data: updatedDocument, error: updateError } = await supabaseClient
           .from('documents')
           .update({
-            name: updateData.name,
-            content: updateData.content,
-            file_type: updateData.file_type,
+            name: requestBody.name,
+            content: requestBody.content,
+            file_type: requestBody.file_type,
           })
-          .eq('id', updateData.id)
+          .eq('id', requestBody.id)
           .select()
           .single();
 
+        logger.logDatabaseResult('documents', 'UPDATE', updatedDocument ? 1 : 0, updateError);
+        
         if (updateError) {
-          console.error('Error updating document:', updateError);
+          logger.error('Failed to update document', updateError);
           return new Response(JSON.stringify({ error: updateError.message }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
+        logger.info('Document updated successfully', { documentId: updatedDocument.id });
+        logger.logResponse(200, updatedDocument);
         return new Response(JSON.stringify({ document: updatedDocument }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
 
-      case 'DELETE':
-        let deleteData;
-        try {
-          deleteData = await req.json();
-        } catch (e) {
-          return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+      case 'delete':
+        if (!requestBody.id) {
+          logger.error('Missing required field: id');
+          return new Response(JSON.stringify({ error: 'ID is required' }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
         
+        logger.debug('Deleting document', { id: requestBody.id });
+        logger.logDatabaseQuery('documents', 'DELETE', { id: requestBody.id });
         const { error: deleteError } = await supabaseClient
           .from('documents')
           .delete()
-          .eq('id', deleteData.id)
+          .eq('id', requestBody.id)
           .eq('user_id', user.id);
 
+        logger.logDatabaseResult('documents', 'DELETE', deleteError ? 0 : 1, deleteError);
+        
         if (deleteError) {
-          console.error('Error deleting document:', deleteError);
+          logger.error('Failed to delete document', deleteError);
           return new Response(JSON.stringify({ error: deleteError.message }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
+        logger.info('Document deleted successfully', { documentId: requestBody.id });
+        logger.logResponse(200);
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
 
       default:
-        return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-          status: 405,
+        logger.warn('Invalid action', { action });
+        return new Response(JSON.stringify({ error: 'Invalid action. Supported actions: list, create, update, delete' }), {
+          status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
     }
