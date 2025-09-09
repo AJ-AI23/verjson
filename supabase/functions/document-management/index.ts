@@ -49,10 +49,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     const url = new URL(req.url);
     const method = req.method;
-    const workspaceId = url.searchParams.get('workspace_id');
 
     switch (method) {
       case 'GET':
+        const workspaceId = url.searchParams.get('workspace_id');
+        
         if (!workspaceId) {
           return new Response(JSON.stringify({ error: 'workspace_id required' }), {
             status: 400,
@@ -98,7 +99,15 @@ const handler = async (req: Request): Promise<Response> => {
         });
 
       case 'POST':
-        const createData: CreateDocumentRequest = await req.json();
+        let createData: CreateDocumentRequest;
+        try {
+          createData = await req.json();
+        } catch (e) {
+          return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
         
         // Create document
         const { data: document, error: createError } = await supabaseClient
@@ -139,7 +148,15 @@ const handler = async (req: Request): Promise<Response> => {
         });
 
       case 'PUT':
-        const updateData: UpdateDocumentRequest = await req.json();
+        let updateData: UpdateDocumentRequest;
+        try {
+          updateData = await req.json();
+        } catch (e) {
+          return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
         
         const { data: updatedDocument, error: updateError } = await supabaseClient
           .from('documents')
@@ -165,7 +182,15 @@ const handler = async (req: Request): Promise<Response> => {
         });
 
       case 'DELETE':
-        const deleteData = await req.json();
+        let deleteData;
+        try {
+          deleteData = await req.json();
+        } catch (e) {
+          return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
         
         const { error: deleteError } = await supabaseClient
           .from('documents')

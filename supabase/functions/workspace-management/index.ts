@@ -50,7 +50,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     switch (method) {
       case 'GET':
-        if (path === 'list') {
+        if (path === 'list' || !path) {
           // Get user's own workspaces
           const { data: ownWorkspaces, error: ownError } = await supabaseClient
             .from('workspaces')
@@ -121,7 +121,15 @@ const handler = async (req: Request): Promise<Response> => {
         break;
 
       case 'POST':
-        const createData: CreateWorkspaceRequest = await req.json();
+        let createData: CreateWorkspaceRequest;
+        try {
+          createData = await req.json();
+        } catch (e) {
+          return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
         
         const { data: workspace, error: createError } = await supabaseClient
           .from('workspaces')
@@ -146,7 +154,15 @@ const handler = async (req: Request): Promise<Response> => {
         });
 
       case 'PUT':
-        const updateData: UpdateWorkspaceRequest = await req.json();
+        let updateData: UpdateWorkspaceRequest;
+        try {
+          updateData = await req.json();
+        } catch (e) {
+          return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
         
         const { data: updatedWorkspace, error: updateError } = await supabaseClient
           .from('workspaces')
@@ -172,7 +188,15 @@ const handler = async (req: Request): Promise<Response> => {
         });
 
       case 'DELETE':
-        const deleteData = await req.json();
+        let deleteData;
+        try {
+          deleteData = await req.json();
+        } catch (e) {
+          return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
         
         const { error: deleteError } = await supabaseClient
           .from('workspaces')
