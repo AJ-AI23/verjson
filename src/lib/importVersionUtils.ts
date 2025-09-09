@@ -257,7 +257,6 @@ export function generateMergeConflicts(
   
   patches.forEach(patch => {
     const path = patch.path;
-    const normalizedPath = normalizePathForDisplay(path);
     let conflictType: MergeConflict['conflictType'];
     let severity: MergeConflict['severity'] = 'low';
     let description = '';
@@ -266,24 +265,24 @@ export function generateMergeConflicts(
       case 'remove':
         conflictType = 'property_removed';
         severity = path.includes('/properties/') || path.includes('/paths/') ? 'high' : 'medium';
-        description = `Property at "${normalizedPath}" will be removed`;
+        description = `Property at "${path}" will be removed`;
         break;
         
       case 'add':
         conflictType = 'property_added';
         severity = 'low';
-        description = `New property at "${normalizedPath}" will be added`;
+        description = `New property at "${path}" will be added`;
         break;
         
       case 'replace':
         if (path.endsWith('/type')) {
           conflictType = 'type_changed';
           severity = 'high';
-          description = `Type at "${normalizedPath}" will change from "${getCurrentValue(currentSchema, path)}" to "${patch.value}"`;
+          description = `Type at "${path}" will change from "${getCurrentValue(currentSchema, path)}" to "${patch.value}"`;
         } else {
           conflictType = 'value_changed';
           severity = 'medium';
-          description = `Value at "${normalizedPath}" will change`;
+          description = `Value at "${path}" will change`;
         }
         break;
         
@@ -292,10 +291,10 @@ export function generateMergeConflicts(
     }
     
     conflicts.push({
-      path: normalizedPath,
+      path,
       conflictType,
       currentValue: getCurrentValue(currentSchema, path),
-      importValue: patch.op === 'remove' ? null : getImportValue(importSchema, path, patch.value),
+      importValue: patch.op === 'remove' ? null : patch.value,
       description,
       severity,
     });
@@ -331,33 +330,9 @@ export function calculateImportVersionTier(
 }
 
 /**
- * Normalize JSON Pointer path to readable dot notation
- */
-function normalizePathForDisplay(path: string): string {
-  if (!path || path === '/') return 'root';
-  
-  // Remove leading slash and decode JSON Pointer escapes
-  let normalized = path.startsWith('/') ? path.slice(1) : path;
-  
-  // Decode JSON Pointer escape sequences: ~1 = /, ~0 = ~
-  normalized = normalized.replace(/~1/g, '/').replace(/~0/g, '~');
-  
-  // Convert array indices and object keys to dot notation
-  const parts = normalized.split('/');
-  
-  // Add root prefix for consistency
-  return 'root.' + parts.join('.');
-}
-
-/**
  * Helper function to get current value at a JSON path
  */
 function getCurrentValue(obj: any, path: string): any {
-  if (!path || path === '/' || !obj) {
-    return obj;
-  }
-  
-  // Handle JSON Pointer format
   const pathParts = path.split('/').filter(part => part !== '');
   let current = obj;
   
@@ -365,29 +340,10 @@ function getCurrentValue(obj: any, path: string): any {
     if (current === null || current === undefined) {
       return undefined;
     }
-    
-    // Decode JSON Pointer escape sequences
-    const decodedPart = part.replace(/~1/g, '/').replace(/~0/g, '~');
-    current = current[decodedPart];
+    current = current[part];
   }
   
   return current;
-}
-
-/**
- * Helper function to get import value at a specific path from the import schema
- */
-function getImportValue(importSchema: any, path: string, patchValue: any): any {
-  // For add operations, the value is in the patch itself
-  if (path && patchValue !== undefined) {
-    // Try to get the specific value from the import schema for better context
-    const importVal = getCurrentValue(importSchema, path);
-    if (importVal !== undefined) {
-      return importVal;
-    }
-  }
-  
-  return patchValue;
 }
 
 /**
