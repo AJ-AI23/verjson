@@ -57,7 +57,6 @@ export function useWorkspacePermissions(workspaceId?: string) {
     if (!user || !workspaceId || workspaceId === VIRTUAL_SHARED_WORKSPACE_ID) return false;
 
     try {
-      console.log('🔔 useWorkspacePermissions - Invoking invite with emailNotifications:', emailNotifications);
       const { data, error } = await supabase.functions.invoke('invite-collaborator', {
         body: {
           email,

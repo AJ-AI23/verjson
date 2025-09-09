@@ -218,22 +218,68 @@ async function handleRemoveDocumentPermission(supabaseClient: any, data: any, us
 
   // Send email notification if email notifications are enabled for this permission
   const shouldSendEmail = emailNotificationsEnabled ?? permissionData.email_notifications_enabled;
+  logger.debug('Email notification check', { 
+    hasUserEmail: !!userEmail, 
+    emailNotificationsEnabled,
+    permissionEmailNotifications: permissionData.email_notifications_enabled,
+    shouldSendEmail
+  });
+
   if (userEmail && shouldSendEmail) {
     try {
-      await supabaseClient.functions.invoke('revoke-access', {
-        body: {
-          permissionId,
-          type: 'document',
-          revokedUserEmail: userEmail,
-          revokedUserName: userName,
-          resourceName: resourceName || 'Unknown Document',
-          revokerName: user.email
-        }
+      // Get Resend API key
+      const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      if (!resendApiKey) {
+        logger.warn('RESEND_API_KEY not configured - skipping email notification');
+        return { success: true, message: 'Permission removed successfully' };
+      }
+
+      // Send email notification directly using fetch
+      const emailContent = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 40px;">
+            <h1 style="color: #dc2626; font-size: 28px; margin-bottom: 10px;">Access Revoked</h1>
+            <p style="color: #666; font-size: 18px; margin: 0;">Your access has been removed</p>
+          </div>
+          
+          <div style="background-color: #fef2f2; border-radius: 12px; padding: 30px; margin-bottom: 30px; border-left: 4px solid #dc2626;">
+            <h2 style="color: #333; font-size: 20px; margin-bottom: 15px;">Document: ${resourceName || 'Unknown Document'}</h2>
+            <p style="color: #666; font-size: 16px; margin: 0;">Access revoked by: <strong>${user.email}</strong></p>
+          </div>
+        
+          <p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
+            You no longer have access to this document. If you believe this is an error, please contact the document owner.
+          </p>
+        
+          <div style="border-top: 1px solid #e5e7eb; margin-top: 40px; padding-top: 20px; text-align: center;">
+            <p style="color: #9ca3af; font-size: 14px; margin: 0;">This notification was sent by ${user.email}</p>
+          </div>
+        </div>
+      `;
+
+      const emailResponse = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: "Lovable <onboarding@resend.dev>",
+          to: [userEmail],
+          subject: `Access Revoked: ${resourceName || 'Document'}`,
+          html: emailContent,
+        }),
       });
-      logger.debug('Revocation email notification sent', { userEmail });
-    } catch (notificationError) {
-      logger.warn('Failed to send revocation email notification', notificationError);
-      // Continue despite notification failure
+
+      if (emailResponse.ok) {
+        logger.info('Revocation email sent successfully', { userEmail });
+      } else {
+        const errorText = await emailResponse.text();
+        logger.warn('Failed to send revocation email', { userEmail, error: errorText });
+      }
+    } catch (emailError) {
+      logger.warn('Error sending revocation email notification', emailError);
+      // Continue despite email failure
     }
   } else {
     logger.debug('Skipping email notification', { 
@@ -298,22 +344,68 @@ async function handleRemoveWorkspacePermission(supabaseClient: any, data: any, u
 
   // Send email notification if email notifications are enabled for this permission
   const shouldSendEmail = emailNotificationsEnabled ?? permissionData.email_notifications_enabled;
+  logger.debug('Email notification check', { 
+    hasUserEmail: !!userEmail, 
+    emailNotificationsEnabled,
+    permissionEmailNotifications: permissionData.email_notifications_enabled,
+    shouldSendEmail
+  });
+
   if (userEmail && shouldSendEmail) {
     try {
-      await supabaseClient.functions.invoke('revoke-access', {
-        body: {
-          permissionId,
-          type: 'workspace',
-          revokedUserEmail: userEmail,
-          revokedUserName: userName,
-          resourceName: resourceName || 'Unknown Workspace',
-          revokerName: user.email
-        }
+      // Get Resend API key
+      const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      if (!resendApiKey) {
+        logger.warn('RESEND_API_KEY not configured - skipping email notification');
+        return { success: true, message: 'Permission removed successfully' };
+      }
+
+      // Send email notification directly using fetch
+      const emailContent = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 40px;">
+            <h1 style="color: #dc2626; font-size: 28px; margin-bottom: 10px;">Access Revoked</h1>
+            <p style="color: #666; font-size: 18px; margin: 0;">Your access has been removed</p>
+          </div>
+          
+          <div style="background-color: #fef2f2; border-radius: 12px; padding: 30px; margin-bottom: 30px; border-left: 4px solid #dc2626;">
+            <h2 style="color: #333; font-size: 20px; margin-bottom: 15px;">Workspace: ${resourceName || 'Unknown Workspace'}</h2>
+            <p style="color: #666; font-size: 16px; margin: 0;">Access revoked by: <strong>${user.email}</strong></p>
+          </div>
+        
+          <p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
+            You no longer have access to this workspace. If you believe this is an error, please contact the workspace owner.
+          </p>
+        
+          <div style="border-top: 1px solid #e5e7eb; margin-top: 40px; padding-top: 20px; text-align: center;">
+            <p style="color: #9ca3af; font-size: 14px; margin: 0;">This notification was sent by ${user.email}</p>
+          </div>
+        </div>
+      `;
+
+      const emailResponse = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: "Lovable <onboarding@resend.dev>",
+          to: [userEmail],
+          subject: `Access Revoked: ${resourceName || 'Workspace'}`,
+          html: emailContent,
+        }),
       });
-      logger.debug('Revocation email notification sent', { userEmail });
-    } catch (notificationError) {
-      logger.warn('Failed to send revocation email notification', notificationError);
-      // Continue despite notification failure
+
+      if (emailResponse.ok) {
+        logger.info('Revocation email sent successfully', { userEmail });
+      } else {
+        const errorText = await emailResponse.text();
+        logger.warn('Failed to send revocation email', { userEmail, error: errorText });
+      }
+    } catch (emailError) {
+      logger.warn('Error sending revocation email notification', emailError);
+      // Continue despite email failure
     }
   } else {
     logger.debug('Skipping email notification', { 
