@@ -170,6 +170,18 @@ async function handleRemoveDocumentPermission(supabaseClient: any, data: any, us
   const { permissionId, userEmail, userName, resourceName } = data;
   logger.debug('Removing document permission', { permissionId });
 
+  // Get permission details before removing it
+  const { data: permissionData, error: getPermError } = await supabaseClient
+    .from('document_permissions')
+    .select('user_id, document_id')
+    .eq('id', permissionId)
+    .single();
+
+  if (getPermError || !permissionData) {
+    logger.error('Failed to get permission details', getPermError);
+    throw new Error('Permission not found');
+  }
+
   // Remove the permission
   const { error } = await supabaseClient
     .from('document_permissions')
@@ -181,7 +193,30 @@ async function handleRemoveDocumentPermission(supabaseClient: any, data: any, us
     throw error;
   }
 
-  // Send notification if user details provided
+  // Create notification for the affected user
+  try {
+    const notificationData = {
+      user_id: permissionData.user_id,
+      document_id: permissionData.document_id,
+      type: 'document_access_revoked',
+      title: `Access removed from "${resourceName || 'Document'}"`,
+      message: `Your access to the document "${resourceName || 'Unknown Document'}" has been removed.`,
+    };
+
+    const { error: notifyError } = await supabaseClient
+      .from('notifications')
+      .insert([notificationData]);
+
+    if (notifyError) {
+      logger.warn('Failed to create access revocation notification', notifyError);
+    } else {
+      logger.info('Access revocation notification created', { userId: permissionData.user_id });
+    }
+  } catch (notificationError) {
+    logger.warn('Error creating access revocation notification', notificationError);
+  }
+
+  // Send email notification if user details provided
   if (userEmail) {
     try {
       await supabaseClient.functions.invoke('revoke-access', {
@@ -194,9 +229,9 @@ async function handleRemoveDocumentPermission(supabaseClient: any, data: any, us
           revokerName: user.email
         }
       });
-      logger.debug('Revocation notification sent', { userEmail });
+      logger.debug('Revocation email notification sent', { userEmail });
     } catch (notificationError) {
-      logger.warn('Failed to send revocation notification', notificationError);
+      logger.warn('Failed to send revocation email notification', notificationError);
       // Continue despite notification failure
     }
   }
@@ -209,6 +244,18 @@ async function handleRemoveWorkspacePermission(supabaseClient: any, data: any, u
   const { permissionId, userEmail, userName, resourceName } = data;
   logger.debug('Removing workspace permission', { permissionId });
 
+  // Get permission details before removing it
+  const { data: permissionData, error: getPermError } = await supabaseClient
+    .from('workspace_permissions')
+    .select('user_id, workspace_id')
+    .eq('id', permissionId)
+    .single();
+
+  if (getPermError || !permissionData) {
+    logger.error('Failed to get permission details', getPermError);
+    throw new Error('Permission not found');
+  }
+
   // Remove the permission
   const { error } = await supabaseClient
     .from('workspace_permissions')
@@ -220,7 +267,30 @@ async function handleRemoveWorkspacePermission(supabaseClient: any, data: any, u
     throw error;
   }
 
-  // Send notification if user details provided
+  // Create notification for the affected user
+  try {
+    const notificationData = {
+      user_id: permissionData.user_id,
+      workspace_id: permissionData.workspace_id,
+      type: 'workspace_access_revoked',
+      title: `Access removed from "${resourceName || 'Workspace'}"`,
+      message: `Your access to the workspace "${resourceName || 'Unknown Workspace'}" has been removed.`,
+    };
+
+    const { error: notifyError } = await supabaseClient
+      .from('notifications')
+      .insert([notificationData]);
+
+    if (notifyError) {
+      logger.warn('Failed to create access revocation notification', notifyError);
+    } else {
+      logger.info('Access revocation notification created', { userId: permissionData.user_id });
+    }
+  } catch (notificationError) {
+    logger.warn('Error creating access revocation notification', notificationError);
+  }
+
+  // Send email notification if user details provided
   if (userEmail) {
     try {
       await supabaseClient.functions.invoke('revoke-access', {
@@ -233,9 +303,9 @@ async function handleRemoveWorkspacePermission(supabaseClient: any, data: any, u
           revokerName: user.email
         }
       });
-      logger.debug('Revocation notification sent', { userEmail });
+      logger.debug('Revocation email notification sent', { userEmail });
     } catch (notificationError) {
-      logger.warn('Failed to send revocation notification', notificationError);
+      logger.warn('Failed to send revocation email notification', notificationError);
       // Continue despite notification failure
     }
   }

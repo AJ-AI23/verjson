@@ -240,6 +240,75 @@ const handler = async (req: Request): Promise<Response> => {
         }
         
         logger.debug('Deleting document', { id: requestBody.id });
+        
+        // First, get document details and all users who have access to it
+        logger.logDatabaseQuery('documents', 'SELECT document info', { id: requestBody.id });
+        const { data: documentInfo, error: docInfoError } = await supabaseClient
+          .from('documents')
+          .select('id, name, workspace_id')
+          .eq('id', requestBody.id)
+          .eq('user_id', user.id)
+          .single();
+
+        if (docInfoError || !documentInfo) {
+          logger.error('Document not found or access denied', docInfoError);
+          return new Response(JSON.stringify({ error: 'Document not found or access denied' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Get all users with document permissions
+        logger.logDatabaseQuery('document_permissions', 'SELECT users with access');
+        const { data: docPermissions, error: docPermError } = await supabaseClient
+          .from('document_permissions')
+          .select('user_id')
+          .eq('document_id', requestBody.id)
+          .eq('status', 'accepted')
+          .neq('user_id', user.id); // Exclude the owner
+
+        // Get all users with workspace permissions
+        const { data: workspacePermissions, error: wsPermError } = await supabaseClient
+          .from('workspace_permissions')
+          .select('user_id')
+          .eq('workspace_id', documentInfo.workspace_id)
+          .eq('status', 'accepted')
+          .neq('user_id', user.id); // Exclude the owner
+
+        // Collect all unique user IDs who need to be notified
+        const notifyUserIds = new Set<string>();
+        if (docPermissions) {
+          docPermissions.forEach(p => notifyUserIds.add(p.user_id));
+        }
+        if (workspacePermissions) {
+          workspacePermissions.forEach(p => notifyUserIds.add(p.user_id));
+        }
+
+        // Create notifications for all affected users
+        if (notifyUserIds.size > 0) {
+          logger.debug('Creating deletion notifications', { userCount: notifyUserIds.size });
+          const notifications = Array.from(notifyUserIds).map(userId => ({
+            user_id: userId,
+            document_id: requestBody.id,
+            workspace_id: documentInfo.workspace_id,
+            type: 'document_deleted',
+            title: `Document "${documentInfo.name}" was deleted`,
+            message: `The document "${documentInfo.name}" has been deleted by its owner and is no longer accessible.`,
+          }));
+
+          const { error: notifyError } = await supabaseClient
+            .from('notifications')
+            .insert(notifications);
+
+          if (notifyError) {
+            logger.warn('Failed to create deletion notifications', notifyError);
+            // Don't fail the deletion if notifications fail
+          } else {
+            logger.info('Deletion notifications created', { count: notifications.length });
+          }
+        }
+
+        // Now delete the document
         logger.logDatabaseQuery('documents', 'DELETE', { id: requestBody.id });
         const { error: deleteError } = await supabaseClient
           .from('documents')
@@ -257,7 +326,7 @@ const handler = async (req: Request): Promise<Response> => {
           });
         }
 
-        logger.info('Document deleted successfully', { documentId: requestBody.id });
+        logger.info('Document deleted successfully', { documentId: requestBody.id, notifiedUsers: notifyUserIds.size });
         logger.logResponse(200);
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },

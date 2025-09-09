@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 // Global event handlers for triggering updates in other hooks
 let globalInvitationUpdateHandler: (() => void) | null = null;
 let globalWorkspaceUpdateHandler: (() => void) | null = null;
+let globalSharedDocumentsUpdateHandler: (() => void) | null = null;
 
 export const registerInvitationUpdateHandler = (handler: () => void) => {
   globalInvitationUpdateHandler = handler;
@@ -14,6 +15,10 @@ export const registerInvitationUpdateHandler = (handler: () => void) => {
 
 export const registerWorkspaceUpdateHandler = (handler: () => void) => {
   globalWorkspaceUpdateHandler = handler;
+};
+
+export const registerSharedDocumentsUpdateHandler = (handler: () => void) => {
+  globalSharedDocumentsUpdateHandler = handler;
 };
 
 export interface Notification {
@@ -209,6 +214,24 @@ export const useNotifications = () => {
       case 'document_shared':
       case 'document_updated':
         // Could trigger document refresh in the future
+        break;
+      case 'document_deleted':
+      case 'document_access_revoked':
+      case 'workspace_access_revoked':
+        // Trigger shared documents refresh when access changes
+        if (globalSharedDocumentsUpdateHandler) {
+          globalSharedDocumentsUpdateHandler();
+        }
+        // Show toast for access revocation
+        if (notification.type === 'document_access_revoked' || notification.type === 'workspace_access_revoked') {
+          toast.error(notification.title, {
+            description: notification.message,
+          });
+        } else if (notification.type === 'document_deleted') {
+          toast.info(notification.title, {
+            description: notification.message,
+          });
+        }
         break;
       default:
         // Generic notification, no special handling needed
