@@ -29,12 +29,17 @@ export function useUserPermissions(userId?: string) {
       setLoading(true);
       setError(null);
       
-      const { data, error } = await supabase
-        .rpc('get_user_all_permissions', { target_user_id: userId });
+      // Use the permissions-management edge function
+      const { data, error } = await supabase.functions.invoke('permissions-management', {
+        body: {
+          action: 'getUserAllPermissions',
+          targetUserId: userId
+        }
+      });
 
       if (error) throw error;
 
-      setPermissions((data || []).map(item => ({
+      setPermissions((data?.permissions || []).map(item => ({
         ...item,
         type: item.type as 'workspace' | 'document'
       })));

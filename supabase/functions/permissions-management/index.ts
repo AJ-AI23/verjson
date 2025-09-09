@@ -122,6 +122,12 @@ serve(async (req) => {
       case 'declineInvitation':
         result = await handleDeclineInvitation(supabaseClient, requestData, user, logger);
         break;
+      case 'getUserAllPermissions':
+        result = await handleGetUserAllPermissions(supabaseClient, requestData, user, logger);
+        break;
+      case 'getBulkDocumentPermissions':
+        result = await handleGetBulkDocumentPermissions(supabaseClient, requestData, logger);
+        break;
       default:
         logger.warn('Unknown action requested', { action: requestAction });
         return new Response(
@@ -415,6 +421,61 @@ async function handleDeclineInvitation(supabaseClient: any, data: any, user: any
     success: true,
     message: declineResult.message
   };
+}
+
+async function handleGetUserAllPermissions(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
+  const { targetUserId } = data;
+  logger.debug('Getting user all permissions', { targetUserId, requesterId: user.id });
+
+  const { data: permissions, error } = await supabaseClient
+    .rpc('get_user_all_permissions', { target_user_id: targetUserId });
+
+  if (error) {
+    logger.error('Failed to get user all permissions', error);
+    throw error;
+  }
+
+  logger.info('Successfully retrieved user all permissions', { 
+    targetUserId, 
+    permissionCount: permissions?.length || 0 
+  });
+  
+  return { permissions };
+}
+
+async function handleGetBulkDocumentPermissions(supabaseClient: any, data: any, logger: EdgeFunctionLogger) {
+  const { documentIds } = data;
+  logger.debug('Getting bulk document permissions', { documentCount: documentIds?.length });
+
+  if (!documentIds || !Array.isArray(documentIds)) {
+    throw new Error('documentIds must be provided as an array');
+  }
+
+  const permissionsMap: Record<string, any[]> = {};
+  
+  for (const documentId of documentIds) {
+    try {
+      const { data: permissions, error } = await supabaseClient
+        .rpc('get_document_permissions', { doc_id: documentId });
+
+      if (error) {
+        logger.warn('Failed to get permissions for document', { documentId, error });
+        permissionsMap[documentId] = [];
+      } else {
+        permissionsMap[documentId] = permissions || [];
+      }
+    } catch (error) {
+      logger.warn('Error fetching permissions for document', { documentId, error });
+      permissionsMap[documentId] = [];
+    }
+  }
+
+  logger.info('Successfully retrieved bulk document permissions', { 
+    documentCount: documentIds.length,
+    totalPermissions: Object.values(permissionsMap).flat().length 
+  });
+  
+  return { permissionsMap };
 }
 
 // ============== INVITATION HANDLERS ==============

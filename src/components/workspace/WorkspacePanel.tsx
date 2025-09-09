@@ -385,20 +385,22 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
         return;
       }
       
-      const permissionsMap: Record<string, any[]> = {};
-      
-      for (const doc of documents) {
-        try {
-          const { data: perms } = await supabase
-            .rpc('get_document_permissions', { doc_id: doc.id });
-          permissionsMap[doc.id] = perms || [];
-        } catch (error) {
-          console.error(`Error fetching permissions for document ${doc.id}:`, error);
-          permissionsMap[doc.id] = [];
-        }
+      try {
+        // Use the permissions-management edge function for bulk operations
+        const { data, error } = await supabase.functions.invoke('permissions-management', {
+          body: {
+            action: 'getBulkDocumentPermissions',
+            documentIds: documents.map(doc => doc.id)
+          }
+        });
+
+        if (error) throw error;
+
+        setDocumentPermissions(data?.permissionsMap || {});
+      } catch (error) {
+        console.error('Error fetching bulk document permissions:', error);
+        setDocumentPermissions({});
       }
-      
-      setDocumentPermissions(permissionsMap);
     };
 
     fetchDocumentPermissions();
