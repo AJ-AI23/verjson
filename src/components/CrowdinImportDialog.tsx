@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, Download, CheckCircle, AlertCircle, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -43,6 +43,11 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
   const [error, setError] = useState<string>('');
   const [step, setStep] = useState<'import' | 'validation' | 'preview'>('import');
   const [fileValidation, setFileValidation] = useState<any>(null);
+  const [backgroundProcessing, setBackgroundProcessing] = useState<{
+    isActive: boolean;
+    message: string;
+    filesCount?: number;
+  }>({ isActive: false, message: '' });
 
   const handleImport = async () => {
     if (!crowdinIntegration?.file_id && (!crowdinIntegration?.file_ids || crowdinIntegration.file_ids.length === 0)) {
@@ -77,9 +82,13 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
 
       // Handle background processing response
       if (data.background) {
+        setBackgroundProcessing({
+          isActive: true,
+          message: data.message || `Import of ${data.filesCount} files started in background`,
+          filesCount: data.filesCount
+        });
         toast.success(data.message || `Import of ${data.filesCount} files started in background`);
         toast.info('Large imports are processed in the background. You can continue working while files are being processed.');
-        onOpenChange(false); // Close the dialog
         return;
       }
 
@@ -198,96 +207,138 @@ export const CrowdinImportDialog: React.FC<CrowdinImportDialogProps> = ({
 
           {step === 'import' && (
             <div className="space-y-6 p-1">
-              {/* Document Info */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Document Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="font-medium">Document:</span>
-                      <p className="text-muted-foreground">{document.name}</p>
-                    </div>
-                    <div>
-                      <span className="font-medium">Crowdin Files:</span>
-                      <div className="text-muted-foreground">
-                        {crowdinIntegration?.filenames && Array.isArray(crowdinIntegration.filenames) ? (
-                          <div className="space-y-1">
-                            <p className="text-sm">
-                              {crowdinIntegration.filenames.length} files will be imported:
-                            </p>
-                            <ul className="text-xs space-y-1 max-h-16 overflow-y-auto">
-                              {crowdinIntegration.filenames.map((filename, index) => (
-                                <li key={index} className="truncate">• {filename}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : (
-                          <p>{crowdinIntegration?.filename || 'Unknown filename'}</p>
-                        )}
+              {/* Background Processing Success */}
+              {backgroundProcessing.isActive ? (
+                <div className="space-y-4">
+                  <Alert>
+                    <CheckCircle className="h-4 w-4" />
+                    <AlertTitle>Import Started Successfully</AlertTitle>
+                    <AlertDescription>
+                      {backgroundProcessing.message}
+                    </AlertDescription>
+                  </Alert>
+                  
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Background Processing
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="text-sm">
+                        <p className="text-muted-foreground">
+                          Your import of {backgroundProcessing.filesCount} files is being processed in the background. 
+                          This may take a few minutes depending on the file sizes.
+                        </p>
+                        <p className="text-muted-foreground mt-2">
+                          You can continue working with other documents while the import completes. 
+                          You'll receive a notification when it's finished.
+                        </p>
                       </div>
-                    </div>
+                    </CardContent>
+                  </Card>
+
+                  <div className="flex justify-end">
+                    <Button onClick={() => onOpenChange(false)}>
+                      Close
+                    </Button>
                   </div>
-                  
-                  {crowdinIntegration?.project_id && (
-                    <div className="text-sm">
-                      <span className="font-medium">Project ID:</span>
-                      <span className="text-muted-foreground ml-2">
-                        {crowdinIntegration.project_id}
-                      </span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                </div>
+              ) : (
+                <>
+                  {/* Document Info */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Document Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="font-medium">Document:</span>
+                          <p className="text-muted-foreground">{document.name}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">Crowdin Files:</span>
+                          <div className="text-muted-foreground">
+                            {crowdinIntegration?.filenames && Array.isArray(crowdinIntegration.filenames) ? (
+                              <div className="space-y-1">
+                                <p className="text-sm">
+                                  {crowdinIntegration.filenames.length} files will be imported:
+                                </p>
+                                <ul className="text-xs space-y-1 max-h-16 overflow-y-auto">
+                                  {crowdinIntegration.filenames.map((filename, index) => (
+                                    <li key={index} className="truncate">• {filename}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ) : (
+                              <p>{crowdinIntegration?.filename || 'Unknown filename'}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {crowdinIntegration?.project_id && (
+                        <div className="text-sm">
+                          <span className="font-medium">Project ID:</span>
+                          <span className="text-muted-foreground ml-2">
+                            {crowdinIntegration.project_id}
+                          </span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
 
-              {/* Error Display */}
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
+                  {/* Error Display */}
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Import Action */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">Import from Crowdin</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        This will download the latest version of your document from Crowdin and 
+                        show you a preview of any changes before importing.
+                      </p>
+                      
+                      <Button
+                        onClick={handleImport}
+                        disabled={isImporting || (!crowdinIntegration?.file_id && (!crowdinIntegration?.file_ids || crowdinIntegration.file_ids.length === 0))}
+                        className="w-full"
+                      >
+                        {isImporting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Validating & Importing from Crowdin...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="mr-2 h-4 w-4" />
+                            Import from Crowdin
+                          </>
+                        )}
+                      </Button>
+                      
+                      {!crowdinIntegration?.file_id && (!crowdinIntegration?.file_ids || crowdinIntegration.file_ids.length === 0) && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          This document has not been exported to Crowdin yet.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </>
               )}
-
-              {/* Import Action */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Import from Crowdin</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    This will download the latest version of your document from Crowdin and 
-                    show you a preview of any changes before importing.
-                  </p>
-                  
-                  <Button
-                    onClick={handleImport}
-                    disabled={isImporting || (!crowdinIntegration?.file_id && (!crowdinIntegration?.file_ids || crowdinIntegration.file_ids.length === 0))}
-                    className="w-full"
-                  >
-                    {isImporting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Validating & Importing from Crowdin...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="mr-2 h-4 w-4" />
-                        Import from Crowdin
-                      </>
-                    )}
-                  </Button>
-                  
-                  {!crowdinIntegration?.file_id && (!crowdinIntegration?.file_ids || crowdinIntegration.file_ids.length === 0) && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      This document has not been exported to Crowdin yet.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
             </div>
           )}
 
