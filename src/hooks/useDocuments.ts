@@ -17,19 +17,6 @@ export function useDocuments(workspaceId?: string) {
   // Use shared documents hook for the virtual workspace
   const sharedDocuments = useSharedDocuments();
   const isVirtualSharedWorkspace = workspaceId === VIRTUAL_SHARED_WORKSPACE_ID;
-  
-  // If virtual shared workspace, return shared documents state directly
-  if (isVirtualSharedWorkspace) {
-    return {
-      documents: sharedDocuments.documents,
-      loading: sharedDocuments.loading,
-      error: sharedDocuments.error,
-      createDocument: async () => null, // Not supported for shared workspace
-      updateDocument: async () => null, // Not supported for shared workspace
-      deleteDocument: async () => {}, // Not supported for shared workspace
-      refetch: sharedDocuments.refetch,
-    };
-  }
 
   const fetchDocuments = async () => {
     if (!user) {
@@ -37,9 +24,9 @@ export function useDocuments(workspaceId?: string) {
       return;
     }
     
-    // Don't fetch anything if no workspace is selected
-    if (!workspaceId) {
-      console.log('[useDocuments] No workspace selected, skipping document fetch');
+    // Don't fetch anything if no workspace is selected or if it's the virtual shared workspace
+    if (!workspaceId || isVirtualSharedWorkspace) {
+      console.log('[useDocuments] No workspace selected or virtual workspace, skipping document fetch');
       setDocuments([]);
       setLoading(false);
       return;
@@ -157,9 +144,9 @@ export function useDocuments(workspaceId?: string) {
     
     fetchDocuments();
 
-    // Only set up real-time subscription if workspace is selected
-    if (!workspaceId) {
-      console.log('[useDocuments] No workspace selected, skipping real-time subscription');
+    // Only set up real-time subscription if workspace is selected and not virtual
+    if (!workspaceId || isVirtualSharedWorkspace) {
+      console.log('[useDocuments] No workspace selected or virtual workspace, skipping real-time subscription');
       return;
     }
     
@@ -197,9 +184,17 @@ export function useDocuments(workspaceId?: string) {
       console.log('[useDocuments] Cleaning up subscription:', channelName, 'for workspace:', workspaceId || 'ALL');
       supabase.removeChannel(channel);
     };
-  }, [user, workspaceId]);
+  }, [user, workspaceId, isVirtualSharedWorkspace]);
 
-  return {
+  return isVirtualSharedWorkspace ? {
+    documents: sharedDocuments.documents,
+    loading: sharedDocuments.loading,
+    error: sharedDocuments.error,
+    createDocument: async () => null, // Not supported for shared workspace
+    updateDocument: async () => null, // Not supported for shared workspace
+    deleteDocument: async () => {}, // Not supported for shared workspace
+    refetch: sharedDocuments.refetch,
+  } : {
     documents,
     loading,
     error,
