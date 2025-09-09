@@ -4,16 +4,32 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Document, CreateDocumentData } from '@/types/workspace';
 import { toast } from 'sonner';
 import { enhanceDocumentsWithEffectiveContent } from '@/lib/documentUtils';
+import { useSharedDocuments } from './useSharedDocuments';
+
+const VIRTUAL_SHARED_WORKSPACE_ID = '__shared_with_me__';
 
 export function useDocuments(workspaceId?: string) {
   const { user } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Use shared documents hook for the virtual workspace
+  const sharedDocuments = useSharedDocuments();
+  const isVirtualSharedWorkspace = workspaceId === VIRTUAL_SHARED_WORKSPACE_ID;
 
   const fetchDocuments = async () => {
     if (!user) {
       console.log('[useDocuments] No user, skipping fetch');
+      return;
+    }
+    
+    // Handle virtual shared workspace
+    if (isVirtualSharedWorkspace) {
+      console.log('[useDocuments] Using shared documents for virtual workspace');
+      setDocuments(sharedDocuments.documents);
+      setLoading(sharedDocuments.loading);
+      setError(sharedDocuments.error);
       return;
     }
     
@@ -122,6 +138,15 @@ export function useDocuments(workspaceId?: string) {
     }
   };
 
+  // Handle shared documents state sync
+  useEffect(() => {
+    if (isVirtualSharedWorkspace) {
+      setDocuments(sharedDocuments.documents);
+      setLoading(sharedDocuments.loading);
+      setError(sharedDocuments.error);
+    }
+  }, [isVirtualSharedWorkspace, sharedDocuments.documents, sharedDocuments.loading, sharedDocuments.error]);
+
   // Set up real-time subscription and clear documents when workspace changes
   useEffect(() => {
     if (!user) {
@@ -135,11 +160,14 @@ export function useDocuments(workspaceId?: string) {
     setDocuments([]);
     setError(null);
     
-    fetchDocuments();
+    // Don't fetch if using virtual shared workspace (handled by useSharedDocuments)
+    if (!isVirtualSharedWorkspace) {
+      fetchDocuments();
+    }
 
-    // Only set up real-time subscription if workspace is selected
-    if (!workspaceId) {
-      console.log('[useDocuments] No workspace selected, skipping real-time subscription');
+    // Only set up real-time subscription if workspace is selected and not virtual
+    if (!workspaceId || isVirtualSharedWorkspace) {
+      console.log('[useDocuments] No workspace selected or virtual workspace, skipping real-time subscription');
       return;
     }
     
@@ -177,7 +205,7 @@ export function useDocuments(workspaceId?: string) {
       console.log('[useDocuments] Cleaning up subscription:', channelName, 'for workspace:', workspaceId || 'ALL');
       supabase.removeChannel(channel);
     };
-  }, [user, workspaceId]);
+  }, [user, workspaceId, isVirtualSharedWorkspace]);
 
   return {
     documents,
@@ -189,3 +217,6 @@ export function useDocuments(workspaceId?: string) {
     refetch: fetchDocuments,
   };
 }
+
+// Export the virtual workspace ID for use in other components
+export { VIRTUAL_SHARED_WORKSPACE_ID };

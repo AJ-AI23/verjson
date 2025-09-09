@@ -22,6 +22,8 @@ import { DocumentPinSetupDialog } from './DocumentPinSetupDialog';
 import { DocumentMergeDialog } from './DocumentMergeDialog';
 import { useWorkspacePermissions } from '@/hooks/useWorkspacePermissions';
 import { useDocumentPinSecurity } from '@/hooks/useDocumentPinSecurity';
+import { useSharedDocuments } from '@/hooks/useSharedDocuments';
+import { VIRTUAL_SHARED_WORKSPACE_ID } from '@/hooks/useDocuments';
 import { useDebug } from '@/contexts/DebugContext';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -37,7 +39,8 @@ import {
   Users,
   UserPlus,
   Shield,
-  GitMerge
+  GitMerge,
+  Share
  } from 'lucide-react';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
@@ -61,6 +64,11 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   const { documents, createDocument, deleteDocument } = useDocuments(selectedWorkspace);
   console.log('[WorkspacePanel] Documents for workspace:', selectedWorkspace, 'count:', documents.length);
   console.log('[WorkspacePanel] Document details:', documents.map(d => ({ id: d.id, name: d.name, workspace_id: d.workspace_id })));
+  
+  // Get shared documents count for virtual workspace visibility
+  const { documents: sharedDocuments } = useSharedDocuments();
+  const hasSharedDocuments = sharedDocuments.length > 0;
+  const isVirtualSharedWorkspace = selectedWorkspace === VIRTUAL_SHARED_WORKSPACE_ID;
   
   const { inviteToWorkspace, inviteBulkDocuments } = useWorkspacePermissions(selectedWorkspace);
   const { checkDocumentPinStatus } = useDocumentPinSecurity();
@@ -462,6 +470,21 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
               <SelectValue placeholder="Choose a workspace..." />
             </SelectTrigger>
             <SelectContent>
+              {/* Virtual "Shared with me" workspace */}
+              {hasSharedDocuments && (
+                <SelectItem key={VIRTUAL_SHARED_WORKSPACE_ID} value={VIRTUAL_SHARED_WORKSPACE_ID}>
+                  <div className="flex items-center justify-between min-w-0 w-full">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Share className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="truncate font-medium">Shared with me</span>
+                    </div>
+                    <Badge variant="secondary" className="ml-2 shrink-0">
+                      {sharedDocuments.length}
+                    </Badge>
+                  </div>
+                </SelectItem>
+              )}
+              
               {workspaces.map((workspace) => (
                 <SelectItem key={workspace.id} value={workspace.id}>
                   <div className="flex items-center justify-between min-w-0 w-full">
@@ -623,95 +646,115 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                 </div>
               </div>
               <ScrollArea className="h-64 border rounded-md">
-                <div className="p-2 space-y-1">
-                  {documents.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className={`flex items-center justify-between p-2 rounded-md hover:bg-accent cursor-pointer transition-all duration-200 hover-scale ${
-                        selectedDocument?.id === doc.id ? 'bg-accent animate-fade-in' : ''
-                      }`}
-                      onClick={() => onDocumentSelect(doc)}
-                    >
-                      <div className="flex items-center flex-1 min-w-0">
-                        <File className="h-4 w-4 mr-2 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">
-                            {doc.name}
-                          </div>
-                           <div className="flex items-center gap-1">
-                             <Badge variant="secondary" className="text-xs">
-                               {doc.file_type}
-                             </Badge>
-                             {doc.user_id === user?.id ? (
-                               documentPermissions[doc.id]?.length > 1 && (
-                                 <Badge variant="secondary" className="text-xs">
-                                   Shared
-                                 </Badge>
-                               )
-                             ) : (
-                               <Badge variant="secondary" className="text-xs">
-                                 Invited
-                               </Badge>
-                             )}
-                             {documentPinStatus[doc.id] && (
-                               <div title="PIN Protected">
-                                 <Shield className="h-3 w-3 text-amber-600" />
-                               </div>
-                             )}
+                 <div className="p-2 space-y-1">
+                   {documents.map((doc) => (
+                     <div
+                       key={doc.id}
+                       className={`flex items-center justify-between p-2 rounded-md hover:bg-accent cursor-pointer transition-all duration-200 hover-scale ${
+                         selectedDocument?.id === doc.id ? 'bg-accent animate-fade-in' : ''
+                       }`}
+                       onClick={() => onDocumentSelect(doc)}
+                     >
+                       <div className="flex items-center flex-1 min-w-0">
+                         <File className="h-4 w-4 mr-2 flex-shrink-0" />
+                         <div className="flex-1 min-w-0">
+                           <div className="text-sm font-medium truncate">
+                             {doc.name}
                            </div>
-                        </div>
-                      </div>
-                       <div className="flex gap-0.5 flex-shrink-0">
-                         <Button
-                           size="sm"
-                           variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              debugToast('🔽 Export button clicked for document', doc.name);
-                              handleDocumentExport(doc);
-                            }}
-                           className="h-6 w-6 p-0 hover:bg-accent-foreground/10 hover:text-accent-foreground transition-colors"
-                           title="Export"
-                         >
-                           <Download className="h-3 w-3" />
-                         </Button>
-                         {isDocumentOwner && selectedDocument?.id === doc.id && (
-                           <Button
-                             size="sm"
-                             variant="ghost"
+                           {/* Show workspace context for shared documents */}
+                           {(doc as any).is_shared && (doc as any).workspace_name && (
+                             <div className="text-xs text-muted-foreground truncate">
+                               from {(doc as any).workspace_name}
+                             </div>
+                           )}
+                            <div className="flex items-center gap-1">
+                              <Badge variant="secondary" className="text-xs">
+                                {doc.file_type}
+                              </Badge>
+                              {/* Show shared role badge for shared documents */}
+                              {(doc as any).is_shared && (
+                                <Badge variant="outline" className="text-xs">
+                                  {(doc as any).shared_role}
+                                </Badge>
+                              )}
+                              {doc.user_id === user?.id ? (
+                                documentPermissions[doc.id]?.length > 1 && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    Shared
+                                  </Badge>
+                                )
+                              ) : (
+                                <Badge variant="secondary" className="text-xs">
+                                  Invited
+                                </Badge>
+                              )}
+                              {documentPinStatus[doc.id] && (
+                                <div title="PIN Protected">
+                                  <Shield className="h-3 w-3 text-amber-600" />
+                                </div>
+                              )}
+                            </div>
+                         </div>
+                       </div>
+                        <div className="flex gap-0.5 flex-shrink-0">
+                          <Button
+                            size="sm"
+                            variant="ghost"
                              onClick={(e) => {
                                e.stopPropagation();
-                               handlePinSetup(doc);
+                               debugToast('🔽 Export button clicked for document', doc.name);
+                               handleDocumentExport(doc);
                              }}
-                             className="h-6 w-6 p-0 hover:bg-accent-foreground/10 hover:text-accent-foreground transition-colors"
-                             title="Security Settings"
-                           >
-                             <Shield className="h-3 w-3" />
-                           </Button>
-                         )}
-                         <Button
-                           size="sm"
-                           variant="ghost"
-                           onClick={(e) => {
-                             e.stopPropagation();
-                             setDocumentToDelete(doc);
-                             setDeleteDialogOpen(true);
-                           }}
-                           className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive transition-colors"
-                           title="Delete"
-                         >
-                           <Trash2 className="h-3 w-3" />
-                         </Button>
-                       </div>
+                            className="h-6 w-6 p-0 hover:bg-accent-foreground/10 hover:text-accent-foreground transition-colors"
+                            title="Export"
+                          >
+                            <Download className="h-3 w-3" />
+                          </Button>
+                          {/* Hide PIN setup for shared documents */}
+                          {!isVirtualSharedWorkspace && isDocumentOwner && selectedDocument?.id === doc.id && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePinSetup(doc);
+                              }}
+                              className="h-6 w-6 p-0 hover:bg-accent-foreground/10 hover:text-accent-foreground transition-colors"
+                              title="Security Settings"
+                            >
+                              <Shield className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {/* Hide delete action for shared documents in virtual workspace */}
+                          {(!isVirtualSharedWorkspace || !(doc as any).is_shared) && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDocumentToDelete(doc);
+                                setDeleteDialogOpen(true);
+                              }}
+                              className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                     </div>
                   ))}
-                  {documents.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No documents yet</p>
-                      <p className="text-xs">Create or import your first document</p>
-                    </div>
-                  )}
+                   {documents.length === 0 && (
+                     <div className="text-center py-8 text-muted-foreground">
+                       <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                       <p className="text-sm">
+                         {isVirtualSharedWorkspace ? "No documents have been shared with you" : "No documents yet"}
+                       </p>
+                       <p className="text-xs">
+                         {isVirtualSharedWorkspace ? "" : "Create or import your first document"}
+                       </p>
+                     </div>
+                   )}
                 </div>
               </ScrollArea>
             </div>

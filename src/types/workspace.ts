@@ -36,6 +36,10 @@ export interface Document {
   crowdin_integration?: CrowdinIntegration;
   created_at: string;
   updated_at: string;
+  // Properties for shared documents
+  workspace_name?: string;
+  shared_role?: 'editor' | 'viewer';
+  is_shared?: boolean;
 }
 
 export interface CreateWorkspaceData {
