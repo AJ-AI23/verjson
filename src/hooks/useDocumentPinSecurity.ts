@@ -11,37 +11,22 @@ export function useDocumentPinSecurity() {
   const { user } = useAuth();
   const [verifiedPins, setVerifiedPins] = useState<PinVerificationState>({});
 
-  // Simple hash function for PIN (in production, use proper crypto)
-  const hashPin = (pin: string): string => {
-    let hash = 0;
-    for (let i = 0; i < pin.length; i++) {
-      const char = pin.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    return Math.abs(hash).toString();
-  };
-
   // Check if document has PIN protection
   const checkDocumentPinStatus = async (documentId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('documents')
-        .select('pin_enabled, user_id')
-        .eq('id', documentId)
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke('document-security', {
+        body: {
+          action: 'checkDocumentPinStatus',
+          documentId
+        }
+      });
 
       if (error) throw error;
       
-      if (!data) {
-        return { hasPin: false, isOwner: false, needsPin: false };
-      }
+      // Add client-side verification check
+      const needsPin = data.needsPin && !verifiedPins[documentId];
 
-      const isOwner = data.user_id === user?.id;
-      const hasPin = data.pin_enabled;
-      const needsPin = hasPin && !isOwner && !verifiedPins[documentId];
-
-      return { hasPin, isOwner, needsPin };
+      return { ...data, needsPin };
     } catch (error) {
       console.error('Error checking document PIN status:', error);
       return { hasPin: false, isOwner: false, needsPin: false };
@@ -53,20 +38,22 @@ export function useDocumentPinSecurity() {
     if (!user) return false;
 
     try {
-      const hashedPin = hashPin(pin);
-      
-      const { error } = await supabase
-        .from('documents')
-        .update({
-          pin_code: hashedPin,
-          pin_enabled: true
-        })
-        .eq('id', documentId)
-        .eq('user_id', user.id);
+      const { data, error } = await supabase.functions.invoke('document-security', {
+        body: {
+          action: 'setDocumentPin',
+          documentId,
+          pin
+        }
+      });
 
       if (error) throw error;
 
-      toast.success('Document PIN set successfully');
+      if (!data.success) {
+        toast.error(data.error);
+        return false;
+      }
+
+      toast.success(data.message);
       return true;
     } catch (error) {
       console.error('Error setting document PIN:', error);
@@ -80,18 +67,16 @@ export function useDocumentPinSecurity() {
     if (!user) return false;
 
     try {
-      const { error } = await supabase
-        .from('documents')
-        .update({
-          pin_code: null,
-          pin_enabled: false
-        })
-        .eq('id', documentId)
-        .eq('user_id', user.id);
+      const { data, error } = await supabase.functions.invoke('document-security', {
+        body: {
+          action: 'removeDocumentPin',
+          documentId
+        }
+      });
 
       if (error) throw error;
 
-      toast.success('Document PIN removed successfully');
+      toast.success(data.message);
       return true;
     } catch (error) {
       console.error('Error removing document PIN:', error);
@@ -103,19 +88,17 @@ export function useDocumentPinSecurity() {
   // Verify PIN for document access
   const verifyDocumentPin = async (documentId: string, pin: string) => {
     try {
-      const hashedPin = hashPin(pin);
-      
-      const { data, error } = await supabase
-        .from('documents')
-        .select('pin_code')
-        .eq('id', documentId)
-        .eq('pin_code', hashedPin)
-        .eq('pin_enabled', true)
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke('document-security', {
+        body: {
+          action: 'verifyDocumentPin',
+          documentId,
+          pin
+        }
+      });
 
       if (error) throw error;
 
-      if (data) {
+      if (data.verified) {
         // Store verification in session
         setVerifiedPins(prev => ({
           ...prev,
@@ -130,10 +113,10 @@ export function useDocumentPinSecurity() {
           [documentId]: true
         }));
 
-        toast.success('PIN verified successfully');
+        toast.success(data.message);
         return true;
       } else {
-        toast.error('Incorrect PIN');
+        toast.error(data.error);
         return false;
       }
     } catch (error) {
