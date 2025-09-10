@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { registerInvitationUpdateHandler } from './useNotifications';
 import { toast } from 'sonner';
-import { triggerSequentialRefresh } from '@/lib/workspaceRefreshUtils';
+// Removed triggerSequentialRefresh import - using targeted updates instead
 
 export interface Invitation {
   id: string;
@@ -102,9 +102,12 @@ export function useInvitations() {
 
       toast.success(data.message);
       
-      // Trigger sequential refresh to ensure proper timing
-      console.log('[useInvitations] Invitation accepted, triggering sequential refresh for type:', invitation.type);
-      await triggerSequentialRefresh();
+      // Trigger workspace update to show new shared workspace/documents
+      console.log('[useInvitations] Invitation accepted, triggering workspace refresh for type:', invitation.type);
+      // Dispatch custom event to update workspace dropdown
+      window.dispatchEvent(new CustomEvent('workspaceUpdated', { 
+        detail: { type: 'invitation_accepted', invitationType: invitation.type } 
+      }));
 
       return true;
     } catch (err) {

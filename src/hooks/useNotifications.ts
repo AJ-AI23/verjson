@@ -41,6 +41,27 @@ export const useNotifications = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
+  
+  // Track processed notifications to prevent duplicates
+  const processedNotifications = useRef<Set<string>>(new Set());
+  
+  // Clean up old processed notification IDs periodically to prevent memory leaks
+  useEffect(() => {
+    const cleanup = () => {
+      const oneHourAgo = Date.now() - (60 * 60 * 1000);
+      const oldIds = Array.from(processedNotifications.current).filter(id => {
+        // Simple heuristic: if ID looks like a timestamp-based UUID, check age
+        return false; // For now, keep all IDs - can be enhanced later
+      });
+      // Keep the Set manageable size (max 1000 entries)
+      if (processedNotifications.current.size > 1000) {
+        processedNotifications.current.clear();
+      }
+    };
+    
+    const interval = setInterval(cleanup, 60000); // Clean every minute
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
@@ -63,6 +84,9 @@ export const useNotifications = () => {
       setLoading(false);
     }
   }, [user]);
+
+  // Track optimistic updates to prevent real-time conflicts
+  const optimisticUpdatesRef = useRef<Set<string>>(new Set());
 
   // Mark notification as read
   const markAsRead = useCallback(async (notificationId: string) => {
@@ -180,7 +204,7 @@ export const useNotifications = () => {
       console.error('Error creating notification:', error);
       toast.error('Failed to create notification');
     }
-  }, [user, fetchNotifications]);
+  }, [user]);
 
   // Polling fallback when realtime fails
   useEffect(() => {
@@ -194,14 +218,13 @@ export const useNotifications = () => {
     }
   }, [connectionState, fetchNotifications]);
 
-  // Handle notification type-based updates
+  // Handle notification type-based updates (central dispatcher)
   const handleNotificationTypeUpdate = useCallback((notification: Notification) => {
     console.log('[useNotifications] Processing notification type:', notification.type, notification);
     
     switch (notification.type) {
       case 'invitation':
         // Only trigger invitation refresh, NOT workspace refresh
-        // Workspace refresh happens when invitation is accepted, not received
         console.log('[useNotifications] Invitation notification received, refreshing invitations only');
         if (globalInvitationUpdateHandler) {
           globalInvitationUpdateHandler();
@@ -211,7 +234,7 @@ export const useNotifications = () => {
       case 'workspace_member_added':
       case 'workspace_updated':
       case 'workspace_member_removed':
-        // Trigger workspace refresh
+        // Trigger workspace refresh for membership changes
         console.log('[useNotifications] Workspace change notification, refreshing workspaces');
         if (globalWorkspaceUpdateHandler) {
           globalWorkspaceUpdateHandler();
@@ -219,8 +242,8 @@ export const useNotifications = () => {
         break;
         
       case 'workspace_deleted':
-        // Trigger both workspace and shared documents refresh for workspace deletion
-        console.log('[useNotifications] Workspace deleted notification, refreshing workspaces and shared documents');
+        // Clear workspace selection and refresh both workspace and shared documents
+        console.log('[useNotifications] Workspace deleted notification');
         if (globalWorkspaceUpdateHandler) {
           globalWorkspaceUpdateHandler();
         }
@@ -233,11 +256,8 @@ export const useNotifications = () => {
         break;
         
       case 'document_deleted':
-        // Trigger both workspace and shared documents refresh for document deletion
-        console.log('[useNotifications] Document deleted notification, refreshing workspaces and shared documents');
-        if (globalWorkspaceUpdateHandler) {
-          globalWorkspaceUpdateHandler();
-        }
+        // Refresh shared documents for document deletion
+        console.log('[useNotifications] Document deleted notification');
         if (globalSharedDocumentsUpdateHandler) {
           globalSharedDocumentsUpdateHandler();
         }
@@ -248,16 +268,17 @@ export const useNotifications = () => {
         
       case 'document_access_revoked':
       case 'workspace_access_revoked':
-        // For access revocation, trigger invitations refresh (to remove cancelled ones)
-        // and shared documents/workspace refresh in sequence
-        console.log('[useNotifications] Access revoked notification, triggering sequential refresh');
+        // For access revocation, refresh invitations and workspaces/shared docs
+        console.log('[useNotifications] Access revoked notification');
         if (globalInvitationUpdateHandler) {
           globalInvitationUpdateHandler();
         }
-        // Use sequential refresh to ensure proper timing and avoid multiple parallel calls
-        import('@/lib/workspaceRefreshUtils').then(({ triggerSequentialRefresh }) => {
-          triggerSequentialRefresh();
-        });
+        if (globalWorkspaceUpdateHandler) {
+          globalWorkspaceUpdateHandler();
+        }
+        if (globalSharedDocumentsUpdateHandler) {
+          globalSharedDocumentsUpdateHandler();
+        }
         toast.error(notification.title, {
           description: notification.message,
         });
@@ -265,22 +286,18 @@ export const useNotifications = () => {
         
       case 'document_shared':
       case 'document_updated':
-        // Trigger shared documents refresh for document permission changes
-        console.log('[useNotifications] Document shared/updated notification, refreshing shared documents');
+        // Refresh shared documents for document permission changes
+        console.log('[useNotifications] Document shared/updated notification');
         if (globalSharedDocumentsUpdateHandler) {
           globalSharedDocumentsUpdateHandler();
         }
         break;
         
       default:
-        // Generic notification, no special handling needed
-        console.log('[useNotifications] Unknown notification type, no special handling:', notification.type);
+        console.log('[useNotifications] Unknown notification type:', notification.type);
         break;
     }
   }, []);
-
-  // Track optimistic updates to prevent real-time conflicts
-  const optimisticUpdatesRef = useRef<Set<string>>(new Set());
 
   // Set up real-time subscription for notifications
   useEffect(() => {
@@ -296,7 +313,23 @@ export const useNotifications = () => {
         const newNotification = payload.new as Notification;
         console.log('📨 New notification received:', newNotification);
         
+        // DEDUPLICATION: Check if we've already processed this notification
+        if (processedNotifications.current.has(newNotification.id)) {
+          console.log('⏭️  Skipping duplicate notification:', newNotification.id);
+          return;
+        }
+        
+        // Mark as processed
+        processedNotifications.current.add(newNotification.id);
+        
         setNotifications(prev => {
+          // Double-check for duplicates in state as well
+          const isDuplicate = prev.some(n => n.id === newNotification.id);
+          if (isDuplicate) {
+            console.log('⏭️  Notification already exists in state:', newNotification.id);
+            return prev;
+          }
+          
           console.log('📋 Current notifications count:', prev.length);
           const updated = [newNotification, ...prev];
           console.log('📋 Updated notifications count:', updated.length);
@@ -309,7 +342,7 @@ export const useNotifications = () => {
           return updated;
         });
         
-        // Handle type-specific updates
+        // Handle type-specific updates (central dispatching)
         handleNotificationTypeUpdate(newNotification);
         
         // Show toast for new notifications (except invitations which are handled by other UI)
