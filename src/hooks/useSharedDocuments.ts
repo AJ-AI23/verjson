@@ -16,7 +16,6 @@ export function useSharedDocuments() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-
   const fetchSharedDocuments = useCallback(async (): Promise<void> => {
     if (!user) {
       console.log('[useSharedDocuments] 🚫 No user, skipping fetch');
@@ -67,49 +66,49 @@ export function useSharedDocuments() {
     fetchSharedDocuments();
 
     // Listen for direct database changes to eliminate race conditions
+    console.log('[useSharedDocuments] 🔗 Setting up realtime subscription for user:', user.id);
     const channel = supabase
       .channel('shared-document-changes')
       .on(
         'postgres_changes',
         {
-          event: 'DELETE',
+          event: '*', // Listen to all events first to debug
           schema: 'public',
           table: 'document_permissions',
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('[useSharedDocuments] Document permission DELETED:', payload.old);
-          // Optimistically remove the document from local state
-          const deletedDocumentId = payload.old.document_id;
-          setDocuments(prev => {
-            const filtered = prev.filter(doc => doc.id !== deletedDocumentId);
-            if (filtered.length !== prev.length) {
-              console.log('[useSharedDocuments] Optimistically removed document with revoked access');
-              const removedDoc = prev.find(doc => doc.id === deletedDocumentId);
-              if (removedDoc) {
-                toast.info(`Access to "${removedDoc.name}" was revoked`, {
-                  description: 'The document has been removed from your shared documents.'
-                });
+          console.log('[useSharedDocuments] 🔔 ANY document_permissions event:', payload.eventType, payload);
+          
+          if (payload.eventType === 'DELETE') {
+            console.log('[useSharedDocuments] 🗑️ Document permission DELETED:', payload.old);
+            // Optimistically remove the document from local state
+            const deletedDocumentId = payload.old.document_id;
+            setDocuments(prev => {
+              console.log('[useSharedDocuments] 🔍 Current documents before filter:', prev.map(d => d.id));
+              console.log('[useSharedDocuments] 🎯 Looking to remove document ID:', deletedDocumentId);
+              const filtered = prev.filter(doc => doc.id !== deletedDocumentId);
+              if (filtered.length !== prev.length) {
+                console.log('[useSharedDocuments] ✅ Optimistically removed document with revoked access');
+                const removedDoc = prev.find(doc => doc.id === deletedDocumentId);
+                if (removedDoc) {
+                  toast.info(`Access to "${removedDoc.name}" was revoked`, {
+                    description: 'The document has been removed from your shared documents.'
+                  });
+                }
+              } else {
+                console.log('[useSharedDocuments] ⚠️ Document not found in current list for removal');
               }
-            }
-            return filtered;
-          });
-          // Also refetch to ensure consistency
-          fetchSharedDocuments();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'document_permissions',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log('[useSharedDocuments] Document permission INSERTED:', payload.new);
-          // Refetch to get the new document
-          fetchSharedDocuments();
+              console.log('[useSharedDocuments] 📋 Documents after filter:', filtered.map(d => d.id));
+              return filtered;
+            });
+            // Also refetch to ensure consistency
+            fetchSharedDocuments();
+          } else if (payload.eventType === 'INSERT') {
+            console.log('[useSharedDocuments] ➕ Document permission INSERTED:', payload.new);
+            // Refetch to get the new document
+            fetchSharedDocuments();
+          }
         }
       )
       .on(
@@ -167,7 +166,16 @@ export function useSharedDocuments() {
           });
         }
       )
-      .subscribe();
+      .subscribe(async (status) => {
+        console.log('[useSharedDocuments] 📡 Subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('[useSharedDocuments] ✅ Successfully subscribed to realtime changes');
+        } else if (status === 'TIMED_OUT') {
+          console.log('[useSharedDocuments] ⏰ Subscription timed out');
+        } else if (status === 'CLOSED') {
+          console.log('[useSharedDocuments] 🔒 Subscription closed');
+        }
+      });
 
     return () => {
       console.log('[useSharedDocuments] 🧹 Cleaning up subscription');
