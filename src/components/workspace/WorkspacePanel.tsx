@@ -67,7 +67,9 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   
   // Get shared documents count for virtual workspace visibility
   const { documents: sharedDocuments } = useSharedDocuments();
+  console.log('[WorkspacePanel] Shared documents:', sharedDocuments.length, sharedDocuments.map(d => d.name));
   const hasSharedDocuments = sharedDocuments.length > 0;
+  console.log('[WorkspacePanel] hasSharedDocuments:', hasSharedDocuments);
   const isVirtualSharedWorkspace = selectedWorkspace === VIRTUAL_SHARED_WORKSPACE_ID;
   
   const { inviteToWorkspace, inviteBulkDocuments } = useWorkspacePermissions(selectedWorkspace);
