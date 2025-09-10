@@ -70,6 +70,16 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   const hasSharedDocuments = sharedDocuments.length > 0;
   const isVirtualSharedWorkspace = selectedWorkspace === VIRTUAL_SHARED_WORKSPACE_ID;
   
+  console.log('[WorkspacePanel] 🔍 Virtual workspace state:', {
+    selectedWorkspace,
+    hasSharedDocuments,
+    sharedDocumentsCount: sharedDocuments.length,
+    isVirtualSharedWorkspace,
+    firstSharedDoc: sharedDocuments[0]?.name
+  });
+  
+  console.log('[WorkspacePanel] 🎨 Rendering workspace dropdown - hasSharedDocuments:', hasSharedDocuments, 'sharedCount:', sharedDocuments.length);
+  
   const { inviteToWorkspace, inviteBulkDocuments } = useWorkspacePermissions(selectedWorkspace);
   const { checkDocumentPinStatus } = useDocumentPinSecurity();
   

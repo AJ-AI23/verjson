@@ -66,17 +66,23 @@ export function useInvitations() {
 
   const acceptInvitation = useCallback(async (invitationId: string) => {
     try {
+      console.log('[useInvitations] 🎯 Starting invitation acceptance process:', { invitationId });
+      
       // Find the invitation to get its type
       const invitation = invitations.find(inv => inv.id === invitationId);
       if (!invitation) {
+        console.error('[useInvitations] ❌ Invitation not found:', invitationId);
         toast.error('Invitation not found');
         return false;
       }
+
+      console.log('[useInvitations] 📋 Found invitation:', invitation);
 
       // Optimistic update - remove immediately
       setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
       
       // Use the permissions-management edge function
+      console.log('[useInvitations] 🚀 Calling permissions-management edge function');
       const { data, error } = await supabase.functions.invoke('permissions-management', {
         body: {
           action: 'acceptInvitation',
@@ -86,7 +92,7 @@ export function useInvitations() {
       });
 
       if (error) {
-        console.error('Error accepting invitation:', error);
+        console.error('[useInvitations] ❌ Error accepting invitation:', error);
         // Revert optimistic update on error
         setInvitations(prev => [...prev, invitation]);
         toast.error('Failed to accept invitation');
@@ -94,16 +100,20 @@ export function useInvitations() {
       }
 
       if (!data?.success) {
+        console.error('[useInvitations] ❌ Acceptance failed:', data?.message);
         // Revert optimistic update on error
         setInvitations(prev => [...prev, invitation]);
         toast.error(data?.message || 'Failed to accept invitation');
         return false;
       }
 
+      console.log('[useInvitations] ✅ Invitation accepted successfully:', data);
       toast.success(data.message);
       
       // Trigger workspace update to show new shared workspace/documents
-      console.log('[useInvitations] Invitation accepted, triggering workspace refresh for type:', invitation.type);
+      console.log('[useInvitations] 🔄 Triggering workspace refresh for type:', invitation.type);
+      console.log('[useInvitations] 🚀 Dispatching workspaceUpdated event');
+      
       // Dispatch custom event to update workspace dropdown
       window.dispatchEvent(new CustomEvent('workspaceUpdated', { 
         detail: { type: 'invitation_accepted', invitationType: invitation.type } 
@@ -111,6 +121,7 @@ export function useInvitations() {
 
       return true;
     } catch (err) {
+      console.error('[useInvitations] ❌ Exception during invitation acceptance:', err);
       const message = err instanceof Error ? err.message : 'Failed to accept invitation';
       // Revert optimistic update on error
       const removedInvitation = invitations.find(inv => inv.id === invitationId);

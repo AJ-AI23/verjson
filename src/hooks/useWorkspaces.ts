@@ -104,6 +104,7 @@ export function useWorkspaces() {
 
     // Listen for custom workspace update events (from invitation acceptance)
     const handleCustomWorkspaceUpdate = () => {
+      console.log('[useWorkspaces] 🎯 Received workspaceUpdated event - fetching workspaces');
       fetchWorkspaces();
     };
 

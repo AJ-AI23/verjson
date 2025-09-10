@@ -20,7 +20,7 @@ export function useSharedDocuments() {
 
   const fetchSharedDocuments = useCallback(async (): Promise<void> => {
     if (!user) {
-      console.log('[useSharedDocuments] No user, skipping fetch');
+      console.log('[useSharedDocuments] 🚫 No user, skipping fetch');
       setDocuments([]);
       setLoading(false);
       return;
@@ -28,25 +28,25 @@ export function useSharedDocuments() {
     
     try {
       setLoading(true);
-      console.log('[useSharedDocuments] Fetching shared documents for user:', user.id, user.email);
+      console.log('[useSharedDocuments] 🔄 Fetching shared documents for user:', user.id, user.email);
       
       const { data, error } = await supabase.functions.invoke('document-management', {
         body: { action: 'listSharedDocuments' }
       });
 
       if (error) {
-        console.error('[useSharedDocuments] Fetch error:', error);
+        console.error('[useSharedDocuments] ❌ Fetch error:', error);
         throw error;
       }
       
-      console.log('[useSharedDocuments] Raw response from backend:', data);
-      console.log('[useSharedDocuments] Shared documents fetched:', data.documents?.length || 0);
+      console.log('[useSharedDocuments] 📋 Raw response from backend:', data);
+      console.log('[useSharedDocuments] ✅ Shared documents fetched:', data.documents?.length || 0);
       if (data.documents?.length > 0) {
-        console.log('[useSharedDocuments] First shared document:', data.documents[0]);
+        console.log('[useSharedDocuments] 📄 First shared document:', data.documents[0]);
       }
       setDocuments(data.documents || []);
     } catch (err) {
-      console.error('[useSharedDocuments] Error in fetchSharedDocuments:', err);
+      console.error('[useSharedDocuments] ❌ Error in fetchSharedDocuments:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch shared documents');
       toast.error('Failed to load shared documents');
     } finally {
@@ -66,12 +66,20 @@ export function useSharedDocuments() {
 
     // Register global refresh handler for notification-based updates
     registerSharedDocumentsUpdateHandler(() => {
-      console.log('[useSharedDocuments] Notification-triggered refresh');
+      console.log('[useSharedDocuments] 🔔 Notification-triggered refresh');
       fetchSharedDocuments();
     });
 
     // Register global refresh handler for immediate updates
     registerSharedDocumentsRefreshHandler(fetchSharedDocuments);
+
+    // Listen for workspace updates (from invitation acceptance)
+    const handleWorkspaceUpdate = (event: CustomEvent) => {
+      console.log('[useSharedDocuments] 🔄 WorkspaceUpdated event received:', event.detail);
+      fetchSharedDocuments();
+    };
+    
+    window.addEventListener('workspaceUpdated', handleWorkspaceUpdate as EventListener);
 
     // Listen for changes in document permissions that might affect shared documents
     const channel = supabase
@@ -147,9 +155,10 @@ export function useSharedDocuments() {
       .subscribe();
 
     return () => {
-      console.log('[useSharedDocuments] Cleaning up subscription');
+      console.log('[useSharedDocuments] 🧹 Cleaning up subscription');
       supabase.removeChannel(channel);
       registerSharedDocumentsRefreshHandler(null);
+      window.removeEventListener('workspaceUpdated', handleWorkspaceUpdate as EventListener);
     };
   }, [user]);
 
