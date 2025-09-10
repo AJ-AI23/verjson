@@ -331,7 +331,9 @@ export const useNotifications = () => {
     setLastFetch(new Date());
     
     const handleNotificationUpdate = (payload: any) => {
-      console.log('🔄 Real-time notification event received:', payload.eventType, payload);
+      console.log('🚨🚨🚨 REAL-TIME NOTIFICATION EVENT RECEIVED 🚨🚨🚨');
+      console.log('Event Type:', payload.eventType);
+      console.log('Payload:', payload);
       setLastFetch(new Date());
       
       if (payload.eventType === 'INSERT') {
@@ -408,6 +410,7 @@ export const useNotifications = () => {
       }
     };
 
+    console.log('🔗 SETTING UP REAL-TIME NOTIFICATION SUBSCRIPTION FOR USER:', user.id);
     subscribe('notifications', {
       table: 'notifications',
       filter: `user_id=eq.${user.id}`,
