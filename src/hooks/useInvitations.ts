@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { registerInvitationUpdateHandler } from './useNotifications';
 import { useRealtimeService } from './useRealtimeService';
 import { toast } from 'sonner';
-import { triggerWorkspaceRefresh, triggerSharedDocumentsRefresh } from '@/lib/workspaceRefreshUtils';
+import { triggerSequentialRefresh } from '@/lib/workspaceRefreshUtils';
 
 export interface Invitation {
   id: string;
@@ -104,20 +104,10 @@ export function useInvitations() {
 
       toast.success(data.message);
       
-      // Trigger immediate refreshes for both workspace and shared documents
-      console.log('[useInvitations] Invitation accepted, triggering refreshes for type:', invitation.type);
-      triggerWorkspaceRefresh();
-      triggerSharedDocumentsRefresh();
-      
-      if (invitation.type === 'workspace') {
-        // Trigger workspace refresh for workspace invitation acceptance
-        window.dispatchEvent(new CustomEvent('workspaceUpdated'));
-      } else if (invitation.type === 'document') {
-        // For document invitations, trigger both workspace and shared documents refresh
-        // as it might affect the "Shared with me" workspace
-        window.dispatchEvent(new CustomEvent('workspaceUpdated'));
-      }
-      
+      // Trigger sequential refresh to ensure proper timing
+      console.log('[useInvitations] Invitation accepted, triggering sequential refresh for type:', invitation.type);
+      await triggerSequentialRefresh();
+
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to accept invitation';

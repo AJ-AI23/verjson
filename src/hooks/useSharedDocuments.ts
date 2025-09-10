@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Document } from '@/types/workspace';
@@ -18,7 +18,7 @@ export function useSharedDocuments() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSharedDocuments = async () => {
+  const fetchSharedDocuments = useCallback(async (): Promise<void> => {
     if (!user) {
       console.log('[useSharedDocuments] No user, skipping fetch');
       setDocuments([]);
@@ -52,7 +52,7 @@ export function useSharedDocuments() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   // Set up real-time subscription for document permission changes
   useEffect(() => {

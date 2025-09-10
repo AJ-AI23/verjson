@@ -12,7 +12,7 @@ export function useWorkspaces() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchWorkspaces = useCallback(async () => {
+  const fetchWorkspaces = useCallback(async (): Promise<void> => {
     if (!user) return;
     
     try {

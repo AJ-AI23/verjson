@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { triggerWorkspaceRefresh, triggerSharedDocumentsRefresh } from '@/lib/workspaceRefreshUtils';
+import { triggerSequentialRefresh } from '@/lib/workspaceRefreshUtils';
 
 export interface DocumentPermission {
   id: string;
@@ -83,8 +83,7 @@ export function useDocumentPermissions(documentId?: string, document?: any) {
 
       toast.success(data.message || 'Invitation sent successfully');
       await fetchPermissions(); // Refresh permissions
-      triggerWorkspaceRefresh(); // Refresh workspace dropdown immediately
-      triggerSharedDocumentsRefresh(); // Refresh shared documents immediately
+      await triggerSequentialRefresh(); // Refresh both workspace and shared documents sequentially
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to send invitation';
