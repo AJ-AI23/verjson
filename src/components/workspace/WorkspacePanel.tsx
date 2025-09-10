@@ -78,21 +78,27 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
     firstSharedDoc: sharedDocuments[0]?.name
   });
   
-  console.log('[WorkspacePanel] 🎨 Rendering workspace dropdown - hasSharedDocuments:', hasSharedDocuments, 'sharedCount:', sharedDocuments.length);
+  console.log('[WorkspacePanel] 🎨 Rendering workspace dropdown - hasSharedDocuments:', hasSharedDocuments, 'sharedCount:', sharedDocuments.length, 'selectedWorkspace:', selectedWorkspace);
   
   // Clear virtual workspace selection if no shared documents
   useEffect(() => {
-    console.log('[WorkspacePanel] 🔍 Checking virtual workspace clear condition:', {
+    console.log('[WorkspacePanel] 🔍 useEffect TRIGGERED - Checking virtual workspace clear condition:', {
       hasSharedDocuments,
       selectedWorkspace,
       isVirtual: selectedWorkspace === VIRTUAL_SHARED_WORKSPACE_ID,
-      shouldClear: !hasSharedDocuments && selectedWorkspace === VIRTUAL_SHARED_WORKSPACE_ID
+      shouldClear: !hasSharedDocuments && selectedWorkspace === VIRTUAL_SHARED_WORKSPACE_ID,
+      VIRTUAL_ID: VIRTUAL_SHARED_WORKSPACE_ID
     });
     
     if (!hasSharedDocuments && selectedWorkspace === VIRTUAL_SHARED_WORKSPACE_ID) {
       console.log('[WorkspacePanel] 🧹 No shared documents - clearing virtual workspace selection');
       setSelectedWorkspace('');
     }
+  }, [hasSharedDocuments, selectedWorkspace]);
+
+  // Log whenever key values change
+  useEffect(() => {
+    console.log('[WorkspacePanel] 📊 VALUES CHANGED - hasSharedDocuments:', hasSharedDocuments, 'selectedWorkspace:', selectedWorkspace);
   }, [hasSharedDocuments, selectedWorkspace]);
   
   const { inviteToWorkspace, inviteBulkDocuments } = useWorkspacePermissions(selectedWorkspace);
