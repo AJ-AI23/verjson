@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { registerInvitationUpdateHandler } from './useNotifications';
-import { useRealtimeService } from './useRealtimeService';
 import { toast } from 'sonner';
 import { triggerSequentialRefresh } from '@/lib/workspaceRefreshUtils';
 
@@ -21,7 +20,6 @@ export interface Invitation {
 
 export function useInvitations() {
   const { user } = useAuth();
-  const { subscribe, unsubscribe } = useRealtimeService();
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -173,37 +171,16 @@ export function useInvitations() {
     }
   }, [invitations]);
 
-  // Register for notification-based updates and real-time subscription
+  // Register for notification-based updates only (no duplicate real-time subscription)
   useEffect(() => {
     if (!user) return;
 
     registerInvitationUpdateHandler(fetchInvitations);
-
-    // Listen for revoke access notifications to remove cancelled invitations
-    const handleNotificationUpdate = (payload: any) => {
-      if (payload.eventType === 'INSERT') {
-        const notification = payload.new;
-        console.log('Received notification update:', notification);
-        if (notification.type === 'access_revoked' && notification.title?.toLowerCase().includes('invitation cancelled')) {
-          console.log('Detected cancelled invitation notification, refetching invitations...');
-          // Refetch invitations to ensure consistency
-          fetchInvitations();
-        }
-      }
-    };
-
-    subscribe('invitation-revoke-notifications', {
-      table: 'notifications',
-      filter: `user_id=eq.${user.id}`,
-      event: 'INSERT',
-      callback: handleNotificationUpdate
-    });
     
     return () => {
       registerInvitationUpdateHandler(() => {});
-      unsubscribe('invitation-revoke-notifications');
     };
-  }, [user, fetchInvitations, subscribe, unsubscribe]);
+  }, [user, fetchInvitations]);
 
   // Initial fetch
   useEffect(() => {

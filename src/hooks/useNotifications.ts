@@ -248,17 +248,16 @@ export const useNotifications = () => {
         
       case 'document_access_revoked':
       case 'workspace_access_revoked':
-        // Trigger both workspace and shared documents refresh when access changes
-        console.log('[useNotifications] Access revoked notification, triggering workspace refresh');
-        if (globalWorkspaceUpdateHandler) {
-          console.log('[useNotifications] Calling globalWorkspaceUpdateHandler');
-          globalWorkspaceUpdateHandler();
-        } else {
-          console.warn('[useNotifications] globalWorkspaceUpdateHandler is null/undefined');
+        // For access revocation, trigger invitations refresh (to remove cancelled ones)
+        // and shared documents/workspace refresh in sequence
+        console.log('[useNotifications] Access revoked notification, triggering sequential refresh');
+        if (globalInvitationUpdateHandler) {
+          globalInvitationUpdateHandler();
         }
-        if (globalSharedDocumentsUpdateHandler) {
-          globalSharedDocumentsUpdateHandler();
-        }
+        // Use sequential refresh to ensure proper timing and avoid multiple parallel calls
+        import('@/lib/workspaceRefreshUtils').then(({ triggerSequentialRefresh }) => {
+          triggerSequentialRefresh();
+        });
         toast.error(notification.title, {
           description: notification.message,
         });
