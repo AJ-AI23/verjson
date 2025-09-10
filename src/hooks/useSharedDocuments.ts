@@ -3,8 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Document } from '@/types/workspace';
 import { toast } from 'sonner';
-import { registerSharedDocumentsUpdateHandler } from './useNotifications';
-import { registerSharedDocumentsRefreshHandler } from '@/lib/workspaceRefreshUtils';
 
 export interface SharedDocument extends Document {
   workspace_name: string;
@@ -18,11 +16,6 @@ export function useSharedDocuments() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Debug: Track when documents state changes
-  useEffect(() => {
-    console.log('[useSharedDocuments] 📊 DOCUMENTS STATE CHANGED:', documents.length, 'documents');
-    console.log('[useSharedDocuments] 📊 Documents:', documents.map(d => d.name));
-  }, [documents]);
 
   const fetchSharedDocuments = useCallback(async (): Promise<void> => {
     if (!user) {
@@ -53,10 +46,7 @@ export function useSharedDocuments() {
         console.log('[useSharedDocuments] 🚫 No shared documents found - virtual workspace should be hidden');
       }
       
-      console.log('[useSharedDocuments] 🔄 About to call setDocuments with:', data.documents?.length || 0, 'documents');
-      console.log('[useSharedDocuments] 🔄 Current documents state before update:', documents.length);
       setDocuments(data.documents || []);
-      console.log('[useSharedDocuments] ✅ setDocuments called - should trigger re-render');
     } catch (err) {
       console.error('[useSharedDocuments] ❌ Error in fetchSharedDocuments:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch shared documents');
@@ -76,41 +66,49 @@ export function useSharedDocuments() {
 
     fetchSharedDocuments();
 
-    // Register global refresh handler for notification-based updates
-    const sharedDocumentsHandler = () => {
-      console.log('[useSharedDocuments] 🔔 Notification-triggered refresh (access revoked) - starting fetch');
-      fetchSharedDocuments().then(() => {
-        console.log('[useSharedDocuments] 🔔 Access revocation refresh completed');
-      });
-    };
-    
-    console.log('[useSharedDocuments] 📝 Registering shared documents handler');
-    registerSharedDocumentsUpdateHandler(sharedDocumentsHandler);
-
-    // Register global refresh handler for immediate updates
-    registerSharedDocumentsRefreshHandler(fetchSharedDocuments);
-
-    // Listen for workspace updates (from invitation acceptance)
-    const handleWorkspaceUpdate = (event: CustomEvent) => {
-      console.log('[useSharedDocuments] 🔄 WorkspaceUpdated event received:', event.detail);
-      fetchSharedDocuments();
-    };
-    
-    window.addEventListener('workspaceUpdated', handleWorkspaceUpdate as EventListener);
-
-    // Listen for changes in document permissions that might affect shared documents
+    // Listen for direct database changes to eliminate race conditions
     const channel = supabase
       .channel('shared-document-changes')
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'DELETE',
           schema: 'public',
           table: 'document_permissions',
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('[useSharedDocuments] Document permission change detected:', payload.eventType);
+          console.log('[useSharedDocuments] Document permission DELETED:', payload.old);
+          // Optimistically remove the document from local state
+          const deletedDocumentId = payload.old.document_id;
+          setDocuments(prev => {
+            const filtered = prev.filter(doc => doc.id !== deletedDocumentId);
+            if (filtered.length !== prev.length) {
+              console.log('[useSharedDocuments] Optimistically removed document with revoked access');
+              const removedDoc = prev.find(doc => doc.id === deletedDocumentId);
+              if (removedDoc) {
+                toast.info(`Access to "${removedDoc.name}" was revoked`, {
+                  description: 'The document has been removed from your shared documents.'
+                });
+              }
+            }
+            return filtered;
+          });
+          // Also refetch to ensure consistency
+          fetchSharedDocuments();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'document_permissions',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('[useSharedDocuments] Document permission INSERTED:', payload.new);
+          // Refetch to get the new document
           fetchSharedDocuments();
         }
       )
@@ -172,11 +170,8 @@ export function useSharedDocuments() {
       .subscribe();
 
     return () => {
-      console.log('[useSharedDocuments] 🧹 Cleaning up subscription and handlers');
+      console.log('[useSharedDocuments] 🧹 Cleaning up subscription');
       supabase.removeChannel(channel);
-      registerSharedDocumentsRefreshHandler(null);
-      registerSharedDocumentsUpdateHandler(null);
-      window.removeEventListener('workspaceUpdated', handleWorkspaceUpdate as EventListener);
     };
   }, [user]);
 
