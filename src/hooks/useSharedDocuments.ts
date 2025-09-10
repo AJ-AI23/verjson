@@ -18,6 +18,12 @@ export function useSharedDocuments() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Debug: Track when documents state changes
+  useEffect(() => {
+    console.log('[useSharedDocuments] 📊 DOCUMENTS STATE CHANGED:', documents.length, 'documents');
+    console.log('[useSharedDocuments] 📊 Documents:', documents.map(d => d.name));
+  }, [documents]);
+
   const fetchSharedDocuments = useCallback(async (): Promise<void> => {
     if (!user) {
       console.log('[useSharedDocuments] 🚫 No user, skipping fetch');
@@ -46,7 +52,11 @@ export function useSharedDocuments() {
       } else {
         console.log('[useSharedDocuments] 🚫 No shared documents found - virtual workspace should be hidden');
       }
+      
+      console.log('[useSharedDocuments] 🔄 About to call setDocuments with:', data.documents?.length || 0, 'documents');
+      console.log('[useSharedDocuments] 🔄 Current documents state before update:', documents.length);
       setDocuments(data.documents || []);
+      console.log('[useSharedDocuments] ✅ setDocuments called - should trigger re-render');
     } catch (err) {
       console.error('[useSharedDocuments] ❌ Error in fetchSharedDocuments:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch shared documents');
