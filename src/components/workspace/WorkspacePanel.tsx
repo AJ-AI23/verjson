@@ -82,6 +82,13 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   
   // Clear virtual workspace selection if no shared documents
   useEffect(() => {
+    console.log('[WorkspacePanel] 🔍 Checking virtual workspace clear condition:', {
+      hasSharedDocuments,
+      selectedWorkspace,
+      isVirtual: selectedWorkspace === VIRTUAL_SHARED_WORKSPACE_ID,
+      shouldClear: !hasSharedDocuments && selectedWorkspace === VIRTUAL_SHARED_WORKSPACE_ID
+    });
+    
     if (!hasSharedDocuments && selectedWorkspace === VIRTUAL_SHARED_WORKSPACE_ID) {
       console.log('[WorkspacePanel] 🧹 No shared documents - clearing virtual workspace selection');
       setSelectedWorkspace('');

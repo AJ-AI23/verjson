@@ -17,7 +17,8 @@ export const registerWorkspaceUpdateHandler = (handler: (() => void) | null) => 
   globalWorkspaceUpdateHandler = handler;
 };
 
-export const registerSharedDocumentsUpdateHandler = (handler: () => void) => {
+export const registerSharedDocumentsUpdateHandler = (handler: (() => void) | null) => {
+  console.log('[useNotifications] 📝 Registering shared documents update handler:', !!handler);
   globalSharedDocumentsUpdateHandler = handler;
 };
 
@@ -287,8 +288,10 @@ export const useNotifications = () => {
           globalWorkspaceUpdateHandler();
         }
         if (globalSharedDocumentsUpdateHandler) {
-          console.log('[useNotifications] 🔒 Calling shared documents update handler');
+          console.log('[useNotifications] 🔒 Calling shared documents update handler for access revocation');
           globalSharedDocumentsUpdateHandler();
+        } else {
+          console.warn('[useNotifications] 🔒 No shared documents update handler registered!');
         }
         
         // Dispatch custom events for clearing selections

@@ -67,10 +67,15 @@ export function useSharedDocuments() {
     fetchSharedDocuments();
 
     // Register global refresh handler for notification-based updates
-    registerSharedDocumentsUpdateHandler(() => {
-      console.log('[useSharedDocuments] 🔔 Notification-triggered refresh (access revoked)');
-      fetchSharedDocuments();
-    });
+    const sharedDocumentsHandler = () => {
+      console.log('[useSharedDocuments] 🔔 Notification-triggered refresh (access revoked) - starting fetch');
+      fetchSharedDocuments().then(() => {
+        console.log('[useSharedDocuments] 🔔 Access revocation refresh completed');
+      });
+    };
+    
+    console.log('[useSharedDocuments] 📝 Registering shared documents handler');
+    registerSharedDocumentsUpdateHandler(sharedDocumentsHandler);
 
     // Register global refresh handler for immediate updates
     registerSharedDocumentsRefreshHandler(fetchSharedDocuments);
@@ -157,9 +162,10 @@ export function useSharedDocuments() {
       .subscribe();
 
     return () => {
-      console.log('[useSharedDocuments] 🧹 Cleaning up subscription');
+      console.log('[useSharedDocuments] 🧹 Cleaning up subscription and handlers');
       supabase.removeChannel(channel);
       registerSharedDocumentsRefreshHandler(null);
+      registerSharedDocumentsUpdateHandler(null);
       window.removeEventListener('workspaceUpdated', handleWorkspaceUpdate as EventListener);
     };
   }, [user]);
