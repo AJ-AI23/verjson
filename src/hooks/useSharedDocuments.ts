@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Document } from '@/types/workspace';
 import { toast } from 'sonner';
 import { registerSharedDocumentsUpdateHandler } from './useNotifications';
+import { registerSharedDocumentsRefreshHandler } from '@/lib/workspaceRefreshUtils';
 
 export interface SharedDocument extends Document {
   workspace_name: string;
@@ -68,6 +69,9 @@ export function useSharedDocuments() {
       console.log('[useSharedDocuments] Notification-triggered refresh');
       fetchSharedDocuments();
     });
+
+    // Register global refresh handler for immediate updates
+    registerSharedDocumentsRefreshHandler(fetchSharedDocuments);
 
     // Listen for changes in document permissions that might affect shared documents
     const channel = supabase
@@ -145,6 +149,7 @@ export function useSharedDocuments() {
     return () => {
       console.log('[useSharedDocuments] Cleaning up subscription');
       supabase.removeChannel(channel);
+      registerSharedDocumentsRefreshHandler(null);
     };
   }, [user]);
 

@@ -10,3 +10,16 @@ export const triggerWorkspaceRefresh = () => {
     globalWorkspaceRefreshHandler();
   }
 };
+
+// Global shared documents refresh handler
+let globalSharedDocumentsRefreshHandler: (() => void) | null = null;
+
+export const registerSharedDocumentsRefreshHandler = (handler: (() => void) | null) => {
+  globalSharedDocumentsRefreshHandler = handler;
+};
+
+export const triggerSharedDocumentsRefresh = () => {
+  if (globalSharedDocumentsRefreshHandler) {
+    globalSharedDocumentsRefreshHandler();
+  }
+};

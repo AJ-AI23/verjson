@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { registerInvitationUpdateHandler } from './useNotifications';
 import { useRealtimeService } from './useRealtimeService';
 import { toast } from 'sonner';
+import { triggerWorkspaceRefresh, triggerSharedDocumentsRefresh } from '@/lib/workspaceRefreshUtils';
 
 export interface Invitation {
   id: string;
@@ -103,8 +104,11 @@ export function useInvitations() {
 
       toast.success(data.message);
       
-      // Trigger appropriate refresh events based on invitation type
+      // Trigger immediate refreshes for both workspace and shared documents
       console.log('[useInvitations] Invitation accepted, triggering refreshes for type:', invitation.type);
+      triggerWorkspaceRefresh();
+      triggerSharedDocumentsRefresh();
+      
       if (invitation.type === 'workspace') {
         // Trigger workspace refresh for workspace invitation acceptance
         window.dispatchEvent(new CustomEvent('workspaceUpdated'));
