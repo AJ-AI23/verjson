@@ -80,6 +80,14 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   
   console.log('[WorkspacePanel] 🎨 Rendering workspace dropdown - hasSharedDocuments:', hasSharedDocuments, 'sharedCount:', sharedDocuments.length);
   
+  // Clear virtual workspace selection if no shared documents
+  useEffect(() => {
+    if (!hasSharedDocuments && selectedWorkspace === VIRTUAL_SHARED_WORKSPACE_ID) {
+      console.log('[WorkspacePanel] 🧹 No shared documents - clearing virtual workspace selection');
+      setSelectedWorkspace('');
+    }
+  }, [hasSharedDocuments, selectedWorkspace]);
+  
   const { inviteToWorkspace, inviteBulkDocuments } = useWorkspacePermissions(selectedWorkspace);
   const { checkDocumentPinStatus } = useDocumentPinSecurity();
   

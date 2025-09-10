@@ -43,6 +43,8 @@ export function useSharedDocuments() {
       console.log('[useSharedDocuments] ✅ Shared documents fetched:', data.documents?.length || 0);
       if (data.documents?.length > 0) {
         console.log('[useSharedDocuments] 📄 First shared document:', data.documents[0]);
+      } else {
+        console.log('[useSharedDocuments] 🚫 No shared documents found - virtual workspace should be hidden');
       }
       setDocuments(data.documents || []);
     } catch (err) {
@@ -66,7 +68,7 @@ export function useSharedDocuments() {
 
     // Register global refresh handler for notification-based updates
     registerSharedDocumentsUpdateHandler(() => {
-      console.log('[useSharedDocuments] 🔔 Notification-triggered refresh');
+      console.log('[useSharedDocuments] 🔔 Notification-triggered refresh (access revoked)');
       fetchSharedDocuments();
     });
 
