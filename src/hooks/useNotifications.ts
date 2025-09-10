@@ -269,16 +269,38 @@ export const useNotifications = () => {
       case 'document_access_revoked':
       case 'workspace_access_revoked':
         // For access revocation, refresh invitations and workspaces/shared docs
-        console.log('[useNotifications] Access revoked notification');
+        console.log('[useNotifications] 🔒 Access revoked notification received:', {
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          documentId: notification.document_id,
+          workspaceId: notification.workspace_id
+        });
+        
+        console.log('[useNotifications] 🔒 Calling global handlers...');
         if (globalInvitationUpdateHandler) {
+          console.log('[useNotifications] 🔒 Calling invitation update handler');
           globalInvitationUpdateHandler();
         }
         if (globalWorkspaceUpdateHandler) {
+          console.log('[useNotifications] 🔒 Calling workspace update handler');
           globalWorkspaceUpdateHandler();
         }
         if (globalSharedDocumentsUpdateHandler) {
+          console.log('[useNotifications] 🔒 Calling shared documents update handler');
           globalSharedDocumentsUpdateHandler();
         }
+        
+        // Dispatch custom events for clearing selections
+        console.log('[useNotifications] 🔒 Dispatching clearWorkspaceSelection event');
+        window.dispatchEvent(new CustomEvent('clearWorkspaceSelection', {
+          detail: {
+            documentId: notification.document_id,
+            workspaceId: notification.workspace_id,
+            type: notification.type
+          }
+        }));
+        
         toast.error(notification.title, {
           description: notification.message,
         });

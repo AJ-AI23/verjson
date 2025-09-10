@@ -17,7 +17,7 @@ export function useWorkspaces() {
     
     try {
       setLoading(true);
-      console.log('[useWorkspaces] Fetching workspaces for user:', user.id);
+      console.log('[useWorkspaces] 🔄 Fetching workspaces for user:', user.id);
       
       const { data, error } = await supabase.functions.invoke('workspace-management', {
         body: { action: 'listUserWorkspaces' }
@@ -25,10 +25,10 @@ export function useWorkspaces() {
       
       if (error) throw error;
 
-      console.log('[useWorkspaces] Fetched workspaces:', data.workspaces?.length || 0);
+      console.log('[useWorkspaces] ✅ Fetched workspaces:', data.workspaces?.length || 0);
       setWorkspaces(data.workspaces || []);
     } catch (err) {
-      console.error('[useWorkspaces] Error fetching workspaces:', err);
+      console.error('[useWorkspaces] ❌ Error fetching workspaces:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch workspaces');
       toast.error('Failed to load workspaces');
     } finally {

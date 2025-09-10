@@ -29,6 +29,32 @@ const Index = () => {
     }
   }, [user, loading]);
 
+  // Listen for access revocation events to clear selections
+  useEffect(() => {
+    const handleClearWorkspaceSelection = (event: CustomEvent) => {
+      console.log('[Index] 🔒 Clearing workspace selection due to access revocation:', event.detail);
+      
+      const { documentId, workspaceId, type } = event.detail;
+      
+      // Clear selected document if it matches the revoked document
+      if (selectedDocument && documentId && selectedDocument.id === documentId) {
+        console.log('[Index] 🔒 Clearing selected document:', selectedDocument.id);
+        setSelectedDocument(null);
+        setClearEditorRequest(true);
+        setTimeout(() => setClearEditorRequest(false), 100);
+        toast.info('Document closed due to access revocation');
+      }
+      
+      // Dispatch event to clear workspace selection in WorkspacePanel
+      window.dispatchEvent(new CustomEvent('clearWorkspacePanelSelection', {
+        detail: { workspaceId, type }
+      }));
+    };
+
+    window.addEventListener('clearWorkspaceSelection', handleClearWorkspaceSelection as EventListener);
+    return () => window.removeEventListener('clearWorkspaceSelection', handleClearWorkspaceSelection as EventListener);
+  }, [selectedDocument]);
+
   const handleDocumentSelect = async (document: Document) => {
     console.log('🔍 Index: Document selected with full data:', {
       id: document.id,

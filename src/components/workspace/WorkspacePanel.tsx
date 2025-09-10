@@ -122,6 +122,27 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
     }
   };
 
+  // Listen for workspace panel selection clearing
+  useEffect(() => {
+    const handleClearWorkspacePanelSelection = (event: CustomEvent) => {
+      const { workspaceId, type } = event.detail;
+      console.log('[WorkspacePanel] 🔒 Clearing workspace selection:', { workspaceId, type, currentSelection: selectedWorkspace });
+      
+      // Clear workspace selection if user lost access to current workspace
+      if (selectedWorkspace && (
+        selectedWorkspace === workspaceId || 
+        type === 'workspace_access_revoked' ||
+        type === 'document_access_revoked'
+      )) {
+        console.log('[WorkspacePanel] 🔒 Clearing selected workspace');
+        setSelectedWorkspace('');
+      }
+    };
+
+    window.addEventListener('clearWorkspacePanelSelection', handleClearWorkspacePanelSelection as EventListener);
+    return () => window.removeEventListener('clearWorkspacePanelSelection', handleClearWorkspacePanelSelection as EventListener);
+  }, [selectedWorkspace]);
+
   const handleCreateDocument = async () => {
     if (!newDocumentName.trim() || !selectedWorkspace) return;
     
