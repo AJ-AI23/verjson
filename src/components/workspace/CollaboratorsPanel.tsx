@@ -26,6 +26,7 @@ import { useWorkspacePermissions, WorkspacePermission } from '@/hooks/useWorkspa
 type CollaboratorPermission = (DocumentPermission | WorkspacePermission) & {
   isWorkspaceLevel?: boolean;
   hasWorkspaceAccess?: boolean;
+  inherited_from?: 'document' | 'workspace';
 };
 import { InviteCollaboratorDialog } from './InviteCollaboratorDialog';
 import { ChangeAccessDialog } from './ChangeAccessDialog';
@@ -51,41 +52,14 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
   const documentPermissions = useDocumentPermissions(document?.id, document);
   const workspacePermissions = useWorkspacePermissions(workspaceId);
   
-  // Merge document and workspace permissions for document view
+  // Use document permissions (which now include inherited workspace permissions)
   const allPermissions = useMemo((): CollaboratorPermission[] => {
     if (showWorkspaceCollaborators) {
       return workspacePermissions.permissions;
     }
     
-    // For document view, show both document and workspace collaborators
-    const combined: CollaboratorPermission[] = [...documentPermissions.permissions];
-    
-    // Add workspace collaborators who don't already have document permissions
-    workspacePermissions.permissions.forEach(workspacePerm => {
-      const hasDocumentPermission = documentPermissions.permissions.some(
-        docPerm => docPerm.user_id === workspacePerm.user_id
-      );
-      
-      if (!hasDocumentPermission) {
-        combined.push({
-          ...workspacePerm,
-          isWorkspaceLevel: true
-        });
-      }
-    });
-    
-    // Mark document collaborators who also have workspace access
-    const enriched = combined.map(perm => {
-      if (!perm.isWorkspaceLevel) {
-        const hasWorkspaceAccess = workspacePermissions.permissions.some(
-          workspacePerm => workspacePerm.user_id === perm.user_id
-        );
-        return { ...perm, hasWorkspaceAccess };
-      }
-      return perm;
-    });
-    
-    return enriched;
+    // Document permissions now include inheritance, so no need to manually merge
+    return documentPermissions.permissions;
   }, [documentPermissions.permissions, workspacePermissions.permissions, showWorkspaceCollaborators]);
 
   const permissions = showWorkspaceCollaborators ? workspacePermissions : documentPermissions;
@@ -256,10 +230,10 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
                     <div key={permission.id} className="flex items-start justify-between p-3 border rounded-lg gap-3">
                        <div className="flex items-center gap-3 min-w-0 flex-1">
                          <div className="flex items-center gap-2 min-w-0">
-                           {getRoleIcon(permission.role)}
-                           {(permission.isWorkspaceLevel || permission.hasWorkspaceAccess) && (
-                             <Folder className="h-4 w-4 text-muted-foreground" />
-                           )}
+                            {getRoleIcon(permission.role)}
+                            {permission.inherited_from === 'workspace' && (
+                              <Folder className="h-4 w-4 text-muted-foreground" />
+                            )}
                            <div className="flex flex-col min-w-0">
                             <span className="font-medium truncate">
                                 {permission.username ? `@${permission.username}` : (permission.user_name || permission.user_email || 'Unknown User')}
@@ -276,13 +250,13 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
                           <Badge className={getRoleColor(permission.role)}>
                             {permission.role}
                           </Badge>
-                          {permission.isWorkspaceLevel && (
-                            <Badge variant="secondary" className="text-xs">
-                              Workspace
-                            </Badge>
-                          )}
+                           {permission.inherited_from === 'workspace' && (
+                             <Badge variant="secondary" className="text-xs">
+                               Workspace
+                             </Badge>
+                           )}
                           
-                          {isOwner && (
+                           {isOwner && permission.inherited_from !== 'workspace' && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
@@ -301,9 +275,14 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
                                   <Trash2 className="h-4 w-4 mr-2" />
                                   Remove Access
                                 </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
+                               </DropdownMenuContent>
+                             </DropdownMenu>
+                           )}
+                           {isOwner && permission.inherited_from === 'workspace' && (
+                             <Badge variant="outline" className="text-xs text-muted-foreground">
+                               Managed at workspace level
+                             </Badge>
+                           )}
                         </div>
                       </div>
                     </div>

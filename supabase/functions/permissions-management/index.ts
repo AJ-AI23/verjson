@@ -154,19 +154,20 @@ serve(async (req) => {
 
 async function handleGetDocumentPermissions(supabaseClient: any, data: any, logger: EdgeFunctionLogger) {
   const { documentId } = data;
-  logger.debug('Getting document permissions', { documentId });
+  logger.debug('Getting document permissions with inheritance', { documentId });
 
   const { data: permissions, error } = await supabaseClient
-    .rpc('get_document_permissions', { doc_id: documentId });
+    .rpc('get_document_permissions_with_inheritance', { doc_id: documentId });
 
   if (error) {
-    logger.error('Failed to get document permissions', error);
+    logger.error('Failed to get document permissions with inheritance', error);
     throw error;
   }
 
-  logger.info('Successfully retrieved document permissions', { 
+  logger.info('Successfully retrieved document permissions with inheritance', { 
     documentId, 
-    permissionCount: permissions?.length || 0 
+    permissionCount: permissions?.length || 0,
+    inheritedCount: permissions?.filter((p: any) => p.inherited_from === 'workspace')?.length || 0
   });
   
   return { permissions };

@@ -16,6 +16,8 @@ export interface DocumentPermission {
   user_name?: string;
   username?: string;
   email_notifications_enabled?: boolean;
+  inherited_from?: 'document' | 'workspace';
+  workspace_id?: string;
 }
 
 export function useDocumentPermissions(documentId?: string, document?: any) {
@@ -94,6 +96,13 @@ export function useDocumentPermissions(documentId?: string, document?: any) {
   };
 
   const updatePermission = async (permissionId: string, role: 'editor' | 'viewer') => {
+    // Don't allow updating inherited permissions - they should be managed at workspace level
+    const permission = permissions.find(p => p.id === permissionId);
+    if (permission?.inherited_from === 'workspace') {
+      toast.error('Workspace permissions must be managed at the workspace level');
+      return;
+    }
+
     try {
       const { data, error } = await supabase.functions.invoke('permissions-management', {
         body: {
@@ -117,13 +126,18 @@ export function useDocumentPermissions(documentId?: string, document?: any) {
   };
 
   const removePermission = async (permissionId: string) => {
-    try {
-      // Get permission details before deletion for notification
-      const permissionToRemove = permissions.find(p => p.id === permissionId);
-      if (!permissionToRemove) {
-        throw new Error('Permission not found');
-      }
+    // Don't allow removing inherited permissions - they should be managed at workspace level
+    const permissionToRemove = permissions.find(p => p.id === permissionId);
+    if (!permissionToRemove) {
+      throw new Error('Permission not found');
+    }
 
+    if (permissionToRemove.inherited_from === 'workspace') {
+      toast.error('Workspace permissions must be managed at the workspace level');
+      return;
+    }
+
+    try {
       console.log('Permission to remove:', permissionToRemove);
 
       const { data, error } = await supabase.functions.invoke('permissions-management', {

@@ -676,6 +676,25 @@ export type Database = {
           username: string
         }[]
       }
+      get_document_permissions_with_inheritance: {
+        Args: { doc_id: string }
+        Returns: {
+          created_at: string
+          document_id: string
+          email_notifications_enabled: boolean
+          granted_by: string
+          id: string
+          inherited_from: string
+          role: Database["public"]["Enums"]["permission_role"]
+          status: string
+          updated_at: string
+          user_email: string
+          user_id: string
+          user_name: string
+          username: string
+          workspace_id: string
+        }[]
+      }
       get_shared_documents: {
         Args: { target_user_id: string }
         Returns: {
