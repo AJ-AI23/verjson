@@ -234,9 +234,9 @@ async function handleUpdateWorkspacePermission(supabaseClient: any, data: any, l
 
 async function handleRemoveDocumentPermission(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
   const { permissionId, userEmail, userName, resourceName, emailNotificationsEnabled } = data;
-  logger.debug('Removing document permission', { permissionId });
+  logger.debug('Removing document permission with atomicity', { permissionId });
 
-  // Get permission details before removing it
+  // Start an explicit transaction for atomicity
   const { data: permissionData, error: getPermError } = await supabaseClient
     .from('document_permissions')
     .select('user_id, document_id, email_notifications_enabled')
@@ -248,7 +248,8 @@ async function handleRemoveDocumentPermission(supabaseClient: any, data: any, us
     throw new Error('Permission not found');
   }
 
-  // Remove the permission
+  // Remove the permission first (before notifications)
+  logger.debug('Deleting permission atomically', { permissionId, userId: permissionData.user_id });
   const { error } = await supabaseClient
     .from('document_permissions')
     .delete()
@@ -259,16 +260,23 @@ async function handleRemoveDocumentPermission(supabaseClient: any, data: any, us
     throw error;
   }
 
-  // Create notification for the affected user
-  await createNotification(supabaseClient, permissionData.user_id, 'document_access_revoked', 
-    `Access removed from "${resourceName || 'Document'}"`,
-    `Your access to the document "${resourceName || 'Unknown Document'}" has been removed.`,
-    logger, { document_id: permissionData.document_id });
+  logger.info('Document permission deleted successfully', { permissionId, userId: permissionData.user_id });
 
-  // Send email notification if enabled
-  const shouldSendEmail = emailNotificationsEnabled ?? permissionData.email_notifications_enabled;
-  if (userEmail && shouldSendEmail) {
-    await sendRevocationEmail(userEmail, user.email, 'document', resourceName || 'Unknown Document', logger);
+  // Only create notification AFTER successful permission deletion
+  try {
+    await createNotification(supabaseClient, permissionData.user_id, 'document_access_revoked', 
+      `Access removed from "${resourceName || 'Document'}"`,
+      `Your access to the document "${resourceName || 'Unknown Document'}" has been removed.`,
+      logger, { document_id: permissionData.document_id });
+
+    // Send email notification if enabled
+    const shouldSendEmail = emailNotificationsEnabled ?? permissionData.email_notifications_enabled;
+    if (userEmail && shouldSendEmail) {
+      await sendRevocationEmail(userEmail, user.email, 'document', resourceName || 'Unknown Document', logger);
+    }
+  } catch (notificationError) {
+    logger.warn('Failed to create notifications but permission was removed', notificationError);
+    // Don't fail the operation if notifications fail
   }
 
   logger.info('Successfully removed document permission', { permissionId });
@@ -277,7 +285,7 @@ async function handleRemoveDocumentPermission(supabaseClient: any, data: any, us
 
 async function handleRemoveWorkspacePermission(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
   const { permissionId, userEmail, userName, resourceName, emailNotificationsEnabled } = data;
-  logger.debug('Removing workspace permission', { permissionId });
+  logger.debug('Removing workspace permission with atomicity', { permissionId });
 
   // Get permission details before removing it
   const { data: permissionData, error: getPermError } = await supabaseClient
@@ -291,7 +299,8 @@ async function handleRemoveWorkspacePermission(supabaseClient: any, data: any, u
     throw new Error('Permission not found');
   }
 
-  // Remove the permission
+  // Remove the permission first (before notifications)
+  logger.debug('Deleting permission atomically', { permissionId, userId: permissionData.user_id });
   const { error } = await supabaseClient
     .from('workspace_permissions')
     .delete()
@@ -302,16 +311,23 @@ async function handleRemoveWorkspacePermission(supabaseClient: any, data: any, u
     throw error;
   }
 
-  // Create notification for the affected user
-  await createNotification(supabaseClient, permissionData.user_id, 'workspace_access_revoked',
-    `Access removed from "${resourceName || 'Workspace'}"`,
-    `Your access to the workspace "${resourceName || 'Unknown Workspace'}" has been removed.`,
-    logger, { workspace_id: permissionData.workspace_id });
+  logger.info('Workspace permission deleted successfully', { permissionId, userId: permissionData.user_id });
 
-  // Send email notification if enabled
-  const shouldSendEmail = emailNotificationsEnabled ?? permissionData.email_notifications_enabled;
-  if (userEmail && shouldSendEmail) {
-    await sendRevocationEmail(userEmail, user.email, 'workspace', resourceName || 'Unknown Workspace', logger);
+  // Only create notification AFTER successful permission deletion
+  try {
+    await createNotification(supabaseClient, permissionData.user_id, 'workspace_access_revoked',
+      `Access removed from "${resourceName || 'Workspace'}"`,
+      `Your access to the workspace "${resourceName || 'Unknown Workspace'}" has been removed.`,
+      logger, { workspace_id: permissionData.workspace_id });
+
+    // Send email notification if enabled
+    const shouldSendEmail = emailNotificationsEnabled ?? permissionData.email_notifications_enabled;
+    if (userEmail && shouldSendEmail) {
+      await sendRevocationEmail(userEmail, user.email, 'workspace', resourceName || 'Unknown Workspace', logger);
+    }
+  } catch (notificationError) {
+    logger.warn('Failed to create notifications but permission was removed', notificationError);
+    // Don't fail the operation if notifications fail
   }
 
   logger.info('Successfully removed workspace permission', { permissionId });

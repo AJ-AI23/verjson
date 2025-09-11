@@ -76,17 +76,6 @@ export function useSharedDocuments() {
 
     fetchSharedDocuments();
 
-    // Register global refresh handler for notification-based updates
-    const sharedDocumentsHandler = () => {
-      console.log('[useSharedDocuments] 🔔 Notification-triggered refresh (access revoked) - starting fetch');
-      fetchSharedDocuments().then(() => {
-        console.log('[useSharedDocuments] 🔔 Access revocation refresh completed');
-      });
-    };
-    
-    console.log('[useSharedDocuments] 📝 Registering shared documents handler');
-    registerSharedDocumentsUpdateHandler(sharedDocumentsHandler);
-
     // Register global refresh handler for immediate updates
     registerSharedDocumentsRefreshHandler(fetchSharedDocuments);
 
@@ -104,13 +93,44 @@ export function useSharedDocuments() {
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'DELETE',
           schema: 'public',
           table: 'document_permissions',
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('[useSharedDocuments] Document permission change detected:', payload.eventType);
+          console.log('[useSharedDocuments] 🔥 Document permission DELETED:', payload.old);
+          
+          // Optimistic removal: immediately remove from state
+          setDocuments(prev => {
+            const filtered = prev.filter(doc => doc.id !== payload.old.document_id);
+            if (filtered.length !== prev.length) {
+              console.log('[useSharedDocuments] 🔥 Optimistically removed document from shared list');
+              toast.info('Document access removed', {
+                description: 'Your access to the document has been revoked.'
+              });
+            }
+            return filtered;
+          });
+          
+          // Also fetch latest data for consistency (with small delay)
+          setTimeout(() => {
+            console.log('[useSharedDocuments] 🔄 Fetching latest data after permission deletion');
+            fetchSharedDocuments();
+          }, 100);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'document_permissions',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('[useSharedDocuments] 📄 Document permission ADDED:', payload.new);
+          // Only refresh for new permissions
           fetchSharedDocuments();
         }
       )
@@ -175,7 +195,6 @@ export function useSharedDocuments() {
       console.log('[useSharedDocuments] 🧹 Cleaning up subscription and handlers');
       supabase.removeChannel(channel);
       registerSharedDocumentsRefreshHandler(null);
-      registerSharedDocumentsUpdateHandler(null);
       window.removeEventListener('workspaceUpdated', handleWorkspaceUpdate as EventListener);
     };
   }, [user]);
