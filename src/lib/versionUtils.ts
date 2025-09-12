@@ -261,7 +261,8 @@ export const togglePatchSelection = (
   }
   
   // Check if this is before a released version (cannot be deselected)
-  const isBeforeReleased = sortedPatches.slice(targetIndex + 1).some(p => p.isReleased);
+  // For a patch to be "before" a released version, there must be released versions with LATER timestamps
+  const isBeforeReleased = sortedPatches.slice(targetIndex + 1).some(p => p.isReleased && p.description !== 'Initial version');
   if (isBeforeReleased && targetPatch.isSelected) {
     toast.error('Cannot deselect versions before a released version');
     return patches;
