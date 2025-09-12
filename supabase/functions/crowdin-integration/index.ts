@@ -93,7 +93,20 @@ function compareDocumentVersionsPartial(currentSchema: any, importSchema: any): 
   console.log('Generated patches for partial import:', patches);
   
   // Filter out "remove" operations since we're doing a partial import
-  const filteredPatches = patches.filter(patch => patch.op !== 'remove');
+  let filteredPatches = patches.filter(patch => patch.op !== 'remove');
+  
+  // Fix Crowdin path artifacts - convert "/root" to "/"
+  filteredPatches = filteredPatches.map(patch => {
+    if (patch.path && patch.path.startsWith('/root')) {
+      return {
+        ...patch,
+        path: patch.path.replace('/root', '') || '/'
+      };
+    }
+    return patch;
+  });
+  
+  console.log('Filtered and corrected patches:', filteredPatches);
   
   return {
     patches: filteredPatches,
@@ -1012,7 +1025,6 @@ serve(async (req) => {
                       is_selected: false,
                       status: 'pending',
                       import_source: 'crowdin',
-                      full_document: mergedContent,
                       patches: comparison.patches || []
                     })
                     .select()
@@ -1166,7 +1178,6 @@ serve(async (req) => {
                 is_selected: false,
                 status: 'pending',
                 import_source: 'crowdin',
-                full_document: mergedContent,
                 patches: comparison.patches || []
               })
               .select()
