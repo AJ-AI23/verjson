@@ -429,27 +429,59 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                               Delete
                             </Button>
                           </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Version</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete version {formatVersion(patch.version)}?
-                                {patch.description && ` (${patch.description})`}
-                                <br />
-                                <br />
-                                This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                className="bg-red-600 hover:bg-red-700"
-                                onClick={() => onDeleteVersion(patch.id)}
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
+                           <AlertDialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
+                             <AlertDialogHeader>
+                               <AlertDialogTitle>Delete Version</AlertDialogTitle>
+                             </AlertDialogHeader>
+                             <div className="overflow-y-auto max-h-[60vh] pr-2">
+                               <AlertDialogDescription className="space-y-3">
+                                 <div>
+                                   Are you sure you want to delete version {formatVersion(patch.version)}?
+                                   {patch.description && ` (${patch.description})`}
+                                 </div>
+                                 
+                                 {patch.patches && patch.patches.length > 0 && (
+                                   <div className="mt-4">
+                                     <div className="text-sm font-medium text-slate-700 mb-2">
+                                       Affected Changes ({patch.patches.length} operations):
+                                     </div>
+                                     <div className="bg-slate-50 rounded-md p-3 text-xs font-mono space-y-1 max-h-40 overflow-y-auto">
+                                       {patch.patches.slice(0, 20).map((operation: any, idx: number) => (
+                                         <div key={idx} className="flex gap-2">
+                                           <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                                             operation.op === 'add' ? 'bg-green-100 text-green-700' :
+                                             operation.op === 'remove' ? 'bg-red-100 text-red-700' :
+                                             'bg-blue-100 text-blue-700'
+                                           }`}>
+                                             {operation.op}
+                                           </span>
+                                           <span className="text-slate-600">{operation.path || '/'}</span>
+                                         </div>
+                                       ))}
+                                       {patch.patches.length > 20 && (
+                                         <div className="text-slate-500 text-center py-2">
+                                           ... and {patch.patches.length - 20} more changes
+                                         </div>
+                                       )}
+                                     </div>
+                                   </div>
+                                 )}
+                                 
+                                 <div className="text-sm text-red-600 font-medium">
+                                   This action cannot be undone.
+                                 </div>
+                               </AlertDialogDescription>
+                             </div>
+                             <AlertDialogFooter className="mt-4">
+                               <AlertDialogCancel>Cancel</AlertDialogCancel>
+                               <AlertDialogAction
+                                 className="bg-red-600 hover:bg-red-700"
+                                 onClick={() => onDeleteVersion(patch.id)}
+                               >
+                                 Delete
+                               </AlertDialogAction>
+                             </AlertDialogFooter>
+                           </AlertDialogContent>
                         </AlertDialog>
                       )}
                     </div>
