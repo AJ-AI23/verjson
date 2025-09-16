@@ -87,7 +87,7 @@ export const OpenAPISplitDialog: React.FC<OpenAPISplitDialogProps> = ({
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedComponents(availableComponents.filter(c => c.isTopLevel).map(c => c.name));
+      setSelectedComponents(availableComponents.map(c => c.name));
     } else {
       setSelectedComponents([]);
     }
@@ -289,15 +289,15 @@ export const OpenAPISplitDialog: React.FC<OpenAPISplitDialogProps> = ({
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">
-                  Select Components ({availableComponents.filter(c => c.isTopLevel).length} top-level / {availableComponents.length} total)
+                  Select Components ({selectedComponents.length} selected / {availableComponents.length} total)
                 </CardTitle>
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="select-all"
-                    checked={selectedComponents.length === availableComponents.filter(c => c.isTopLevel).length}
+                    checked={selectedComponents.length === availableComponents.length}
                     onCheckedChange={handleSelectAll}
                   />
-                  <Label htmlFor="select-all" className="text-sm">Select All Top-Level</Label>
+                  <Label htmlFor="select-all" className="text-sm">Select All</Label>
                 </div>
               </div>
             </CardHeader>
@@ -311,18 +311,17 @@ export const OpenAPISplitDialog: React.FC<OpenAPISplitDialogProps> = ({
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-auto">
                   {availableComponents.map((component) => (
-                    <div key={component.name} className={`flex items-start space-x-2 p-3 border rounded-lg ${!component.isTopLevel ? 'opacity-60' : ''}`}>
+                    <div key={component.name} className="flex items-start space-x-2 p-3 border rounded-lg">
                       <Checkbox
                         id={component.name}
                         checked={selectedComponents.includes(component.name)}
                         onCheckedChange={(checked) => handleComponentToggle(component.name, checked as boolean)}
-                        disabled={!component.isTopLevel}
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <Label 
                             htmlFor={component.name} 
-                            className={`font-medium cursor-pointer ${!component.isTopLevel ? 'text-muted-foreground' : ''}`}
+                            className="font-medium cursor-pointer"
                           >
                             {component.name}
                           </Label>
