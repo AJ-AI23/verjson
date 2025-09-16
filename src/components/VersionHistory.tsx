@@ -58,7 +58,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   const [selectedVersionForReview, setSelectedVersionForReview] = useState<string | null>(null);
   
   // Fetch document versions directly from database - use versions state directly for reactivity
-  const { versions, userRole: hookUserRole, loading, error } = useDocumentVersions(documentId);
+  const { versions, userRole: hookUserRole, loading, error, deleteVersion } = useDocumentVersions(documentId);
   
   // Use userRole from hook if available, otherwise fall back to prop
   const effectiveUserRole = hookUserRole || userRole;
@@ -474,17 +474,21 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                              </div>
                              <AlertDialogFooter className="mt-4">
                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  className="bg-red-600 hover:bg-red-700"
-                                  onClick={async () => {
-                                    // If the version is selected, deselect it first
-                                    if (patch.isSelected && onToggleSelection) {
-                                      await onToggleSelection(patch.id);
-                                    }
-                                    // Then delete the version
-                                    onDeleteVersion(patch.id);
-                                  }}
-                                >
+                                 <AlertDialogAction
+                                   className="bg-red-600 hover:bg-red-700"
+                                   onClick={async () => {
+                                     // If the version is selected, deselect it first
+                                     if (patch.isSelected && onToggleSelection) {
+                                       await onToggleSelection(patch.id);
+                                     }
+                                     // Use the hook's deleteVersion function for immediate UI update
+                                     const success = await deleteVersion(patch.id);
+                                     // Also call the prop callback if provided for any additional logic
+                                     if (success && onDeleteVersion) {
+                                       onDeleteVersion(patch.id);
+                                     }
+                                   }}
+                                 >
                                   Delete
                                 </AlertDialogAction>
                              </AlertDialogFooter>
