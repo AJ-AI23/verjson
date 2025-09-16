@@ -93,6 +93,14 @@ export const OpenAPISplitDialog: React.FC<OpenAPISplitDialogProps> = ({
     }
   };
 
+  const handleSelectAllTopLevel = (checked: boolean) => {
+    if (checked) {
+      setSelectedComponents(availableComponents.filter(c => c.isTopLevel).map(c => c.name));
+    } else {
+      setSelectedComponents([]);
+    }
+  };
+
   const handleSplit = async () => {
     if (!selectedDocument) {
       toast.error('No document selected');
@@ -291,13 +299,23 @@ export const OpenAPISplitDialog: React.FC<OpenAPISplitDialogProps> = ({
                 <CardTitle className="text-base">
                   Select Components ({selectedComponents.length} selected / {availableComponents.length} total)
                 </CardTitle>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="select-all"
-                    checked={selectedComponents.length === availableComponents.length}
-                    onCheckedChange={handleSelectAll}
-                  />
-                  <Label htmlFor="select-all" className="text-sm">Select All</Label>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="select-all"
+                      checked={selectedComponents.length === availableComponents.length}
+                      onCheckedChange={handleSelectAll}
+                    />
+                    <Label htmlFor="select-all" className="text-sm">Select All</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="select-all-top-level"
+                      checked={selectedComponents.length === availableComponents.filter(c => c.isTopLevel).length && availableComponents.filter(c => c.isTopLevel).length > 0}
+                      onCheckedChange={handleSelectAllTopLevel}
+                    />
+                    <Label htmlFor="select-all-top-level" className="text-sm">Select All Top-Level</Label>
+                  </div>
                 </div>
               </div>
             </CardHeader>
