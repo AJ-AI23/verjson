@@ -54,7 +54,7 @@ export const OpenAPISplitDialog: React.FC<OpenAPISplitDialogProps> = ({
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
 
   const { workspaces, createWorkspace } = useWorkspaces();
-  const { createDocument } = useDocuments();
+  const { createDocument, updateDocument } = useDocuments();
   const { handleVersionBump } = useVersioning({
     schema,
     savedSchema: schema,
@@ -158,7 +158,6 @@ export const OpenAPISplitDialog: React.FC<OpenAPISplitDialogProps> = ({
       const newSchemaString = JSON.stringify(splitResult.updatedSchema, null, 2);
       
       // Update the document content directly using the documents hook
-      const { updateDocument } = useDocuments();
       await updateDocument(selectedDocument.id, {
         content: splitResult.updatedSchema
       });
