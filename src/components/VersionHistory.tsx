@@ -474,12 +474,19 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                              </div>
                              <AlertDialogFooter className="mt-4">
                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                               <AlertDialogAction
-                                 className="bg-red-600 hover:bg-red-700"
-                                 onClick={() => onDeleteVersion(patch.id)}
-                               >
-                                 Delete
-                               </AlertDialogAction>
+                                <AlertDialogAction
+                                  className="bg-red-600 hover:bg-red-700"
+                                  onClick={async () => {
+                                    // If the version is selected, deselect it first
+                                    if (patch.isSelected && onToggleSelection) {
+                                      await onToggleSelection(patch.id);
+                                    }
+                                    // Then delete the version
+                                    onDeleteVersion(patch.id);
+                                  }}
+                                >
+                                  Delete
+                                </AlertDialogAction>
                              </AlertDialogFooter>
                            </AlertDialogContent>
                         </AlertDialog>
