@@ -114,9 +114,16 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Get the latest selected version if available
+    // Get the latest selected version if available - use service role for proper access
     logger.logDatabaseQuery('document_versions', 'SELECT selected version', { documentId });
-    const { data: selectedVersion, error: versionError } = await supabaseClient
+    
+    // Create service role client for version queries (bypass RLS for backend logic)
+    const serviceRoleClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    
+    const { data: selectedVersion, error: versionError } = await serviceRoleClient
       .from('document_versions')
       .select('full_document')
       .eq('document_id', documentId)
