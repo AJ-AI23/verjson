@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // THEN check for existing session
+    // THEN check for existing session with error handling
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
         console.error('Session retrieval error:', error);
@@ -49,9 +49,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+    }).catch((error) => {
+      console.error('Failed to get session:', error);
+      setSession(null);
+      setUser(null);
+      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // Fallback timeout to ensure loading state resolves
+    const timeout = setTimeout(() => {
+      console.log('Auth timeout - forcing loading to false');
+      setLoading(false);
+    }, 5000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string) => {
