@@ -30,6 +30,7 @@ interface OpenAPISplitDialogProps {
   documentName?: string;
   selectedDocument?: any;
   disabled?: boolean;
+  setSchema?: (schema: string) => void;
 }
 
 interface ComponentInfo {
@@ -43,7 +44,8 @@ export const OpenAPISplitDialog: React.FC<OpenAPISplitDialogProps> = ({
   schema,
   documentName,
   selectedDocument,
-  disabled = false
+  disabled = false,
+  setSchema
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -154,20 +156,19 @@ export const OpenAPISplitDialog: React.FC<OpenAPISplitDialogProps> = ({
         createDocument
       );
 
-      // Step 4: Update the current document with the split schema and create new version
+      // Step 4: Update the schema state and let versioning handle the document update
       const newSchemaString = JSON.stringify(splitResult.updatedSchema, null, 2);
       
-      // Update the document content directly using the documents hook
-      await updateDocument(selectedDocument.id, {
-        content: splitResult.updatedSchema
-      });
+      // Update the schema in memory first
+      if (setSchema) {
+        setSchema(newSchemaString);
+      }
       
-      // Create a new version with the updated schema
-      const { calculateLatestVersion } = await import('@/lib/versionUtils');
-      const currentVersion = calculateLatestVersion(selectedDocument.version_history || []);
-      
+      // Let the versioning system determine the appropriate version and create patches
+      // The handleVersionBump will calculate the patch between the current database version 
+      // and the updated schema, then save it properly
       await handleVersionBump(
-        currentVersion,
+        { major: 0, minor: 1, patch: 0 }, // This will be recalculated by the versioning system
         'minor',
         `Split components to separate documents: ${selectedComponents.join(', ')}`
       );

@@ -240,6 +240,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                       documentName={selectedDocument?.name}
                       selectedDocument={selectedDocument}
                       disabled={!selectedDocument}
+                      setSchema={setSchema}
                     />
                   </>
                 )}
