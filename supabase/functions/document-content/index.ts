@@ -77,9 +77,51 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Get document with Crowdin integration
+    // Get document with Crowdin integration - use service role for backend access
     logger.logDatabaseQuery('documents', 'SELECT with crowdin integration', { documentId });
-    const { data: document, error: docError } = await supabaseClient
+    
+    // Create service role client for version queries (bypass RLS for backend logic)
+    const serviceRoleClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    
+    // First check if user has access to this document using regular client (respects RLS)
+    const { data: accessCheck, error: accessError } = await supabaseClient
+      .from('documents')
+      .select('id, workspace_id, user_id')
+      .eq('id', documentId)
+      .maybeSingle();
+
+    if (accessError) {
+      logger.error('Access check failed', accessError);
+      return new Response(JSON.stringify({ error: 'Access denied' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!accessCheck) {
+      // Check if user has document permissions directly
+      const { data: docPermission } = await supabaseClient
+        .from('document_permissions')
+        .select('role')
+        .eq('document_id', documentId)
+        .eq('user_id', user.id)
+        .eq('status', 'accepted')
+        .maybeSingle();
+
+      if (!docPermission) {
+        logger.error('Document not found or no access', { documentId, userId: user.id });
+        return new Response(JSON.stringify({ error: 'Document not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // Now get the full document using service role client
+    const { data: document, error: docError } = await serviceRoleClient
       .from('documents')
       .select(`
         id,
@@ -116,12 +158,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Get the latest selected version if available - use service role for proper access
     logger.logDatabaseQuery('document_versions', 'SELECT selected version', { documentId });
-    
-    // Create service role client for version queries (bypass RLS for backend logic)
-    const serviceRoleClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
     
     const { data: selectedVersion, error: versionError } = await serviceRoleClient
       .from('document_versions')
