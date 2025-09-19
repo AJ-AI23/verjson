@@ -470,6 +470,35 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
       return { isValid: true };
     }
 
+    // Check prefix requirement
+    if (convention.prefix && !name.startsWith(convention.prefix)) {
+      const prefixSuggestion = convention.prefix + name;
+      console.log('Prefix requirement failed:', { name, prefix: convention.prefix, suggestion: prefixSuggestion });
+      return { 
+        isValid: false, 
+        suggestion: prefixSuggestion 
+      };
+    }
+
+    // Check suffix requirement
+    if (convention.suffix && !name.endsWith(convention.suffix)) {
+      const suffixSuggestion = name + convention.suffix;
+      console.log('Suffix requirement failed:', { name, suffix: convention.suffix, suggestion: suffixSuggestion });
+      return { 
+        isValid: false, 
+        suggestion: suffixSuggestion 
+      };
+    }
+
+    // Extract base name without prefix/suffix for case validation
+    let baseName = name;
+    if (convention.prefix) {
+      baseName = baseName.substring(convention.prefix.length);
+    }
+    if (convention.suffix) {
+      baseName = baseName.substring(0, baseName.length - convention.suffix.length);
+    }
+
     const caseType = convention.caseType;
     let pattern: RegExp;
     let suggestion = '';
@@ -477,25 +506,25 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
     switch (caseType) {
       case 'kebab-case':
         pattern = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
-        suggestion = name.replace(/[A-Z]/g, (match, offset) => 
+        suggestion = baseName.replace(/[A-Z]/g, (match, offset) => 
           offset > 0 ? `-${match.toLowerCase()}` : match.toLowerCase()
         ).replace(/[_]/g, '-').replace(/[^a-z0-9-]/g, '');
         break;
       case 'camelCase':
         pattern = /^[a-z][a-zA-Z0-9]*$/;
-        suggestion = name.replace(/[-_]/g, ' ').replace(/\b\w/g, (match, offset) =>
+        suggestion = baseName.replace(/[-_]/g, ' ').replace(/\b\w/g, (match, offset) =>
           offset === 0 ? match.toLowerCase() : match.toUpperCase()
         ).replace(/\s/g, '');
         break;
       case 'snake_case':
         pattern = /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/;
-        suggestion = name.replace(/[A-Z]/g, (match, offset) => 
+        suggestion = baseName.replace(/[A-Z]/g, (match, offset) => 
           offset > 0 ? `_${match.toLowerCase()}` : match.toLowerCase()
         ).replace(/[-]/g, '_').replace(/[^a-z0-9_]/g, '');
         break;
       case 'PascalCase':
         pattern = /^[A-Z][a-zA-Z0-9]*$/;
-        suggestion = name.replace(/[-_]/g, ' ').replace(/\b\w/g, match => 
+        suggestion = baseName.replace(/[-_]/g, ' ').replace(/\b\w/g, match => 
           match.toUpperCase()
         ).replace(/\s/g, '');
         break;
@@ -510,11 +539,18 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
         return { isValid: true };
     }
 
-    const isValid = pattern.test(name);
+    const isValid = pattern.test(baseName);
+    
+    // Construct full suggestion with prefix/suffix if needed
+    if (!isValid) {
+      suggestion = (convention.prefix || '') + suggestion + (convention.suffix || '');
+    }
+    
     console.log('Pattern test result:', { 
       caseType, 
       pattern: pattern.source, 
       name, 
+      baseName,
       isValid, 
       suggestion 
     });

@@ -3,6 +3,8 @@ export interface NamingConvention {
   caseType: 'kebab-case' | 'camelCase' | 'snake_case' | 'PascalCase' | 'custom';
   customPattern?: string;
   exclusions?: string[];
+  prefix?: string;
+  suffix?: string;
 }
 
 export interface SemanticRule {

@@ -135,6 +135,25 @@ export function ConsistencyConfigDialog({ open, onOpenChange }: ConsistencyConfi
             </div>
           )}
           
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Required Prefix</Label>
+              <Input
+                placeholder="api_"
+                value={convention.prefix || ''}
+                onChange={(e) => updateNamingConvention(type, { prefix: e.target.value || undefined })}
+              />
+            </div>
+            <div>
+              <Label>Required Suffix</Label>
+              <Input
+                placeholder="_v1"
+                value={convention.suffix || ''}
+                onChange={(e) => updateNamingConvention(type, { suffix: e.target.value || undefined })}
+              />
+            </div>
+          </div>
+          
           <div>
             <Label>Exclusions (comma-separated)</Label>
             <Input
