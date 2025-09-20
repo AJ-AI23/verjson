@@ -312,12 +312,10 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
               <tr key={patch.id} className={`hover:bg-slate-50 ${patch.isSelected ? 'bg-blue-50' : ''} ${isInitial ? 'border-l-4 border-l-blue-500' : ''}`}>
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-2">
-                    {processingVersionId === patch.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
+                    <div className="relative flex items-center">
                       <Checkbox
                         checked={patch.isSelected}
-                        disabled={!canDeselectPatch && patch.isSelected}
+                        disabled={!canDeselectPatch && patch.isSelected || processingVersionId === patch.id}
                         onCheckedChange={async (checked) => {
                            if (onToggleSelection && !processingVersionId) {
                              setProcessingVersionId(patch.id);
@@ -329,12 +327,16 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                            }
                          }}
                          title={
+                           processingVersionId === patch.id ? 'Processing version selection...' :
                            isInitial ? 'Initial version - foundation document (cannot be deselected)' :
                            beforeReleased && patch.isSelected ? 'Cannot deselect versions before a released version' : 
                            'Toggle version selection'
                          }
                        />
-                    )}
+                      {processingVersionId === patch.id && (
+                        <Loader2 className="h-3 w-3 animate-spin absolute -right-4 text-blue-500" />
+                      )}
+                    </div>
                     <Button
                       size="sm"
                       variant="ghost"
