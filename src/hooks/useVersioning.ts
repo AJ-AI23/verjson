@@ -334,7 +334,7 @@ export const useVersioning = ({
     setIsVersionHistoryOpen(false);
   };
 
-  const handleImportVersion = (
+  const handleImportVersion = async (
     importedSchema: any, 
     comparison: DocumentVersionComparison, 
     sourceDocumentName: string
@@ -346,16 +346,56 @@ export const useVersioning = ({
       return;
     }
 
-    // Create a new version with the imported schema
-    const importDescription = `Imported from "${sourceDocumentName}" (${comparison.recommendedVersionTier} update)`;
-    const currentLatestVersion = calculateLatestVersion(patches);
-    const newVersion = {
-      major: comparison.recommendedVersionTier === 'major' ? currentLatestVersion.major + 1 : currentLatestVersion.major,
-      minor: comparison.recommendedVersionTier === 'minor' ? currentLatestVersion.minor + 1 : currentLatestVersion.minor,
-      patch: comparison.recommendedVersionTier === 'patch' ? currentLatestVersion.patch + 1 : currentLatestVersion.patch
-    };
-    
-    handleVersionBump(newVersion, comparison.recommendedVersionTier, importDescription, false);
+    if (!documentId) {
+      toast.error('No document selected for import');
+      return;
+    }
+
+    try {
+      // First, apply the imported schema to the editor
+      const importedSchemaString = JSON.stringify(importedSchema, null, 2);
+      setSchema(importedSchemaString);
+      
+      // Create a new version with the imported schema
+      const importDescription = `Imported from "${sourceDocumentName}" (${comparison.recommendedVersionTier} update)`;
+      const currentLatestVersion = calculateLatestVersion(patches);
+      const newVersion = {
+        major: comparison.recommendedVersionTier === 'major' ? currentLatestVersion.major + 1 : currentLatestVersion.major,
+        minor: comparison.recommendedVersionTier === 'minor' ? currentLatestVersion.minor + 1 : currentLatestVersion.minor,
+        patch: comparison.recommendedVersionTier === 'patch' ? currentLatestVersion.patch + 1 : currentLatestVersion.patch
+      };
+      
+      // Use database version as the baseline for patches (the merged state of selected versions)
+      const parsedPreviousSchema = databaseVersion ? JSON.parse(databaseVersion) : {};
+      
+      // Generate patch from database version to imported schema
+      const patch = generatePatch(
+        parsedPreviousSchema, 
+        importedSchema, 
+        newVersion, 
+        comparison.recommendedVersionTier, 
+        importDescription,
+        false
+      );
+      
+      // Save to database
+      const createdVersion = await createVersion(patch);
+      
+      if (createdVersion) {
+        // Update saved schema and database version to imported schema
+        setSavedSchema(importedSchemaString);
+        setDatabaseVersion(importedSchemaString);
+        
+        toast.success(`Import completed: ${formatVersion(newVersion)}`, {
+          description: importDescription,
+        });
+      }
+      
+    } catch (err) {
+      toast.error('Failed to import version', {
+        description: (err as Error).message,
+      });
+    }
   };
 
   return {
