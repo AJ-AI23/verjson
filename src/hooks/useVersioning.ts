@@ -365,10 +365,10 @@ export const useVersioning = ({
         patch: comparison.recommendedVersionTier === 'patch' ? currentLatestVersion.patch + 1 : currentLatestVersion.patch
       };
       
-      // Use database version as the baseline for patches (the merged state of selected versions)
-      const parsedPreviousSchema = databaseVersion ? JSON.parse(databaseVersion) : {};
+      // Use current schema as the baseline for patches to capture import changes
+      const parsedPreviousSchema = schema ? JSON.parse(schema) : {};
       
-      // Generate patch from database version to imported schema
+      // Generate patch from current schema to imported schema
       const patch = generatePatch(
         parsedPreviousSchema, 
         importedSchema, 
