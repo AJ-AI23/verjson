@@ -78,8 +78,8 @@ export const useVersioning = ({
     return getSchemaPatches();
   }, [getSchemaPatches]);
 
-  // Debounced database version calculation to prevent excessive updates
-  const calculateDatabaseVersion = useCallback((schemaPatches: SchemaPatch[]) => {
+  // Optimized database version calculation with debouncing
+  const calculateDatabaseVersion = useCallback(async (schemaPatches: SchemaPatch[]) => {
     // Don't calculate database version if no document is loaded
     if (!documentId) {
       return;
@@ -90,18 +90,21 @@ export const useVersioning = ({
       return;
     }
     
-    try {
-      const currentMergedSchema = applySelectedPatches(schemaPatches);
-      const mergedSchemaString = JSON.stringify(currentMergedSchema, null, 2);
-      setDatabaseVersion(mergedSchemaString);
-      debugToast('Database version set from selected patches', mergedSchemaString.substring(0, 100));
-    } catch (err) {
-      console.error('Failed to calculate database version from patches:', err);
-      debugToast('Version calculation failed', (err as Error).message);
-      toast.error('Failed to apply version', {
-        description: (err as Error).message,
-      });
-    }
+    // Use setTimeout to debounce calculations and allow UI to update first
+    setTimeout(() => {
+      try {
+        const currentMergedSchema = applySelectedPatches(schemaPatches);
+        const mergedSchemaString = JSON.stringify(currentMergedSchema, null, 2);
+        setDatabaseVersion(mergedSchemaString);
+        debugToast('Database version set from selected patches', mergedSchemaString.substring(0, 100));
+      } catch (err) {
+        console.error('Failed to calculate database version from patches:', err);
+        debugToast('Version calculation failed', (err as Error).message);
+        toast.error('Failed to apply version', {
+          description: (err as Error).message,
+        });
+      }
+    }, 0);
   }, [documentId, debugToast]);
 
   // Update patches when database versions change
@@ -175,7 +178,7 @@ export const useVersioning = ({
     }
   };
 
-  const handleToggleSelection = async (patchId: string) => {
+  const handleToggleSelection = useCallback(async (patchId: string) => {
     // Don't toggle selection if no document is loaded
     if (!documentId) {
       return;
@@ -220,15 +223,25 @@ export const useVersioning = ({
         return;
       }
       
-      const newSchema = applySelectedPatches(updatedPatches);
-      const newSchemaString = JSON.stringify(newSchema, null, 2);
-      debugToast('🔍 New schema calculated, length', newSchemaString.length);
-      debugToast('🎯 Setting editor content to', newSchemaString.substring(0, 200) + '...');
-      
-      setSchema(newSchemaString);
-      setSavedSchema(newSchemaString);
-      // Update database version to reflect the current selected state
-      setDatabaseVersion(newSchemaString);
+      // Use setTimeout to allow UI to update first, then calculate schema
+      setTimeout(() => {
+        try {
+          const newSchema = applySelectedPatches(updatedPatches);
+          const newSchemaString = JSON.stringify(newSchema, null, 2);
+          debugToast('🔍 New schema calculated, length', newSchemaString.length);
+          debugToast('🎯 Setting editor content to', newSchemaString.substring(0, 200) + '...');
+          
+          setSchema(newSchemaString);
+          setSavedSchema(newSchemaString);
+          // Update database version to reflect the current selected state
+          setDatabaseVersion(newSchemaString);
+        } catch (err) {
+          console.error('Error applying selected patches:', err);
+          toast.error('Failed to apply version changes', {
+            description: (err as Error).message,
+          });
+        }
+      }, 0);
       
       debugToast('Schema updated successfully');
     } catch (err) {
@@ -237,7 +250,7 @@ export const useVersioning = ({
         description: (err as Error).message,
       });
     }
-  };
+  }, [patches, documentId, debugToast, updateVersion, setSchema, setSavedSchema, setDatabaseVersion]);
 
   const handleMarkAsReleased = async (patchId: string) => {
     try {

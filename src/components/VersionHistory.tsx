@@ -24,14 +24,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Package, Tag, Trash2, Eye, Download, FileCheck } from 'lucide-react';
+import { Package, Tag, Trash2, Eye, Download, FileCheck, Loader2 } from 'lucide-react';
 import { ImportReviewDialog } from '@/components/ImportReviewDialog';
 
 interface VersionHistoryProps {
   documentId: string;
   userRole?: 'owner' | 'editor' | 'viewer' | null;
   isOwner?: boolean;
-  onToggleSelection?: (patchId: string) => void;
+  onToggleSelection?: (patchId: string) => Promise<void>;
   onMarkAsReleased?: (patchId: string) => void;
   onDeleteVersion?: (patchId: string) => void;
   onImportVersion?: (importedSchema: any, comparison: DocumentVersionComparison, sourceDocumentName: string) => void;
@@ -56,6 +56,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [selectedVersionForReview, setSelectedVersionForReview] = useState<string | null>(null);
+  const [processingVersionId, setProcessingVersionId] = useState<string | null>(null);
   
   // Fetch document versions directly from database - use versions state directly for reactivity
   const { versions, userRole: hookUserRole, loading, error, deleteVersion } = useDocumentVersions(documentId);
@@ -311,26 +312,36 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
               <tr key={patch.id} className={`hover:bg-slate-50 ${patch.isSelected ? 'bg-blue-50' : ''} ${isInitial ? 'border-l-4 border-l-blue-500' : ''}`}>
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-2">
-                    <Checkbox
-                      checked={patch.isSelected}
-                      disabled={!canDeselectPatch && patch.isSelected}
-                      onCheckedChange={(checked) => {
-                         if (onToggleSelection) {
-                           onToggleSelection(patch.id);
+                    {processingVersionId === patch.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Checkbox
+                        checked={patch.isSelected}
+                        disabled={!canDeselectPatch && patch.isSelected}
+                        onCheckedChange={async (checked) => {
+                           if (onToggleSelection && !processingVersionId) {
+                             setProcessingVersionId(patch.id);
+                             try {
+                               await onToggleSelection(patch.id);
+                             } finally {
+                               setProcessingVersionId(null);
+                             }
+                           }
+                         }}
+                         title={
+                           isInitial ? 'Initial version - foundation document (cannot be deselected)' :
+                           beforeReleased && patch.isSelected ? 'Cannot deselect versions before a released version' : 
+                           'Toggle version selection'
                          }
-                       }}
-                      title={
-                        isInitial ? 'Initial version - foundation document (cannot be deselected)' :
-                        beforeReleased && patch.isSelected ? 'Cannot deselect versions before a released version' : 
-                        'Toggle version selection'
-                      }
-                    />
+                       />
+                    )}
                     <Button
                       size="sm"
                       variant="ghost"
                       className="h-6 w-6 p-0 text-slate-500 hover:text-slate-700"
                       onClick={() => handlePreview(patch.id, patch.isSelected)}
                       title="Preview schema with current version selections"
+                      disabled={processingVersionId === patch.id}
                     >
                       <Eye size={12} />
                     </Button>

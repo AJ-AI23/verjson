@@ -10,7 +10,7 @@ interface EditorVersionDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   documentId: string;
-  onToggleSelection: (patchId: string) => void;
+  onToggleSelection: (patchId: string) => Promise<void>;
   onMarkAsReleased: (patchId: string) => void;
   onDeleteVersion: (patchId: string) => void;
   onImportVersion?: (importedSchema: any, comparison: any, sourceDocumentName: string) => void;
