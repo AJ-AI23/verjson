@@ -162,6 +162,7 @@ export const applySelectedPatches = (patches: SchemaPatch[], upToTimestamp?: num
   // Validate that we have patches to work with
   if (!patches || patches.length === 0) {
     console.error('No patches provided to applySelectedPatches');
+    console.log('Available patches:', patches);
     throw new Error('No version history available. The document may not have been properly saved.');
   }
   
@@ -184,10 +185,12 @@ export const applySelectedPatches = (patches: SchemaPatch[], upToTimestamp?: num
       if (patch.fullDocument) {
         baseSchema = JSON.parse(JSON.stringify(patch.fullDocument)); // Deep clone
         startIndex = i + 1;
+        console.log('Found released version as base:', formatVersion(patch.version), 'with fullDocument');
         break;
       } else {
         // For initial version without fullDocument, apply all patches from beginning
         startIndex = 0;
+        console.log('Found released version without fullDocument:', formatVersion(patch.version), 'applying from beginning');
         break;
       }
     }
@@ -197,9 +200,11 @@ export const applySelectedPatches = (patches: SchemaPatch[], upToTimestamp?: num
   
   // If we only have the base schema and no more patches to apply, return it
   if (startIndex >= filteredPatches.length) {
-    // Validate that the base schema is not empty
-    if (Object.keys(baseSchema).length === 0) {
-      console.error('Base schema is empty, this indicates a problem with document loading');
+    console.log('Using base schema only, no additional patches to apply');
+    // If we have a valid base schema from a released version, return it even if empty-looking
+    // This handles cases where released versions contain valid schemas
+    if (Object.keys(baseSchema).length === 0 && !filteredPatches.some(p => p.isReleased && p.isSelected)) {
+      console.error('Base schema is empty and no released version found');
       throw new Error('Document content is empty. This may indicate a problem with the import process or version history.');
     }
     
