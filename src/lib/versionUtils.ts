@@ -166,6 +166,19 @@ export const applySelectedPatches = (patches: SchemaPatch[], upToTimestamp?: num
     throw new Error('No version history available. The document may not have been properly saved.');
   }
   
+  console.log('🔍 applySelectedPatches called with', {
+    totalPatches: patches.length,
+    selectedPatches: patches.filter(p => p.isSelected).length,
+    upToTimestamp,
+    patches: patches.map(p => ({
+      id: p.id,
+      version: formatVersion(p.version),
+      isSelected: p.isSelected,
+      isReleased: p.isReleased,
+      description: p.description
+    }))
+  });
+  
   // Sort patches by timestamp, oldest first
   const sortedPatches = [...patches].sort((a, b) => a.timestamp - b.timestamp);
   

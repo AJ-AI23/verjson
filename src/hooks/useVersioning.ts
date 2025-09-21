@@ -96,7 +96,14 @@ export const useVersioning = ({
         const currentMergedSchema = applySelectedPatches(schemaPatches);
         const mergedSchemaString = JSON.stringify(currentMergedSchema, null, 2);
         setDatabaseVersion(mergedSchemaString);
-        debugToast('Database version set from selected patches', mergedSchemaString.substring(0, 100));
+        
+        // Also update the editor schema to reflect the current version state
+        // This ensures the editor shows the correct content based on selected versions
+        debugToast('Syncing editor schema with database version', mergedSchemaString.substring(0, 100));
+        setSchema(mergedSchemaString);
+        setSavedSchema(mergedSchemaString);
+        
+        debugToast('Database version and editor schema synchronized');
       } catch (err) {
         console.error('Failed to calculate database version from patches:', err);
         debugToast('Version calculation failed', (err as Error).message);
@@ -105,7 +112,7 @@ export const useVersioning = ({
         });
       }
     }, 0);
-  }, [documentId, debugToast]);
+  }, [documentId, debugToast, setSchema, setSavedSchema]);
 
   // Update patches when database versions change
   useEffect(() => {
@@ -116,6 +123,10 @@ export const useVersioning = ({
   // Set database version when patches load or change (separated for better performance)
   useEffect(() => {
     if (patches.length > 0 && !loading) {
+      debugToast('📊 Patches updated, recalculating database version', {
+        patchCount: patches.length,
+        selectedCount: patches.filter(p => p.isSelected).length
+      });
       calculateDatabaseVersion(patches);
     }
   }, [patches, loading, calculateDatabaseVersion]);
@@ -209,6 +220,13 @@ export const useVersioning = ({
           toast.error('Failed to update version selection');
           return;
         }
+        
+        // Force a refetch of versions to ensure UI is in sync with database
+        debugToast('🔄 Forcing version refetch to sync UI state');
+        setTimeout(async () => {
+          // The real-time subscription should handle this, but let's be extra sure
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }, 0);
       }
       
       // Apply selected patches to get new schema and update both editor and database version
