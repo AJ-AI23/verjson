@@ -41,6 +41,7 @@ export function useDocumentVersions(documentId?: string) {
     }
 
     try {
+      console.log('🔔 fetchVersions: Starting fetch for document', documentId);
       debugToast('🔔 fetchVersions: Fetching versions for document', documentId);
       setLoading(true);
       
@@ -53,6 +54,16 @@ export function useDocumentVersions(documentId?: string) {
 
       if (error) throw error;
       
+      console.log('🔔 fetchVersions: Retrieved versions from database:', {
+        count: data.versions?.length || 0,
+        userRole: data.userRole,
+        versions: data.versions?.map(v => ({ 
+          id: v.id, 
+          description: v.description, 
+          isSelected: v.is_selected,
+          isReleased: v.is_released 
+        })) || []
+      });
       debugToast('🔔 fetchVersions: Retrieved versions', {
         count: data.versions?.length || 0,
         userRole: data.userRole,
@@ -65,6 +76,7 @@ export function useDocumentVersions(documentId?: string) {
       });
       
       setVersions(data.versions || []);
+      console.log('🔔 fetchVersions: Updated versions state');
       setUserRole(data.userRole || null);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch versions';
@@ -334,6 +346,12 @@ export function useDocumentVersions(documentId?: string) {
           filter: `document_id=eq.${documentId}`,
         },
         (payload) => {
+          console.log('🔔 Real-time event received:', {
+            eventType: payload.eventType,
+            table: payload.table,
+            documentId: documentId,
+            payload: payload
+          });
           debugToast('🔔 Real-time event received', {
             eventType: payload.eventType,
             table: payload.table,

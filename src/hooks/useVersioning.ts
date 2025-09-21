@@ -207,13 +207,24 @@ export const useVersioning = ({
         return;
       }
       
+      console.log('🔄 handleToggleSelection - Before database update:', {
+        patchId,
+        currentSelection: patches.find(p => p.id === patchId)?.isSelected,
+        targetSelection: updatedPatches.find(p => p.id === patchId)?.isSelected
+      });
+      
       debugToast('✅ Selection toggle allowed, proceeding with database update');
       
       // Find the patch to update
       const patchToUpdate = updatedPatches.find(p => p.id === patchId);
       if (patchToUpdate) {
         debugToast('📝 Updating database for patch', { id: patchId, newSelection: patchToUpdate.isSelected });
+        console.log('🔄 About to call updateVersion with:', {
+          patchId,
+          newSelection: patchToUpdate.isSelected
+        });
         const result = await updateVersion(patchId, { is_selected: patchToUpdate.isSelected });
+        console.log('🔄 updateVersion result:', result);
         debugToast('📝 Database update result', result ? 'SUCCESS' : 'FAILED');
         
         if (!result) {
@@ -223,6 +234,7 @@ export const useVersioning = ({
         
         // Force a refetch of versions to ensure UI is in sync with database
         debugToast('🔄 Forcing version refetch to sync UI state');
+        console.log('🔄 Database update successful, waiting for real-time update...');
         setTimeout(async () => {
           // The real-time subscription should handle this, but let's be extra sure
           await new Promise(resolve => setTimeout(resolve, 100));
