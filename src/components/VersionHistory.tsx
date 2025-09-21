@@ -316,16 +316,23 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                       <Checkbox
                         checked={patch.isSelected}
                         disabled={!canDeselectPatch && patch.isSelected || processingVersionId === patch.id}
-                        onCheckedChange={async (checked) => {
-                           if (onToggleSelection && !processingVersionId) {
-                             setProcessingVersionId(patch.id);
-                             try {
-                               await onToggleSelection(patch.id);
-                             } finally {
-                               setProcessingVersionId(null);
-                             }
-                           }
-                         }}
+                         onCheckedChange={async (checked) => {
+                            if (onToggleSelection && !processingVersionId) {
+                              setProcessingVersionId(patch.id);
+                              try {
+                                await onToggleSelection(patch.id);
+                                // Add a small delay to allow the database subscription to update the UI state
+                                // This ensures the checkbox reflects the new state before clearing the spinner
+                                setTimeout(() => {
+                                  setProcessingVersionId(null);
+                                }, 300);
+                              } catch (error) {
+                                // Clear immediately on error
+                                setProcessingVersionId(null);
+                                throw error;
+                              }
+                            }
+                          }}
                          title={
                            processingVersionId === patch.id ? 'Processing version selection...' :
                            isInitial ? 'Initial version - foundation document (cannot be deselected)' :
