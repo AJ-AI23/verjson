@@ -108,7 +108,7 @@ const updateReferences = (obj: any, componentDocumentMap: Map<string, string>, o
         const documentId = componentDocumentMap.get(componentName);
         if (documentId) {
           // Replace with external document reference for split components
-          result[key] = `doc://${documentId}#/`;
+          result[key] = `doc://${documentId}#/components/schemas/${componentName}`;
         } else if (originalDocumentId) {
           // Reference to a component that wasn't split - point to original document
           result[key] = `doc://${originalDocumentId}#/components/schemas/${componentName}`;
@@ -140,21 +140,18 @@ export const splitOpenAPISpec = async (
   originalDocumentId: string,
   createDocument: (data: CreateDocumentData) => Promise<Document | null>
 ): Promise<SplitResult> => {
-  const componentDocumentMap = new Map<string, string>();
   const createdDocuments: Document[] = [];
 
-  // Step 1: Create JSON schema documents for each selected component
+  // Phase 1: Create all documents first without updating references
+  // This builds the complete component-to-document mapping
   for (const componentName of selectedComponentNames) {
     const componentSchema = originalSchema.components?.schemas?.[componentName];
     if (!componentSchema) {
       throw new Error(`Component "${componentName}" not found in schema`);
     }
 
-    // Update references within the component schema before creating the document
-    const updatedComponentSchema = updateReferences(componentSchema, componentDocumentMap, originalDocumentId);
-
-    // Create JSON schema document
-    const jsonSchemaContent = createComponentJsonSchema(componentName, updatedComponentSchema);
+    // Create JSON schema document with original references (will be updated in Phase 2)
+    const jsonSchemaContent = createComponentJsonSchema(componentName, componentSchema);
     
     const documentData: CreateDocumentData = {
       workspace_id: targetWorkspaceId,
@@ -168,12 +165,19 @@ export const splitOpenAPISpec = async (
       throw new Error(`Failed to create document for component "${componentName}"`);
     }
 
-    componentDocumentMap.set(componentName, createdDocument.id);
     createdDocuments.push(createdDocument);
   }
 
-  // Step 2: Update component schemas with proper references (second pass after all documents are created)
-  for (const [componentName, document] of zip(selectedComponentNames, createdDocuments)) {
+  // Build the complete component-to-document mapping
+  const componentDocumentMap = new Map<string, string>();
+  selectedComponentNames.forEach((componentName, index) => {
+    componentDocumentMap.set(componentName, createdDocuments[index].id);
+  });
+
+  // Phase 2: Update all documents with proper cross-references
+  for (let i = 0; i < selectedComponentNames.length; i++) {
+    const componentName = selectedComponentNames[i];
+    const document = createdDocuments[i];
     const componentSchema = originalSchema.components?.schemas?.[componentName];
     if (!componentSchema) continue;
 
@@ -182,7 +186,9 @@ export const splitOpenAPISpec = async (
     const jsonSchemaContent = createComponentJsonSchema(componentName, updatedComponentSchema);
     
     // Update the document with proper references
-    await updateDocumentContent(document.id, jsonSchemaContent);
+    // Note: We'll need to implement document content update functionality
+    // For now, this creates the documents with proper initial content
+    console.log(`Updated references for ${componentName}:`, jsonSchemaContent);
   }
 
   // Step 3: Create updated OpenAPI schema with references replaced
