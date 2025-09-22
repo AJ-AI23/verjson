@@ -141,11 +141,10 @@ export const OpenAPISplitDialog: React.FC<OpenAPISplitDialogProps> = ({
         }
         targetWorkspaceId = workspace.id;
         
-        // Wait for workspace refresh to propagate to all components
-        // Add a small delay to ensure the refresh completes
-        await new Promise(resolve => setTimeout(resolve, 100));
-        await triggerWorkspaceRefresh();
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // Dispatch custom event to update workspace dropdown (same pattern as invitation acceptance)
+        window.dispatchEvent(new CustomEvent('workspaceUpdated', { 
+          detail: { type: 'workspace_created', source: 'component_split' } 
+        }));
       }
 
       // Step 2: Parse the original schema
