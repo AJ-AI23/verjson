@@ -141,8 +141,11 @@ export const OpenAPISplitDialog: React.FC<OpenAPISplitDialogProps> = ({
         }
         targetWorkspaceId = workspace.id;
         
-        // Trigger workspace refresh to update dropdowns across the app
+        // Wait for workspace refresh to propagate to all components
+        // Add a small delay to ensure the refresh completes
+        await new Promise(resolve => setTimeout(resolve, 100));
         await triggerWorkspaceRefresh();
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
 
       // Step 2: Parse the original schema
