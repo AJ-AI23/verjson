@@ -24,6 +24,7 @@ import { useDocuments } from '@/hooks/useDocuments';
 import { useVersioning } from '@/hooks/useVersioning';
 import { extractComponents, splitOpenAPISpec } from '@/lib/openApiSplitUtils';
 import { parseJsonSchema } from '@/lib/schemaUtils';
+import { triggerWorkspaceRefresh } from '@/lib/workspaceRefreshUtils';
 
 interface OpenAPISplitDialogProps {
   schema: string;
@@ -139,6 +140,9 @@ export const OpenAPISplitDialog: React.FC<OpenAPISplitDialogProps> = ({
           throw new Error('Failed to create workspace');
         }
         targetWorkspaceId = workspace.id;
+        
+        // Trigger workspace refresh to update dropdowns across the app
+        await triggerWorkspaceRefresh();
       }
 
       // Step 2: Parse the original schema
