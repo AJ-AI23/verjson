@@ -191,22 +191,18 @@ export const splitOpenAPISpec = async (
     console.log(`Updated references for ${componentName}:`, jsonSchemaContent);
   }
 
-  // Step 3: Create updated OpenAPI schema with references replaced
+  // Step 3: Replace split components with references instead of removing them
   const updatedSchema = JSON.parse(JSON.stringify(originalSchema));
 
-  // Remove the split components from the components.schemas section
+  // Replace the split components with $ref references
   if (updatedSchema.components?.schemas) {
     for (const componentName of selectedComponentNames) {
-      delete updatedSchema.components.schemas[componentName];
-    }
-
-    // If no components remain, remove the entire schemas section
-    if (Object.keys(updatedSchema.components.schemas).length === 0) {
-      delete updatedSchema.components.schemas;
-      
-      // If no other components sections remain, remove the entire components section
-      if (!updatedSchema.components || Object.keys(updatedSchema.components).length === 0) {
-        delete updatedSchema.components;
+      const documentId = componentDocumentMap.get(componentName);
+      if (documentId) {
+        // Replace the component definition with a $ref to the new document
+        updatedSchema.components.schemas[componentName] = {
+          $ref: `doc://${documentId}#/components/schemas/${componentName}`
+        };
       }
     }
   }
