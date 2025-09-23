@@ -26,6 +26,7 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
   const [selectedTab, setSelectedTab] = useState<string>("summary");
   const [mergeResult, setMergeResult] = useState<DocumentMergeResult>(initialMergeResult);
   const [expandedConflicts, setExpandedConflicts] = useState<Set<number>>(new Set());
+  const [defaultMergePolicy, setDefaultMergePolicy] = useState<'current' | 'incoming' | null>(null);
 
   // Update internal state when prop changes
   useEffect(() => {
@@ -102,6 +103,42 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
       newExpanded.add(index);
     }
     setExpandedConflicts(newExpanded);
+  };
+
+  const handleDefaultMergePolicyChange = (policy: 'current' | 'incoming' | null) => {
+    setDefaultMergePolicy(policy);
+    
+    if (policy) {
+      // Apply the policy to all unresolved conflicts
+      const updatedConflicts = mergeResult.conflicts.map(conflict => 
+        conflict.resolution === 'unresolved' ? { ...conflict, resolution: policy } : conflict
+      );
+      
+      const resolvedCount = updatedConflicts.filter(c => c.resolution !== 'unresolved').length;
+      const unresolvedCount = updatedConflicts.filter(c => c.resolution === 'unresolved').length;
+
+      const updatedResult = {
+        ...mergeResult,
+        conflicts: updatedConflicts,
+        summary: {
+          ...mergeResult.summary,
+          resolvedConflicts: resolvedCount,
+          unresolvedConflicts: unresolvedCount
+        }
+      };
+
+      // Generate updated merged schema with conflict resolutions
+      if (resolvedCount > 0) {
+        const resolvedSchema = DocumentMergeEngine.applyConflictResolutions(
+          mergeResult.mergedSchema,
+          updatedConflicts
+        );
+        updatedResult.mergedSchema = resolvedSchema;
+      }
+
+      setMergeResult(updatedResult);
+      onConflictResolve?.(updatedResult);
+    }
   };
 
   const getDocumentInfo = (doc: Document) => {
@@ -319,8 +356,48 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
               <p>No conflicts detected. Merge can proceed safely.</p>
             </div>
           ) : (
-            <ScrollArea className="h-96">
-              <div className="space-y-3">
+            <div className="space-y-4">
+              {/* Default Merge Policy Controls */}
+              <Card className="bg-blue-50 border-blue-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <GitMerge className="h-4 w-4 text-blue-600" />
+                    Default Merge Policy
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Choose a default resolution for all unresolved conflicts:
+                  </p>
+                  <div className="flex gap-2 flex-wrap">
+                    <Button
+                      variant={defaultMergePolicy === 'current' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleDefaultMergePolicyChange(defaultMergePolicy === 'current' ? null : 'current')}
+                    >
+                      Always Keep Current
+                    </Button>
+                    <Button
+                      variant={defaultMergePolicy === 'incoming' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleDefaultMergePolicyChange(defaultMergePolicy === 'incoming' ? null : 'incoming')}
+                    >
+                      Always Use Incoming
+                    </Button>
+                    {defaultMergePolicy && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDefaultMergePolicyChange(null)}
+                      >
+                        Clear Policy
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+              <ScrollArea className="h-96">
+                <div className="space-y-3">
                 {mergeResult.conflicts.map((conflict, index) => {
                   const isExpanded = expandedConflicts.has(index);
                   const isResolved = conflict.resolution !== 'unresolved';
@@ -442,9 +519,10 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
                     </Card>
                   );
                 })}
+                  </div>
+                </ScrollArea>
               </div>
-            </ScrollArea>
-          )}
+            )}
         </TabsContent>
 
         <TabsContent value="documents" className="space-y-3">

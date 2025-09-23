@@ -232,19 +232,6 @@ export class DocumentMergeEngine {
     
     conflicts.forEach(conflict => {
       if (conflict.resolution && conflict.resolution !== 'unresolved') {
-        const pathParts = conflict.path.split('/').filter(part => part !== '');
-        let current = result;
-        
-        // Navigate to the parent object
-        for (let i = 0; i < pathParts.length - 1; i++) {
-          if (!current[pathParts[i]]) {
-            current[pathParts[i]] = {};
-          }
-          current = current[pathParts[i]];
-        }
-        
-        // Apply the resolution
-        const finalPart = pathParts[pathParts.length - 1];
         let valueToApply;
         
         switch (conflict.resolution) {
@@ -260,12 +247,39 @@ export class DocumentMergeEngine {
         }
         
         if (valueToApply !== undefined) {
-          current[finalPart] = valueToApply;
+          this.setValueAtPath(result, conflict.path, valueToApply);
         }
       }
     });
     
     return result;
+  }
+
+  /**
+   * Set value at JSON Pointer path in object
+   */
+  private static setValueAtPath(obj: any, path: string, value: any): void {
+    // Handle root path
+    if (path === '/' || path === '') {
+      return;
+    }
+
+    // Split JSON Pointer path (starts with /) into parts
+    const pathParts = path.split('/').filter(part => part !== '');
+    let current = obj;
+    
+    // Navigate to the parent object
+    for (let i = 0; i < pathParts.length - 1; i++) {
+      const part = decodeURIComponent(pathParts[i]);
+      if (!current[part]) {
+        current[part] = {};
+      }
+      current = current[part];
+    }
+    
+    // Set the final value
+    const finalPart = decodeURIComponent(pathParts[pathParts.length - 1]);
+    current[finalPart] = value;
   }
 
   /**
