@@ -10,7 +10,7 @@ export interface MergeConflict {
   documents: string[];
   values: any[];
   suggestedResolution?: string;
-  resolution?: 'current' | 'incoming' | 'custom' | 'unresolved';
+  resolution?: 'current' | 'incoming' | 'additive' | 'custom' | 'unresolved';
   customValue?: any;
   currentValue?: any;
   incomingValue?: any;
@@ -225,34 +225,71 @@ export class DocumentMergeEngine {
   }
 
   /**
-   * Apply conflict resolutions to generate final merged schema
+   * Apply conflict resolutions to generate final merged schema with path ordering
    */
-  static applyConflictResolutions(baseSchema: any, conflicts: MergeConflict[]): any {
+  static applyConflictResolutions(baseSchema: any, conflicts: MergeConflict[], pathOrder?: string[]): any {
     let result = JSON.parse(JSON.stringify(baseSchema));
     
-    conflicts.forEach(conflict => {
-      if (conflict.resolution && conflict.resolution !== 'unresolved') {
-        let valueToApply;
-        
-        switch (conflict.resolution) {
-          case 'current':
-            valueToApply = conflict.currentValue;
-            break;
-          case 'incoming':
-            valueToApply = conflict.incomingValue;
-            break;
-          case 'custom':
-            valueToApply = conflict.customValue;
-            break;
-        }
-        
-        if (valueToApply !== undefined) {
-          this.setValueAtPath(result, conflict.path, valueToApply);
-        }
+    // Group conflicts by path
+    const conflictsByPath = conflicts.reduce((acc, conflict) => {
+      if (!acc[conflict.path]) {
+        acc[conflict.path] = [];
       }
+      acc[conflict.path].push(conflict);
+      return acc;
+    }, {} as Record<string, MergeConflict[]>);
+    
+    // Apply conflicts in specified path order, or default order if no order specified
+    const pathsToProcess = pathOrder || Object.keys(conflictsByPath);
+    
+    pathsToProcess.forEach(path => {
+      const pathConflicts = conflictsByPath[path] || [];
+      
+      pathConflicts.forEach(conflict => {
+        if (conflict.resolution && conflict.resolution !== 'unresolved') {
+          let valueToApply;
+          
+          switch (conflict.resolution) {
+            case 'current':
+              valueToApply = conflict.currentValue;
+              break;
+            case 'incoming':
+              valueToApply = conflict.incomingValue;
+              break;
+            case 'additive':
+              // Choose the non-null value, prefer incoming if both are non-null
+              valueToApply = this.getAdditiveValue(conflict.currentValue, conflict.incomingValue);
+              break;
+            case 'custom':
+              valueToApply = conflict.customValue;
+              break;
+          }
+          
+          if (valueToApply !== undefined) {
+            this.setValueAtPath(result, conflict.path, valueToApply);
+          }
+        }
+      });
     });
     
     return result;
+  }
+
+  /**
+   * Get the additive value (non-null preference)
+   */
+  private static getAdditiveValue(currentValue: any, incomingValue: any): any {
+    // If one is null/undefined and the other isn't, prefer the non-null
+    if ((currentValue === null || currentValue === undefined) && 
+        (incomingValue !== null && incomingValue !== undefined)) {
+      return incomingValue;
+    }
+    if ((incomingValue === null || incomingValue === undefined) && 
+        (currentValue !== null && currentValue !== undefined)) {
+      return currentValue;
+    }
+    // If both are non-null or both are null, prefer incoming (default behavior)
+    return incomingValue;
   }
 
   /**

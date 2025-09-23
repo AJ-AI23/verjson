@@ -26,11 +26,15 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
   const [selectedTab, setSelectedTab] = useState<string>("summary");
   const [mergeResult, setMergeResult] = useState<DocumentMergeResult>(initialMergeResult);
   const [expandedConflicts, setExpandedConflicts] = useState<Set<number>>(new Set());
-  const [defaultMergePolicy, setDefaultMergePolicy] = useState<'current' | 'incoming' | null>(null);
+  const [defaultMergePolicy, setDefaultMergePolicy] = useState<'current' | 'incoming' | 'additive' | null>(null);
+  const [pathOrder, setPathOrder] = useState<string[]>([]);
 
   // Update internal state when prop changes
   useEffect(() => {
     setMergeResult(initialMergeResult);
+    // Initialize path order from conflicts
+    const uniquePaths = Array.from(new Set(initialMergeResult.conflicts.map(c => c.path)));
+    setPathOrder(uniquePaths);
   }, [initialMergeResult]);
 
   const getSeverityColor = (severity: MergeConflict['severity']) => {
@@ -61,7 +65,7 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
     return JSON.stringify(value, null, 2);
   };
 
-  const handleConflictResolve = (conflictIndex: number, resolution: 'current' | 'incoming' | 'custom', customValue?: any) => {
+  const handleConflictResolve = (conflictIndex: number, resolution: 'current' | 'incoming' | 'additive' | 'custom', customValue?: any) => {
     const updatedConflicts = [...mergeResult.conflicts];
     updatedConflicts[conflictIndex] = {
       ...updatedConflicts[conflictIndex],
@@ -86,7 +90,8 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
     if (resolvedCount > 0) {
       const resolvedSchema = DocumentMergeEngine.applyConflictResolutions(
         mergeResult.mergedSchema,
-        updatedConflicts
+        updatedConflicts,
+        pathOrder
       );
       updatedResult.mergedSchema = resolvedSchema;
     }
@@ -105,7 +110,7 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
     setExpandedConflicts(newExpanded);
   };
 
-  const handleDefaultMergePolicyChange = (policy: 'current' | 'incoming' | null) => {
+  const handleDefaultMergePolicyChange = (policy: 'current' | 'incoming' | 'additive' | null) => {
     setDefaultMergePolicy(policy);
     
     if (policy) {
@@ -131,7 +136,8 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
       if (resolvedCount > 0) {
         const resolvedSchema = DocumentMergeEngine.applyConflictResolutions(
           mergeResult.mergedSchema,
-          updatedConflicts
+          updatedConflicts,
+          pathOrder
         );
         updatedResult.mergedSchema = resolvedSchema;
       }
@@ -139,6 +145,25 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
       setMergeResult(updatedResult);
       onConflictResolve?.(updatedResult);
     }
+  };
+
+  const handlePathOrderChange = (newOrder: string[]) => {
+    setPathOrder(newOrder);
+    
+    // Re-apply conflict resolutions with new order
+    const updatedSchema = DocumentMergeEngine.applyConflictResolutions(
+      mergeResult.mergedSchema,
+      mergeResult.conflicts,
+      newOrder
+    );
+
+    const finalResult = {
+      ...mergeResult,
+      mergedSchema: updatedSchema
+    };
+
+    setMergeResult(finalResult);
+    onConflictResolve?.(finalResult);
   };
 
   const getDocumentInfo = (doc: Document) => {
@@ -378,11 +403,11 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
                       Always Keep Current
                     </Button>
                     <Button
-                      variant={defaultMergePolicy === 'incoming' ? 'default' : 'outline'}
+                      variant={defaultMergePolicy === 'additive' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => handleDefaultMergePolicyChange(defaultMergePolicy === 'incoming' ? null : 'incoming')}
+                      onClick={() => handleDefaultMergePolicyChange(defaultMergePolicy === 'additive' ? null : 'additive')}
                     >
-                      Always Use Incoming
+                      Prefer Non-Null Values
                     </Button>
                     {defaultMergePolicy && (
                       <Button
@@ -396,131 +421,192 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
                   </div>
                 </CardContent>
               </Card>
-              <ScrollArea className="h-96">
-                <div className="space-y-3">
-                {mergeResult.conflicts.map((conflict, index) => {
-                  const isExpanded = expandedConflicts.has(index);
-                  const isResolved = conflict.resolution !== 'unresolved';
-                  
-                  return (
-                    <Card key={index} className={isResolved ? 'border-green-200' : ''}>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleConflictExpansion(index)}
-                            className="h-auto p-0"
-                          >
-                            {isExpanded ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
-                            )}
-                          </Button>
-                          {getSeverityIcon(conflict.severity)}
-                          <code className="font-mono text-xs bg-muted px-1 rounded">
-                            {conflict.path}
-                          </code>
-                          <Badge variant={getSeverityColor(conflict.severity)}>
-                            {conflict.severity}
-                          </Badge>
-                          {isResolved && (
-                            <Badge variant="default" className="ml-auto bg-green-600">
-                              {conflict.resolution?.toUpperCase()}
-                            </Badge>
-                          )}
-                        </CardTitle>
-                      </CardHeader>
-                      
-                      {isExpanded && (
-                        <CardContent className="pt-0">
-                          <p className="text-sm text-muted-foreground mb-4">{conflict.description}</p>
-                          
-                          <div className="space-y-4">
-                            <div className="text-xs font-medium">Conflicting Documents:</div>
-                            <div className="flex gap-1 flex-wrap mb-4">
-                              {conflict.documents.map((docName, i) => (
-                                <Badge key={i} variant="outline" className="text-xs">
-                                  {docName}
-                                </Badge>
-                              ))}
+              
+              {/* Path Order Control */}
+              <Card className="bg-yellow-50 border-yellow-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Layers className="h-4 w-4 text-yellow-600" />
+                    Merge Path Order
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Reorder how paths are merged. Paths higher in the list are processed first.
+                  </p>
+                  <div className="space-y-2">
+                    {pathOrder.map((path, index) => {
+                      const pathConflicts = mergeResult.conflicts.filter(c => c.path === path);
+                      return (
+                        <div key={path} className="flex items-center justify-between p-2 bg-muted rounded">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center text-xs font-mono">
+                              {index + 1}
                             </div>
-
-                            <div className="space-y-4">
-                              <div className="text-sm font-medium">Choose Resolution:</div>
-                              
-                              {/* Current Value Option */}
-                              <div className="space-y-2">
-                                <label className="flex items-center space-x-2 cursor-pointer">
-                                  <input
-                                    type="radio"
-                                    name={`conflict-${index}`}
-                                    checked={conflict.resolution === 'current'}
-                                    onChange={() => handleConflictResolve(index, 'current')}
-                                    className="w-4 h-4"
-                                  />
-                                  <span className="text-sm font-medium">Keep Current ({conflict.documents[0]})</span>
-                                </label>
-                                <pre className="bg-muted p-2 rounded text-xs overflow-auto max-h-20">
-                                  {formatJsonValue(conflict.currentValue)}
-                                </pre>
-                              </div>
-
-                              {/* Incoming Value Option */}
-                              <div className="space-y-2">
-                                <label className="flex items-center space-x-2 cursor-pointer">
-                                  <input
-                                    type="radio"
-                                    name={`conflict-${index}`}
-                                    checked={conflict.resolution === 'incoming'}
-                                    onChange={() => handleConflictResolve(index, 'incoming')}
-                                    className="w-4 h-4"
-                                  />
-                                  <span className="text-sm font-medium">Use Incoming ({conflict.documents[1]})</span>
-                                </label>
-                                <pre className="bg-muted p-2 rounded text-xs overflow-auto max-h-20">
-                                  {formatJsonValue(conflict.incomingValue)}
-                                </pre>
-                              </div>
-
-                              {/* Custom Value Option */}
-                              <div className="space-y-2">
-                                <label className="flex items-center space-x-2 cursor-pointer">
-                                  <input
-                                    type="radio"
-                                    name={`conflict-${index}`}
-                                    checked={conflict.resolution === 'custom'}
-                                    onChange={() => handleConflictResolve(index, 'custom', conflict.customValue || '')}
-                                    className="w-4 h-4"
-                                  />
-                                  <span className="text-sm font-medium">Custom Value</span>
-                                </label>
-                                {conflict.resolution === 'custom' && (
-                                  <textarea
-                                    value={conflict.customValue || ''}
-                                    onChange={(e) => {
-                                      try {
-                                        const parsedValue = JSON.parse(e.target.value);
-                                        handleConflictResolve(index, 'custom', parsedValue);
-                                      } catch {
-                                        handleConflictResolve(index, 'custom', e.target.value);
-                                      }
-                                    }}
-                                    placeholder="Enter custom JSON value..."
-                                    className="w-full h-20 p-2 text-xs border rounded bg-muted resize-none"
-                                  />
+                            <span className="font-mono text-sm">{path}</span>
+                            <Badge variant="secondary" className="text-xs">
+                              {pathConflicts.length} conflict{pathConflicts.length !== 1 ? 's' : ''}
+                            </Badge>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                if (index > 0) {
+                                  const newOrder = [...pathOrder];
+                                  [newOrder[index], newOrder[index - 1]] = [newOrder[index - 1], newOrder[index]];
+                                  handlePathOrderChange(newOrder);
+                                }
+                              }}
+                              disabled={index === 0}
+                            >
+                              ↑
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                if (index < pathOrder.length - 1) {
+                                  const newOrder = [...pathOrder];
+                                  [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+                                  handlePathOrderChange(newOrder);
+                                }
+                              }}
+                              disabled={index === pathOrder.length - 1}
+                            >
+                              ↓
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <ScrollArea className="h-96">
+                {/* Conflicts grouped by path */}
+                <div className="space-y-4">
+                  {pathOrder.map(path => {
+                    const pathConflicts = mergeResult.conflicts.filter(c => c.path === path);
+                    if (pathConflicts.length === 0) return null;
+                    
+                    return (
+                      <Card key={path} className="border-l-4 border-l-blue-400">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm font-mono">{path}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0 space-y-3">
+                          {pathConflicts.map((conflict, index) => {
+                            const globalIndex = mergeResult.conflicts.indexOf(conflict);
+                            const isExpanded = expandedConflicts.has(globalIndex);
+                            const isResolved = conflict.resolution !== 'unresolved';
+                            
+                            return (
+                              <div key={globalIndex} className={`border rounded-lg p-3 ${isResolved ? 'border-green-200 bg-green-50' : 'border-gray-200'}`}>
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => toggleConflictExpansion(globalIndex)}
+                                      className="h-auto p-1"
+                                    >
+                                      {isExpanded ? (
+                                        <ChevronDown className="h-3 w-3" />
+                                      ) : (
+                                        <ChevronRight className="h-3 w-3" />
+                                      )}
+                                    </Button>
+                                    {getSeverityIcon(conflict.severity)}
+                                    <span className="text-sm font-medium">{conflict.type.replace('_', ' ')}</span>
+                                    <Badge variant="outline" className="text-xs">
+                                      {conflict.severity}
+                                    </Badge>
+                                  </div>
+                                  {isResolved && (
+                                    <Badge variant="default" className="bg-green-600">
+                                      {conflict.resolution?.toUpperCase()}
+                                    </Badge>
+                                  )}
+                                </div>
+                                
+                                <p className="text-sm text-muted-foreground mb-3">{conflict.description}</p>
+                                
+                                {/* Quick Resolution Buttons */}
+                                <div className="flex gap-2 flex-wrap mb-3">
+                                  <Button
+                                    variant={conflict.resolution === 'current' ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => handleConflictResolve(globalIndex, 'current')}
+                                  >
+                                    Use Current
+                                  </Button>
+                                  <Button
+                                    variant={conflict.resolution === 'incoming' ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => handleConflictResolve(globalIndex, 'incoming')}
+                                  >
+                                    Use Incoming
+                                  </Button>
+                                  <Button
+                                    variant={conflict.resolution === 'additive' ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => handleConflictResolve(globalIndex, 'additive')}
+                                  >
+                                    Prefer Non-Null
+                                  </Button>
+                                </div>
+                                
+                                {isExpanded && (
+                                  <div className="pt-3 border-t space-y-3">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                      <div>
+                                        <div className="text-xs font-medium mb-1">Current Value</div>
+                                        <pre className="bg-muted p-2 rounded text-xs overflow-auto max-h-20">
+                                          {formatJsonValue(conflict.currentValue)}
+                                        </pre>
+                                      </div>
+                                      <div>
+                                        <div className="text-xs font-medium mb-1">Incoming Value</div>
+                                        <pre className="bg-muted p-2 rounded text-xs overflow-auto max-h-20">
+                                          {formatJsonValue(conflict.incomingValue)}
+                                        </pre>
+                                      </div>
+                                    </div>
+                                    
+                                    {conflict.resolution === 'additive' && (
+                                      <div>
+                                        <div className="text-xs font-medium mb-1">Additive Result (Non-null preferred)</div>
+                                        <pre className="bg-green-100 p-2 rounded text-xs overflow-auto max-h-20">
+                                          {(() => {
+                                            const current = conflict.currentValue;
+                                            const incoming = conflict.incomingValue;
+                                            if ((current === null || current === undefined) && 
+                                                (incoming !== null && incoming !== undefined)) {
+                                              return formatJsonValue(incoming);
+                                            }
+                                            if ((incoming === null || incoming === undefined) && 
+                                                (current !== null && current !== undefined)) {
+                                              return formatJsonValue(current);
+                                            }
+                                            return formatJsonValue(incoming);
+                                          })()}
+                                        </pre>
+                                      </div>
+                                    )}
+                                  </div>
                                 )}
                               </div>
-                            </div>
-                          </div>
+                            );
+                          })}
                         </CardContent>
-                      )}
-                    </Card>
-                  );
-                })}
-                  </div>
-                </ScrollArea>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
               </div>
             )}
         </TabsContent>
