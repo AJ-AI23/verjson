@@ -256,21 +256,26 @@ export class DocumentMergeEngine {
   }
 
   /**
-   * Set value at JSON Pointer path in object
+   * Set value at dot notation path in object
    */
   private static setValueAtPath(obj: any, path: string, value: any): void {
     // Handle root path
-    if (path === '/' || path === '') {
+    if (path === 'root' || path === '') {
       return;
     }
 
-    // Split JSON Pointer path (starts with /) into parts
-    const pathParts = path.split('/').filter(part => part !== '');
+    // Split dot notation path and remove 'root' prefix
+    const pathParts = path.split('.').filter(part => part !== '' && part !== 'root');
+    
+    if (pathParts.length === 0) {
+      return;
+    }
+    
     let current = obj;
     
     // Navigate to the parent object
     for (let i = 0; i < pathParts.length - 1; i++) {
-      const part = decodeURIComponent(pathParts[i]);
+      const part = pathParts[i];
       if (!current[part]) {
         current[part] = {};
       }
@@ -278,7 +283,7 @@ export class DocumentMergeEngine {
     }
     
     // Set the final value
-    const finalPart = decodeURIComponent(pathParts[pathParts.length - 1]);
+    const finalPart = pathParts[pathParts.length - 1];
     current[finalPart] = value;
   }
 
