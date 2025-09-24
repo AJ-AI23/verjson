@@ -1,14 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { DocumentMergeResult, MergeConflict, DocumentMergeEngine } from "@/lib/documentMergeEngine";
-import { Document } from "@/types/workspace";
-import { AlertTriangle, CheckCircle, FileText, GitMerge, Layers, ChevronDown, ChevronRight } from "lucide-react";
+import { DocumentMergeEngine, DocumentMergeResult, MergeConflict } from '@/lib/documentMergeEngine';
+import { Document } from '@/types/workspace';
+import { CheckCircle, AlertTriangle, ArrowUpDown, GitMerge, Layers, ChevronDown, ChevronRight, FileText } from 'lucide-react';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableAccordionItem } from './SortableAccordionItem';
 
 interface DocumentMergePreviewProps {
   documents: Document[];
@@ -26,16 +32,95 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
   const [selectedTab, setSelectedTab] = useState<string>("summary");
   const [mergeResult, setMergeResult] = useState<DocumentMergeResult>(initialMergeResult);
   const [expandedConflicts, setExpandedConflicts] = useState<Set<number>>(new Set());
-  const [defaultMergePolicy, setDefaultMergePolicy] = useState<'current' | 'incoming' | 'additive' | null>(null);
-  const [pathOrder, setPathOrder] = useState<string[]>([]);
 
   // Update internal state when prop changes
   useEffect(() => {
     setMergeResult(initialMergeResult);
-    // Initialize path order from conflicts
-    const uniquePaths = Array.from(new Set(initialMergeResult.conflicts.map(c => c.path)));
-    setPathOrder(uniquePaths);
   }, [initialMergeResult]);
+
+  // Group conflicts by path for better organization and add sortable path order
+  const conflictsByPath = useMemo(() => {
+    const groups: { [path: string]: MergeConflict[] } = {};
+    
+    mergeResult.conflicts.forEach(conflict => {
+      if (!groups[conflict.path]) {
+        groups[conflict.path] = [];
+      }
+      groups[conflict.path].push(conflict);
+    });
+    
+    return groups;
+  }, [mergeResult.conflicts]);
+
+  // Keep track of path order for controlled merging (draggable)
+  const [pathOrder, setPathOrder] = useState<string[]>(() => Object.keys(conflictsByPath));
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Default merge policy handler
+  const handleDefaultMergePolicy = useCallback((policy: 'current' | 'incoming' | 'additive') => {
+    const updatedConflicts = mergeResult.conflicts.map(conflict => {
+      if (conflict.resolution === 'unresolved') {
+        return { ...conflict, resolution: policy };
+      }
+      return conflict;
+    });
+
+    // Apply conflict resolutions to generate final merged schema
+    const finalMergedSchema = DocumentMergeEngine.applyConflictResolutions(
+      mergeResult.mergedSchema,
+      updatedConflicts,
+      pathOrder
+    );
+
+    const updatedResult: DocumentMergeResult = {
+      ...mergeResult,
+      conflicts: updatedConflicts,
+      mergedSchema: finalMergedSchema,
+      summary: {
+        ...mergeResult.summary,
+        resolvedConflicts: updatedConflicts.filter(c => c.resolution !== 'unresolved').length,
+        unresolvedConflicts: updatedConflicts.filter(c => c.resolution === 'unresolved').length
+      }
+    };
+
+    onConflictResolve?.(updatedResult);
+  }, [mergeResult, pathOrder, onConflictResolve]);
+
+  // Handle drag end for path reordering
+  const handleDragEnd = useCallback((event: any) => {
+    const { active, over } = event;
+
+    if (active.id !== over.id) {
+      setPathOrder((items) => {
+        const oldIndex = items.indexOf(active.id);
+        const newIndex = items.indexOf(over.id);
+
+        const newOrder = arrayMove(items, oldIndex, newIndex);
+        
+        // Reapply conflict resolutions with new path order
+        const finalMergedSchema = DocumentMergeEngine.applyConflictResolutions(
+          mergeResult.mergedSchema,
+          mergeResult.conflicts,
+          newOrder
+        );
+
+        const updatedResult: DocumentMergeResult = {
+          ...mergeResult,
+          mergedSchema: finalMergedSchema
+        };
+
+        onConflictResolve?.(updatedResult);
+        
+        return newOrder;
+      });
+    }
+  }, [mergeResult, onConflictResolve]);
 
   const getSeverityColor = (severity: MergeConflict['severity']) => {
     switch (severity) {
@@ -65,40 +150,50 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
     return JSON.stringify(value, null, 2);
   };
 
-  const handleConflictResolve = (conflictIndex: number, resolution: 'current' | 'incoming' | 'additive' | 'custom', customValue?: any) => {
-    const updatedConflicts = [...mergeResult.conflicts];
-    updatedConflicts[conflictIndex] = {
-      ...updatedConflicts[conflictIndex],
-      resolution,
-      customValue
-    };
+  const handleConflictResolution = useCallback((path: string, conflictIndex: number, resolution: MergeConflict['resolution']) => {
+    const updatedConflicts = mergeResult.conflicts.map((conflict, idx) => {
+      if (conflict.path === path && idx === conflictIndex) {
+        return { ...conflict, resolution };
+      }
+      return conflict;
+    });
 
-    const resolvedCount = updatedConflicts.filter(c => c.resolution !== 'unresolved').length;
-    const unresolvedCount = updatedConflicts.filter(c => c.resolution === 'unresolved').length;
+    const finalMergedSchema = DocumentMergeEngine.applyConflictResolutions(
+      mergeResult.mergedSchema,
+      updatedConflicts,
+      pathOrder
+    );
 
-    const updatedResult = {
+    const updatedResult: DocumentMergeResult = {
       ...mergeResult,
       conflicts: updatedConflicts,
+      mergedSchema: finalMergedSchema,
       summary: {
         ...mergeResult.summary,
-        resolvedConflicts: resolvedCount,
-        unresolvedConflicts: unresolvedCount
+        resolvedConflicts: updatedConflicts.filter(c => c.resolution !== 'unresolved').length,
+        unresolvedConflicts: updatedConflicts.filter(c => c.resolution === 'unresolved').length
       }
     };
 
-    // Generate updated merged schema with conflict resolutions
-    if (resolvedCount > 0) {
-      const resolvedSchema = DocumentMergeEngine.applyConflictResolutions(
-        mergeResult.mergedSchema,
-        updatedConflicts,
-        pathOrder
-      );
-      updatedResult.mergedSchema = resolvedSchema;
-    }
+    onConflictResolve?.(updatedResult);
+  }, [mergeResult, pathOrder, onConflictResolve]);
+
+  const handleCustomValue = useCallback((path: string, conflictIndex: number, customValue: string) => {
+    const updatedConflicts = mergeResult.conflicts.map((conflict, idx) => {
+      if (conflict.path === path && idx === conflictIndex) {
+        return { ...conflict, customValue };
+      }
+      return conflict;
+    });
+
+    const updatedResult: DocumentMergeResult = {
+      ...mergeResult,
+      conflicts: updatedConflicts
+    };
 
     setMergeResult(updatedResult);
     onConflictResolve?.(updatedResult);
-  };
+  }, [mergeResult, onConflictResolve]);
 
   const toggleConflictExpansion = (index: number) => {
     const newExpanded = new Set(expandedConflicts);
@@ -110,8 +205,33 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
     setExpandedConflicts(newExpanded);
   };
 
-  const handleDefaultMergePolicyChange = (policy: 'current' | 'incoming' | 'additive' | null) => {
-    setDefaultMergePolicy(policy);
+  const getSeverityColor = (severity: MergeConflict['severity']) => {
+    switch (severity) {
+      case 'high': return 'destructive';
+      case 'medium': return 'default';
+      case 'low': return 'secondary';
+      default: return 'default';
+    }
+  };
+
+  const getSeverityIcon = (severity: MergeConflict['severity']) => {
+    switch (severity) {
+      case 'high': return <AlertTriangle className="h-4 w-4 text-destructive" />;
+      case 'medium': return <AlertTriangle className="h-4 w-4 text-orange-500" />;
+      case 'low': return <CheckCircle className="h-4 w-4 text-green-500" />;
+      default: return null;
+    }
+  };
+
+  const formatJsonValue = (value: any): string => {
+    if (value === null || value === undefined) {
+      return 'null';
+    }
+    if (typeof value === 'string') {
+      return `"${value}"`;
+    }
+    return JSON.stringify(value, null, 2);
+  };
     
     if (policy) {
       // Apply the policy to all unresolved conflicts
@@ -382,231 +502,159 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Default Merge Policy Controls */}
-              <Card className="bg-blue-50 border-blue-200">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <GitMerge className="h-4 w-4 text-blue-600" />
-                    Default Merge Policy
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Choose a default resolution for all unresolved conflicts:
-                  </p>
-                  <div className="flex gap-2 flex-wrap">
+            {/* Conflict Resolution */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Conflict Resolution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="text-sm text-muted-foreground">
+                    Resolve conflicts between documents. Drag paths to reorder resolution sequence. Each conflict can be resolved individually or you can apply a default policy.
+                  </div>
+                  
+                  {/* Default Policy Controls */}
+                  <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                    <span className="text-sm font-medium">Apply to all unresolved:</span>
                     <Button
-                      variant={defaultMergePolicy === 'current' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => handleDefaultMergePolicyChange(defaultMergePolicy === 'current' ? null : 'current')}
+                      variant="outline"
+                      onClick={() => handleDefaultMergePolicy('current')}
                     >
                       Always Keep Current
                     </Button>
                     <Button
-                      variant={defaultMergePolicy === 'additive' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => handleDefaultMergePolicyChange(defaultMergePolicy === 'additive' ? null : 'additive')}
+                      variant="outline"
+                      onClick={() => handleDefaultMergePolicy('incoming')}
                     >
-                      Prefer Non-Null Values
+                      Always Use Incoming
                     </Button>
-                    {defaultMergePolicy && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDefaultMergePolicyChange(null)}
-                      >
-                        Clear Policy
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDefaultMergePolicy('additive')}
+                    >
+                      Smart Merge (Preserve Non-null)
+                    </Button>
                   </div>
-                </CardContent>
-              </Card>
-              
-              {/* Path Order Control */}
-              <Card className="bg-yellow-50 border-yellow-200">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Layers className="h-4 w-4 text-yellow-600" />
-                    Merge Path Order
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Reorder how paths are merged. Paths higher in the list are processed first.
-                  </p>
-                  <div className="space-y-2">
-                    {pathOrder.map((path, index) => {
-                      const pathConflicts = mergeResult.conflicts.filter(c => c.path === path);
-                      return (
-                        <div key={path} className="flex items-center justify-between p-2 bg-muted rounded">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center text-xs font-mono">
-                              {index + 1}
-                            </div>
-                            <span className="font-mono text-sm">{path}</span>
-                            <Badge variant="secondary" className="text-xs">
-                              {pathConflicts.length} conflict{pathConflicts.length !== 1 ? 's' : ''}
-                            </Badge>
-                          </div>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                if (index > 0) {
-                                  const newOrder = [...pathOrder];
-                                  [newOrder[index], newOrder[index - 1]] = [newOrder[index - 1], newOrder[index]];
-                                  handlePathOrderChange(newOrder);
-                                }
-                              }}
-                              disabled={index === 0}
-                            >
-                              ↑
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                if (index < pathOrder.length - 1) {
-                                  const newOrder = [...pathOrder];
-                                  [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
-                                  handlePathOrderChange(newOrder);
-                                }
-                              }}
-                              disabled={index === pathOrder.length - 1}
-                            >
-                              ↓
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <ScrollArea className="h-96">
-                {/* Conflicts grouped by path */}
-                <div className="space-y-4">
-                  {pathOrder.map(path => {
-                    const pathConflicts = mergeResult.conflicts.filter(c => c.path === path);
-                    if (pathConflicts.length === 0) return null;
-                    
-                    return (
-                      <Card key={path} className="border-l-4 border-l-blue-400">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-sm font-mono">{path}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-0 space-y-3">
-                          {pathConflicts.map((conflict, index) => {
-                            const globalIndex = mergeResult.conflicts.indexOf(conflict);
-                            const isExpanded = expandedConflicts.has(globalIndex);
-                            const isResolved = conflict.resolution !== 'unresolved';
-                            
-                            return (
-                              <div key={globalIndex} className={`border rounded-lg p-3 ${isResolved ? 'border-green-200 bg-green-50' : 'border-gray-200'}`}>
-                                <div className="flex items-center justify-between mb-2">
+
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext items={pathOrder} strategy={verticalListSortingStrategy}>
+                      <Accordion type="multiple" className="w-full">
+                        {pathOrder.map((path) => {
+                          const pathConflicts = conflictsByPath[path] || [];
+                          if (pathConflicts.length === 0) return null;
+
+                          return (
+                            <SortableAccordionItem
+                              key={path}
+                              id={path}
+                              value={path}
+                              triggerContent={
+                                <div className="flex items-center justify-between w-full mr-4">
                                   <div className="flex items-center gap-2">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => toggleConflictExpansion(globalIndex)}
-                                      className="h-auto p-1"
-                                    >
-                                      {isExpanded ? (
-                                        <ChevronDown className="h-3 w-3" />
-                                      ) : (
-                                        <ChevronRight className="h-3 w-3" />
-                                      )}
-                                    </Button>
-                                    {getSeverityIcon(conflict.severity)}
-                                    <span className="text-sm font-medium">{conflict.type.replace('_', ' ')}</span>
+                                    <code className="text-sm bg-muted px-2 py-1 rounded">{path}</code>
                                     <Badge variant="outline" className="text-xs">
-                                      {conflict.severity}
+                                      {pathConflicts.length} conflicts
                                     </Badge>
                                   </div>
-                                  {isResolved && (
-                                    <Badge variant="default" className="bg-green-600">
-                                      {conflict.resolution?.toUpperCase()}
-                                    </Badge>
-                                  )}
+                                  <div className="flex gap-1">
+                                    {pathConflicts.map((conflict, idx) => (
+                                      <Badge
+                                        key={idx}
+                                        variant={conflict.resolution === 'unresolved' ? 'destructive' : 'default'}
+                                        className="text-xs"
+                                      >
+                                        {conflict.resolution === 'unresolved' ? 'Unresolved' : conflict.resolution}
+                                      </Badge>
+                                    ))}
+                                  </div>
                                 </div>
-                                
-                                <p className="text-sm text-muted-foreground mb-3">{conflict.description}</p>
-                                
-                                {/* Quick Resolution Buttons */}
-                                <div className="flex gap-2 flex-wrap mb-3">
-                                  <Button
-                                    variant={conflict.resolution === 'current' ? 'default' : 'outline'}
-                                    size="sm"
-                                    onClick={() => handleConflictResolve(globalIndex, 'current')}
-                                  >
-                                    Use Current
-                                  </Button>
-                                  <Button
-                                    variant={conflict.resolution === 'incoming' ? 'default' : 'outline'}
-                                    size="sm"
-                                    onClick={() => handleConflictResolve(globalIndex, 'incoming')}
-                                  >
-                                    Use Incoming
-                                  </Button>
-                                  <Button
-                                    variant={conflict.resolution === 'additive' ? 'default' : 'outline'}
-                                    size="sm"
-                                    onClick={() => handleConflictResolve(globalIndex, 'additive')}
-                                  >
-                                    Prefer Non-Null
-                                  </Button>
-                                </div>
-                                
-                                {isExpanded && (
-                                  <div className="pt-3 border-t space-y-3">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              }
+                            >
+                              <div className="space-y-4">
+                                {pathConflicts.map((conflict, conflictIndex) => (
+                                  <div key={`${conflict.path}-${conflictIndex}`} className="border rounded p-4 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                      <Badge variant={
+                                        conflict.severity === 'high' ? 'destructive' : 
+                                        conflict.severity === 'medium' ? 'default' : 'secondary'
+                                      }>
+                                        {conflict.severity} severity
+                                      </Badge>
+                                      <Badge variant="outline">{conflict.type}</Badge>
+                                    </div>
+                                    
+                                    <div className="text-sm">
+                                      <p className="font-medium">{conflict.description}</p>
+                                      {conflict.suggestedResolution && (
+                                        <p className="text-muted-foreground mt-1">
+                                          Suggestion: {conflict.suggestedResolution}
+                                        </p>
+                                      )}
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <div className="text-sm font-medium">Resolution:</div>
+                                      <Select
+                                        value={conflict.resolution || 'unresolved'}
+                                        onValueChange={(value) => handleConflictResolution(conflict.path, conflictIndex, value as any)}
+                                      >
+                                        <SelectTrigger className="w-full">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="unresolved">Unresolved</SelectItem>
+                                          <SelectItem value="current">Keep Current Value</SelectItem>
+                                          <SelectItem value="incoming">Use Incoming Value</SelectItem>
+                                          <SelectItem value="additive">Smart Merge (Prefer Non-null)</SelectItem>
+                                          <SelectItem value="custom">Custom Value</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+
+                                    {conflict.resolution === 'custom' && (
+                                      <div className="space-y-2">
+                                        <div className="text-sm font-medium">Custom Value:</div>
+                                        <Input
+                                          value={conflict.customValue || ''}
+                                          onChange={(e) => handleCustomValue(conflict.path, conflictIndex, e.target.value)}
+                                          placeholder="Enter custom value"
+                                        />
+                                      </div>
+                                    )}
+
+                                    <div className="grid grid-cols-2 gap-4 text-xs">
                                       <div>
-                                        <div className="text-xs font-medium mb-1">Current Value</div>
-                                        <pre className="bg-muted p-2 rounded text-xs overflow-auto max-h-20">
-                                          {formatJsonValue(conflict.currentValue)}
+                                        <div className="font-medium text-muted-foreground mb-1">Current Value:</div>
+                                        <pre className="bg-muted p-2 rounded overflow-auto max-h-20">
+                                          {JSON.stringify(conflict.currentValue, null, 2)}
                                         </pre>
                                       </div>
                                       <div>
-                                        <div className="text-xs font-medium mb-1">Incoming Value</div>
-                                        <pre className="bg-muted p-2 rounded text-xs overflow-auto max-h-20">
-                                          {formatJsonValue(conflict.incomingValue)}
+                                        <div className="font-medium text-muted-foreground mb-1">Incoming Value:</div>
+                                        <pre className="bg-muted p-2 rounded overflow-auto max-h-20">
+                                          {JSON.stringify(conflict.incomingValue, null, 2)}
                                         </pre>
                                       </div>
                                     </div>
-                                    
-                                    {conflict.resolution === 'additive' && (
-                                      <div>
-                                        <div className="text-xs font-medium mb-1">Additive Result (Non-null preferred)</div>
-                                        <pre className="bg-green-100 p-2 rounded text-xs overflow-auto max-h-20">
-                                          {(() => {
-                                            const current = conflict.currentValue;
-                                            const incoming = conflict.incomingValue;
-                                            if ((current === null || current === undefined) && 
-                                                (incoming !== null && incoming !== undefined)) {
-                                              return formatJsonValue(incoming);
-                                            }
-                                            if ((incoming === null || incoming === undefined) && 
-                                                (current !== null && current !== undefined)) {
-                                              return formatJsonValue(current);
-                                            }
-                                            return formatJsonValue(incoming);
-                                          })()}
-                                        </pre>
-                                      </div>
-                                    )}
                                   </div>
-                                )}
+                                ))}
                               </div>
-                            );
-                          })}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                            </SortableAccordionItem>
+                          );
+                        })}
+                      </Accordion>
+                    </SortableContext>
+                  </DndContext>
                 </div>
-              </ScrollArea>
+              </CardContent>
+            </Card>
               </div>
             )}
         </TabsContent>
