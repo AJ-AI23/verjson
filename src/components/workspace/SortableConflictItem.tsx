@@ -68,7 +68,11 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
                     {conflict.severity} priority
                   </Badge>
                   <Badge variant={conflict.resolution === 'unresolved' ? 'destructive' : 'default'} className="text-xs">
-                    {conflict.resolution === 'unresolved' ? 'Unresolved' : conflict.resolution}
+                    {conflict.resolution === 'unresolved' ? 'Unresolved' : 
+                     conflict.resolution === 'current' ? 'Keep Current' :
+                     conflict.resolution === 'incoming' ? 'Use Incoming' :
+                     conflict.resolution === 'additive' ? 'Smart Merge' :
+                     conflict.resolution === 'custom' ? 'Custom Value' : conflict.resolution}
                   </Badge>
                 </div>
               </div>
@@ -94,13 +98,14 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
 
               <div className="flex flex-wrap items-center gap-2">
                 <Select
-                  value={conflict.resolution}
+                  value={conflict.resolution || 'unresolved'}
                   onValueChange={(value) => onConflictResolve(path, conflictIndex, value as MergeConflict['resolution'])}
                 >
                   <SelectTrigger className="w-auto">
                     <SelectValue placeholder="Choose resolution" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="unresolved">Unresolved</SelectItem>
                     <SelectItem value="current">Keep Current</SelectItem>
                     <SelectItem value="incoming">Use Incoming</SelectItem>
                     <SelectItem value="additive">Smart Merge</SelectItem>

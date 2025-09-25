@@ -167,9 +167,38 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
 
   const handleConflictResolution = useCallback((path: string, conflictIndex: number, resolution: MergeConflict['resolution']) => {
     const updatedConflicts = mergeResult.conflicts.map((conflict, idx) => {
-      if (conflict.path === path && idx === conflictIndex) {
-        return { ...conflict, resolution };
+      // Find the actual conflict at this path and position
+      const pathConflicts = conflictsByPath[path] || [];
+      const targetConflict = pathConflicts[conflictIndex];
+      
+      if (conflict === targetConflict) {
+        const updatedConflict = { ...conflict, resolution };
+        
+        // If this is the first conflict in this path group being resolved,
+        // apply the same resolution to all other unresolved conflicts in the group
+        if (resolution !== 'unresolved') {
+          const shouldApplyToGroup = pathConflicts.every(c => c.resolution === 'unresolved');
+          if (shouldApplyToGroup) {
+            // Apply resolution to all conflicts in this path group
+            return updatedConflict;
+          }
+        }
+        
+        return updatedConflict;
       }
+      
+      // Apply group resolution if this is the first resolution in the path
+      if (conflict.path === path && resolution !== 'unresolved') {
+        const pathConflicts = conflictsByPath[path] || [];
+        const hasResolvedConflicts = pathConflicts.some(c => c.resolution !== 'unresolved');
+        const targetConflict = pathConflicts[conflictIndex];
+        
+        // If this is the first conflict being resolved in this path group
+        if (!hasResolvedConflicts && conflict !== targetConflict && conflict.resolution === 'unresolved') {
+          return { ...conflict, resolution };
+        }
+      }
+      
       return conflict;
     });
 
@@ -190,8 +219,9 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
       }
     };
 
+    setMergeResult(updatedResult);
     onConflictResolve?.(updatedResult);
-  }, [mergeResult, pathOrder, onConflictResolve]);
+  }, [mergeResult, pathOrder, onConflictResolve, conflictsByPath]);
 
   const handleCustomValue = useCallback((path: string, conflictIndex: number, customValue: string) => {
     const updatedConflicts = mergeResult.conflicts.map((conflict, idx) => {
@@ -497,17 +527,28 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
                                       {pathConflicts.length} conflicts
                                     </Badge>
                                   </div>
-                                  <div className="flex gap-1">
-                                    {pathConflicts.map((conflict, idx) => (
-                                      <Badge
-                                        key={idx}
-                                        variant={conflict.resolution === 'unresolved' ? 'destructive' : 'default'}
-                                        className="text-xs"
-                                      >
-                                        {conflict.resolution === 'unresolved' ? 'Unresolved' : conflict.resolution}
-                                      </Badge>
-                                    ))}
-                                  </div>
+                                   <div className="flex gap-1">
+                                     {pathConflicts.length > 1 ? (
+                                       <Badge
+                                         variant={pathConflicts.every(c => c.resolution !== 'unresolved') ? 'default' : 
+                                                pathConflicts.some(c => c.resolution !== 'unresolved') ? 'secondary' : 'destructive'}
+                                         className="text-xs"
+                                       >
+                                         {pathConflicts.every(c => c.resolution !== 'unresolved') ? 'All Resolved' :
+                                          pathConflicts.some(c => c.resolution !== 'unresolved') ? 'Partially Resolved' : 'Unresolved'}
+                                       </Badge>
+                                     ) : (
+                                       pathConflicts.map((conflict, idx) => (
+                                         <Badge
+                                           key={idx}
+                                           variant={conflict.resolution === 'unresolved' ? 'destructive' : 'default'}
+                                           className="text-xs"
+                                         >
+                                           {conflict.resolution === 'unresolved' ? 'Unresolved' : conflict.resolution}
+                                         </Badge>
+                                       ))
+                                     )}
+                                   </div>
                                 </div>
                               }
                             >
