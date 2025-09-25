@@ -205,87 +205,6 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
     setExpandedConflicts(newExpanded);
   };
 
-  const getSeverityColor = (severity: MergeConflict['severity']) => {
-    switch (severity) {
-      case 'high': return 'destructive';
-      case 'medium': return 'default';
-      case 'low': return 'secondary';
-      default: return 'default';
-    }
-  };
-
-  const getSeverityIcon = (severity: MergeConflict['severity']) => {
-    switch (severity) {
-      case 'high': return <AlertTriangle className="h-4 w-4 text-destructive" />;
-      case 'medium': return <AlertTriangle className="h-4 w-4 text-orange-500" />;
-      case 'low': return <CheckCircle className="h-4 w-4 text-green-500" />;
-      default: return null;
-    }
-  };
-
-  const formatJsonValue = (value: any): string => {
-    if (value === null || value === undefined) {
-      return 'null';
-    }
-    if (typeof value === 'string') {
-      return `"${value}"`;
-    }
-    return JSON.stringify(value, null, 2);
-  };
-    
-    if (policy) {
-      // Apply the policy to all unresolved conflicts
-      const updatedConflicts = mergeResult.conflicts.map(conflict => 
-        conflict.resolution === 'unresolved' ? { ...conflict, resolution: policy } : conflict
-      );
-      
-      const resolvedCount = updatedConflicts.filter(c => c.resolution !== 'unresolved').length;
-      const unresolvedCount = updatedConflicts.filter(c => c.resolution === 'unresolved').length;
-
-      const updatedResult = {
-        ...mergeResult,
-        conflicts: updatedConflicts,
-        summary: {
-          ...mergeResult.summary,
-          resolvedConflicts: resolvedCount,
-          unresolvedConflicts: unresolvedCount
-        }
-      };
-
-      // Generate updated merged schema with conflict resolutions
-      if (resolvedCount > 0) {
-        const resolvedSchema = DocumentMergeEngine.applyConflictResolutions(
-          mergeResult.mergedSchema,
-          updatedConflicts,
-          pathOrder
-        );
-        updatedResult.mergedSchema = resolvedSchema;
-      }
-
-      setMergeResult(updatedResult);
-      onConflictResolve?.(updatedResult);
-    }
-  };
-
-  const handlePathOrderChange = (newOrder: string[]) => {
-    setPathOrder(newOrder);
-    
-    // Re-apply conflict resolutions with new order
-    const updatedSchema = DocumentMergeEngine.applyConflictResolutions(
-      mergeResult.mergedSchema,
-      mergeResult.conflicts,
-      newOrder
-    );
-
-    const finalResult = {
-      ...mergeResult,
-      mergedSchema: updatedSchema
-    };
-
-    setMergeResult(finalResult);
-    onConflictResolve?.(finalResult);
-  };
-
   const getDocumentInfo = (doc: Document) => {
     const schema = doc.content;
     const title = schema?.info?.title || schema?.title || doc.name;
@@ -734,3 +653,5 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
     </div>
   );
 };
+
+export default DocumentMergePreview;
