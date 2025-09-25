@@ -171,32 +171,9 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
       const pathConflicts = conflictsByPath[path] || [];
       const targetConflict = pathConflicts[conflictIndex];
       
+      // Only update the specific conflict that was changed
       if (conflict === targetConflict) {
-        const updatedConflict = { ...conflict, resolution };
-        
-        // If this is the first conflict in this path group being resolved,
-        // apply the same resolution to all other unresolved conflicts in the group
-        if (resolution !== 'unresolved') {
-          const shouldApplyToGroup = pathConflicts.every(c => c.resolution === 'unresolved');
-          if (shouldApplyToGroup) {
-            // Apply resolution to all conflicts in this path group
-            return updatedConflict;
-          }
-        }
-        
-        return updatedConflict;
-      }
-      
-      // Apply group resolution if this is the first resolution in the path
-      if (conflict.path === path && resolution !== 'unresolved') {
-        const pathConflicts = conflictsByPath[path] || [];
-        const hasResolvedConflicts = pathConflicts.some(c => c.resolution !== 'unresolved');
-        const targetConflict = pathConflicts[conflictIndex];
-        
-        // If this is the first conflict being resolved in this path group
-        if (!hasResolvedConflicts && conflict !== targetConflict && conflict.resolution === 'unresolved') {
-          return { ...conflict, resolution };
-        }
+        return { ...conflict, resolution };
       }
       
       return conflict;
