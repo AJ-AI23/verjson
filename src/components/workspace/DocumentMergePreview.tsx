@@ -15,6 +15,7 @@ import { CheckCircle, AlertTriangle, ArrowUpDown, GitMerge, Layers, ChevronDown,
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableAccordionItem } from './SortableAccordionItem';
+import { SortableConflictItem } from './SortableConflictItem';
 
 interface DocumentMergePreviewProps {
   documents: Document[];
@@ -54,6 +55,15 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
 
   // Keep track of path order for controlled merging (draggable)
   const [pathOrder, setPathOrder] = useState<string[]>(() => Object.keys(conflictsByPath));
+  
+  // Keep track of conflict order within each path
+  const [conflictOrders, setConflictOrders] = useState<{ [path: string]: string[] }>(() => {
+    const orders: { [path: string]: string[] } = {};
+    Object.keys(conflictsByPath).forEach(path => {
+      orders[path] = conflictsByPath[path].map((_, index) => `${path}-${index}`);
+    });
+    return orders;
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -97,30 +107,35 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
     const { active, over } = event;
 
     if (active.id !== over.id) {
-      setPathOrder((items) => {
-        const oldIndex = items.indexOf(active.id);
-        const newIndex = items.indexOf(over.id);
-
-        const newOrder = arrayMove(items, oldIndex, newIndex);
-        
-        // Reapply conflict resolutions with new path order
-        const finalMergedSchema = DocumentMergeEngine.applyConflictResolutions(
-          mergeResult.mergedSchema,
-          mergeResult.conflicts,
-          newOrder
+      // Check if it's a path reordering or conflict reordering
+      if (pathOrder.includes(active.id)) {
+        // Path reordering
+        setPathOrder((items) => {
+          const oldIndex = items.indexOf(active.id);
+          const newIndex = items.indexOf(over.id);
+          return arrayMove(items, oldIndex, newIndex);
+        });
+      } else {
+        // Conflict reordering within a path
+        const pathKey = Object.keys(conflictOrders).find(path => 
+          conflictOrders[path].includes(active.id)
         );
-
-        const updatedResult: DocumentMergeResult = {
-          ...mergeResult,
-          mergedSchema: finalMergedSchema
-        };
-
-        onConflictResolve?.(updatedResult);
         
-        return newOrder;
-      });
+        if (pathKey) {
+          setConflictOrders(prev => {
+            const oldOrder = prev[pathKey];
+            const oldIndex = oldOrder.indexOf(active.id);
+            const newIndex = oldOrder.indexOf(over.id);
+            
+            return {
+              ...prev,
+              [pathKey]: arrayMove(oldOrder, oldIndex, newIndex)
+            };
+          });
+        }
+      }
     }
-  }, [mergeResult, onConflictResolve]);
+  }, [pathOrder, conflictOrders]);
 
   const getSeverityColor = (severity: MergeConflict['severity']) => {
     switch (severity) {
@@ -496,75 +511,36 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
                                 </div>
                               }
                             >
-                              <div className="space-y-4">
-                                {pathConflicts.map((conflict, conflictIndex) => (
-                                  <div key={`${conflict.path}-${conflictIndex}`} className="border rounded p-4 space-y-3">
-                                    <div className="flex items-center justify-between">
-                                      <Badge variant={
-                                        conflict.severity === 'high' ? 'destructive' : 
-                                        conflict.severity === 'medium' ? 'default' : 'secondary'
-                                      }>
-                                        {conflict.severity} severity
-                                      </Badge>
-                                      <Badge variant="outline">{conflict.type}</Badge>
-                                    </div>
-                                    
-                                    <div className="text-sm">
-                                      <p className="font-medium">{conflict.description}</p>
-                                      {conflict.suggestedResolution && (
-                                        <p className="text-muted-foreground mt-1">
-                                          Suggestion: {conflict.suggestedResolution}
-                                        </p>
-                                      )}
-                                    </div>
+                              <DndContext
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={handleDragEnd}
+                              >
+                                <SortableContext items={conflictOrders[path] || []} strategy={verticalListSortingStrategy}>
+                                  <div className="space-y-3">
+                                    {(conflictOrders[path] || []).map((conflictId) => {
+                                      const conflictIndex = parseInt(conflictId.split('-').pop() || '0');
+                                      const conflict = pathConflicts[conflictIndex];
+                                      if (!conflict) return null;
 
-                                    <div className="space-y-2">
-                                      <div className="text-sm font-medium">Resolution:</div>
-                                      <Select
-                                        value={conflict.resolution || 'unresolved'}
-                                        onValueChange={(value) => handleConflictResolution(conflict.path, conflictIndex, value as any)}
-                                      >
-                                        <SelectTrigger className="w-full">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="unresolved">Unresolved</SelectItem>
-                                          <SelectItem value="current">Keep Current Value</SelectItem>
-                                          <SelectItem value="incoming">Use Incoming Value</SelectItem>
-                                          <SelectItem value="additive">Smart Merge (Prefer Non-null)</SelectItem>
-                                          <SelectItem value="custom">Custom Value</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-
-                                    {conflict.resolution === 'custom' && (
-                                      <div className="space-y-2">
-                                        <div className="text-sm font-medium">Custom Value:</div>
-                                        <Input
-                                          value={conflict.customValue || ''}
-                                          onChange={(e) => handleCustomValue(conflict.path, conflictIndex, e.target.value)}
-                                          placeholder="Enter custom value"
+                                      return (
+                                        <SortableConflictItem
+                                          key={conflictId}
+                                          id={conflictId}
+                                          conflict={conflict}
+                                          conflictIndex={conflictIndex}
+                                          path={path}
+                                          onConflictResolve={handleConflictResolution}
+                                          onCustomValue={handleCustomValue}
+                                          formatJsonValue={formatJsonValue}
+                                          getSeverityColor={getSeverityColor}
+                                          getSeverityIcon={getSeverityIcon}
                                         />
-                                      </div>
-                                    )}
-
-                                    <div className="grid grid-cols-2 gap-4 text-xs">
-                                      <div>
-                                        <div className="font-medium text-muted-foreground mb-1">Current Value:</div>
-                                        <pre className="bg-muted p-2 rounded overflow-auto max-h-20">
-                                          {JSON.stringify(conflict.currentValue, null, 2)}
-                                        </pre>
-                                      </div>
-                                      <div>
-                                        <div className="font-medium text-muted-foreground mb-1">Incoming Value:</div>
-                                        <pre className="bg-muted p-2 rounded overflow-auto max-h-20">
-                                          {JSON.stringify(conflict.incomingValue, null, 2)}
-                                        </pre>
-                                      </div>
-                                    </div>
+                                      );
+                                    })}
                                   </div>
-                                ))}
-                              </div>
+                                </SortableContext>
+                              </DndContext>
                             </SortableAccordionItem>
                           );
                         })}
