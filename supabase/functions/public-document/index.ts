@@ -104,11 +104,22 @@ Deno.serve(async (req) => {
         name, 
         created_at, 
         updated_at,
-        workspace_id,
-        workspaces!documents_workspace_id_fkey(name)
+        workspace_id
       `)
       .eq('id', documentId)
       .single();
+
+    // Fetch workspace name separately if document exists
+    let workspaceName = null;
+    if (document && document.workspace_id) {
+      const { data: workspace } = await supabase
+        .from('workspaces')
+        .select('name')
+        .eq('id', document.workspace_id)
+        .single();
+      
+      workspaceName = workspace?.name;
+    }
 
     if (error) {
       console.error('Error fetching document:', error);
@@ -153,7 +164,7 @@ Deno.serve(async (req) => {
       // Format for Confluence plugin display
       const metadata = includeMetadata ? {
         name: document.name,
-        workspace: document.workspaces?.name,
+        workspace: workspaceName,
         created_at: document.created_at,
         updated_at: document.updated_at,
         document_id: documentId
@@ -169,7 +180,7 @@ Deno.serve(async (req) => {
       responseContent = includeMetadata ? {
         content: document.content,
         name: document.name,
-        workspace: document.workspaces?.name,
+        workspace: workspaceName,
         created_at: document.created_at,
         updated_at: document.updated_at,
         document_id: documentId
