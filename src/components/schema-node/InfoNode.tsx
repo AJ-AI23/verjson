@@ -26,7 +26,10 @@ interface InfoNodeProps {
 }
 
 export const InfoNode = memo(({ data, isConnectable, id, onAddNotation }: InfoNodeProps) => {
-  const { title, version, description, properties, notations = [], notationCount = 0, hasNotations = false } = data;
+  const { title, version, description, properties = [], notations = [], notationCount = 0, hasNotations = false } = data;
+
+  // Add safety check for properties array
+  const safeProperties = Array.isArray(properties) ? properties : [];
 
   return (
     <div className={cn(
@@ -60,11 +63,11 @@ export const InfoNode = memo(({ data, isConnectable, id, onAddNotation }: InfoNo
           )}
         </div>
         
-        {properties.length > 0 && (
+        {safeProperties.length > 0 && (
           <div className="border-t pt-2">
             <div className="text-xs font-medium mb-1">Info Properties:</div>
             <div className="grid gap-1">
-              {properties.slice(0, 4).map((prop, index) => (
+              {safeProperties.slice(0, 4).map((prop, index) => (
                 <div key={index} className="flex flex-col gap-0.5 text-xs">
                   <span className="font-medium text-slate-600">{prop.name}:</span>
                   <span className="text-slate-500 break-words leading-tight" title={prop.value}>
@@ -72,9 +75,9 @@ export const InfoNode = memo(({ data, isConnectable, id, onAddNotation }: InfoNo
                   </span>
                 </div>
               ))}
-              {properties.length > 4 && (
+              {safeProperties.length > 4 && (
                 <div className="text-xs text-slate-400">
-                  +{properties.length - 4} more properties
+                  +{safeProperties.length - 4} more properties
                 </div>
               )}
             </div>
