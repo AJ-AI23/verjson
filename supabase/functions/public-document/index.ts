@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
         created_at, 
         updated_at,
         workspace_id,
-        workspaces!inner(name)
+        workspaces!documents_workspace_id_fkey(name)
       `)
       .eq('id', documentId)
       .single();
