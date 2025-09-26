@@ -19,6 +19,8 @@ import {
 } from '@/components/ui/select';
 import { UserPlus, Mail } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/hooks/use-toast';
 
 interface InviteCollaboratorDialogProps {
   open: boolean;
@@ -33,6 +35,7 @@ export function InviteCollaboratorDialog({
   onInvite,
   documentName,
 }: InviteCollaboratorDialogProps) {
+  const { user } = useAuth();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'editor' | 'viewer'>('editor');
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -40,6 +43,16 @@ export function InviteCollaboratorDialog({
 
   const handleInvite = async () => {
     if (!email.trim()) return;
+
+    // Check if user is trying to invite themselves
+    if (user?.email && email.trim().toLowerCase() === user.email.toLowerCase()) {
+      toast({
+        title: "Cannot invite yourself",
+        description: "You cannot send an invitation to your own email address.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsInviting(true);
     console.log('🔔 InviteCollaboratorDialog - State values:', {

@@ -19,6 +19,8 @@ import {
 } from '@/components/ui/select';
 import { Building, Mail } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/hooks/use-toast';
 
 interface WorkspaceInviteDialogProps {
   open: boolean;
@@ -33,6 +35,7 @@ export function WorkspaceInviteDialog({
   onInvite,
   workspaceName,
 }: WorkspaceInviteDialogProps) {
+  const { user } = useAuth();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'editor' | 'viewer'>('editor');
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -40,6 +43,16 @@ export function WorkspaceInviteDialog({
 
   const handleInvite = async () => {
     if (!email.trim()) return;
+
+    // Check if user is trying to invite themselves
+    if (user?.email && email.trim().toLowerCase() === user.email.toLowerCase()) {
+      toast({
+        title: "Cannot invite yourself",
+        description: "You cannot send a workspace invitation to your own email address.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsInviting(true);
     console.log('🔔 WorkspaceInviteDialog - Sending invitation with emailNotifications:', emailNotifications);

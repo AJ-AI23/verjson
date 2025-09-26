@@ -22,6 +22,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Users, Mail, FileText, Edit3, Eye } from 'lucide-react';
 import { Document } from '@/types/workspace';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/hooks/use-toast';
 
 interface BulkInviteDialogProps {
   open: boolean;
@@ -36,6 +38,7 @@ export function BulkInviteDialog({
   onInvite,
   documents,
 }: BulkInviteDialogProps) {
+  const { user } = useAuth();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'editor' | 'viewer'>('editor');
   const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
@@ -59,6 +62,16 @@ export function BulkInviteDialog({
 
   const handleInvite = async () => {
     if (!email.trim() || selectedDocuments.length === 0) return;
+
+    // Check if user is trying to invite themselves
+    if (user?.email && email.trim().toLowerCase() === user.email.toLowerCase()) {
+      toast({
+        title: "Cannot invite yourself",
+        description: "You cannot send document invitations to your own email address.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsInviting(true);
     const success = await onInvite(email, selectedDocuments, role);
