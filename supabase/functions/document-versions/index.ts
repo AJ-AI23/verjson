@@ -85,7 +85,7 @@ serve(async (req) => {
     logger.logError('Request processing failed', error);
     
     // Handle specific permission errors with appropriate status codes
-    const errorMessage = error.message || 'Internal server error';
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     
     if (errorMessage === 'Document not found') {
       return new Response(
@@ -297,7 +297,8 @@ async function validateDocumentAccess(supabaseClient: any, documentId: string, u
     throw new Error('Access denied - insufficient permissions');
 
   } catch (error) {
-    if (error.message === 'Document not found' || error.message === 'Access denied - insufficient permissions') {
+    if ((error instanceof Error && error.message === 'Document not found') || 
+        (error instanceof Error && error.message === 'Access denied - insufficient permissions')) {
       logger.error('🚫 Permission validation failed', { documentId, userId, errorMessage: error.message });
       throw error;
     }

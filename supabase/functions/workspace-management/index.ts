@@ -139,7 +139,7 @@ const handler = async (req: Request): Promise<Response> => {
               ...item.workspace,
               isOwner: false,
               role: item.role,
-              collaboratorCount: item.workspace.collaboratorCount?.[0]?.count || 0
+              collaboratorCount: (item.workspace as any).collaboratorCount?.[0]?.count || 0
             }));
 
           const allWorkspaces = [...formattedOwnWorkspaces, ...formattedInvitedWorkspaces]

@@ -111,7 +111,7 @@ serve(async (req) => {
     broadcastToDocument(documentId, {
       type: 'awareness',
       documentId,
-      userId,
+      userId: userId || undefined,
       awareness: {
         user: { id: userId, name: userName, avatar: userAvatar },
         joined: true
@@ -201,7 +201,7 @@ serve(async (req) => {
     broadcastToDocument(documentId, {
       type: 'awareness',
       documentId,
-      userId,
+      userId: userId || undefined,
       awareness: {
         user: { id: userId, name: userName, avatar: userAvatar },
         left: true

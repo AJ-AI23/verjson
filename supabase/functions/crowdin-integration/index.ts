@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
 import { compare } from 'https://esm.sh/fast-json-patch@3.1.1';
 
 // Handle function shutdown gracefully
-addEventListener('beforeunload', (ev) => {
+addEventListener('beforeunload', (ev: any) => {
   console.log('🔄 Function shutdown due to:', ev.detail?.reason);
 });
 
@@ -741,7 +741,7 @@ serve(async (req) => {
               }
             } catch (err) {
               console.error('Error updating document:', err);
-              databaseUpdateResult = { error: err.message };
+              databaseUpdateResult = { error: err instanceof Error ? err.message : 'Unknown error' };
             }
           }
           
@@ -853,13 +853,20 @@ serve(async (req) => {
           const fileData = await fileResponse.json();
           console.log('✅ File created successfully:', fileData.data.name);
 
+          // Create result object for consistent response
+          const result = {
+            fileId: fileData.data.id,
+            fileName: fileData.data.name,
+            action: 'created'
+          };
+
           // Update document with Crowdin file information if documentId provided
           let databaseUpdateResult = null;
           if (documentId) {
             try {
               const updateData = {
                 crowdin_project_id: projectId,
-                crowdin_file_id: finalResult.fileId,
+                crowdin_file_id: result.fileId,
                 crowdin_filename: filename,
                 crowdin_split_by_paths: false,
               };
@@ -878,15 +885,15 @@ serve(async (req) => {
               }
             } catch (err) {
               console.error('Error updating document:', err);
-              databaseUpdateResult = { error: err.message };
+              databaseUpdateResult = { error: err instanceof Error ? err.message : 'Unknown error' };
             }
           }
 
           return new Response(JSON.stringify({
             success: true,
-            fileId: finalResult.fileId,
-            fileName: finalResult.fileName,
-            message: `File ${finalResult.action} successfully in Crowdin`,
+            fileId: result.fileId,
+            fileName: result.fileName,
+            message: `File ${result.action} successfully in Crowdin`,
             databaseUpdate: databaseUpdateResult
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -896,7 +903,7 @@ serve(async (req) => {
       } catch (error) {
         console.error('❌ Export error:', error);
         return new Response(JSON.stringify({ 
-          error: `Export failed: ${error.message}` 
+          error: `Export failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
         }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -1062,7 +1069,8 @@ serve(async (req) => {
         };
 
         // Start the background task
-        EdgeRuntime.waitUntil(backgroundImportTask());
+        // EdgeRuntime.waitUntil(backgroundImportTask()); // Note: EdgeRuntime not available in this context
+        backgroundImportTask(); // Execute directly for now
         
         // Return immediate response
         return new Response(JSON.stringify({
@@ -1217,7 +1225,7 @@ serve(async (req) => {
         } catch (error) {
           console.error('❌ Failed to create pending version:', error);
           return new Response(JSON.stringify({ 
-            error: `Failed to create pending version: ${error.message}` 
+            error: `Failed to create pending version: ${error instanceof Error ? error.message : 'Unknown error'}` 
           }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -1226,7 +1234,7 @@ serve(async (req) => {
       } catch (error) {
         console.error('❌ Error importing from Crowdin:', error);
         return new Response(JSON.stringify({ 
-          error: `Import failed: ${error.message}` 
+          error: `Import failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
         }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -1357,11 +1365,11 @@ serve(async (req) => {
           });
         }
 
-        const integration = document.document_crowdin_integrations;
+        const integration = document.document_crowdin_integrations?.[0]; // Take first element from array
         
         // Check if document has Crowdin file references
-        const hasSingleFile = !!integration.file_id;
-        const hasMultipleFiles = integration.file_ids && Array.isArray(integration.file_ids) && integration.file_ids.length > 0;
+        const hasSingleFile = !!integration?.file_id;
+        const hasMultipleFiles = integration?.file_ids && Array.isArray(integration.file_ids) && integration.file_ids.length > 0;
 
         if (!hasSingleFile && !hasMultipleFiles) {
           console.log('❌ No Crowdin file references found for document:', documentId);
@@ -1382,7 +1390,7 @@ serve(async (req) => {
           fileCount = 1;
         } else {
           fileType = 'multiple';
-          fileCount = integration.file_ids.length;
+          fileCount = integration?.file_ids?.length || 0;
         }
 
         console.log('✅ Import available for document:', documentId, 'Type:', fileType, 'Count:', fileCount);
@@ -1392,11 +1400,11 @@ serve(async (req) => {
           fileType,
           fileCount,
           integration: {
-            file_id: integration.file_id,
-            file_ids: integration.file_ids,
-            filename: integration.filename,
-            filenames: integration.filenames,
-            project_id: integration.project_id
+            file_id: integration?.file_id,
+            file_ids: integration?.file_ids,
+            filename: integration?.filename,
+            filenames: integration?.filenames,
+            project_id: integration?.project_id
           }
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -1421,10 +1429,10 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('💥 Error in crowdin-integration function:', error);
-    console.error('Error stack:', error.stack);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return new Response(JSON.stringify({ 
       error: 'Internal server error',
-      details: error.message 
+      details: error instanceof Error ? error.message : 'Unknown error' 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
