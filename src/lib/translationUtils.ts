@@ -924,7 +924,18 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
   checkExamples(obj);
   checkSemanticRules(obj);
   
-  console.log('Total issues found:', issues.length);
+  console.log('Total issues found before deduplication:', issues.length);
   
-  return issues;
+  // Deduplicate issues based on path, type, and message to avoid showing duplicates
+  const uniqueIssues = issues.filter((issue, index, self) => 
+    index === self.findIndex(other => 
+      other.path === issue.path && 
+      other.type === issue.type && 
+      other.message === issue.message
+    )
+  );
+  
+  console.log('Total issues found after deduplication:', uniqueIssues.length);
+  
+  return uniqueIssues;
 }
