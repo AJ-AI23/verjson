@@ -348,6 +348,37 @@ export const QADialog: React.FC<QADialogProps> = ({
     }
   };
 
+  const handleExportConsistencyResults = () => {
+    try {
+      const exportData = {
+        document: documentName,
+        timestamp: new Date().toISOString(),
+        summary: {
+          totalIssues: translationData.consistencyIssues.length,
+          issueTypes: availableIssueTypes.length,
+          schemaType: translationData.schemaType
+        },
+        configuration: consistencyConfig,
+        issues: translationData.consistencyIssues.map(issue => ({
+          type: issue.type,
+          severity: issue.severity,
+          message: issue.message,
+          path: issue.path,
+          value: issue.value,
+          suggestion: issue.suggestion,
+          rule: issue.rule
+        }))
+      };
+
+      const filename = `${documentName}-consistency-results.json`;
+      downloadJsonFile(exportData, filename);
+      toast.success('Consistency results exported successfully');
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Failed to export consistency results');
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -728,37 +759,47 @@ export const QADialog: React.FC<QADialogProps> = ({
                   </div>
                 </TabsContent>
                 
-                <TabsContent value="consistency" className="flex-1 min-h-0 mt-4 data-[state=active]:flex data-[state=active]:flex-col">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Consistency Checks</h3>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleManualConsistencyCheck}
-                        disabled={isRunningConsistencyCheck}
-                        className="flex items-center gap-2"
-                      >
-                        {isRunningConsistencyCheck ? (
-                          <>Running...</>
-                        ) : (
-                          <>
-                            <CheckCircle className="h-4 w-4" />
-                            Run Check
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setConfigDialogOpen(true)}
-                        className="flex items-center gap-2"
-                      >
-                        <Settings className="h-4 w-4" />
-                        Configure Rules
-                      </Button>
-                    </div>
-                  </div>
+                 <TabsContent value="consistency" className="flex-1 min-h-0 mt-4 data-[state=active]:flex data-[state=active]:flex-col">
+                   <div className="flex items-center justify-between mb-4">
+                     <h3 className="text-lg font-semibold">Consistency Checks</h3>
+                     <div className="flex items-center gap-2">
+                       <Button
+                         variant="outline"
+                         size="sm"
+                         onClick={handleExportConsistencyResults}
+                         className="flex items-center gap-2"
+                         disabled={translationData.consistencyIssues.length === 0}
+                       >
+                         <Download className="h-4 w-4" />
+                         Export Results
+                       </Button>
+                       <Button
+                         variant="outline"
+                         size="sm"
+                         onClick={handleManualConsistencyCheck}
+                         disabled={isRunningConsistencyCheck}
+                         className="flex items-center gap-2"
+                       >
+                         {isRunningConsistencyCheck ? (
+                           <>Running...</>
+                         ) : (
+                           <>
+                             <CheckCircle className="h-4 w-4" />
+                             Run Check
+                           </>
+                         )}
+                       </Button>
+                       <Button
+                         variant="outline"
+                         size="sm"
+                         onClick={() => setConfigDialogOpen(true)}
+                         className="flex items-center gap-2"
+                       >
+                         <Settings className="h-4 w-4" />
+                         Configure Rules
+                       </Button>
+                     </div>
+                   </div>
                   <ScrollArea className="flex-1 min-h-0 w-full">
                     <div className="space-y-4">
                       {translationData.consistencyIssues.length === 0 ? (
