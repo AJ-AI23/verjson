@@ -364,8 +364,12 @@ export const QADialog: React.FC<QADialogProps> = ({
           severity: issue.severity,
           message: issue.message,
           path: issue.path,
-          value: issue.value,
+          currentName: issue.value,
+          suggestedName: issue.suggestedName,
+          convention: issue.convention,
+          parameterType: issue.parameterType,
           suggestion: issue.suggestion,
+          suggestedEnum: issue.suggestedEnum,
           rule: issue.rule
         }))
       };
@@ -958,10 +962,14 @@ export const QADialog: React.FC<QADialogProps> = ({
                                     </div>
                                   )}
                                   
-                                   {issue.type === 'parameter-naming' && issue.suggestedName && (
+                                  {/* Display suggested name for all naming-related issues */}
+                                  {(issue.type === 'parameter-naming' || 
+                                    issue.type === 'component-naming' || 
+                                    issue.type === 'endpoint-naming' || 
+                                    issue.type === 'property-naming') && issue.suggestedName && (
                                      <div>
                                        <div className="text-xs font-medium text-muted-foreground mb-1">
-                                         Suggested Name ({issue.convention || 'configured convention'}) for {issue.parameterType === 'path' ? 'Path' : issue.parameterType === 'query' ? 'Query' : issue.parameterType?.charAt(0).toUpperCase() + issue.parameterType?.slice(1) || 'Query'} Parameter:
+                                         Suggested Name ({issue.convention || 'configured convention'}):
                                        </div>
                                        <div className="text-sm bg-green-50 border border-green-200 p-2 rounded font-mono">
                                          "{issue.suggestedName}"

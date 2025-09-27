@@ -470,34 +470,31 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
       return { isValid: true };
     }
 
-    // Check prefix requirement
-    if (convention.prefix && !name.startsWith(convention.prefix)) {
-      const prefixSuggestion = convention.prefix + name;
-      console.log('Prefix requirement failed:', { name, prefix: convention.prefix, suggestion: prefixSuggestion });
-      return { 
-        isValid: false, 
-        suggestion: prefixSuggestion 
-      };
+    // Helper function to trim prefix/suffix case-insensitively
+    function trimPrefixSuffix(inputName: string, prefix?: string, suffix?: string): string {
+      let trimmed = inputName;
+      
+      // Remove existing prefix case-insensitively
+      if (prefix) {
+        const regex = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
+        if (regex.test(trimmed)) {
+          trimmed = trimmed.substring(prefix.length);
+        }
+      }
+      
+      // Remove existing suffix case-insensitively
+      if (suffix) {
+        const regex = new RegExp(`${suffix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+        if (regex.test(trimmed)) {
+          trimmed = trimmed.substring(0, trimmed.length - suffix.length);
+        }
+      }
+      
+      return trimmed;
     }
 
-    // Check suffix requirement
-    if (convention.suffix && !name.endsWith(convention.suffix)) {
-      const suffixSuggestion = name + convention.suffix;
-      console.log('Suffix requirement failed:', { name, suffix: convention.suffix, suggestion: suffixSuggestion });
-      return { 
-        isValid: false, 
-        suggestion: suffixSuggestion 
-      };
-    }
-
-    // Extract base name without prefix/suffix for case validation
-    let baseName = name;
-    if (convention.prefix) {
-      baseName = baseName.substring(convention.prefix.length);
-    }
-    if (convention.suffix) {
-      baseName = baseName.substring(0, baseName.length - convention.suffix.length);
-    }
+    // Extract base name for case conversion, trimming any existing prefix/suffix
+    let baseName = trimPrefixSuffix(name, convention.prefix, convention.suffix);
 
     const caseType = convention.caseType;
     let pattern: RegExp;
@@ -539,18 +536,41 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
         return { isValid: true };
     }
 
-    const isValid = pattern.test(baseName);
+    // Check if current name (after proper trimming) meets the case pattern
+    const currentBaseName = trimPrefixSuffix(name, convention.prefix, convention.suffix);
+    let isValidCase = true;
+    let hasCorrectPrefixSuffix = true;
+
+    // Check case pattern
+    if (pattern && !pattern.test(currentBaseName)) {
+      isValidCase = false;
+    }
+
+    // Check prefix requirement (case-sensitive)
+    if (convention.prefix && !name.startsWith(convention.prefix)) {
+      hasCorrectPrefixSuffix = false;
+    }
+
+    // Check suffix requirement (case-sensitive)
+    if (convention.suffix && !name.endsWith(convention.suffix)) {
+      hasCorrectPrefixSuffix = false;
+    }
+
+    const isValid = isValidCase && hasCorrectPrefixSuffix;
     
-    // Construct full suggestion with prefix/suffix if needed
+    // Always generate suggestion when invalid
     if (!isValid) {
       suggestion = (convention.prefix || '') + suggestion + (convention.suffix || '');
     }
     
     console.log('Pattern test result:', { 
       caseType, 
-      pattern: pattern.source, 
+      pattern: pattern?.source, 
       name, 
       baseName,
+      currentBaseName,
+      isValidCase,
+      hasCorrectPrefixSuffix,
       isValid, 
       suggestion 
     });

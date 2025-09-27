@@ -31,7 +31,12 @@ export interface ConsistencyIssue {
   type: string;
   message: string;
   path: string;
+  value?: string;
   suggestion?: string;
+  suggestedName?: string;
+  suggestedEnum?: string[];
+  convention?: string;
+  parameterType?: string;
   severity: 'error' | 'warning' | 'info';
   rule?: string;
 }
