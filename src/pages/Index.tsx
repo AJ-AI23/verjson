@@ -186,6 +186,9 @@ const Index = () => {
                     selectedDocument={selectedDocument}
                     onClearRequest={clearEditorRequest}
                     onClose={handleCloseDocument}
+                    onDocumentUpdate={(updates) => {
+                      setSelectedDocument(prev => prev ? { ...prev, ...updates } : null);
+                    }}
                   />
                 </div>
               )

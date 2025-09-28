@@ -15,6 +15,7 @@ import { RedoclyDialog } from '@/components/RedoclyDialog';
 import { DebugToggle } from '@/components/DebugToggle';
 import { QADialog } from '@/components/QADialog';
 import { OpenAPISplitDialog } from '@/components/OpenAPISplitDialog';
+import { DocumentConfigDialog } from '@/components/DocumentConfigDialog';
 
 import { SchemaType } from '@/lib/schemaUtils';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
@@ -35,6 +36,7 @@ interface EditorToolbarProps {
   documentName?: string;
   selectedDocument?: any;
   onClose?: () => void;
+  onDocumentUpdate?: (updates: { name?: string; is_public?: boolean }) => void;
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
@@ -51,6 +53,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   documentName,
   selectedDocument,
   onClose,
+  onDocumentUpdate,
 }) => {
   const { debugToast } = useDebug();
   const { updateMaxDepth } = useEditorSettings();
@@ -117,6 +120,11 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-4 min-w-0 flex-1">
                     <div className="flex items-center gap-2 min-w-0">
+                      <DocumentConfigDialog 
+                        document={selectedDocument}
+                        onDocumentUpdate={onDocumentUpdate || (() => {})}
+                        disabled={!selectedDocument}
+                      />
                       {getFileTypeIcon(selectedDocument.file_type)}
                       <h3 className="font-semibold text-foreground truncate">
                         {selectedDocument.name}

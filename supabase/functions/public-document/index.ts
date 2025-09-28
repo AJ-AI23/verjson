@@ -104,7 +104,8 @@ Deno.serve(async (req) => {
         name, 
         created_at, 
         updated_at,
-        workspace_id
+        workspace_id,
+        is_public
       `)
       .eq('id', documentId)
       .single();
@@ -137,6 +138,17 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: 'Document not found' }),
         { 
           status: 404, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Check if document is public
+    if (!document.is_public) {
+      return new Response(
+        JSON.stringify({ error: 'Document is not publicly accessible' }),
+        { 
+          status: 403, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       );

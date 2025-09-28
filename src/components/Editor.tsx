@@ -17,9 +17,10 @@ interface EditorProps {
   selectedDocument?: any;
   onClearRequest?: boolean;
   onClose?: () => void;
+  onDocumentUpdate?: (updates: { name?: string; is_public?: boolean }) => void;
 }
 
-export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, onClearRequest, onClose }: EditorProps) => {
+export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, onClearRequest, onClose, onDocumentUpdate }: EditorProps) => {
   const { user } = useAuth();
   
   // Convert initialSchema to string if it's an object to prevent crashes in versioning hooks
@@ -129,6 +130,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         documentName={documentName}
         selectedDocument={selectedDocument}
         onClose={onClose}
+        onDocumentUpdate={onDocumentUpdate}
       />
       
       <EditorContent
