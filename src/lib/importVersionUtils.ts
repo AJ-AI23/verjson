@@ -348,23 +348,22 @@ export function formatJsonPath(path: string): string {
   const decodedParts = parts.map((part, index) => {
     // Handle common URL encodings
     let decoded = part
-      .replace(/~1/g, '/')  // JSON Pointer escape for /
-      .replace(/~0/g, '~')  // JSON Pointer escape for ~
-      .replace(/%7B/g, '{') // URL encoding for {
-      .replace(/%7D/g, '}') // URL encoding for }
-      .replace(/%2F/g, '/') // URL encoding for /
-      .replace(/\{([^}]+)\}/g, '{$1}'); // Ensure path parameters are readable
-    
-    // If this is a path segment under 'paths' and it starts with a letter/number (indicating it should be an API path),
-    // and the previous part was 'paths', add the leading slash
-    if (index > 0 && parts[index - 1] === 'paths' && decoded && !decoded.startsWith('/')) {
-      decoded = '/' + decoded;
-    }
+      .replace(/~1/g, '/')
+      .replace(/~0/g, '~')
+      .replace(/%20/g, ' ')
+      .replace(/%2F/g, '/')
+      .replace(/%2E/g, '.');
     
     return decoded;
   });
   
-  return 'root.' + decodedParts.join('.');
+  // For root-level properties, just return the property name prefixed with 'root.'
+  if (decodedParts.length === 1) {
+    return `root.${decodedParts[0]}`;
+  }
+  
+  // For nested properties, build the full path
+  return `root.${decodedParts.join('.')}`;
 }
 
 /**

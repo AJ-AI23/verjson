@@ -181,19 +181,24 @@ export class DocumentMergeEngine {
       }
     }
 
-    // Set final result properties
+    // Set final result properties, preserving any merged root-level values
     const finalResult = {
       ...currentResult,
-      title: resultName,
-      description: `Merged schema from: ${documents.map(d => d.name).join(', ')}`
+      // Only set title if it wasn't already set by the merge process
+      ...(currentResult.title ? {} : { title: resultName }),
+      // Only set description if it wasn't already set by the merge process
+      ...(currentResult.description ? {} : { 
+        description: `Merged schema from: ${documents.map(d => d.name).join(', ')}` 
+      })
     };
 
-    // Handle different schema formats
-    if (finalResult.info) {
+    // Handle different schema formats - preserve merged info if it exists
+    if (finalResult.openapi || finalResult.swagger || finalResult.info) {
       finalResult.info = {
-        ...finalResult.info,
         title: resultName,
-        description: `Merged API specification from: ${documents.map(d => d.name).join(', ')}`
+        version: '1.0.0',
+        description: `Merged API specification from: ${documents.map(d => d.name).join(', ')}`,
+        ...finalResult.info, // Preserve any merged info properties
       };
     }
 
@@ -301,10 +306,48 @@ export class DocumentMergeEngine {
       return;
     }
 
-    // Split dot notation path and remove 'root' prefix
+    // Handle JSON pointer paths (e.g., "/title", "/tags")
+    if (path.startsWith('/')) {
+      const jsonPath = path.slice(1); // Remove leading slash
+      if (jsonPath === '') {
+        return; // Root path, nothing to set
+      }
+      
+      // For root-level properties, set directly on the object
+      if (!jsonPath.includes('/')) {
+        obj[jsonPath] = value;
+        return;
+      }
+      
+      // For nested paths, split and navigate
+      const pathParts = jsonPath.split('/');
+      let current = obj;
+      
+      // Navigate to the parent object
+      for (let i = 0; i < pathParts.length - 1; i++) {
+        const part = pathParts[i];
+        if (!current[part]) {
+          current[part] = {};
+        }
+        current = current[part];
+      }
+      
+      // Set the final value
+      const finalPart = pathParts[pathParts.length - 1];
+      current[finalPart] = value;
+      return;
+    }
+
+    // Handle dot notation paths and remove 'root' prefix
     const pathParts = path.split('.').filter(part => part !== '' && part !== 'root');
     
     if (pathParts.length === 0) {
+      return;
+    }
+    
+    // For single-level paths (root-level properties), set directly
+    if (pathParts.length === 1) {
+      obj[pathParts[0]] = value;
       return;
     }
     
