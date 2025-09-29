@@ -281,7 +281,7 @@ export class DocumentMergeEngine {
   }
 
   /**
-   * Get the additive value (non-null preference)
+   * Get the additive value with special array handling for Smart Merge
    */
   private static getAdditiveValue(currentValue: any, incomingValue: any): any {
     // If one is null/undefined and the other isn't, prefer the non-null
@@ -293,8 +293,68 @@ export class DocumentMergeEngine {
         (currentValue !== null && currentValue !== undefined)) {
       return currentValue;
     }
+
+    // Special handling for arrays - merge array items intelligently
+    if (Array.isArray(currentValue) && Array.isArray(incomingValue)) {
+      return this.mergeArrays(currentValue, incomingValue);
+    }
+
     // If both are non-null or both are null, prefer incoming (default behavior)
     return incomingValue;
+  }
+
+  /**
+   * Merge arrays by combining items, avoiding duplicates based on content
+   */
+  private static mergeArrays(currentArray: any[], incomingArray: any[]): any[] {
+    console.log('🔄 Merging arrays:', { currentArray, incomingArray });
+    
+    const result = [...currentArray]; // Start with current array
+    
+    // Add items from incoming array that don't already exist
+    incomingArray.forEach(incomingItem => {
+      const exists = currentArray.some(currentItem => 
+        this.areArrayItemsEqual(currentItem, incomingItem)
+      );
+      
+      if (!exists) {
+        result.push(incomingItem);
+        console.log('➕ Added unique array item:', incomingItem);
+      } else {
+        console.log('⏭️ Skipped duplicate array item:', incomingItem);
+      }
+    });
+    
+    console.log('✅ Array merge result:', result);
+    return result;
+  }
+
+  /**
+   * Compare array items for equality, handling both primitive and object types
+   */
+  private static areArrayItemsEqual(item1: any, item2: any): boolean {
+    // Handle primitive values
+    if (item1 === item2) {
+      return true;
+    }
+    
+    // Handle null/undefined cases
+    if (item1 == null || item2 == null) {
+      return item1 == item2;
+    }
+    
+    // Handle objects/arrays by comparing JSON strings
+    if (typeof item1 === 'object' && typeof item2 === 'object') {
+      try {
+        return JSON.stringify(item1) === JSON.stringify(item2);
+      } catch (error) {
+        console.warn('Error comparing array items:', error);
+        return false;
+      }
+    }
+    
+    // Handle other types
+    return String(item1) === String(item2);
   }
 
   /**
