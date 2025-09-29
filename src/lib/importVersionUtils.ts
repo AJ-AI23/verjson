@@ -395,7 +395,7 @@ export function getImportValueAtPath(importSchema: any, path: string): any {
 }
 
 /**
- * Apply import patches to create merged schema
+ * Apply import patches to create merged schema with intelligent array handling
  * For partial imports, use the merged schema result directly
  */
 export function applyImportPatches(currentSchema: any, patches: Operation[], mergedSchema?: any): any {
@@ -404,14 +404,139 @@ export function applyImportPatches(currentSchema: any, patches: Operation[], mer
     return mergedSchema;
   }
   
-  // Otherwise apply patches normally
+  // Apply patches with special array handling
   const targetSchema = JSON.parse(JSON.stringify(currentSchema));
   
   try {
-    const result = applyPatch(targetSchema, patches, false, false);
-    return result.newDocument;
+    // Group patches by their root path to detect array operations
+    const arrayPatches = detectArrayPatches(patches, currentSchema, targetSchema);
+    
+    // Apply array patches first using smart merge logic
+    arrayPatches.forEach(arrayPatch => {
+      applySmartArrayMerge(targetSchema, arrayPatch);
+    });
+    
+    // Apply remaining non-array patches
+    const nonArrayPatches = patches.filter(patch => 
+      !arrayPatches.some(ap => patch.path.startsWith(ap.path))
+    );
+    
+    if (nonArrayPatches.length > 0) {
+      const result = applyPatch(targetSchema, nonArrayPatches, false, false);
+      return result.newDocument;
+    }
+    
+    return targetSchema;
   } catch (error) {
     console.error('Error applying import patches:', error);
     throw new Error('Failed to apply import patches to schema');
   }
+}
+
+/**
+ * Detect patches that are operating on arrays and should be merged intelligently
+ */
+function detectArrayPatches(patches: Operation[], currentSchema: any, importSchema: any): Array<{path: string, currentValue: any[], importValue: any[]}> {
+  const arrayPaths = new Set<string>();
+  const arrayPatches: Array<{path: string, currentValue: any[], importValue: any[]}> = [];
+  
+  // Find patches that are operating on array indices
+  patches.forEach(patch => {
+    const pathParts = patch.path.split('/').filter(p => p);
+    
+    // Check if this is an array index operation (path ends with a number)
+    if (pathParts.length > 0) {
+      const lastPart = pathParts[pathParts.length - 1];
+      if (/^\d+$/.test(lastPart)) {
+        // This is an array index operation
+        const arrayPath = '/' + pathParts.slice(0, -1).join('/');
+        arrayPaths.add(arrayPath);
+      }
+    }
+  });
+  
+  // For each detected array path, get the current and import values
+  arrayPaths.forEach(arrayPath => {
+    const currentValue = getCurrentValue(currentSchema, arrayPath);
+    const importValue = getCurrentValue(importSchema, arrayPath);
+    
+    if (Array.isArray(currentValue) && Array.isArray(importValue)) {
+      arrayPatches.push({
+        path: arrayPath,
+        currentValue,
+        importValue
+      });
+    }
+  });
+  
+  console.log('🔍 Detected array patches:', arrayPatches);
+  return arrayPatches;
+}
+
+/**
+ * Apply smart array merge logic to combine arrays
+ */
+function applySmartArrayMerge(targetSchema: any, arrayPatch: {path: string, currentValue: any[], importValue: any[]}): void {
+  console.log('🔄 Applying smart array merge for path:', arrayPatch.path);
+  
+  // Merge arrays by combining unique items
+  const mergedArray = [...arrayPatch.currentValue];
+  
+  arrayPatch.importValue.forEach(importItem => {
+    const exists = arrayPatch.currentValue.some(currentItem => 
+      areArrayItemsEqual(currentItem, importItem)
+    );
+    
+    if (!exists) {
+      mergedArray.push(importItem);
+      console.log('➕ Added unique array item:', importItem);
+    } else {
+      console.log('⏭️ Skipped duplicate array item:', importItem);
+    }
+  });
+  
+  // Set the merged array in the target schema
+  setValueAtJsonPath(targetSchema, arrayPatch.path, mergedArray);
+  console.log('✅ Array merge completed for', arrayPatch.path, ':', mergedArray);
+}
+
+/**
+ * Compare array items for equality
+ */
+function areArrayItemsEqual(item1: any, item2: any): boolean {
+  if (item1 === item2) return true;
+  if (item1 == null || item2 == null) return item1 == item2;
+  
+  if (typeof item1 === 'object' && typeof item2 === 'object') {
+    try {
+      return JSON.stringify(item1) === JSON.stringify(item2);
+    } catch (error) {
+      return false;
+    }
+  }
+  
+  return String(item1) === String(item2);
+}
+
+/**
+ * Set value at JSON path
+ */
+function setValueAtJsonPath(obj: any, path: string, value: any): void {
+  if (!path || path === '/') return;
+  
+  const pathParts = path.slice(1).split('/'); // Remove leading slash and split
+  let current = obj;
+  
+  // Navigate to parent
+  for (let i = 0; i < pathParts.length - 1; i++) {
+    const part = pathParts[i];
+    if (!current[part]) {
+      current[part] = {};
+    }
+    current = current[part];
+  }
+  
+  // Set final value
+  const finalPart = pathParts[pathParts.length - 1];
+  current[finalPart] = value;
 }
