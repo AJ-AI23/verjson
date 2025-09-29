@@ -217,6 +217,39 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
     onConflictResolve?.(updatedResult);
   }, [mergeResult, onConflictResolve]);
 
+  const handleBulkResolve = useCallback((conflicts: MergeConflict[], resolution: MergeConflict['resolution']) => {
+    const updatedConflicts = mergeResult.conflicts.map(conflict => {
+      // Check if this conflict should be bulk resolved
+      const shouldUpdate = conflicts.some(c => c.path === conflict.path && c.description === conflict.description);
+      
+      if (shouldUpdate) {
+        return { ...conflict, resolution };
+      }
+      
+      return conflict;
+    });
+
+    const finalMergedSchema = DocumentMergeEngine.applyConflictResolutions(
+      mergeResult.mergedSchema,
+      updatedConflicts,
+      pathOrder
+    );
+
+    const updatedResult: DocumentMergeResult = {
+      ...mergeResult,
+      conflicts: updatedConflicts,
+      mergedSchema: finalMergedSchema,
+      summary: {
+        ...mergeResult.summary,
+        resolvedConflicts: updatedConflicts.filter(c => c.resolution !== 'unresolved').length,
+        unresolvedConflicts: updatedConflicts.filter(c => c.resolution === 'unresolved').length
+      }
+    };
+
+    setMergeResult(updatedResult);
+    onConflictResolve?.(updatedResult);
+  }, [mergeResult, pathOrder, onConflictResolve]);
+
   const toggleConflictExpansion = (index: number) => {
     const newExpanded = new Set(expandedConflicts);
     if (newExpanded.has(index)) {
@@ -542,18 +575,20 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
                                       if (!conflict) return null;
 
                                       return (
-                                        <SortableConflictItem
-                                          key={conflictId}
-                                          id={conflictId}
-                                          conflict={conflict}
-                                          conflictIndex={conflictIndex}
-                                          path={path}
-                                          onConflictResolve={handleConflictResolution}
-                                          onCustomValue={handleCustomValue}
-                                          formatJsonValue={formatJsonValue}
-                                          getSeverityColor={getSeverityColor}
-                                          getSeverityIcon={getSeverityIcon}
-                                        />
+                                         <SortableConflictItem
+                                           key={conflictId}
+                                           id={conflictId}
+                                           conflict={conflict}
+                                           conflictIndex={conflictIndex}
+                                           path={path}
+                                           onConflictResolve={handleConflictResolution}
+                                           onCustomValue={handleCustomValue}
+                                           formatJsonValue={formatJsonValue}
+                                           getSeverityColor={getSeverityColor}
+                                           getSeverityIcon={getSeverityIcon}
+                                           allConflicts={mergeResult.conflicts}
+                                           onBulkResolve={handleBulkResolve}
+                                         />
                                       );
                                     })}
                                   </div>

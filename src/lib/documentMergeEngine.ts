@@ -110,7 +110,7 @@ export class DocumentMergeEngine {
   }
 
   /**
-   * Sequential merge using import version comparison approach
+   * Sequential merge using import version comparison approach with enhanced array conflict detection
    */
   private static mergeDocumentsSequentially(documents: Document[], resultName: string): DocumentMergeResult {
     console.log('🔄 Starting sequential merge of', documents.length, 'documents');
@@ -134,7 +134,7 @@ export class DocumentMergeEngine {
         // Apply patches to get merged result
         const stepResult = applyImportPatches(currentResult, comparison.patches);
         
-        // Convert import conflicts to merge conflicts
+        // Convert import conflicts to merge conflicts and detect array item conflicts
         const stepConflicts = comparison.mergeConflicts.map(conflict => ({
           path: conflict.path,
           type: this.mapConflictType(conflict.conflictType),
@@ -148,14 +148,17 @@ export class DocumentMergeEngine {
           incomingValue: conflict.importValue
         }));
 
-        allConflicts.push(...stepConflicts);
+        // Enhance with array item-level conflicts
+        const enhancedConflicts = this.enhanceArrayConflicts(stepConflicts, currentResult, currentDoc.content);
+        
+        allConflicts.push(...enhancedConflicts);
         
         // Track merge step
         mergeSteps.push({
           stepNumber: i,
           fromDocument: currentDoc.name,
           patches: comparison.patches,
-          conflicts: stepConflicts.length
+          conflicts: enhancedConflicts.length
         });
 
         // Update accumulated result
@@ -165,7 +168,7 @@ export class DocumentMergeEngine {
         const addedInStep = comparison.patches.filter(p => p.op === 'add').length;
         totalAddedProperties += addedInStep;
 
-        console.log(`✅ Step ${i} completed. Added ${addedInStep} properties, ${stepConflicts.length} conflicts`);
+        console.log(`✅ Step ${i} completed. Added ${addedInStep} properties, ${enhancedConflicts.length} conflicts`);
 
       } catch (error) {
         console.error(`❌ Error in merge step ${i}:`, error);
@@ -230,7 +233,118 @@ export class DocumentMergeEngine {
   }
 
   /**
-   * Apply conflict resolutions to generate final merged schema with path ordering
+   * Enhance conflicts by detecting array item-level conflicts
+   */
+  private static enhanceArrayConflicts(
+    baseConflicts: MergeConflict[], 
+    currentSchema: any, 
+    incomingSchema: any
+  ): MergeConflict[] {
+    const enhancedConflicts = [...baseConflicts];
+    const processedArrayPaths = new Set<string>();
+
+    // Group property conflicts by array path to detect item-level conflicts
+    const arrayPropertyConflicts = baseConflicts.filter(conflict => {
+      const match = conflict.path.match(/^(root\.[^.]*(?:\.[^.]*)*)\.\d+(?:\.|$)/);
+      return match !== null;
+    });
+
+    // Process each array path
+    arrayPropertyConflicts.forEach(conflict => {
+      const match = conflict.path.match(/^(root\.[^.]*(?:\.[^.]*)*)\.\d+/);
+      if (!match) return;
+      
+      const arrayPath = match[1];
+      const itemIndexMatch = conflict.path.match(/^root\.[^.]*(?:\.[^.]*)*\.(\d+)/);
+      if (!itemIndexMatch) return;
+      
+      const itemIndex = parseInt(itemIndexMatch[1]);
+      const itemPath = `${arrayPath}[${itemIndex}]`;
+
+      // Skip if we already processed this array item
+      if (processedArrayPaths.has(itemPath)) return;
+      processedArrayPaths.add(itemPath);
+
+      // Get the array values
+      const currentArray = this.getValueAtPath(currentSchema, arrayPath);
+      const incomingArray = this.getValueAtPath(incomingSchema, arrayPath);
+
+      if (Array.isArray(currentArray) && Array.isArray(incomingArray)) {
+        const currentItem = currentArray[itemIndex];
+        const incomingItem = incomingArray[itemIndex];
+
+        // Create item-level conflict if items differ
+        if (currentItem !== undefined && incomingItem !== undefined &&
+            JSON.stringify(currentItem) !== JSON.stringify(incomingItem)) {
+          
+          enhancedConflicts.unshift({
+            path: itemPath,
+            type: 'duplicate_key',
+            severity: 'medium',
+            description: `Array item at index ${itemIndex} has different content`,
+            documents: conflict.documents,
+            values: [currentItem, incomingItem],
+            suggestedResolution: 'Choose Smart Merge to combine array items intelligently',
+            resolution: 'unresolved' as const,
+            currentValue: currentItem,
+            incomingValue: incomingItem
+          });
+        } else if (currentItem === undefined && incomingItem !== undefined) {
+          // New item being added
+          enhancedConflicts.unshift({
+            path: itemPath,
+            type: 'duplicate_key',
+            severity: 'low',
+            description: `New array item will be added at index ${itemIndex}`,
+            documents: conflict.documents,
+            values: [undefined, incomingItem],
+            suggestedResolution: 'Use Smart Merge to add new item',
+            resolution: 'unresolved' as const,
+            currentValue: undefined,
+            incomingValue: incomingItem
+          });
+        } else if (currentItem !== undefined && incomingItem === undefined) {
+          // Item being removed
+          enhancedConflicts.unshift({
+            path: itemPath,
+            type: 'duplicate_key',
+            severity: 'medium',
+            description: `Array item at index ${itemIndex} will be removed`,
+            documents: conflict.documents,
+            values: [currentItem, undefined],
+            suggestedResolution: 'Choose resolution for item removal',
+            resolution: 'unresolved' as const,
+            currentValue: currentItem,
+            incomingValue: undefined
+          });
+        }
+      }
+    });
+
+    return enhancedConflicts;
+  }
+
+  /**
+   * Get value at dot notation path
+   */
+  private static getValueAtPath(obj: any, path: string): any {
+    if (!path || path === 'root') return obj;
+    
+    const pathParts = path.split('.').filter(part => part !== 'root');
+    let current = obj;
+    
+    for (const part of pathParts) {
+      if (current === null || current === undefined) {
+        return undefined;
+      }
+      current = current[part];
+    }
+    
+    return current;
+  }
+
+  /**
+   * Apply conflict resolutions to generate final merged schema with path ordering and cascading resolution
    */
   static applyConflictResolutions(baseSchema: any, conflicts: MergeConflict[], pathOrder?: string[]): any {
     let result = JSON.parse(JSON.stringify(baseSchema));
@@ -246,6 +360,9 @@ export class DocumentMergeEngine {
     
     // Apply conflicts in specified path order, or default order if no order specified
     const pathsToProcess = pathOrder || Object.keys(conflictsByPath);
+    
+    // Handle cascading resolution for array items first
+    this.applyCascadingResolution(conflicts);
     
     pathsToProcess.forEach(path => {
       const pathConflicts = conflictsByPath[path] || [];
@@ -278,6 +395,30 @@ export class DocumentMergeEngine {
     });
     
     return result;
+  }
+
+  /**
+   * Apply cascading resolution when array item conflicts are resolved as 'additive'
+   */
+  private static applyCascadingResolution(conflicts: MergeConflict[]): void {
+    conflicts.forEach(conflict => {
+      if (conflict.resolution === 'additive' && conflict.path.includes('[') && conflict.path.includes(']')) {
+        // This is an array item-level conflict resolved as additive
+        const itemPath = conflict.path;
+        
+        // Find all property-level conflicts within this array item and auto-resolve them
+        const itemPropertyConflicts = conflicts.filter(c => 
+          c.path.startsWith(itemPath.replace(/\[(\d+)\]/, '.$1.')) && c.path !== itemPath
+        );
+        
+        itemPropertyConflicts.forEach(propertyConflict => {
+          if (propertyConflict.resolution === 'unresolved' || propertyConflict.resolution === 'additive') {
+            propertyConflict.resolution = 'additive';
+            console.log(`🔄 Cascading additive resolution to property: ${propertyConflict.path}`);
+          }
+        });
+      }
+    });
   }
 
   /**

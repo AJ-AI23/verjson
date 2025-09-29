@@ -19,6 +19,8 @@ interface SortableConflictItemProps {
   formatJsonValue: (value: any) => string;
   getSeverityColor: (severity: MergeConflict['severity']) => string;
   getSeverityIcon: (severity: MergeConflict['severity']) => React.ReactNode;
+  allConflicts?: MergeConflict[];
+  onBulkResolve?: (conflicts: MergeConflict[], resolution: MergeConflict['resolution']) => void;
 }
 
 export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
@@ -30,7 +32,9 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
   onCustomValue,
   formatJsonValue,
   getSeverityColor,
-  getSeverityIcon
+  getSeverityIcon,
+  allConflicts,
+  onBulkResolve
 }) => {
   const {
     attributes,
@@ -45,6 +49,33 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+  };
+
+  const isArrayItemConflict = path.includes('[') && path.includes(']');
+
+  const handleResolutionChange = (resolution: MergeConflict['resolution']) => {
+    onConflictResolve(path, conflictIndex, resolution);
+    
+    // Handle cascading resolution for array item conflicts
+    if (isArrayItemConflict && resolution === 'additive' && allConflicts && onBulkResolve) {
+      // Find all property-level conflicts within this array item
+      const itemPath = path;
+      const itemIndexMatch = itemPath.match(/\[(\d+)\]/);
+      if (itemIndexMatch) {
+        const itemIndex = itemIndexMatch[1];
+        const arrayPath = itemPath.replace(/\[(\d+)\]/, '');
+        const propertyPathPrefix = `${arrayPath}.${itemIndex}.`;
+        
+        const relatedPropertyConflicts = allConflicts.filter(c => 
+          c.path.startsWith(propertyPathPrefix) && c.path !== itemPath
+        );
+        
+        if (relatedPropertyConflicts.length > 0) {
+          console.log('🔄 Auto-resolving related property conflicts for Smart Merge:', relatedPropertyConflicts.map(c => c.path));
+          onBulkResolve(relatedPropertyConflicts, 'additive');
+        }
+      }
+    }
   };
 
   return (
@@ -74,6 +105,11 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
                      conflict.resolution === 'additive' ? 'Smart Merge' :
                      conflict.resolution === 'custom' ? 'Custom Value' : conflict.resolution}
                   </Badge>
+                  {isArrayItemConflict && (
+                    <Badge variant="outline" className="text-xs">
+                      Array Item
+                    </Badge>
+                  )}
                 </div>
               </div>
 
@@ -99,7 +135,7 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
               <div className="flex flex-wrap items-center gap-2">
                 <Select
                   value={conflict.resolution || 'unresolved'}
-                  onValueChange={(value) => onConflictResolve(path, conflictIndex, value as MergeConflict['resolution'])}
+                  onValueChange={handleResolutionChange}
                 >
                   <SelectTrigger className="w-auto">
                     <SelectValue placeholder="Choose resolution" />
