@@ -233,6 +233,43 @@ export class DocumentMergeEngine {
   }
 
   /**
+   * Normalize path to use bracket notation for array indices
+   */
+  private static normalizeArrayPath(path: string): string {
+    // Convert dot notation array indices (e.g., root.tags.0) to bracket notation (e.g., root.tags[0])
+    return path.replace(/\.(\d+)(?=\.|$)/g, '[$1]');
+  }
+
+  /**
+   * Sort conflicts so parent paths come before child paths
+   */
+  private static sortConflictsByPathDepth(conflicts: MergeConflict[]): MergeConflict[] {
+    return conflicts.sort((a, b) => {
+      const pathA = a.path;
+      const pathB = b.path;
+      
+      // Check if one path is a parent of another
+      if (pathB.startsWith(pathA + '.') || pathB.startsWith(pathA + '[')) {
+        return -1; // a is parent of b, a comes first
+      }
+      if (pathA.startsWith(pathB + '.') || pathA.startsWith(pathB + '[')) {
+        return 1; // b is parent of a, b comes first
+      }
+      
+      // Otherwise sort by depth (fewer segments = shallower = comes first)
+      const depthA = pathA.split(/[.\[]/).length;
+      const depthB = pathB.split(/[.\[]/).length;
+      
+      if (depthA !== depthB) {
+        return depthA - depthB;
+      }
+      
+      // If same depth, sort alphabetically for consistency
+      return pathA.localeCompare(pathB);
+    });
+  }
+
+  /**
    * Enhance conflicts by detecting array item-level conflicts
    */
   private static enhanceArrayConflicts(
@@ -240,26 +277,37 @@ export class DocumentMergeEngine {
     currentSchema: any, 
     incomingSchema: any
   ): MergeConflict[] {
-    const enhancedConflicts = [...baseConflicts];
+    // First, normalize all paths to use bracket notation and remove duplicates
+    const normalizedConflicts = baseConflicts.map(conflict => ({
+      ...conflict,
+      path: this.normalizeArrayPath(conflict.path)
+    }));
+
+    // Remove duplicates based on path
+    const uniqueConflicts = normalizedConflicts.reduce((acc, conflict) => {
+      const existing = acc.find(c => c.path === conflict.path);
+      if (!existing) {
+        acc.push(conflict);
+      }
+      return acc;
+    }, [] as MergeConflict[]);
+
+    const enhancedConflicts = [...uniqueConflicts];
     const processedArrayPaths = new Set<string>();
 
-    // Group property conflicts by array path to detect item-level conflicts
-    const arrayPropertyConflicts = baseConflicts.filter(conflict => {
-      const match = conflict.path.match(/^(root\.[^.]*(?:\.[^.]*)*)\.\d+(?:\.|$)/);
-      return match !== null;
-    });
+    // Identify array item conflicts from the normalized paths
+    const arrayItemConflicts = uniqueConflicts.filter(conflict => 
+      conflict.path.includes('[') && conflict.path.includes(']')
+    );
 
-    // Process each array path
-    arrayPropertyConflicts.forEach(conflict => {
-      const match = conflict.path.match(/^(root\.[^.]*(?:\.[^.]*)*)\.\d+/);
+    // Process each array item conflict
+    arrayItemConflicts.forEach(conflict => {
+      const match = conflict.path.match(/^(root\.[^[]*(?:\.[^[]*)*)\[(\d+)\]/);
       if (!match) return;
       
       const arrayPath = match[1];
-      const itemIndexMatch = conflict.path.match(/^root\.[^.]*(?:\.[^.]*)*\.(\d+)/);
-      if (!itemIndexMatch) return;
-      
-      const itemIndex = parseInt(itemIndexMatch[1]);
-      const itemPath = `${arrayPath}[${itemIndex}]`;
+      const itemIndex = parseInt(match[2]);
+      const itemPath = conflict.path;
 
       // Skip if we already processed this array item
       if (processedArrayPaths.has(itemPath)) return;
@@ -273,55 +321,24 @@ export class DocumentMergeEngine {
         const currentItem = currentArray[itemIndex];
         const incomingItem = incomingArray[itemIndex];
 
-        // Create item-level conflict if items differ
-        if (currentItem !== undefined && incomingItem !== undefined &&
-            JSON.stringify(currentItem) !== JSON.stringify(incomingItem)) {
-          
-          enhancedConflicts.unshift({
-            path: itemPath,
-            type: 'duplicate_key',
-            severity: 'medium',
-            description: `Array item at index ${itemIndex} has different content`,
-            documents: conflict.documents,
+        // Update the existing conflict or create a new one with proper values
+        const existingConflictIndex = enhancedConflicts.findIndex(c => c.path === itemPath);
+        
+        if (existingConflictIndex >= 0) {
+          // Update existing conflict with proper current/incoming values
+          enhancedConflicts[existingConflictIndex] = {
+            ...enhancedConflicts[existingConflictIndex],
+            currentValue: currentItem,
+            incomingValue: incomingItem,
             values: [currentItem, incomingItem],
-            suggestedResolution: 'Choose Smart Merge to combine array items intelligently',
-            resolution: 'unresolved' as const,
-            currentValue: currentItem,
-            incomingValue: incomingItem
-          });
-        } else if (currentItem === undefined && incomingItem !== undefined) {
-          // New item being added
-          enhancedConflicts.unshift({
-            path: itemPath,
-            type: 'duplicate_key',
-            severity: 'low',
-            description: `New array item will be added at index ${itemIndex}`,
-            documents: conflict.documents,
-            values: [undefined, incomingItem],
-            suggestedResolution: 'Use Smart Merge to add new item',
-            resolution: 'unresolved' as const,
-            currentValue: undefined,
-            incomingValue: incomingItem
-          });
-        } else if (currentItem !== undefined && incomingItem === undefined) {
-          // Item being removed
-          enhancedConflicts.unshift({
-            path: itemPath,
-            type: 'duplicate_key',
-            severity: 'medium',
-            description: `Array item at index ${itemIndex} will be removed`,
-            documents: conflict.documents,
-            values: [currentItem, undefined],
-            suggestedResolution: 'Choose resolution for item removal',
-            resolution: 'unresolved' as const,
-            currentValue: currentItem,
-            incomingValue: undefined
-          });
+            suggestedResolution: 'Choose Smart Merge to combine array items intelligently'
+          };
         }
       }
     });
 
-    return enhancedConflicts;
+    // Sort conflicts by path depth (parent paths first)
+    return this.sortConflictsByPathDepth(enhancedConflicts);
   }
 
   /**
