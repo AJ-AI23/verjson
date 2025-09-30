@@ -293,25 +293,33 @@ export class DocumentMergeEngine {
     }, [] as MergeConflict[]);
 
     const enhancedConflicts = [...uniqueConflicts];
-    const processedArrayPaths = new Set<string>();
+    const processedArrayItems = new Set<string>();
 
-    // Identify array item conflicts from the normalized paths
-    const arrayItemConflicts = uniqueConflicts.filter(conflict => 
-      conflict.path.includes('[') && conflict.path.includes(']')
-    );
+    // Find all array paths that have property-level conflicts
+    const arrayPathsWithConflicts = new Set<string>();
+    uniqueConflicts.forEach(conflict => {
+      // Match patterns like root.tags[0].name -> extract root.tags[0]
+      const itemMatch = conflict.path.match(/^(root\.[^[]*(?:\.[^[]*)*\[\d+\])/);
+      if (itemMatch) {
+        arrayPathsWithConflicts.add(itemMatch[1]);
+      }
+    });
 
-    // Process each array item conflict
-    arrayItemConflicts.forEach(conflict => {
-      const match = conflict.path.match(/^(root\.[^[]*(?:\.[^[]*)*)\[(\d+)\]/);
+    // For each array item that has property conflicts, create an item-level conflict
+    arrayPathsWithConflicts.forEach(itemPath => {
+      if (processedArrayItems.has(itemPath)) return;
+      processedArrayItems.add(itemPath);
+
+      // Check if we already have a conflict at the item level
+      const hasItemConflict = enhancedConflicts.some(c => c.path === itemPath);
+      if (hasItemConflict) return;
+
+      // Extract array path and item index
+      const match = itemPath.match(/^(root\.[^[]*(?:\.[^[]*)*)\[(\d+)\]/);
       if (!match) return;
       
       const arrayPath = match[1];
       const itemIndex = parseInt(match[2]);
-      const itemPath = conflict.path;
-
-      // Skip if we already processed this array item
-      if (processedArrayPaths.has(itemPath)) return;
-      processedArrayPaths.add(itemPath);
 
       // Get the array values
       const currentArray = this.getValueAtPath(currentSchema, arrayPath);
@@ -321,18 +329,77 @@ export class DocumentMergeEngine {
         const currentItem = currentArray[itemIndex];
         const incomingItem = incomingArray[itemIndex];
 
-        // Update the existing conflict or create a new one with proper values
-        const existingConflictIndex = enhancedConflicts.findIndex(c => c.path === itemPath);
-        
-        if (existingConflictIndex >= 0) {
-          // Update existing conflict with proper current/incoming values
-          enhancedConflicts[existingConflictIndex] = {
-            ...enhancedConflicts[existingConflictIndex],
-            currentValue: currentItem,
-            incomingValue: incomingItem,
+        // Only create conflict if items are actually different
+        if (JSON.stringify(currentItem) !== JSON.stringify(incomingItem)) {
+          enhancedConflicts.push({
+            path: itemPath,
+            type: 'structure_conflict',
+            severity: 'medium',
+            description: `Array item at index ${itemIndex} differs between documents`,
+            documents: ['current', 'incoming'],
             values: [currentItem, incomingItem],
-            suggestedResolution: 'Choose Smart Merge to combine array items intelligently'
-          };
+            suggestedResolution: 'Choose Smart Merge to combine array items intelligently',
+            resolution: 'unresolved',
+            currentValue: currentItem,
+            incomingValue: incomingItem
+          });
+        }
+      }
+    });
+
+    // Also detect array-level conflicts where arrays have different lengths or completely different items
+    const arrayPaths = new Set<string>();
+    [...uniqueConflicts, ...Array.from(arrayPathsWithConflicts)].forEach(item => {
+      const path = typeof item === 'string' ? item : item.path;
+      const match = path.match(/^(root\.[^[]*(?:\.[^[]*)*)\[/);
+      if (match) {
+        arrayPaths.add(match[1]);
+      }
+    });
+
+    arrayPaths.forEach(arrayPath => {
+      const currentArray = this.getValueAtPath(currentSchema, arrayPath);
+      const incomingArray = this.getValueAtPath(incomingSchema, arrayPath);
+
+      if (Array.isArray(currentArray) && Array.isArray(incomingArray)) {
+        // Check all items and create item-level conflicts for differing items
+        const maxLength = Math.max(currentArray.length, incomingArray.length);
+        
+        for (let i = 0; i < maxLength; i++) {
+          const itemPath = `${arrayPath}[${i}]`;
+          if (processedArrayItems.has(itemPath)) continue;
+          
+          const currentItem = currentArray[i];
+          const incomingItem = incomingArray[i];
+          
+          // Skip if both are undefined (past array length)
+          if (currentItem === undefined && incomingItem === undefined) continue;
+          
+          // Create conflict if items differ
+          if (JSON.stringify(currentItem) !== JSON.stringify(incomingItem)) {
+            processedArrayItems.add(itemPath);
+            
+            // Check if we already have this conflict
+            const hasConflict = enhancedConflicts.some(c => c.path === itemPath);
+            if (!hasConflict) {
+              enhancedConflicts.push({
+                path: itemPath,
+                type: 'structure_conflict',
+                severity: 'medium',
+                description: currentItem === undefined 
+                  ? `New array item at index ${i} from incoming document`
+                  : incomingItem === undefined
+                  ? `Array item at index ${i} only exists in current document`
+                  : `Array item at index ${i} differs between documents`,
+                documents: ['current', 'incoming'],
+                values: [currentItem, incomingItem],
+                suggestedResolution: 'Choose Smart Merge to combine array items intelligently',
+                resolution: 'unresolved',
+                currentValue: currentItem,
+                incomingValue: incomingItem
+              });
+            }
+          }
         }
       }
     });
