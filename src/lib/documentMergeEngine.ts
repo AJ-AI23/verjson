@@ -364,7 +364,63 @@ export class DocumentMergeEngine {
     // Handle cascading resolution for array items first
     this.applyCascadingResolution(conflicts);
     
+    // Group array item conflicts by their parent array path
+    const arrayItemConflicts = conflicts.filter(c => 
+      c.path.includes('[') && c.path.includes(']') && c.resolution === 'additive'
+    );
+    
+    const arrayGroups = new Map<string, MergeConflict[]>();
+    arrayItemConflicts.forEach(conflict => {
+      const arrayPath = conflict.path.substring(0, conflict.path.indexOf('['));
+      if (!arrayGroups.has(arrayPath)) {
+        arrayGroups.set(arrayPath, []);
+      }
+      arrayGroups.get(arrayPath)!.push(conflict);
+    });
+    
+    // Process array groups with Smart Merge
+    arrayGroups.forEach((itemConflicts, arrayPath) => {
+      console.log(`🔄 Processing Smart Merge for array: ${arrayPath}`);
+      
+      // Collect all items from both current and incoming arrays
+      const allItems: any[] = [];
+      const seenItems = new Set<string>();
+      
+      itemConflicts.forEach(conflict => {
+        // Add current value if exists
+        if (conflict.currentValue !== undefined && conflict.currentValue !== null) {
+          const itemKey = JSON.stringify(conflict.currentValue);
+          if (!seenItems.has(itemKey)) {
+            seenItems.add(itemKey);
+            allItems.push(conflict.currentValue);
+          }
+        }
+        
+        // Add incoming value if exists and different from current
+        if (conflict.incomingValue !== undefined && conflict.incomingValue !== null) {
+          const itemKey = JSON.stringify(conflict.incomingValue);
+          if (!seenItems.has(itemKey)) {
+            seenItems.add(itemKey);
+            allItems.push(conflict.incomingValue);
+          }
+        }
+      });
+      
+      console.log(`✅ Smart Merge result for ${arrayPath}:`, allItems);
+      
+      // Set the merged array at the parent path
+      this.setValueAtPath(result, arrayPath, allItems);
+    });
+    
+    // Process remaining non-array conflicts
     pathsToProcess.forEach(path => {
+      // Skip array item paths that were already handled by Smart Merge
+      const isArrayItemPath = path.includes('[') && path.includes(']');
+      const arrayPath = isArrayItemPath ? path.substring(0, path.indexOf('[')) : null;
+      if (isArrayItemPath && arrayGroups.has(arrayPath!)) {
+        return; // Skip, already handled
+      }
+      
       const pathConflicts = conflictsByPath[path] || [];
       
       pathConflicts.forEach(conflict => {
@@ -379,7 +435,7 @@ export class DocumentMergeEngine {
               valueToApply = conflict.incomingValue;
               break;
             case 'additive':
-              // Choose the non-null value, prefer incoming if both are non-null
+              // For non-array-item paths, use regular additive logic
               valueToApply = this.getAdditiveValue(conflict.currentValue, conflict.incomingValue);
               break;
             case 'custom':
