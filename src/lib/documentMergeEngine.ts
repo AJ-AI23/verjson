@@ -499,7 +499,7 @@ export class DocumentMergeEngine {
   }
 
   /**
-   * Set value at dot notation path in object
+   * Set value at dot notation path in object, supporting array bracket notation
    */
   private static setValueAtPath(obj: any, path: string, value: any): void {
     // Handle root path
@@ -539,33 +539,47 @@ export class DocumentMergeEngine {
       return;
     }
 
-    // Handle dot notation paths and remove 'root' prefix
-    const pathParts = path.split('.').filter(part => part !== '' && part !== 'root');
+    // Handle dot notation paths with array bracket notation (e.g., root.tags[0])
+    // Convert array bracket notation to dot notation: tags[0] -> tags.0
+    const normalizedPath = path.replace(/\[(\d+)\]/g, '.$1');
+    const pathParts = normalizedPath.split('.').filter(part => part !== '' && part !== 'root');
     
     if (pathParts.length === 0) {
       return;
     }
     
-    // For single-level paths (root-level properties), set directly
-    if (pathParts.length === 1) {
-      obj[pathParts[0]] = value;
-      return;
-    }
-    
     let current = obj;
     
-    // Navigate to the parent object
+    // Navigate through the path
     for (let i = 0; i < pathParts.length - 1; i++) {
       const part = pathParts[i];
+      const nextPart = pathParts[i + 1];
+      
+      // Check if next part is a numeric index (for array access)
+      const isNextArray = /^\d+$/.test(nextPart);
+      
       if (!current[part]) {
-        current[part] = {};
+        // Create array if next part is numeric, otherwise create object
+        current[part] = isNextArray ? [] : {};
       }
+      
       current = current[part];
     }
     
     // Set the final value
     const finalPart = pathParts[pathParts.length - 1];
-    current[finalPart] = value;
+    
+    // If final part is numeric, we're setting an array index
+    if (/^\d+$/.test(finalPart)) {
+      const index = parseInt(finalPart);
+      if (Array.isArray(current)) {
+        current[index] = value;
+      } else {
+        console.warn(`Attempting to set array index ${index} on non-array:`, current);
+      }
+    } else {
+      current[finalPart] = value;
+    }
   }
 
   /**
