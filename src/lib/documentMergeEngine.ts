@@ -148,10 +148,10 @@ export class DocumentMergeEngine {
           incomingValue: conflict.importValue
         }));
 
-        // Enhance with array item-level conflicts
-        const enhancedConflicts = this.enhanceArrayConflicts(stepConflicts, currentResult, currentDoc.content);
-        
-        allConflicts.push(...enhancedConflicts);
+    // Enhance with array item-level conflicts (without sorting yet)
+    const enhancedConflicts = this.enhanceArrayConflicts(stepConflicts, currentResult, currentDoc.content, false);
+    
+    allConflicts.push(...enhancedConflicts);
         
         // Track merge step
         mergeSteps.push({
@@ -205,12 +205,15 @@ export class DocumentMergeEngine {
       };
     }
 
-    const resolvedConflicts = allConflicts.filter(c => c.resolution !== 'unresolved').length;
-    const unresolvedConflicts = allConflicts.filter(c => c.resolution === 'unresolved').length;
+    // Sort all conflicts after all documents have been merged (structural depth-first order)
+    const sortedConflicts = this.sortConflictsByPathDepth(allConflicts);
+    
+    const resolvedConflicts = sortedConflicts.filter(c => c.resolution !== 'unresolved').length;
+    const unresolvedConflicts = sortedConflicts.filter(c => c.resolution === 'unresolved').length;
 
     console.log('🎯 Sequential merge completed:', {
       steps: mergeSteps.length,
-      totalConflicts: allConflicts.length,
+      totalConflicts: sortedConflicts.length,
       resolvedConflicts,
       unresolvedConflicts,
       totalAddedProperties
@@ -218,7 +221,7 @@ export class DocumentMergeEngine {
 
     return {
       mergedSchema: finalResult,
-      conflicts: allConflicts,
+      conflicts: sortedConflicts,
       isCompatible: true,
       warnings: allConflicts.length > 0 ? [`${allConflicts.length} conflicts detected during merge`] : [],
       summary: {
@@ -285,7 +288,8 @@ export class DocumentMergeEngine {
   private static enhanceArrayConflicts(
     baseConflicts: MergeConflict[], 
     currentSchema: any, 
-    incomingSchema: any
+    incomingSchema: any,
+    shouldSort: boolean = true
   ): MergeConflict[] {
     // First, normalize all paths to use bracket notation and remove duplicates
     const normalizedConflicts = baseConflicts.map(conflict => ({
@@ -414,8 +418,8 @@ export class DocumentMergeEngine {
       }
     });
 
-    // Sort conflicts by path depth (parent paths first)
-    return this.sortConflictsByPathDepth(enhancedConflicts);
+    // Only sort if requested (sorting should be done after all documents are merged)
+    return shouldSort ? this.sortConflictsByPathDepth(enhancedConflicts) : enhancedConflicts;
   }
 
   /**

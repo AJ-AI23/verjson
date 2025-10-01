@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DocumentMergeEngine, DocumentMergeResult, MergeConflict } from '@/lib/documentMergeEngine';
 import { Document } from '@/types/workspace';
-import { CheckCircle, AlertTriangle, ArrowUpDown, GitMerge, Layers, ChevronDown, ChevronRight, FileText } from 'lucide-react';
+import { CheckCircle, AlertTriangle, ArrowUpDown, GitMerge, Layers, ChevronDown, ChevronRight, FileText, Download } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableAccordionItem } from './SortableAccordionItem';
@@ -260,6 +260,42 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
     setExpandedConflicts(newExpanded);
   };
 
+  const handleExportConflicts = useCallback(() => {
+    const exportData = {
+      metadata: {
+        exportDate: new Date().toISOString(),
+        documentCount: documents.length,
+        documents: documents.map(d => d.name),
+        totalConflicts: mergeResult.conflicts.length,
+        resolvedConflicts: mergeResult.summary.resolvedConflicts,
+        unresolvedConflicts: mergeResult.summary.unresolvedConflicts
+      },
+      conflicts: mergeResult.conflicts.map(conflict => ({
+        path: conflict.path,
+        type: conflict.type,
+        severity: conflict.severity,
+        description: conflict.description,
+        documents: conflict.documents,
+        resolution: conflict.resolution,
+        currentValue: conflict.currentValue,
+        incomingValue: conflict.incomingValue,
+        customValue: conflict.customValue,
+        suggestedResolution: conflict.suggestedResolution
+      })),
+      pathOrder: pathOrder
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `merge-conflicts-${resultName.replace(/[^a-z0-9]/gi, '-')}-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [mergeResult, documents, pathOrder, resultName]);
+
   const getDocumentInfo = (doc: Document) => {
     const schema = doc.content;
     const title = schema?.info?.title || schema?.title || doc.name;
@@ -479,7 +515,13 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
             {/* Conflict Resolution */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Conflict Resolution</CardTitle>
+                <CardTitle className="text-base flex items-center justify-between">
+                  <span>Conflict Resolution</span>
+                  <Button variant="outline" size="sm" onClick={handleExportConflicts}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export Conflicts
+                  </Button>
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
