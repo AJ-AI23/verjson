@@ -14,6 +14,7 @@ export interface MergeConflict {
   customValue?: any;
   currentValue?: any;
   incomingValue?: any;
+  linkedConflictPaths?: string[]; // Child conflicts that should be auto-resolved when this conflict is resolved
 }
 
 export interface DocumentMergeResult {
@@ -418,6 +419,29 @@ export class DocumentMergeEngine {
       }
     });
 
+    // Link parent array item conflicts to their child property conflicts
+    enhancedConflicts.forEach(conflict => {
+      // Check if this is an array item-level conflict (e.g., root.tags[0])
+      const itemMatch = conflict.path.match(/^(root\.[^[]*(?:\.[^[]*)*\[\d+\])$/);
+      if (itemMatch) {
+        const itemPath = itemMatch[1];
+        
+        // Find all child property conflicts (e.g., root.tags[0].name, root.tags[0].description)
+        const childConflictPaths: string[] = [];
+        enhancedConflicts.forEach(c => {
+          // Check if this conflict is a child of the current array item
+          if (c.path.startsWith(itemPath + '.') || c.path.startsWith(itemPath.replace(/\[(\d+)\]$/, '.$1.'))) {
+            childConflictPaths.push(c.path);
+          }
+        });
+        
+        if (childConflictPaths.length > 0) {
+          conflict.linkedConflictPaths = childConflictPaths;
+          console.log(`🔗 Linked ${childConflictPaths.length} child conflicts to ${itemPath}:`, childConflictPaths);
+        }
+      }
+    });
+
     // Only sort if requested (sorting should be done after all documents are merged)
     return shouldSort ? this.sortConflictsByPathDepth(enhancedConflicts) : enhancedConflicts;
   }
@@ -476,6 +500,18 @@ export class DocumentMergeEngine {
       arrayGroups.get(arrayPath)!.push(conflict);
     });
     
+    // Collect all linked child conflict paths that were auto-resolved
+    const autoResolvedPaths = new Set<string>();
+    arrayItemConflicts.forEach(conflict => {
+      if (conflict.linkedConflictPaths) {
+        conflict.linkedConflictPaths.forEach(linkedPath => {
+          autoResolvedPaths.add(linkedPath);
+        });
+      }
+    });
+    
+    console.log(`📋 Auto-resolved ${autoResolvedPaths.size} linked child conflicts via Smart Merge`);
+    
     // Process array groups with Smart Merge
     arrayGroups.forEach((itemConflicts, arrayPath) => {
       console.log(`🔄 Processing Smart Merge for array: ${arrayPath}`);
@@ -519,6 +555,12 @@ export class DocumentMergeEngine {
         return; // Skip, already handled
       }
       
+      // Skip child property paths that were auto-resolved via Smart Merge
+      if (autoResolvedPaths.has(path)) {
+        console.log(`⏭️  Skipping auto-resolved child conflict: ${path}`);
+        return;
+      }
+      
       const pathConflicts = conflictsByPath[path] || [];
       
       pathConflicts.forEach(conflict => {
@@ -553,22 +595,19 @@ export class DocumentMergeEngine {
 
   /**
    * Apply cascading resolution when array item conflicts are resolved as 'additive'
+   * Uses linkedConflictPaths to automatically resolve child conflicts
    */
   private static applyCascadingResolution(conflicts: MergeConflict[]): void {
     conflicts.forEach(conflict => {
-      if (conflict.resolution === 'additive' && conflict.path.includes('[') && conflict.path.includes(']')) {
-        // This is an array item-level conflict resolved as additive
-        const itemPath = conflict.path;
+      if (conflict.resolution === 'additive' && conflict.linkedConflictPaths && conflict.linkedConflictPaths.length > 0) {
+        console.log(`🔄 Applying cascading resolution for ${conflict.path} to ${conflict.linkedConflictPaths.length} linked conflicts`);
         
-        // Find all property-level conflicts within this array item and auto-resolve them
-        const itemPropertyConflicts = conflicts.filter(c => 
-          c.path.startsWith(itemPath.replace(/\[(\d+)\]/, '.$1.')) && c.path !== itemPath
-        );
-        
-        itemPropertyConflicts.forEach(propertyConflict => {
-          if (propertyConflict.resolution === 'unresolved' || propertyConflict.resolution === 'additive') {
-            propertyConflict.resolution = 'additive';
-            console.log(`🔄 Cascading additive resolution to property: ${propertyConflict.path}`);
+        // Find all linked child conflicts and auto-resolve them if they're also set to Smart Merge or unresolved
+        conflict.linkedConflictPaths.forEach(linkedPath => {
+          const linkedConflict = conflicts.find(c => c.path === linkedPath);
+          if (linkedConflict && (linkedConflict.resolution === 'unresolved' || linkedConflict.resolution === 'additive')) {
+            linkedConflict.resolution = 'additive';
+            console.log(`✅ Auto-resolved linked conflict: ${linkedPath} (cascaded from ${conflict.path})`);
           }
         });
       }
