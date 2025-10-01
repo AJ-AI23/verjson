@@ -241,31 +241,41 @@ export class DocumentMergeEngine {
   }
 
   /**
-   * Sort conflicts so parent paths come before child paths
+   * Sort conflicts in depth-first tree order (structural order)
+   * e.g. root.info, root.info.description, root.info.title, root.components, root.components.schemas
    */
   private static sortConflictsByPathDepth(conflicts: MergeConflict[]): MergeConflict[] {
     return conflicts.sort((a, b) => {
       const pathA = a.path;
       const pathB = b.path;
       
-      // Check if one path is a parent of another
-      if (pathB.startsWith(pathA + '.') || pathB.startsWith(pathA + '[')) {
-        return -1; // a is parent of b, a comes first
-      }
-      if (pathA.startsWith(pathB + '.') || pathA.startsWith(pathB + '[')) {
-        return 1; // b is parent of a, b comes first
+      // Split paths into segments, handling both dot notation and bracket notation
+      const segmentsA = pathA.split(/\.|\[/).map(s => s.replace(/\]$/, ''));
+      const segmentsB = pathB.split(/\.|\[/).map(s => s.replace(/\]$/, ''));
+      
+      // Compare segment by segment for depth-first tree order
+      const minLength = Math.min(segmentsA.length, segmentsB.length);
+      
+      for (let i = 0; i < minLength; i++) {
+        const segA = segmentsA[i];
+        const segB = segmentsB[i];
+        
+        if (segA !== segB) {
+          // Different segments at this level - sort alphabetically
+          // Try to parse as numbers for array indices
+          const numA = parseInt(segA);
+          const numB = parseInt(segB);
+          
+          if (!isNaN(numA) && !isNaN(numB)) {
+            return numA - numB; // Both are numbers, sort numerically
+          }
+          
+          return segA.localeCompare(segB); // Sort alphabetically
+        }
       }
       
-      // Otherwise sort by depth (fewer segments = shallower = comes first)
-      const depthA = pathA.split(/[.\[]/).length;
-      const depthB = pathB.split(/[.\[]/).length;
-      
-      if (depthA !== depthB) {
-        return depthA - depthB;
-      }
-      
-      // If same depth, sort alphabetically for consistency
-      return pathA.localeCompare(pathB);
+      // All compared segments are equal, shorter path comes first (parent before children)
+      return segmentsA.length - segmentsB.length;
     });
   }
 
