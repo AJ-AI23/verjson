@@ -420,6 +420,7 @@ export class DocumentMergeEngine {
     });
 
     // Link parent array item conflicts to their child property conflicts
+    // Only link conflicts that stem from the same document
     enhancedConflicts.forEach(conflict => {
       // Check if this is an array item-level conflict (e.g., root.tags[0])
       const itemMatch = conflict.path.match(/^(root\.[^[]*(?:\.[^[]*)*\[\d+\])$/);
@@ -427,17 +428,34 @@ export class DocumentMergeEngine {
         const itemPath = itemMatch[1];
         
         // Find all child property conflicts (e.g., root.tags[0].name, root.tags[0].description)
+        // that stem from the same document (same source value)
         const childConflictPaths: string[] = [];
         enhancedConflicts.forEach(c => {
           // Check if this conflict is a child of the current array item
-          if (c.path.startsWith(itemPath + '.') || c.path.startsWith(itemPath.replace(/\[(\d+)\]$/, '.$1.'))) {
-            childConflictPaths.push(c.path);
+          const isChild = c.path.startsWith(itemPath + '.') || c.path.startsWith(itemPath.replace(/\[(\d+)\]$/, '.$1.'));
+          
+          if (isChild) {
+            // Check if conflicts are from same document by comparing if the item exists in both values
+            // If the parent array item exists in current but not incoming (or vice versa),
+            // then child properties must be from the same document
+            const parentExistsInCurrent = conflict.currentValue !== undefined && conflict.currentValue !== null;
+            const parentExistsInIncoming = conflict.incomingValue !== undefined && conflict.incomingValue !== null;
+            const childExistsInCurrent = c.currentValue !== undefined && c.currentValue !== null;
+            const childExistsInIncoming = c.incomingValue !== undefined && c.incomingValue !== null;
+            
+            // Link if both parent and child are from same source (both in current but not incoming, or both in incoming but not current)
+            const bothFromCurrent = parentExistsInCurrent && !parentExistsInIncoming && childExistsInCurrent && !childExistsInIncoming;
+            const bothFromIncoming = !parentExistsInCurrent && parentExistsInIncoming && !childExistsInCurrent && childExistsInIncoming;
+            
+            if (bothFromCurrent || bothFromIncoming) {
+              childConflictPaths.push(c.path);
+            }
           }
         });
         
         if (childConflictPaths.length > 0) {
           conflict.linkedConflictPaths = childConflictPaths;
-          console.log(`🔗 Linked ${childConflictPaths.length} child conflicts to ${itemPath}:`, childConflictPaths);
+          console.log(`🔗 Linked ${childConflictPaths.length} child conflicts to ${itemPath} (same document):`, childConflictPaths);
         }
       }
     });

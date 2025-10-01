@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { MergeConflict } from '@/lib/documentMergeEngine';
-import { GripVertical, AlertTriangle, CheckCircle } from 'lucide-react';
+import { GripVertical, AlertTriangle, CheckCircle, Link2 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface SortableConflictItemProps {
   id: string;
@@ -109,6 +110,26 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
                     <Badge variant="outline" className="text-xs">
                       Array Item
                     </Badge>
+                  )}
+                  {conflict.linkedConflictPaths && conflict.linkedConflictPaths.length > 0 && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge variant="outline" className="text-xs flex items-center gap-1">
+                            <Link2 className="h-3 w-3" />
+                            {conflict.linkedConflictPaths.length} linked
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-md">
+                          <div className="text-xs space-y-1">
+                            <div className="font-semibold mb-1">Linked child conflicts:</div>
+                            {conflict.linkedConflictPaths.map(linkedPath => (
+                              <div key={linkedPath} className="font-mono text-xs">• {linkedPath}</div>
+                            ))}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   )}
                 </div>
               </div>

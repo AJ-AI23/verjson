@@ -173,7 +173,21 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
       
       // Only update the specific conflict that was changed
       if (conflict === targetConflict) {
-        return { ...conflict, resolution };
+        const updated: MergeConflict = { ...conflict, resolution };
+        
+        // If setting to Smart Merge and this conflict has linked children, auto-toggle them too
+        if (resolution === 'additive' && conflict.linkedConflictPaths && conflict.linkedConflictPaths.length > 0) {
+          console.log(`🔄 Auto-toggling Smart Merge for ${conflict.linkedConflictPaths.length} linked conflicts`);
+        }
+        
+        return updated;
+      }
+      
+      // If this conflict is a linked child of the target, auto-toggle it to Smart Merge
+      if (targetConflict?.linkedConflictPaths?.includes(conflict.path) && resolution === 'additive') {
+        console.log(`✅ Auto-toggling linked conflict to Smart Merge: ${conflict.path}`);
+        const updated: MergeConflict = { ...conflict, resolution: 'additive' as const };
+        return updated;
       }
       
       return conflict;
