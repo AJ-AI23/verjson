@@ -7,7 +7,8 @@ export interface MergeConflict {
   type: 'type_mismatch' | 'duplicate_key' | 'incompatible_schema' | 'structure_conflict';
   severity: 'high' | 'medium' | 'low';
   description: string;
-  documents: string[];
+  documentSource: string;
+  documentDestination: string;
   values: any[];
   suggestedResolution?: string;
   resolution?: 'current' | 'incoming' | 'additive' | 'custom' | 'unresolved';
@@ -97,7 +98,8 @@ export class DocumentMergeEngine {
           type: 'incompatible_schema',
           severity: 'high',
           description: compatibility.reason || 'Documents are not compatible for merging',
-          documents: documents.map(d => d.name),
+          documentSource: documents[0]?.name || 'Unknown',
+          documentDestination: documents[documents.length - 1]?.name || 'Unknown',
           values: []
         }],
         isCompatible: false,
@@ -141,7 +143,8 @@ export class DocumentMergeEngine {
           type: this.mapConflictType(conflict.conflictType),
           severity: conflict.severity,
           description: `Step ${i} (${currentDoc.name}): ${conflict.description}`,
-          documents: [i === 1 ? documents[0].name : 'Previous merge result', currentDoc.name],
+          documentSource: i === 1 ? documents[0].name : 'Previous merge result',
+          documentDestination: currentDoc.name,
           values: [conflict.currentValue, conflict.importValue],
           suggestedResolution: 'Manual review required',
           resolution: 'unresolved' as const,
@@ -178,7 +181,8 @@ export class DocumentMergeEngine {
           type: 'incompatible_schema',
           severity: 'high',
           description: `Failed to merge ${currentDoc.name}: ${error.message}`,
-          documents: [documents[0].name, currentDoc.name],
+          documentSource: documents[0].name,
+          documentDestination: currentDoc.name,
           values: [],
           suggestedResolution: 'Review document structure and try again'
         });
@@ -351,7 +355,8 @@ export class DocumentMergeEngine {
             type: 'structure_conflict',
             severity: 'medium',
             description: `Array item at index ${itemIndex} differs between documents`,
-            documents: ['current', 'incoming'],
+            documentSource: 'current',
+            documentDestination: 'incoming',
             values: [currentItem, incomingItem],
             suggestedResolution: 'Choose Smart Merge to combine array items intelligently',
             resolution: 'unresolved',
@@ -406,7 +411,8 @@ export class DocumentMergeEngine {
                   : incomingItem === undefined
                   ? `Array item at index ${i} only exists in current document`
                   : `Array item at index ${i} differs between documents`,
-                documents: ['current', 'incoming'],
+                documentSource: 'current',
+                documentDestination: 'incoming',
                 values: [currentItem, incomingItem],
                 suggestedResolution: 'Choose Smart Merge to combine array items intelligently',
                 resolution: 'unresolved',
@@ -420,22 +426,31 @@ export class DocumentMergeEngine {
     });
 
     // Link parent array item conflicts to their child property conflicts
+    // Only link if they have the same documentSource
     enhancedConflicts.forEach(conflict => {
       // Check if this is an array item-level conflict (e.g., root.tags[0])
       const itemMatch = conflict.path.match(/^(root\.[^[]*(?:\.[^[]*)*\[\d+\])$/);
       if (itemMatch) {
         const itemPath = itemMatch[1];
-        console.log(`🔍 Found array item conflict: ${itemPath}`, conflict);
+        console.log(`🔍 Found array item conflict: ${itemPath}`, {
+          documentSource: conflict.documentSource,
+          documentDestination: conflict.documentDestination
+        });
         
-        // Find all child property conflicts (e.g., root.tags[0].name, root.tags[0].description)
+        // Find all child property conflicts from the same documentSource
         const childConflictPaths: string[] = [];
         enhancedConflicts.forEach(c => {
           // Check if this conflict is a child of the current array item
           const isChild = c.path.startsWith(itemPath + '.');
           
           if (isChild) {
-            console.log(`  👶 Found child property: ${c.path}`);
-            childConflictPaths.push(c.path);
+            // Only link if they have the same documentSource
+            if (c.documentSource === conflict.documentSource) {
+              console.log(`  👶 Linked child property: ${c.path} (same source: ${c.documentSource})`);
+              childConflictPaths.push(c.path);
+            } else {
+              console.log(`  ⚠️ Skipped child property: ${c.path} (different source: ${c.documentSource} vs ${conflict.documentSource})`);
+            }
           }
         });
         
@@ -443,7 +458,7 @@ export class DocumentMergeEngine {
           conflict.linkedConflictPaths = childConflictPaths;
           console.log(`🔗 Linked ${childConflictPaths.length} child conflicts to ${itemPath}:`, childConflictPaths);
         } else {
-          console.log(`⚠️ No child conflicts found for ${itemPath}`);
+          console.log(`⚠️ No child conflicts found for ${itemPath} with matching documentSource`);
         }
       }
     });
@@ -831,7 +846,8 @@ export class DocumentMergeEngine {
                 type: 'duplicate_key',
                 severity: 'medium',
                 description: `Property "${key}" exists in multiple documents with different definitions`,
-                documents: [documents[0].name, doc.name],
+                documentSource: documents[0].name,
+                documentDestination: doc.name,
                 values: [existingValue, value],
                 suggestedResolution: 'Manual review required to resolve property conflicts'
               });
@@ -862,7 +878,8 @@ export class DocumentMergeEngine {
                 type: 'duplicate_key',
                 severity: 'high',
                 description: `Definition "${key}" conflicts between documents`,
-                documents: [documents[0].name, doc.name],
+                documentSource: documents[0].name,
+                documentDestination: doc.name,
                 values: [mergedSchema.definitions[key], value],
                 suggestedResolution: 'Rename conflicting definitions or merge manually'
               });
@@ -941,7 +958,8 @@ export class DocumentMergeEngine {
                 type: 'duplicate_key',
                 severity: 'high',
                 description: `Path "${path}" has overlapping HTTP methods: ${overlapping.join(', ')}`,
-                documents: [documents[0].name, doc.name],
+                documentSource: documents[0].name,
+                documentDestination: doc.name,
                 values: [mergedSpec.paths[path], pathItem],
                 suggestedResolution: 'Review conflicting endpoints and merge manually'
               });
@@ -968,7 +986,8 @@ export class DocumentMergeEngine {
                     type: 'duplicate_key',
                     severity: 'medium',
                     description: `Component "${key}" in ${componentType} conflicts between documents`,
-                    documents: [documents[0].name, doc.name],
+                    documentSource: documents[0].name,
+                    documentDestination: doc.name,
                     values: [mergedSpec.components[componentType][key], value],
                     suggestedResolution: 'Rename conflicting components or merge manually'
                   });

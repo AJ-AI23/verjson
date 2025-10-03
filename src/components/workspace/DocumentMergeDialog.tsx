@@ -149,7 +149,8 @@ export const DocumentMergeDialog: React.FC<DocumentMergeDialogProps> = ({
               type: 'incompatible_schema',
               severity: 'high',
               description: `Failed to analyze documents: ${error.message || 'Unknown error'}`,
-              documents: selectedDocumentObjects.map(d => d.name),
+              documentSource: selectedDocumentObjects[0]?.name || 'Unknown',
+              documentDestination: selectedDocumentObjects[selectedDocumentObjects.length - 1]?.name || 'Unknown',
               values: [],
               suggestedResolution: 'Please try with simpler document structures'
             }],
