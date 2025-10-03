@@ -166,10 +166,16 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
   };
 
   const handleConflictResolution = useCallback((path: string, conflictIndex: number, resolution: MergeConflict['resolution']) => {
+    console.log(`🔧 Resolving conflict at ${path}[${conflictIndex}] to: ${resolution}`);
+    
     const updatedConflicts = mergeResult.conflicts.map((conflict, idx) => {
       // Find the actual conflict at this path and position
       const pathConflicts = conflictsByPath[path] || [];
       const targetConflict = pathConflicts[conflictIndex];
+      
+      if (targetConflict?.linkedConflictPaths?.length) {
+        console.log(`🔗 Target conflict has ${targetConflict.linkedConflictPaths.length} linked children:`, targetConflict.linkedConflictPaths);
+      }
       
       // Only update the specific conflict that was changed
       if (conflict === targetConflict) {
@@ -294,7 +300,8 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
         currentValue: conflict.currentValue,
         incomingValue: conflict.incomingValue,
         customValue: conflict.customValue,
-        suggestedResolution: conflict.suggestedResolution
+        suggestedResolution: conflict.suggestedResolution,
+        linkedConflictPaths: conflict.linkedConflictPaths
       })),
       pathOrder: pathOrder
     };
