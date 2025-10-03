@@ -420,55 +420,22 @@ export class DocumentMergeEngine {
     });
 
     // Link parent array item conflicts to their child property conflicts
-    // Only link conflicts that stem from the same document
     enhancedConflicts.forEach(conflict => {
       // Check if this is an array item-level conflict (e.g., root.tags[0])
       const itemMatch = conflict.path.match(/^(root\.[^[]*(?:\.[^[]*)*\[\d+\])$/);
       if (itemMatch) {
         const itemPath = itemMatch[1];
-        console.log(`🔍 Found array item conflict: ${itemPath}`, {
-          currentValue: conflict.currentValue,
-          incomingValue: conflict.incomingValue,
-          documents: conflict.documents
-        });
+        console.log(`🔍 Found array item conflict: ${itemPath}`, conflict);
         
         // Find all child property conflicts (e.g., root.tags[0].name, root.tags[0].description)
-        // that stem from the same document (same source value)
         const childConflictPaths: string[] = [];
         enhancedConflicts.forEach(c => {
           // Check if this conflict is a child of the current array item
           const isChild = c.path.startsWith(itemPath + '.');
           
           if (isChild) {
-            console.log(`  👶 Checking potential child: ${c.path}`, {
-              currentValue: c.currentValue,
-              incomingValue: c.incomingValue,
-              documents: c.documents
-            });
-            
-            // Check if conflicts are from same document by comparing if the item exists in both values
-            // If the parent array item exists in current but not incoming (or vice versa),
-            // then child properties must be from the same document
-            const parentExistsInCurrent = conflict.currentValue !== undefined && conflict.currentValue !== null;
-            const parentExistsInIncoming = conflict.incomingValue !== undefined && conflict.incomingValue !== null;
-            const childExistsInCurrent = c.currentValue !== undefined && c.currentValue !== null;
-            const childExistsInIncoming = c.incomingValue !== undefined && c.incomingValue !== null;
-            
-            console.log(`    Parent exists: current=${parentExistsInCurrent}, incoming=${parentExistsInIncoming}`);
-            console.log(`    Child exists: current=${childExistsInCurrent}, incoming=${childExistsInIncoming}`);
-            
-            // Link if both parent and child are from same source (both in current but not incoming, or both in incoming but not current)
-            const bothFromCurrent = parentExistsInCurrent && !parentExistsInIncoming && childExistsInCurrent && !childExistsInIncoming;
-            const bothFromIncoming = !parentExistsInCurrent && parentExistsInIncoming && !childExistsInCurrent && childExistsInIncoming;
-            
-            console.log(`    bothFromCurrent=${bothFromCurrent}, bothFromIncoming=${bothFromIncoming}`);
-            
-            if (bothFromCurrent || bothFromIncoming) {
-              console.log(`    ✅ LINKED!`);
-              childConflictPaths.push(c.path);
-            } else {
-              console.log(`    ❌ Not linked - different documents`);
-            }
+            console.log(`  👶 Found child property: ${c.path}`);
+            childConflictPaths.push(c.path);
           }
         });
         
@@ -476,7 +443,7 @@ export class DocumentMergeEngine {
           conflict.linkedConflictPaths = childConflictPaths;
           console.log(`🔗 Linked ${childConflictPaths.length} child conflicts to ${itemPath}:`, childConflictPaths);
         } else {
-          console.log(`⚠️ No child conflicts linked to ${itemPath}`);
+          console.log(`⚠️ No child conflicts found for ${itemPath}`);
         }
       }
     });
