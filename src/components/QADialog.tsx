@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Copy, Download, Languages, FileText, CheckCircle, AlertTriangle, XCircle, Search, Upload, Settings, Filter, FilterX } from 'lucide-react';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { Copy, Download, Languages, FileText, CheckCircle, AlertTriangle, XCircle, Search, Upload, Settings, Filter, FilterX, HelpCircle, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { useToast } from '@/hooks/use-toast';
 import { extractStringValues, createTranslationIndex, downloadJsonFile, TranslationEntry, detectSchemaType, SchemaType, checkSchemaConsistency, ConsistencyIssue } from '@/lib/translationUtils';
@@ -18,6 +19,7 @@ import { ConsistencyConfigDialog } from '@/components/ConsistencyConfigDialog';
 import { useConsistencyConfig } from '@/hooks/useConsistencyConfig';
 import { useWorkspaces } from '@/hooks/useWorkspaces';
 import { supabase } from '@/integrations/supabase/client';
+import { matchesFilter, validateQuery } from '@/lib/filterQueryParser';
 
 interface QADialogProps {
   schema: string;
@@ -37,6 +39,7 @@ export const QADialog: React.FC<QADialogProps> = ({
   const [isValidating, setIsValidating] = useState(false);
   const [groupingStrategy, setGroupingStrategy] = useState<'property' | 'value'>('property');
   const [filterValue, setFilterValue] = useState('');
+  const [filterError, setFilterError] = useState<string | null>(null);
   const [crowdinDialogOpen, setCrowdinDialogOpen] = useState(false);
   const [crowdinImportDialogOpen, setCrowdinImportDialogOpen] = useState(false);
   const [importAvailable, setImportAvailable] = useState(false);
@@ -229,39 +232,35 @@ export const QADialog: React.FC<QADialogProps> = ({
       groups[groupKey].push(entry);
     });
     
-    // Then, filter the groups based on the filter value
+    // Then, filter the groups based on the filter value using the query parser
     if (filterValue.trim()) {
-      const filteredGroups: Record<string, TranslationEntry[]> = {};
-      const lowerFilter = filterValue.toLowerCase();
-      
-      Object.entries(groups).forEach(([groupKey, entries]) => {
-        if (groupingStrategy === 'property') {
-          // For property grouping, check if any entry in the group matches the filter
-          const hasMatch = entries.some(entry => {
-            const fullPath = entry.path.join('.');
-            const lastProperty = entry.path.length > 0 ? entry.path[entry.path.length - 1] : 'root';
-            return fullPath.toLowerCase().includes(lowerFilter) || 
-                   lastProperty.toLowerCase().includes(lowerFilter);
-          });
-          
-          if (hasMatch) {
-            // Only include entries that match the filter
-            filteredGroups[groupKey] = entries.filter(entry => {
+      try {
+        const filteredGroups: Record<string, TranslationEntry[]> = {};
+        
+        Object.entries(groups).forEach(([groupKey, entries]) => {
+          if (groupingStrategy === 'property') {
+            // Filter entries whose paths match the query
+            const matchingEntries = entries.filter(entry => {
               const fullPath = entry.path.join('.');
-              const lastProperty = entry.path.length > 0 ? entry.path[entry.path.length - 1] : 'root';
-              return fullPath.toLowerCase().includes(lowerFilter) || 
-                     lastProperty.toLowerCase().includes(lowerFilter);
+              return matchesFilter(filterValue, fullPath);
             });
+            
+            if (matchingEntries.length > 0) {
+              filteredGroups[groupKey] = matchingEntries;
+            }
+          } else {
+            // For value grouping, check the value itself
+            if (matchesFilter(filterValue, groupKey)) {
+              filteredGroups[groupKey] = entries;
+            }
           }
-        } else {
-          // For value grouping, filter by the value itself
-          if (groupKey.toLowerCase().includes(lowerFilter)) {
-            filteredGroups[groupKey] = entries;
-          }
-        }
-      });
-      
-      return filteredGroups;
+        });
+        
+        return filteredGroups;
+      } catch (error) {
+        console.error('Filter error:', error);
+        return groups;
+      }
     }
     
     return groups;
@@ -306,10 +305,10 @@ export const QADialog: React.FC<QADialogProps> = ({
   const getFilterPlaceholder = () => {
     switch (groupingStrategy) {
       case 'property':
-        return 'Filter by property path (e.g., 200, responses, description)...';
+        return 'Filter paths (e.g., *.description AND NOT *.tag*)...';
       case 'value':
       default:
-        return 'Filter by property value content...';
+        return 'Filter values (e.g., "error" OR "warning")...';
     }
   };
 
@@ -317,6 +316,38 @@ export const QADialog: React.FC<QADialogProps> = ({
   const handleGroupingChange = (value: 'property' | 'value') => {
     setGroupingStrategy(value);
     setFilterValue(''); // Clear filter when switching strategies
+    setFilterError(null); // Clear any filter errors
+  };
+
+  // Validate filter query as user types
+  useEffect(() => {
+    if (filterValue.trim()) {
+      const error = validateQuery(filterValue);
+      setFilterError(error);
+    } else {
+      setFilterError(null);
+    }
+  }, [filterValue]);
+
+  // Quick filter helpers
+  const quickFilters = [
+    { label: 'AND', insert: ' AND ' },
+    { label: 'OR', insert: ' OR ' },
+    { label: 'NOT', insert: ' NOT ' },
+    { label: '*', insert: '*' },
+    { label: '( )', insert: '( )' }
+  ];
+
+  const sampleFilters = [
+    { label: 'Find descriptions and examples', value: '*.description AND *.example' },
+    { label: 'Exclude tags', value: 'NOT *.tag*' },
+    { label: 'Find paths or components', value: '"paths.*" OR "components.*"' },
+    { label: 'Multiple exclusions', value: 'description AND NOT (deprecated OR internal)' },
+    { label: 'Descriptions without examples', value: '*.description AND NOT *.example' }
+  ];
+
+  const insertQuickFilter = (text: string) => {
+    setFilterValue(prev => prev + text);
   };
   const availableProperties = useMemo(() => {
     const props = new Set<string>();
@@ -643,21 +674,90 @@ export const QADialog: React.FC<QADialogProps> = ({
                       </div>
                     </div>
                     
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder={getFilterPlaceholder()}
-                        value={filterValue}
-                        onChange={(e) => setFilterValue(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                    
-                    {filterValue && Object.keys(groupedEntries).length === 0 && (
-                      <div className="text-sm text-muted-foreground">
-                        No matches found for "{filterValue}"
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder={getFilterPlaceholder()}
+                          value={filterValue}
+                          onChange={(e) => setFilterValue(e.target.value)}
+                          className={`pl-10 pr-10 font-mono ${filterError ? 'border-destructive' : ''}`}
+                        />
+                        <HoverCard>
+                          <HoverCardTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0"
+                            >
+                              <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </HoverCardTrigger>
+                          <HoverCardContent className="w-80" align="end">
+                            <div className="space-y-2">
+                              <h4 className="text-sm font-semibold">Filter Syntax</h4>
+                              <div className="space-y-1 text-sm">
+                                <p><strong>AND</strong> - Combine conditions (both must match)</p>
+                                <p><strong>OR</strong> - Either condition matches</p>
+                                <p><strong>NOT</strong> or <strong>-</strong> - Exclude patterns</p>
+                                <p><strong>*</strong> - Wildcard (matches any characters)</p>
+                                <p><strong>" "</strong> - Exact substring match</p>
+                                <p><strong>( )</strong> - Group conditions</p>
+                              </div>
+                              <div className="pt-2 border-t">
+                                <p className="text-xs text-muted-foreground">
+                                  Example: *.description AND NOT *.tag*
+                                </p>
+                              </div>
+                            </div>
+                          </HoverCardContent>
+                        </HoverCard>
                       </div>
-                    )}
+
+                      {/* Quick Insert Buttons */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs text-muted-foreground">Quick insert:</span>
+                        {quickFilters.map((filter) => (
+                          <Button
+                            key={filter.label}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => insertQuickFilter(filter.insert)}
+                            className="h-6 px-2 text-xs font-mono"
+                          >
+                            {filter.label}
+                          </Button>
+                        ))}
+                        <Select value={filterValue} onValueChange={setFilterValue}>
+                          <SelectTrigger className="w-auto h-6 px-2 text-xs gap-1 ml-auto">
+                            <Sparkles className="h-3 w-3" />
+                            <span>Samples</span>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {sampleFilters.map((sample) => (
+                              <SelectItem key={sample.value} value={sample.value} className="text-xs">
+                                {sample.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Error Message */}
+                      {filterError && (
+                        <div className="text-xs text-destructive flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          {filterError}
+                        </div>
+                      )}
+
+                      {/* No Results Message */}
+                      {filterValue && !filterError && Object.keys(groupedEntries).length === 0 && (
+                        <div className="text-sm text-muted-foreground">
+                          No matches found for "{filterValue}"
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <ScrollArea className="flex-1 min-h-0 w-full">
                     <div className="space-y-4">
