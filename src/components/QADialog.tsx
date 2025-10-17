@@ -67,6 +67,7 @@ export const QADialog: React.FC<QADialogProps> = ({
   const [consistencyRefreshKey, setConsistencyRefreshKey] = useState(0);
   const [consistencyFilters, setConsistencyFilters] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
+  const [generatedIndex, setGeneratedIndex] = useState<Record<string, string> | null>(null);
   
   const { workspaces } = useWorkspaces();
   const selectedWorkspace = workspaces?.[0]; // Use the first workspace for now
@@ -418,6 +419,51 @@ export const QADialog: React.FC<QADialogProps> = ({
     }
   };
 
+  const handleGenerateIndex = () => {
+    try {
+      const index: Record<string, string> = {};
+      
+      Object.values(groupedEntries).forEach(entries => {
+        entries.forEach(entry => {
+          index[entry.key] = entry.value;
+        });
+      });
+      
+      setGeneratedIndex(index);
+      toast.success(`Generated translation index with ${Object.keys(index).length} entries`);
+    } catch (error) {
+      console.error('Generate index failed:', error);
+      toast.error('Failed to generate translation index');
+    }
+  };
+
+  const handleDiscardIndex = () => {
+    setGeneratedIndex(null);
+    toast.success('Translation index discarded');
+  };
+
+  const handleCopyGeneratedIndex = async () => {
+    if (!generatedIndex) return;
+    try {
+      const jsonStr = JSON.stringify(generatedIndex, null, 2);
+      await navigator.clipboard.writeText(jsonStr);
+      toast.success('Translation index copied to clipboard');
+    } catch (error) {
+      toast.error('Failed to copy translation index');
+    }
+  };
+
+  const handleDownloadGeneratedIndex = () => {
+    if (!generatedIndex) return;
+    try {
+      const filename = `${documentName}-translations.json`;
+      downloadJsonFile(generatedIndex, filename);
+      toast.success('Translation index downloaded');
+    } catch (error) {
+      toast.error('Failed to download translation index');
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -446,87 +492,92 @@ export const QADialog: React.FC<QADialogProps> = ({
         
         <div className="flex-1 min-h-0 p-6 pt-2 overflow-hidden">
           <div className="space-y-4 h-full flex flex-col max-h-full">
-            {/* Summary Card */}
-            <Card className="shrink-0">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center justify-between">
-                  <span className="flex items-center gap-2 min-w-0">
-                    <FileText className="h-4 w-4 shrink-0" />
-                    <span className="truncate">Translation Summary</span>
-                  </span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant="outline">
-                      {translationData.totalStrings} strings found
-                    </Badge>
-                    <Badge className={schemaTypeInfo.color}>
-                      {schemaTypeInfo.label}
-                    </Badge>
+            {/* Summary Card - Show only when index is generated */}
+            {generatedIndex && (
+              <Card className="shrink-0">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center justify-between">
+                    <span className="flex items-center gap-2 min-w-0">
+                      <FileText className="h-4 w-4 shrink-0" />
+                      <span className="truncate">Translation Summary</span>
+                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant="outline">
+                        {Object.keys(generatedIndex).length} strings in index
+                      </Badge>
+                      <Badge className={schemaTypeInfo.color}>
+                        {schemaTypeInfo.label}
+                      </Badge>
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="mb-3 text-xs text-muted-foreground">
+                    Translation index generated from filtered and grouped results.
                   </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="mb-3 text-xs text-muted-foreground">
-                  {translationData.schemaType === 'openapi' && 
-                    'Excludes OpenAPI keywords, HTTP methods, status codes, URLs, and technical identifiers.'
-                  }
-                  {translationData.schemaType === 'json-schema' && 
-                    'Excludes JSON Schema keywords, $-prefixed properties, enum values, and technical identifiers.'
-                  }
-                  {translationData.schemaType === 'unknown' && 
-                    'Basic filtering applied - excludes $-prefixed properties and common technical patterns.'
-                  }
-                </div>
-                 <div className="flex gap-2 flex-wrap">
-                   <Button 
-                     size="sm" 
-                     onClick={handleCopyIndex}
-                     className="gap-2"
-                   >
-                     <Copy className="h-4 w-4" />
-                     <span className="hidden sm:inline">Copy Index</span>
-                     <span className="sm:hidden">Copy</span>
-                   </Button>
-                   <Button 
-                     size="sm" 
-                     variant="outline" 
-                     onClick={handleDownloadIndex}
-                     className="gap-2"
-                   >
-                     <Download className="h-4 w-4" />
-                     <span className="hidden sm:inline">Download Index</span>
-                     <span className="sm:hidden">Download</span>
-                   </Button>
-                     <Button 
-                       size="sm" 
-                       variant="outline" 
-                       onClick={() => setCrowdinDialogOpen(true)}
-                       className="gap-2"
-                       disabled={!selectedWorkspace}
-                     >
-                       <Upload className="h-4 w-4" />
-                       <span className="hidden sm:inline">Crowdin Export</span>
-                       <span className="sm:hidden">Export</span>
-                     </Button>
-                     
-                        {/* Crowdin Import Button - Show if import is available */}
-                        {importAvailable && (
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => setCrowdinImportDialogOpen(true)}
-                            className="gap-2"
-                            disabled={!selectedWorkspace}
-                          >
-                            <Download className="h-4 w-4" />
-                            <span className="hidden sm:inline">
-                              Crowdin Import
-                            </span>
-                            <span className="sm:hidden">Import</span>
-                          </Button>
-                        )}
-                 </div>
-              </CardContent>
-            </Card>
+                  <div className="flex gap-2 flex-wrap">
+                    <Button 
+                      size="sm" 
+                      onClick={handleCopyGeneratedIndex}
+                      className="gap-2"
+                    >
+                      <Copy className="h-4 w-4" />
+                      <span className="hidden sm:inline">Copy Index</span>
+                      <span className="sm:hidden">Copy</span>
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={handleDownloadGeneratedIndex}
+                      className="gap-2"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span className="hidden sm:inline">Download Index</span>
+                      <span className="sm:hidden">Download</span>
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => setCrowdinDialogOpen(true)}
+                      className="gap-2"
+                      disabled={!selectedWorkspace}
+                    >
+                      <Upload className="h-4 w-4" />
+                      <span className="hidden sm:inline">Crowdin Export</span>
+                      <span className="sm:hidden">Export</span>
+                    </Button>
+                    
+                    {/* Crowdin Import Button - Show if import is available */}
+                    {importAvailable && (
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => setCrowdinImportDialogOpen(true)}
+                        className="gap-2"
+                        disabled={!selectedWorkspace}
+                      >
+                        <Download className="h-4 w-4" />
+                        <span className="hidden sm:inline">
+                          Crowdin Import
+                        </span>
+                        <span className="sm:hidden">Import</span>
+                      </Button>
+                    )}
+                    
+                    <Button 
+                      size="sm" 
+                      variant="destructive" 
+                      onClick={handleDiscardIndex}
+                      className="gap-2 ml-auto"
+                    >
+                      <XCircle className="h-4 w-4" />
+                      <span className="hidden sm:inline">Discard Index</span>
+                      <span className="sm:hidden">Discard</span>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Tabs for different views */}
             <div className="flex-1 min-h-0 overflow-hidden">
@@ -570,15 +621,26 @@ export const QADialog: React.FC<QADialogProps> = ({
                           {Object.keys(groupedEntries).length} unique values
                         </Badge>
                       )}
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={handleExportGroupedResults}
-                        className="gap-2 ml-auto"
-                      >
-                        <Download className="h-4 w-4" />
-                        Export Results
-                      </Button>
+                      <div className="flex gap-2 ml-auto">
+                        <Button 
+                          size="sm" 
+                          variant="default" 
+                          onClick={handleGenerateIndex}
+                          className="gap-2"
+                        >
+                          <FileText className="h-4 w-4" />
+                          Generate Index
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={handleExportGroupedResults}
+                          className="gap-2"
+                        >
+                          <Download className="h-4 w-4" />
+                          Export Results
+                        </Button>
+                      </div>
                     </div>
                     
                     <div className="relative">
@@ -1047,20 +1109,20 @@ export const QADialog: React.FC<QADialogProps> = ({
        {/* Crowdin Export Dialog */}
         {selectedWorkspace && selectedDocument && (
           <>
-            <CrowdinExportDialog
-              open={crowdinDialogOpen}
-              onOpenChange={setCrowdinDialogOpen}
-              translationData={translationData.index}
-              documentName={documentName}
-              workspaceId={selectedWorkspace.id}
-              documentId={selectedDocument.id}
-              onDocumentUpdated={() => {
-                // Force a small delay to ensure database has been updated
-                setTimeout(() => {
-                  window.location.reload();
-                }, 500);
-              }}
-            />
+             <CrowdinExportDialog
+               open={crowdinDialogOpen}
+               onOpenChange={setCrowdinDialogOpen}
+               translationData={generatedIndex || translationData.index}
+               documentName={documentName}
+               workspaceId={selectedWorkspace.id}
+               documentId={selectedDocument.id}
+               onDocumentUpdated={() => {
+                 // Force a small delay to ensure database has been updated
+                 setTimeout(() => {
+                   window.location.reload();
+                 }, 500);
+               }}
+             />
             
             {/* Crowdin Import Dialog */}
             {importAvailable && (
