@@ -3,7 +3,7 @@ import { Plus, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { NotationComment } from '@/types/notations';
-import { useUserProfile } from '@/hooks/useUserProfile';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface NotationsPanelProps {
   notations: NotationComment[];
@@ -14,7 +14,7 @@ interface NotationsPanelProps {
 export const NotationsPanel = memo(({ notations, isExpanded, onAddNotation }: NotationsPanelProps) => {
   const [isAddingComment, setIsAddingComment] = useState(false);
   const [newMessage, setNewMessage] = useState('');
-  const { getNotationUsername } = useUserProfile();
+  const { getNotationUsername } = useAuth();
   if (!isExpanded) {
     return null;
   }

@@ -12,11 +12,9 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User, LogOut, Settings } from 'lucide-react';
 import { UserSettingsDialog } from './UserSettingsDialog';
-import { useUserProfile } from '@/hooks/useUserProfile';
 
 export function AuthButton() {
-  const { user, signOut, loading } = useAuth();
-  const { getDisplayName } = useUserProfile();
+  const { user, signOut, loading, getDisplayName } = useAuth();
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   if (loading) {

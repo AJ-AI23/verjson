@@ -2,10 +2,26 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+interface UserProfile {
+  id: string;
+  user_id: string;
+  email: string;
+  full_name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  profile: UserProfile | null;
+  profileLoading: boolean;
+  updateProfile: (updates: Partial<Pick<UserProfile, 'full_name' | 'username' | 'avatar_url'>>) => Promise<{ error: Error | null }>;
+  getDisplayName: () => string;
+  getNotationUsername: () => string;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -28,6 +44,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+
+  // Fetch user profile
+  const fetchProfile = async (userId: string) => {
+    setProfileLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('user-profile', {
+        body: { action: 'getUserProfile' }
+      });
+
+      if (error) throw error;
+      
+      if (data?.profile) {
+        setProfile(data.profile);
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -37,6 +75,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        
+        // Fetch profile when user signs in
+        if (session?.user) {
+          setTimeout(() => fetchProfile(session.user.id), 0);
+        } else {
+          setProfile(null);
+        }
       }
     );
 
@@ -49,6 +94,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      
+      // Fetch profile for existing session
+      if (session?.user) {
+        setTimeout(() => fetchProfile(session.user.id), 0);
+      }
     }).catch((error) => {
       console.error('Failed to get session:', error);
       setSession(null);
@@ -152,12 +202,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error };
   };
 
+  const updateProfile = async (updates: Partial<Pick<UserProfile, 'full_name' | 'username' | 'avatar_url'>>) => {
+    if (!user) return { error: new Error('Not authenticated') };
+
+    try {
+      const { data, error } = await supabase.functions.invoke('user-profile', {
+        body: {
+          action: 'updateUserProfile',
+          updates
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.profile) {
+        setProfile(data.profile);
+      }
+
+      return { error: null };
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      return { error: error as Error };
+    }
+  };
+
+  const getDisplayName = () => {
+    if (profile?.username) return profile.username;
+    if (profile?.full_name) return profile.full_name;
+    if (profile?.email) return profile.email.split('@')[0];
+    if (user?.email) return user.email.split('@')[0];
+    return 'User';
+  };
+
+  const getNotationUsername = () => {
+    if (profile?.username) return profile.username;
+    if (user?.email) return user.email.split('@')[0];
+    return 'anonymous';
+  };
+
   return (
     <AuthContext.Provider
       value={{
         user,
         session,
         loading,
+        profile,
+        profileLoading,
+        updateProfile,
+        getDisplayName,
+        getNotationUsername,
         signUp,
         signIn,
         signOut,

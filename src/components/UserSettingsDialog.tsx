@@ -14,7 +14,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, User, Mail, Key, UserCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useUserProfile } from '@/hooks/useUserProfile';
 
 interface UserSettingsDialogProps {
   open: boolean;
@@ -22,8 +21,7 @@ interface UserSettingsDialogProps {
 }
 
 export function UserSettingsDialog({ open, onOpenChange }: UserSettingsDialogProps) {
-  const { user, updatePassword, updateEmail } = useAuth();
-  const { profile, updateProfile, loading } = useUserProfile();
+  const { user, updatePassword, updateEmail, profile, updateProfile, profileLoading } = useAuth();
   const { toast } = useToast();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -162,7 +160,7 @@ export function UserSettingsDialog({ open, onOpenChange }: UserSettingsDialogPro
           </TabsList>
 
           <TabsContent value="profile" className="space-y-4">
-            {loading ? (
+            {profileLoading ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-4 w-4 animate-spin" />
               </div>
