@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { registerInvitationUpdateHandler } from './useNotifications';
 import { toast } from 'sonner';
-// Removed triggerSequentialRefresh import - using targeted updates instead
 
 export interface Invitation {
   id: string;
@@ -18,20 +18,17 @@ export interface Invitation {
   type: 'workspace' | 'document';
 }
 
+const INVITATIONS_QUERY_KEY = 'invitations';
+
 export function useInvitations() {
   const { user } = useAuth();
-  const [invitations, setInvitations] = useState<Invitation[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const fetchInvitations = useCallback(async () => {
-    if (!user) return;
-    
-    try {
-      setLoading(true);
-      setError(null);
+  const { data: invitations = [], isLoading: loading, error: queryError } = useQuery({
+    queryKey: [INVITATIONS_QUERY_KEY, user?.id],
+    queryFn: async () => {
+      if (!user) return [];
       
-      // Use the permissions-management edge function
       const { data, error } = await supabase.functions.invoke('permissions-management', {
         body: {
           action: 'getUserInvitations'
@@ -40,8 +37,7 @@ export function useInvitations() {
 
       if (error) throw error;
 
-      // Format the data to match our interface
-      const formattedInvitations = data?.invitations?.map(invitation => ({
+      return data?.invitations?.map(invitation => ({
         id: invitation.id,
         workspace_id: invitation.workspace_id,
         document_id: invitation.document_id,
@@ -53,16 +49,15 @@ export function useInvitations() {
         created_at: invitation.created_at,
         type: invitation.type as 'workspace' | 'document'
       })) || [];
+    },
+    enabled: !!user,
+  });
 
-      setInvitations(formattedInvitations);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch invitations';
-      setError(message);
-      console.error('Error fetching invitations:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
+  const error = queryError ? (queryError instanceof Error ? queryError.message : 'Failed to fetch invitations') : null;
+
+  const refetch = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: [INVITATIONS_QUERY_KEY, user?.id] });
+  }, [queryClient, user?.id]);
 
   const acceptInvitation = useCallback(async (invitationId: string) => {
     try {
@@ -78,8 +73,10 @@ export function useInvitations() {
 
       console.log('[useInvitations] 📋 Found invitation:', invitation);
 
-      // Optimistic update - remove immediately
-      setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
+      // Optimistic update
+      queryClient.setQueryData([INVITATIONS_QUERY_KEY, user?.id], (old: Invitation[] = []) => 
+        old.filter(inv => inv.id !== invitationId)
+      );
       
       // Use the permissions-management edge function
       console.log('[useInvitations] 🚀 Calling permissions-management edge function');
@@ -93,16 +90,14 @@ export function useInvitations() {
 
       if (error) {
         console.error('[useInvitations] ❌ Error accepting invitation:', error);
-        // Revert optimistic update on error
-        setInvitations(prev => [...prev, invitation]);
+        refetch();
         toast.error('Failed to accept invitation');
         return false;
       }
 
       if (!data?.success) {
         console.error('[useInvitations] ❌ Acceptance failed:', data?.message);
-        // Revert optimistic update on error
-        setInvitations(prev => [...prev, invitation]);
+        refetch();
         toast.error(data?.message || 'Failed to accept invitation');
         return false;
       }
@@ -123,16 +118,11 @@ export function useInvitations() {
     } catch (err) {
       console.error('[useInvitations] ❌ Exception during invitation acceptance:', err);
       const message = err instanceof Error ? err.message : 'Failed to accept invitation';
-      // Revert optimistic update on error
-      const removedInvitation = invitations.find(inv => inv.id === invitationId);
-      if (removedInvitation) {
-        setInvitations(prev => [...prev, removedInvitation]);
-      }
-      setError(message);
+      refetch();
       toast.error(message);
       return false;
     }
-  }, [invitations]);
+  }, [invitations, queryClient, user?.id, refetch]);
 
   const declineInvitation = useCallback(async (invitationId: string) => {
     try {
@@ -143,8 +133,10 @@ export function useInvitations() {
         return false;
       }
 
-      // Optimistic update - remove immediately
-      setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
+      // Optimistic update
+      queryClient.setQueryData([INVITATIONS_QUERY_KEY, user?.id], (old: Invitation[] = []) => 
+        old.filter(inv => inv.id !== invitationId)
+      );
       
       // Use the permissions-management edge function
       const { data, error } = await supabase.functions.invoke('permissions-management', {
@@ -157,15 +149,13 @@ export function useInvitations() {
 
       if (error) {
         console.error('Error declining invitation:', error);
-        // Revert optimistic update on error
-        setInvitations(prev => [...prev, invitation]);
+        refetch();
         toast.error('Failed to decline invitation');
         return false;
       }
 
       if (!data?.success) {
-        // Revert optimistic update on error
-        setInvitations(prev => [...prev, invitation]);
+        refetch();
         toast.error(data?.message || 'Failed to decline invitation');
         return false;
       }
@@ -174,32 +164,22 @@ export function useInvitations() {
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to decline invitation';
-      // Revert optimistic update on error
-      const removedInvitation = invitations.find(inv => inv.id === invitationId);
-      if (removedInvitation) {
-        setInvitations(prev => [...prev, removedInvitation]);
-      }
-      setError(message);
+      refetch();
       toast.error(message);
       return false;
     }
-  }, [invitations]);
+  }, [invitations, queryClient, user?.id, refetch]);
 
-  // Register for notification-based updates only (no duplicate real-time subscription)
+  // Register for notification-based updates
   useEffect(() => {
     if (!user) return;
 
-    registerInvitationUpdateHandler(fetchInvitations);
+    registerInvitationUpdateHandler(refetch);
     
     return () => {
       registerInvitationUpdateHandler(() => {});
     };
-  }, [user, fetchInvitations]);
-
-  // Initial fetch
-  useEffect(() => {
-    fetchInvitations();
-  }, [fetchInvitations]);
+  }, [user, refetch]);
 
   return {
     invitations,
@@ -207,6 +187,6 @@ export function useInvitations() {
     error,
     acceptInvitation,
     declineInvitation,
-    refetch: fetchInvitations,
+    refetch,
   };
 }

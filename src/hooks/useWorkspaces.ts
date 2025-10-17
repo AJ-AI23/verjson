@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { registerWorkspaceUpdateHandler } from './useNotifications';
@@ -6,17 +7,17 @@ import { Workspace, CreateWorkspaceData } from '@/types/workspace';
 import { toast } from 'sonner';
 import { registerWorkspaceRefreshHandler } from '@/lib/workspaceRefreshUtils';
 
+const WORKSPACE_QUERY_KEY = 'workspaces';
+
 export function useWorkspaces() {
   const { user } = useAuth();
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const fetchWorkspaces = useCallback(async (): Promise<void> => {
-    if (!user) return;
-    
-    try {
-      setLoading(true);
+  const { data: workspaces = [], isLoading: loading, error: queryError } = useQuery({
+    queryKey: [WORKSPACE_QUERY_KEY, user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      
       console.log('[useWorkspaces] 🔄 Fetching workspaces for user:', user.id);
       
       const { data, error } = await supabase.functions.invoke('workspace-management', {
@@ -26,15 +27,16 @@ export function useWorkspaces() {
       if (error) throw error;
 
       console.log('[useWorkspaces] ✅ Fetched workspaces:', data.workspaces?.length || 0);
-      setWorkspaces(data.workspaces || []);
-    } catch (err) {
-      console.error('[useWorkspaces] ❌ Error fetching workspaces:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch workspaces');
-      toast.error('Failed to load workspaces');
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
+      return data.workspaces || [];
+    },
+    enabled: !!user,
+  });
+
+  const error = queryError ? (queryError instanceof Error ? queryError.message : 'Failed to fetch workspaces') : null;
+
+  const refetch = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: [WORKSPACE_QUERY_KEY, user?.id] });
+  }, [queryClient, user?.id]);
 
   const createWorkspace = async (data: CreateWorkspaceData): Promise<Workspace | null> => {
     if (!user) return null;
@@ -46,12 +48,11 @@ export function useWorkspaces() {
 
       if (error) throw error;
       
-      await fetchWorkspaces(); // Refresh the list
+      refetch();
       toast.success('Workspace created successfully');
       return result.workspace;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create workspace';
-      setError(message);
       toast.error(message);
       return null;
     }
@@ -65,12 +66,11 @@ export function useWorkspaces() {
 
       if (error) throw error;
       
-      await fetchWorkspaces(); // Refresh the list
+      refetch();
       toast.success('Workspace updated successfully');
       return data.workspace;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update workspace';
-      setError(message);
       toast.error(message);
       return null;
     }
@@ -84,11 +84,10 @@ export function useWorkspaces() {
 
       if (error) throw error;
       
-      await fetchWorkspaces(); // Refresh the list
+      refetch();
       toast.success('Workspace deleted successfully');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete workspace';
-      setError(message);
       toast.error(message);
     }
   };
@@ -97,26 +96,24 @@ export function useWorkspaces() {
   useEffect(() => {
     if (!user) return;
 
-    fetchWorkspaces();
-
-    registerWorkspaceUpdateHandler(fetchWorkspaces);
-    registerWorkspaceRefreshHandler(fetchWorkspaces);
+    const asyncRefetch = async () => refetch();
+    registerWorkspaceUpdateHandler(asyncRefetch);
+    registerWorkspaceRefreshHandler(asyncRefetch);
 
     // Listen for custom workspace update events (from invitation acceptance)
     const handleCustomWorkspaceUpdate = () => {
-      console.log('[useWorkspaces] 🎯 Received workspaceUpdated event - fetching workspaces');
-      fetchWorkspaces();
+      console.log('[useWorkspaces] 🎯 Received workspaceUpdated event - refetching workspaces');
+      refetch();
     };
 
     window.addEventListener('workspaceUpdated', handleCustomWorkspaceUpdate);
 
     return () => {
-      // Only clear the handler if it's specifically our handler
       registerWorkspaceUpdateHandler(null);
       registerWorkspaceRefreshHandler(null);
       window.removeEventListener('workspaceUpdated', handleCustomWorkspaceUpdate);
     };
-  }, [user, fetchWorkspaces]);
+  }, [user, refetch]);
 
   return {
     workspaces,
@@ -125,6 +122,6 @@ export function useWorkspaces() {
     createWorkspace,
     updateWorkspace,
     deleteWorkspace,
-    refetch: fetchWorkspaces,
+    refetch,
   };
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRealtimeService } from './useRealtimeService';
@@ -35,12 +36,14 @@ export interface Notification {
   updated_at: string;
 }
 
+const NOTIFICATIONS_QUERY_KEY = 'notifications';
+
 export const useNotifications = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { subscribe, unsubscribe, connectionState } = useRealtimeService();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
   
   // Track processed notifications to prevent duplicates
@@ -64,27 +67,37 @@ export const useNotifications = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch notifications
-  const fetchNotifications = useCallback(async () => {
-    if (!user) return;
+  // Use React Query for fetching with automatic deduplication
+  const { data: queryData, isLoading: loading } = useQuery({
+    queryKey: [NOTIFICATIONS_QUERY_KEY, user?.id],
+    queryFn: async () => {
+      if (!user) return { notifications: [], unreadCount: 0 };
 
-    try {
-      setLoading(true);
       const { data, error } = await supabase.functions.invoke('notifications-management', {
         body: { action: 'getUserNotifications' }
       });
 
       if (error) throw error;
 
-      setNotifications(data.notifications || []);
-      setUnreadCount(data.unreadCount || 0);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-      toast.error('Failed to load notifications');
-    } finally {
-      setLoading(false);
+      return {
+        notifications: data.notifications || [],
+        unreadCount: data.unreadCount || 0,
+      };
+    },
+    enabled: !!user,
+  });
+
+  // Sync query data to local state for real-time updates
+  useEffect(() => {
+    if (queryData) {
+      setNotifications(queryData.notifications);
+      setUnreadCount(queryData.unreadCount);
     }
-  }, [user]);
+  }, [queryData]);
+
+  const fetchNotifications = useCallback(async () => {
+    queryClient.invalidateQueries({ queryKey: [NOTIFICATIONS_QUERY_KEY, user?.id] });
+  }, [queryClient, user?.id]);
 
   // Track optimistic updates to prevent real-time conflicts
   const optimisticUpdatesRef = useRef<Set<string>>(new Set());
@@ -423,10 +436,7 @@ export const useNotifications = () => {
     };
   }, [user, subscribe, unsubscribe, handleNotificationTypeUpdate]);
 
-  // Initial fetch
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+  // No need for initial fetch - React Query handles it automatically
 
   return {
     notifications,

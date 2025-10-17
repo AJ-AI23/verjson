@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Document } from '@/types/workspace';
@@ -12,28 +13,21 @@ export interface SharedDocument extends Document {
   is_shared: true;
 }
 
+const SHARED_DOCUMENTS_QUERY_KEY = 'shared-documents';
+
 export function useSharedDocuments() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [documents, setDocuments] = useState<SharedDocument[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // Debug: Track when documents state changes
-  useEffect(() => {
-    console.log('[useSharedDocuments] 📊 DOCUMENTS STATE CHANGED:', documents.length, 'documents');
-    console.log('[useSharedDocuments] 📊 Documents:', documents.map(d => d.name));
-  }, [documents]);
-
-  const fetchSharedDocuments = useCallback(async (): Promise<void> => {
-    if (!user) {
-      console.log('[useSharedDocuments] 🚫 No user, skipping fetch');
-      setDocuments([]);
-      setLoading(false);
-      return;
-    }
-    
-    try {
-      setLoading(true);
+  const { data: queryData, isLoading: loading, error: queryError } = useQuery({
+    queryKey: [SHARED_DOCUMENTS_QUERY_KEY, user?.id],
+    queryFn: async () => {
+      if (!user) {
+        console.log('[useSharedDocuments] 🚫 No user, skipping fetch');
+        return [];
+      }
+      
       console.log('[useSharedDocuments] 🔄 Fetching shared documents for user:', user.id, user.email);
       
       const { data, error } = await supabase.functions.invoke('document-management', {
@@ -45,26 +39,25 @@ export function useSharedDocuments() {
         throw error;
       }
       
-      console.log('[useSharedDocuments] 📋 Raw response from backend:', data);
       console.log('[useSharedDocuments] ✅ Shared documents fetched:', data.documents?.length || 0);
-      if (data.documents?.length > 0) {
-        console.log('[useSharedDocuments] 📄 First shared document:', data.documents[0]);
-      } else {
-        console.log('[useSharedDocuments] 🚫 No shared documents found - virtual workspace should be hidden');
-      }
-      
-      console.log('[useSharedDocuments] 🔄 About to call setDocuments with:', data.documents?.length || 0, 'documents');
-      console.log('[useSharedDocuments] 🔄 Current documents state before update:', documents.length);
-      setDocuments(data.documents || []);
-      console.log('[useSharedDocuments] ✅ setDocuments called - should trigger re-render');
-    } catch (err) {
-      console.error('[useSharedDocuments] ❌ Error in fetchSharedDocuments:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch shared documents');
-      toast.error('Failed to load shared documents');
-    } finally {
-      setLoading(false);
+      return data.documents || [];
+    },
+    enabled: !!user,
+  });
+
+  const error = queryError ? (queryError instanceof Error ? queryError.message : 'Failed to fetch shared documents') : null;
+
+  const refetch = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: [SHARED_DOCUMENTS_QUERY_KEY, user?.id] });
+  }, [queryClient, user?.id]);
+
+  // Sync query data to local state for real-time updates
+  useEffect(() => {
+    if (queryData) {
+      console.log('[useSharedDocuments] 📊 Updating documents state:', queryData.length, 'documents');
+      setDocuments(queryData);
     }
-  }, [user]);
+  }, [queryData]);
 
   // Set up real-time subscription for document permission changes
   useEffect(() => {
@@ -74,15 +67,14 @@ export function useSharedDocuments() {
       return;
     }
 
-    fetchSharedDocuments();
-
     // Register global refresh handler for immediate updates
-    registerSharedDocumentsRefreshHandler(fetchSharedDocuments);
+    const asyncRefetch = async () => refetch();
+    registerSharedDocumentsRefreshHandler(asyncRefetch);
 
     // Listen for workspace updates (from invitation acceptance)
     const handleWorkspaceUpdate = (event: CustomEvent) => {
       console.log('[useSharedDocuments] 🔄 WorkspaceUpdated event received:', event.detail);
-      fetchSharedDocuments();
+      refetch();
     };
     
     window.addEventListener('workspaceUpdated', handleWorkspaceUpdate as EventListener);
@@ -116,7 +108,7 @@ export function useSharedDocuments() {
           // Also fetch latest data for consistency (with small delay)
           setTimeout(() => {
             console.log('[useSharedDocuments] 🔄 Fetching latest data after permission deletion');
-            fetchSharedDocuments();
+            refetch();
           }, 100);
         }
       )
@@ -131,7 +123,7 @@ export function useSharedDocuments() {
         (payload) => {
           console.log('[useSharedDocuments] 📄 Document permission ADDED:', payload.new);
           // Only refresh for new permissions
-          fetchSharedDocuments();
+          refetch();
         }
       )
       .on(
@@ -146,7 +138,7 @@ export function useSharedDocuments() {
           console.log('[useSharedDocuments] Workspace permission DELETED:', payload.old);
           // When workspace permission is removed, refresh shared documents
           // as documents may now appear in "Shared with me" if they have individual permissions
-          fetchSharedDocuments();
+          refetch();
         }
       )
       .on(
@@ -160,7 +152,7 @@ export function useSharedDocuments() {
         (payload) => {
           console.log('[useSharedDocuments] Workspace permission UPDATED:', payload.eventType, payload.new);
           // Status changes (accepted/pending/declined) should trigger refresh
-          fetchSharedDocuments();
+          refetch();
         }
       )
       .on(
@@ -197,12 +189,12 @@ export function useSharedDocuments() {
       registerSharedDocumentsRefreshHandler(null);
       window.removeEventListener('workspaceUpdated', handleWorkspaceUpdate as EventListener);
     };
-  }, [user]);
+  }, [user, refetch]);
 
   return {
     documents,
     loading,
     error,
-    refetch: fetchSharedDocuments,
+    refetch,
   };
 }
