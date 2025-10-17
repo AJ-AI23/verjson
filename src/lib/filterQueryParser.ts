@@ -205,6 +205,7 @@ export function parseQuery(tokens: FilterToken[]): FilterNode {
 
 /**
  * Convert wildcard pattern to regex
+ * More flexible matching: only anchor if pattern doesn't start/end with wildcard
  */
 function wildcardToRegex(pattern: string, caseSensitive: boolean = false): RegExp {
   // Escape special regex characters except *
@@ -213,8 +214,15 @@ function wildcardToRegex(pattern: string, caseSensitive: boolean = false): RegEx
   // Convert * to .*
   const regexPattern = escaped.replace(/\*/g, '.*');
   
+  // Only add anchors if pattern doesn't already have wildcards at the edges
+  const startsWithWildcard = pattern.startsWith('*');
+  const endsWithWildcard = pattern.endsWith('*');
+  
+  const prefix = startsWithWildcard ? '' : '^';
+  const suffix = endsWithWildcard ? '' : '$';
+  
   const flags = caseSensitive ? '' : 'i';
-  return new RegExp(`^${regexPattern}$`, flags);
+  return new RegExp(`${prefix}${regexPattern}${suffix}`, flags);
 }
 
 /**
