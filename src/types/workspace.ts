@@ -36,6 +36,7 @@ export interface Document {
   crowdin_integration?: CrowdinIntegration;
   created_at: string;
   updated_at: string;
+  import_url?: string;
   // Properties for shared documents
   workspace_name?: string;
   shared_role?: 'editor' | 'viewer';
@@ -52,4 +53,5 @@ export interface CreateDocumentData {
   name: string;
   content: any;
   file_type: 'json-schema' | 'openapi';
+  import_url?: string;
 }

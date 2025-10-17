@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Save, MessageCircle, FileText, Calendar, Clock, Copy, X, Share, Download } from 'lucide-react';
+import { Save, MessageCircle, FileText, Calendar, Clock, Copy, X, Share, Download, RefreshCw } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -37,6 +37,7 @@ interface EditorToolbarProps {
   selectedDocument?: any;
   onClose?: () => void;
   onDocumentUpdate?: (updates: { name?: string; is_public?: boolean }) => void;
+  onSave?: (content: any) => void;
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
@@ -54,10 +55,12 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   selectedDocument,
   onClose,
   onDocumentUpdate,
+  onSave,
 }) => {
   const { debugToast } = useDebug();
   const { updateMaxDepth } = useEditorSettings();
   const [isNotationsPanelOpen, setIsNotationsPanelOpen] = useState(false);
+  const [isReloading, setIsReloading] = useState(false);
   
   const { groupedNotations, activeNotationCount } = useNotationsManager(schema);
   
@@ -88,6 +91,37 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       toast.success('Public URL copied to clipboard');
     } catch (err) {
       toast.error('Failed to copy public URL');
+    }
+  };
+
+  const handleReloadFromUrl = async () => {
+    if (!selectedDocument?.import_url) return;
+    
+    setIsReloading(true);
+    try {
+      const response = await fetch(selectedDocument.import_url);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const text = await response.text();
+      const content = JSON.parse(text);
+      
+      // Update the schema in the editor
+      const newSchema = JSON.stringify(content, null, 2);
+      setSchema(newSchema);
+      setSavedSchema(newSchema);
+      
+      // Save the updated content to the database
+      if (onSave) {
+        onSave(content);
+      }
+      
+      toast.success('Document reloaded from URL and saved');
+    } catch (error) {
+      toast.error(`Failed to reload from URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsReloading(false);
     }
   };
 
@@ -165,6 +199,27 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                           <p>Copy public JSON URL</p>
                         </TooltipContent>
                       </Tooltip>
+                      
+                      {selectedDocument.import_url && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-5 px-1 gap-1 text-xs text-muted-foreground hover:text-foreground"
+                              onClick={handleReloadFromUrl}
+                              disabled={isReloading}
+                            >
+                              <RefreshCw className={`h-3 w-3 ${isReloading ? 'animate-spin' : ''}`} />
+                              Reload
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Reload document from original URL</p>
+                            <p className="text-xs text-muted-foreground">{selectedDocument.import_url}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
                       
                       <Badge variant="secondary" className="text-xs">
                         {getFileTypeLabel(selectedDocument.file_type)}

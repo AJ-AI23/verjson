@@ -281,6 +281,7 @@ export type Database = {
           crowdin_integration_id: string | null
           file_type: string
           id: string
+          import_url: string | null
           is_public: boolean
           name: string
           pin_code: string | null
@@ -295,6 +296,7 @@ export type Database = {
           crowdin_integration_id?: string | null
           file_type?: string
           id?: string
+          import_url?: string | null
           is_public?: boolean
           name: string
           pin_code?: string | null
@@ -309,6 +311,7 @@ export type Database = {
           crowdin_integration_id?: string | null
           file_type?: string
           id?: string
+          import_url?: string | null
           is_public?: boolean
           name?: string
           pin_code?: string | null

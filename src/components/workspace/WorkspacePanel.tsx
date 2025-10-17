@@ -378,6 +378,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
           name: file.name,
           content: file.content,
           file_type: file.fileType,
+          import_url: file.url, // Pass the URL if available
         });
       }
       toast.success(`Imported ${filesToImport.length} document${filesToImport.length !== 1 ? 's' : ''} successfully`);

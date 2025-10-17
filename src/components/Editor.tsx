@@ -131,6 +131,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         selectedDocument={selectedDocument}
         onClose={onClose}
         onDocumentUpdate={onDocumentUpdate}
+        onSave={onSave}
       />
       
       <EditorContent

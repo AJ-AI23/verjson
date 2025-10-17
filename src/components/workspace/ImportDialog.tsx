@@ -26,6 +26,7 @@ interface FileToImport {
   size: number;
   valid: boolean;
   error?: string;
+  url?: string; // Store the URL for URL imports
 }
 
 interface ImportDialogProps {
@@ -227,6 +228,7 @@ export function ImportDialog({
         size: text.length,
         valid: validation.valid,
         error: validation.error,
+        url: urlInput, // Store the URL
       };
       
       setFilesToImport(prev => [...prev, newFile]);

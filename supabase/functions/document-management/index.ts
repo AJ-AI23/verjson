@@ -12,6 +12,7 @@ interface CreateDocumentRequest {
   name: string;
   content: any;
   file_type: 'json-schema' | 'openapi';
+  import_url?: string;
 }
 
 interface UpdateDocumentRequest {
@@ -99,6 +100,7 @@ const handler = async (req: Request): Promise<Response> => {
             file_type,
             created_at,
             updated_at,
+            import_url,
             crowdin_integration_id,
             crowdin_integration:document_crowdin_integrations!documents_crowdin_integration_id_fkey(
               id,
@@ -152,6 +154,7 @@ const handler = async (req: Request): Promise<Response> => {
             content: requestBody.content,
             file_type: requestBody.file_type,
             user_id: user.id,
+            import_url: requestBody.import_url,
           })
           .select()
           .single();
