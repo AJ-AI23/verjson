@@ -383,6 +383,41 @@ export const QADialog: React.FC<QADialogProps> = ({
     }
   };
 
+  const handleExportGroupedResults = () => {
+    try {
+      const exportData = {
+        document: documentName,
+        timestamp: new Date().toISOString(),
+        summary: {
+          totalGroups: Object.keys(groupedEntries).length,
+          totalStrings: Object.values(groupedEntries).reduce((sum, entries) => sum + entries.length, 0),
+          groupingStrategy,
+          filterApplied: filterValue.trim() !== '',
+          filter: filterValue.trim() || null,
+          schemaType: translationData.schemaType
+        },
+        groups: Object.entries(groupedEntries)
+          .sort(([, a], [, b]) => b.length - a.length)
+          .map(([groupKey, entries]) => ({
+            groupKey,
+            count: entries.length,
+            entries: entries.map(entry => ({
+              key: entry.key,
+              value: entry.value,
+              path: entry.path
+            }))
+          }))
+      };
+
+      const filename = `${documentName}-grouped-results.json`;
+      downloadJsonFile(exportData, filename);
+      toast.success('Grouped results exported successfully');
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Failed to export grouped results');
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -535,6 +570,15 @@ export const QADialog: React.FC<QADialogProps> = ({
                           {Object.keys(groupedEntries).length} unique values
                         </Badge>
                       )}
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={handleExportGroupedResults}
+                        className="gap-2 ml-auto"
+                      >
+                        <Download className="h-4 w-4" />
+                        Export Results
+                      </Button>
                     </div>
                     
                     <div className="relative">
