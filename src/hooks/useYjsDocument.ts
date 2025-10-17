@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Y from 'yjs';
 import { Awareness } from 'y-protocols/awareness';
-import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { CustomYjsProvider } from './useCustomYjsProvider';
 
 interface UseYjsDocumentProps {
@@ -32,6 +32,7 @@ export const useYjsDocument = ({
   initialContent,
   onContentChange
 }: UseYjsDocumentProps): UseYjsDocumentResult => {
+  const { user, session, profile } = useAuth();
   const [yjsDoc, setYjsDoc] = useState<Y.Doc | null>(null);
   const [provider, setProvider] = useState<CustomYjsProvider | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -47,13 +48,12 @@ export const useYjsDocument = ({
   const textRef = useRef<Y.Text | null>(null);
   const observerRef = useRef<((event: Y.YTextEvent) => void) | null>(null);
 
-  const getAuthToken = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+  const getAuthToken = useCallback(() => {
     return session?.access_token || null;
-  };
+  }, [session]);
 
   const initializeYjsDocument = useCallback(async () => {
-    if (!documentId) return;
+    if (!documentId || !user) return;
 
     try {
       setIsLoading(true);
@@ -101,21 +101,12 @@ export const useYjsDocument = ({
         setIsLoading(false);
       });
       
-      // Get user info for awareness
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name, avatar_url')
-          .eq('user_id', user.id)
-          .single();
-
-        awareness.setLocalStateField('user', {
-          id: user.id,
-          name: profile?.full_name || user.email?.split('@')[0],
-          avatar: profile?.avatar_url
-        });
-      }
+      // Set user info for awareness from AuthContext
+      awareness.setLocalStateField('user', {
+        id: user.id,
+        name: profile?.full_name || profile?.username || user.email?.split('@')[0] || 'Anonymous',
+        avatar: profile?.avatar_url
+      });
 
       // Listen to awareness changes (other users)
       awareness.on('change', () => {
@@ -156,7 +147,7 @@ export const useYjsDocument = ({
       setError('Failed to initialize collaborative editing');
       setIsLoading(false);
     }
-  }, [documentId]); // Remove initialContent and onContentChange from dependencies
+  }, [documentId, user, session, profile, getAuthToken]);
 
   const getTextContent = useCallback(() => {
     return textRef.current?.toString() || '';

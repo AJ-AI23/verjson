@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface RealtimeSubscription {
   table: string;
@@ -60,19 +61,18 @@ class RealtimeServiceSingleton {
     this.isCleaningUp = false;
   }
 
-  private async createChannel() {
+  private async createChannel(userId: string) {
     if (this.isCleaningUp) return;
     
     this.cleanup();
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.warn('No user found, skipping realtime connection');
+      if (!userId) {
+        console.warn('No user ID provided, skipping realtime connection');
         return;
       }
 
-      const channelName = `unified-realtime-${user.id}`;
+      const channelName = `unified-realtime-${userId}`;
       
       this.setConnectionState({ ...this.connectionState, status: 'connecting' });
 
@@ -115,7 +115,7 @@ class RealtimeServiceSingleton {
             
             this.retryTimeout = setTimeout(() => {
               if (!this.isCleaningUp) {
-                this.createChannel();
+                this.createChannel(userId);
               }
             }, delay);
           } else {
@@ -132,7 +132,7 @@ class RealtimeServiceSingleton {
     }
   }
 
-  subscribe(id: string, subscription: RealtimeSubscription) {
+  subscribe(id: string, subscription: RealtimeSubscription, userId: string) {
     this.subscriptions.set(id, subscription);
     
     // If we have an active channel, add the subscription to it
@@ -152,7 +152,7 @@ class RealtimeServiceSingleton {
       });
     } else {
       // Create channel if it doesn't exist or is not connected
-      this.createChannel();
+      this.createChannel(userId);
     }
   }
 
@@ -187,6 +187,7 @@ class RealtimeServiceSingleton {
 }
 
 export function useRealtimeService() {
+  const { user } = useAuth();
   const [connectionState, setConnectionState] = useState<ConnectionState>({
     status: 'disconnected',
     retryCount: 0
@@ -203,8 +204,10 @@ export function useRealtimeService() {
   }, []);
 
   const subscribe = useCallback((id: string, subscription: RealtimeSubscription) => {
-    serviceRef.current?.subscribe(id, subscription);
-  }, []);
+    if (user?.id) {
+      serviceRef.current?.subscribe(id, subscription, user.id);
+    }
+  }, [user?.id]);
 
   const unsubscribe = useCallback((id: string) => {
     serviceRef.current?.unsubscribe(id);
