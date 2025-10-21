@@ -934,6 +934,74 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
       });
     }
   }
+
+  // Check for broken component references
+  function checkBrokenReferences(currentObj: any, path: string[] = []) {
+    if (currentObj === null || currentObj === undefined) {
+      return;
+    }
+
+    // Collect all available component definitions
+    const availableComponents = new Set<string>();
+    
+    // OpenAPI 3.x components
+    if (obj.components?.schemas) {
+      Object.keys(obj.components.schemas).forEach(name => {
+        availableComponents.add(`#/components/schemas/${name}`);
+      });
+    }
+    
+    // JSON Schema definitions (older OpenAPI 2.x and JSON Schema)
+    if (obj.definitions) {
+      Object.keys(obj.definitions).forEach(name => {
+        availableComponents.add(`#/definitions/${name}`);
+      });
+    }
+
+    // JSON Schema $defs (newer JSON Schema)
+    if (obj.$defs) {
+      Object.keys(obj.$defs).forEach(name => {
+        availableComponents.add(`#/$defs/${name}`);
+      });
+    }
+
+    // Recursively find all $ref properties
+    function findReferences(currentObj: any, path: string[] = []) {
+      if (currentObj === null || currentObj === undefined) {
+        return;
+      }
+
+      if (Array.isArray(currentObj)) {
+        currentObj.forEach((item, index) => {
+          findReferences(item, [...path, index.toString()]);
+        });
+      } else if (typeof currentObj === 'object') {
+        Object.keys(currentObj).forEach(key => {
+          if (key === '$ref' && typeof currentObj[key] === 'string') {
+            const refValue = currentObj[key];
+            
+            // Only validate internal references (starting with #/)
+            if (refValue.startsWith('#/')) {
+              if (!availableComponents.has(refValue)) {
+                issues.push({
+                  type: 'broken-reference',
+                  path: [...path, '$ref'].join('.'),
+                  value: refValue,
+                  message: `Reference "${refValue}" points to a non-existent component`,
+                  severity: 'error',
+                  rule: 'Broken Component Reference'
+                });
+              }
+            }
+          } else {
+            findReferences(currentObj[key], [...path, key]);
+          }
+        });
+      }
+    }
+
+    findReferences(currentObj, path);
+  }
   
   // Run all checks
   console.log('Running all consistency checks with config:', config);
@@ -943,6 +1011,7 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
   checkPropertyNaming(obj);
   checkExamples(obj);
   checkSemanticRules(obj);
+  checkBrokenReferences(obj);
   
   console.log('Total issues found before deduplication:', issues.length);
   
