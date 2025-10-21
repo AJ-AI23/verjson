@@ -50,7 +50,8 @@ export const useVersioning = ({
     createVersion,
     updateVersion,
     deleteVersion: deleteVersionFromDb,
-    getSchemaPatches
+    getSchemaPatches,
+    refetch
   } = useDocumentVersions(documentId);
 
   // Calculate if the schema has been modified since last database commit
@@ -302,6 +303,9 @@ export const useVersioning = ({
           full_document: schemaForRelease,
           patches: null, // Remove patches as we now store full document
         });
+        
+        // Manually refresh versions to ensure immediate UI update
+        await refetch();
       }
       
       toast.success('Version marked as released');
