@@ -69,6 +69,15 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   const patches = useMemo(() => {
     if (!versions.length) return [];
     
+    console.log('🔄 VersionHistory: Converting versions to patches', {
+      versionCount: versions.length,
+      versions: versions.map(v => ({ 
+        id: v.id, 
+        isReleased: v.is_released,
+        description: v.description 
+      }))
+    });
+    
     const convertedPatches = versions.map(version => ({
       id: version.id,
       timestamp: new Date(version.created_at).getTime(),
@@ -93,6 +102,15 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
       isSelected: version.is_selected,
       status: version.status || 'visible',
     }));
+    
+    console.log('🔄 VersionHistory: Converted patches', {
+      patchCount: convertedPatches.length,
+      patches: convertedPatches.map(p => ({ 
+        id: p.id, 
+        isReleased: p.isReleased,
+        description: p.description 
+      }))
+    });
     
     return convertedPatches;
   }, [versions]);

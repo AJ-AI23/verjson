@@ -152,6 +152,8 @@ export function useDocumentVersions(documentId?: string) {
     if (!user) return null;
 
     try {
+      console.log('🔄 updateVersion: Starting update', { versionId, updates });
+      
       const { data, error } = await supabase.functions.invoke('document-versions', {
         body: {
           action: 'updateDocumentVersion',
@@ -162,8 +164,18 @@ export function useDocumentVersions(documentId?: string) {
 
       if (error) throw error;
 
+      console.log('🔄 updateVersion: Update successful', { versionId, updatedData: data.version });
+      
       const updatedVersion = data.version as DocumentVersion;
-      setVersions(prev => prev.map(v => v.id === versionId ? updatedVersion : v));
+      setVersions(prev => {
+        const updated = prev.map(v => v.id === versionId ? updatedVersion : v);
+        console.log('🔄 updateVersion: Updated local versions state', {
+          before: prev.find(v => v.id === versionId),
+          after: updatedVersion,
+          allVersions: updated.map(v => ({ id: v.id, isReleased: v.is_released }))
+        });
+        return updated;
+      });
       return updatedVersion;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update version';

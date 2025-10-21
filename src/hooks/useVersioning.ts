@@ -307,6 +307,8 @@ export const useVersioning = ({
 
   const handleMarkAsReleased = async (patchId: string) => {
     try {
+      console.log('🏷️ handleMarkAsReleased: Starting release process', { patchId });
+      
       // Find the patch being released
       const targetPatch = patches.find(p => p.id === patchId);
       if (!targetPatch) {
@@ -314,35 +316,51 @@ export const useVersioning = ({
         return;
       }
       
+      console.log('🏷️ handleMarkAsReleased: Found patch to release', { 
+        patchId, 
+        currentIsReleased: targetPatch.isReleased,
+        description: targetPatch.description 
+      });
+      
       // Calculate schema up to this version's timestamp
       const schemaForRelease = applySelectedPatches(patches, targetPatch.timestamp);
       const updatedPatches = markAsReleased(patches, patchId, schemaForRelease);
       const patchToUpdate = updatedPatches.find(p => p.id === patchId);
       
       if (patchToUpdate) {
+        console.log('🏷️ handleMarkAsReleased: Calling updateVersion');
+        
         const result = await updateVersion(patchId, {
           is_released: true,
           full_document: schemaForRelease,
           patches: null, // Remove patches as we now store full document
         });
         
+        console.log('🏷️ handleMarkAsReleased: updateVersion result', { result });
+        
         if (!result) {
           toast.error('Failed to mark version as released');
           return;
         }
         
+        console.log('🏷️ handleMarkAsReleased: Waiting before refetch...');
         // Wait a bit for the database to update
         await new Promise(resolve => setTimeout(resolve, 200));
         
+        console.log('🏷️ handleMarkAsReleased: Calling refetch...');
         // Manually refresh versions to ensure immediate UI update
         await refetch();
         
+        console.log('🏷️ handleMarkAsReleased: Waiting for state propagation...');
         // Wait another moment for state to propagate
         await new Promise(resolve => setTimeout(resolve, 100));
+        
+        console.log('🏷️ handleMarkAsReleased: Release complete');
       }
       
       toast.success('Version marked as released');
     } catch (err) {
+      console.error('🏷️ handleMarkAsReleased: Error', err);
       toast.error('Failed to mark version as released', {
         description: (err as Error).message,
       });
