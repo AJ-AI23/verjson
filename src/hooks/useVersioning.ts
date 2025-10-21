@@ -37,6 +37,7 @@ export const useVersioning = ({
   const { debugToast } = useDebug();
   const [patches, setPatches] = useState<SchemaPatch[]>([]);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
+  const [suggestedVersion, setSuggestedVersion] = useState<Version | null>(null);
   
   // Track the true database version separately from savedSchema
   const [databaseVersion, setDatabaseVersion] = useState<string>('');
@@ -165,11 +166,21 @@ export const useVersioning = ({
       const validation = validateVersionForCreation(patches, newVersion);
       
       if (!validation.valid) {
+        // Set the suggested version for the UI to pick up
+        if (validation.suggestedVersion) {
+          setSuggestedVersion(validation.suggestedVersion);
+        }
+        
         toast.error('Invalid version number', {
-          description: validation.error,
+          description: validation.suggestedVersion 
+            ? `${validation.error}. Try version ${formatVersion(validation.suggestedVersion)} instead.`
+            : validation.error,
         });
         return;
       }
+      
+      // Clear any previous suggested version on successful validation
+      setSuggestedVersion(null);
       
       // Ensure the current schema is valid
       const parsedCurrentSchema = JSON.parse(schema);
@@ -388,6 +399,7 @@ export const useVersioning = ({
     debugToast('🧹 Versioning: Clearing all version state');
     setPatches([]);
     setDatabaseVersion('');
+    setSuggestedVersion(null);
     initialVersionAttempted.current = null;
     setIsVersionHistoryOpen(false);
   };
@@ -469,5 +481,6 @@ export const useVersioning = ({
     loading,
     clearVersionState,
     handleImportVersion,
+    suggestedVersion,
   };
 };

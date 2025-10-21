@@ -19,6 +19,7 @@ interface VersionControlsProps {
   onImportVersion?: (importedSchema: any, comparison: DocumentVersionComparison, sourceDocumentName: string) => void;
   documentId?: string;
   currentFileType?: string;
+  suggestedVersion?: Version | null;
 }
 
 export const VersionControls: React.FC<VersionControlsProps> = ({ 
@@ -30,7 +31,8 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
   patches,
   onImportVersion,
   documentId,
-  currentFileType
+  currentFileType,
+  suggestedVersion
 }) => {
   const { debugToast, errorToast } = useDebug();
   const [description, setDescription] = useState('');
@@ -43,6 +45,16 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
   useEffect(() => {
     setEditableVersion({ ...version });
   }, [version.major, version.minor, version.patch]);
+
+  // Apply suggested version when it changes
+  useEffect(() => {
+    if (suggestedVersion) {
+      setEditableVersion({ ...suggestedVersion });
+      toast.info('Version number updated', {
+        description: `Suggested version ${formatVersion(suggestedVersion)} has been set. Please try again.`,
+      });
+    }
+  }, [suggestedVersion]);
 
   // Helper function for deep object comparison
   const deepEqual = (obj1: any, obj2: any): boolean => {

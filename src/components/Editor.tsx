@@ -83,7 +83,8 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     handleAddNotation,
     expandedNotationPaths,
     clearEditorState,
-    handleImportVersion
+    handleImportVersion,
+    suggestedVersion
   } = useEditorState(schemaAsString, selectedDocument?.id);
 
   // Clear editor state when onClearRequest is triggered
@@ -153,6 +154,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         patches={patches}
         onImportVersion={handleImportVersion}
         currentFileType={selectedDocument?.file_type}
+        suggestedVersion={suggestedVersion}
       />
       
       {/* Version History Dialog */}

@@ -136,21 +136,26 @@ export const isVersionHigherThanAll = (patches: SchemaPatch[], version: Version)
 export const validateVersionForCreation = (
   patches: SchemaPatch[], 
   version: Version
-): { valid: boolean; error?: string } => {
+): { valid: boolean; error?: string; suggestedVersion?: Version } => {
   // Check if version already exists
   if (versionExists(patches, version)) {
+    const latestVersion = calculateLatestVersion(patches);
+    const suggestedVersion = bumpVersion(latestVersion, 'patch');
     return {
       valid: false,
-      error: `Version ${formatVersion(version)} already exists in history`
+      error: `Version ${formatVersion(version)} already exists in history`,
+      suggestedVersion
     };
   }
   
   // Check if version is higher than all existing versions
   if (!isVersionHigherThanAll(patches, version)) {
     const latestVersion = calculateLatestVersion(patches);
+    const suggestedVersion = bumpVersion(latestVersion, 'patch');
     return {
       valid: false,
-      error: `Version ${formatVersion(version)} must be higher than the latest version ${formatVersion(latestVersion)}`
+      error: `Version ${formatVersion(version)} must be higher than the latest version ${formatVersion(latestVersion)}`,
+      suggestedVersion
     };
   }
   

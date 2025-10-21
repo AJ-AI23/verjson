@@ -64,7 +64,8 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
     handleDeleteVersion,
     toggleVersionHistory,
     clearVersionState,
-    handleImportVersion
+    handleImportVersion,
+    suggestedVersion
   } = useVersioning({
     schema,
     savedSchema,
@@ -251,6 +252,7 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
     handleAddNotation,
     expandedNotationPaths,
     clearEditorState,
-    handleImportVersion
+    handleImportVersion,
+    suggestedVersion
   };
 };

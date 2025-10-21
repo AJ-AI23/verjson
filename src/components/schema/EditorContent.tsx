@@ -27,6 +27,7 @@ interface EditorContentProps {
   patches?: any[];
   onImportVersion?: (importedSchema: any, comparison: DocumentVersionComparison, sourceDocumentName: string) => void;
   currentFileType?: string;
+  suggestedVersion?: Version | null;
 }
 
 export const EditorContent: React.FC<EditorContentProps> = ({
@@ -48,6 +49,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
   patches,
   onImportVersion,
   currentFileType,
+  suggestedVersion,
 }) => {
   return (
     <SplitPane>
@@ -71,6 +73,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
           onImportVersion={onImportVersion}
           documentId={documentId}
           currentFileType={currentFileType}
+          suggestedVersion={suggestedVersion}
         />
       </div>
       <SchemaDiagram 
