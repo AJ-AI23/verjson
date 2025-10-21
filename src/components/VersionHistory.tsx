@@ -58,9 +58,10 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   const [selectedVersionForReview, setSelectedVersionForReview] = useState<string | null>(null);
   const [processingVersionId, setProcessingVersionId] = useState<string | null>(null);
   const [releasingVersionId, setReleasingVersionId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   
   // Fetch document versions directly from database - use versions state directly for reactivity
-  const { versions, userRole: hookUserRole, loading, error, deleteVersion } = useDocumentVersions(documentId);
+  const { versions, userRole: hookUserRole, loading, error, deleteVersion, refetch } = useDocumentVersions(documentId);
   
   // Use userRole from hook if available, otherwise fall back to prop
   const effectiveUserRole = hookUserRole || userRole;
@@ -71,6 +72,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
     
     console.log('🔄 VersionHistory: Converting versions to patches', {
       versionCount: versions.length,
+      refreshKey,
       versions: versions.map(v => ({ 
         id: v.id, 
         isReleased: v.is_released,
@@ -105,6 +107,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
     
     console.log('🔄 VersionHistory: Converted patches', {
       patchCount: convertedPatches.length,
+      refreshKey,
       patches: convertedPatches.map(p => ({ 
         id: p.id, 
         isReleased: p.isReleased,
@@ -113,7 +116,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
     });
     
     return convertedPatches;
-  }, [versions]);
+  }, [versions, refreshKey]);
   
   // Fetch document information
   const [documentInfo, setDocumentInfo] = useState<any>(null);
@@ -450,15 +453,21 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                       
                       {onMarkAsReleased && !patch.isReleased && !isInitial && patch.isSelected && effectiveUserRole !== 'viewer' && (
                         <Button
+                          key={`release-${patch.id}-${refreshKey}`}
                           size="sm"
                           variant="outline"
                           className="text-xs gap-1"
                           onClick={async () => {
+                            console.log('🏷️ Release button clicked', { patchId: patch.id, currentIsReleased: patch.isReleased });
                             setReleasingVersionId(patch.id);
                             try {
                               await onMarkAsReleased(patch.id);
-                              // Wait for state to update
-                              await new Promise(resolve => setTimeout(resolve, 300));
+                              // Force a full UI refresh
+                              setRefreshKey(prev => prev + 1);
+                              // Manually refetch to be extra sure
+                              await refetch();
+                              // Wait for state to propagate
+                              await new Promise(resolve => setTimeout(resolve, 500));
                             } finally {
                               setReleasingVersionId(null);
                             }
