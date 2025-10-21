@@ -70,6 +70,33 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
     mergeResult.mergeSteps.map((_, idx) => idx)
   );
 
+  // Recalculate merge when step order changes
+  useEffect(() => {
+    if (stepOrder.length === 0 || stepOrder.every((idx, i) => idx === i)) {
+      // No reordering or original order, skip recalculation
+      return;
+    }
+
+    // Derive new document order from step order
+    // Original: documents array
+    // Steps merge documents[1], documents[2], ... into documents[0]
+    // So if stepOrder is [1, 0], we want to swap which document is merged first
+    const reorderedDocuments = [documents[0]]; // Always start with first document
+    stepOrder.forEach(stepIdx => {
+      // Each step index corresponds to documents[stepIdx + 1]
+      if (stepIdx + 1 < documents.length) {
+        reorderedDocuments.push(documents[stepIdx + 1]);
+      }
+    });
+
+    console.log('🔄 Recalculating merge with new document order:', reorderedDocuments.map(d => d.name));
+
+    // Re-run merge with new order
+    const newMergeResult = DocumentMergeEngine.mergeDocuments(reorderedDocuments, resultName);
+    setMergeResult(newMergeResult);
+    onConflictResolve?.(newMergeResult);
+  }, [stepOrder, documents, resultName, onConflictResolve]);
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -517,7 +544,7 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
                       if (!step) return null;
                       
                       return (
-                        <SortableAccordionItem
+                         <SortableAccordionItem
                           key={stepIndex}
                           id={String(stepIndex)}
                           value={`step-${stepIndex}`}
@@ -525,7 +552,7 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
                             <div className="flex items-center justify-between w-full mr-4">
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-xs">
-                                  Step {step.stepNumber}
+                                  Step {stepOrder.indexOf(stepIndex) + 1}
                                 </Badge>
                                 <span className="text-sm">
                                   <span className="font-medium">{step.fromDocument}</span>
