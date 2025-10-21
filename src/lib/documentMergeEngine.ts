@@ -33,6 +33,7 @@ export interface DocumentMergeResult {
   mergeSteps: Array<{
     stepNumber: number;
     fromDocument: string;
+    toDocument: string;
     patches: any[];
     conflicts: number;
   }>;
@@ -119,7 +120,7 @@ export class DocumentMergeEngine {
     console.log('🔄 Starting sequential merge of', documents.length, 'documents');
     
     const allConflicts: MergeConflict[] = [];
-    const mergeSteps: Array<{stepNumber: number; fromDocument: string; patches: any[]; conflicts: number}> = [];
+    const mergeSteps: Array<{stepNumber: number; fromDocument: string; toDocument: string; patches: any[]; conflicts: number}> = [];
     let currentResult = documents[0].content; // Start with first document
     let totalAddedProperties = 0;
     let totalMergedComponents = 0;
@@ -161,6 +162,7 @@ export class DocumentMergeEngine {
         mergeSteps.push({
           stepNumber: i,
           fromDocument: currentDoc.name,
+          toDocument: i === 1 ? documents[0].name : 'Accumulated Result',
           patches: comparison.patches,
           conflicts: enhancedConflicts.length
         });

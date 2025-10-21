@@ -65,6 +65,11 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
     return orders;
   });
 
+  // Keep track of step order for draggable steps
+  const [stepOrder, setStepOrder] = useState<number[]>(() => 
+    mergeResult.mergeSteps.map((_, idx) => idx)
+  );
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -102,30 +107,42 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
     onConflictResolve?.(updatedResult);
   }, [mergeResult, pathOrder, onConflictResolve]);
 
-  // Handle drag end for path reordering
+  // Handle drag end for path, conflict, or step reordering
   const handleDragEnd = useCallback((event: any) => {
     const { active, over } = event;
 
     if (active.id !== over.id) {
-      // Check if it's a path reordering or conflict reordering
-      if (pathOrder.includes(active.id)) {
-        // Path reordering
+      const activeIdStr = String(active.id);
+      const overIdStr = String(over.id);
+      
+      // Check if it's a step reordering (numeric string IDs like "0", "1", "2")
+      const activeStepIndex = stepOrder.findIndex(idx => String(idx) === activeIdStr);
+      const overStepIndex = stepOrder.findIndex(idx => String(idx) === overIdStr);
+      
+      if (activeStepIndex !== -1 && overStepIndex !== -1) {
+        setStepOrder((items) => {
+          return arrayMove(items, activeStepIndex, overStepIndex);
+        });
+      }
+      // Check if it's a path reordering
+      else if (pathOrder.includes(activeIdStr)) {
         setPathOrder((items) => {
-          const oldIndex = items.indexOf(active.id);
-          const newIndex = items.indexOf(over.id);
+          const oldIndex = items.indexOf(activeIdStr);
+          const newIndex = items.indexOf(overIdStr);
           return arrayMove(items, oldIndex, newIndex);
         });
-      } else {
-        // Conflict reordering within a path
+      } 
+      // Otherwise it's conflict reordering within a path
+      else {
         const pathKey = Object.keys(conflictOrders).find(path => 
-          conflictOrders[path].includes(active.id)
+          conflictOrders[path].includes(activeIdStr)
         );
         
         if (pathKey) {
           setConflictOrders(prev => {
             const oldOrder = prev[pathKey];
-            const oldIndex = oldOrder.indexOf(active.id);
-            const newIndex = oldOrder.indexOf(over.id);
+            const oldIndex = oldOrder.indexOf(activeIdStr);
+            const newIndex = oldOrder.indexOf(overIdStr);
             
             return {
               ...prev,
@@ -135,7 +152,7 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
         }
       }
     }
-  }, [pathOrder, conflictOrders]);
+  }, [pathOrder, conflictOrders, stepOrder]);
 
   const getSeverityColor = (severity: MergeConflict['severity']) => {
     switch (severity) {
@@ -485,43 +502,67 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
             </div>
           ) : (
             <div className="space-y-3">
-              {mergeResult.mergeSteps.map((step, index) => (
-                <Card key={index}>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs">
-                        Step {step.stepNumber}
-                      </Badge>
-                      <span>Merge {step.fromDocument}</span>
-                      {step.conflicts > 0 && (
-                        <Badge variant="secondary" className="ml-auto">
-                          {step.conflicts} conflicts
-                        </Badge>
-                      )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="grid grid-cols-3 gap-4 text-xs">
-                      <div>
-                        <div className="font-medium">Changes Applied</div>
-                        <div className="text-muted-foreground">{step.patches.length} patches</div>
-                      </div>
-                      <div>
-                        <div className="font-medium">Additions</div>
-                        <div className="text-muted-foreground">
-                          {step.patches.filter(p => p.op === 'add').length}
+              <div className="text-sm text-muted-foreground mb-3 p-3 bg-muted/50 rounded-lg">
+                Drag steps to reorder how documents are merged. This will also reorder conflicts in the Conflicts tab.
+              </div>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={stepOrder.map(String)} strategy={verticalListSortingStrategy}>
+                  {stepOrder.map((stepIndex) => {
+                    const step = mergeResult.mergeSteps[stepIndex];
+                    if (!step) return null;
+                    
+                    return (
+                      <SortableAccordionItem
+                        key={stepIndex}
+                        id={String(stepIndex)}
+                        value={`step-${stepIndex}`}
+                        triggerContent={
+                          <div className="flex items-center justify-between w-full mr-4">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">
+                                Step {step.stepNumber}
+                              </Badge>
+                              <span className="text-sm">
+                                <span className="font-medium">{step.fromDocument}</span>
+                                <ArrowUpDown className="inline h-3 w-3 mx-1" />
+                                <span className="font-medium">{step.toDocument}</span>
+                              </span>
+                            </div>
+                            {step.conflicts > 0 && (
+                              <Badge variant="secondary" className="text-xs">
+                                {step.conflicts} conflicts
+                              </Badge>
+                            )}
+                          </div>
+                        }
+                      >
+                        <div className="grid grid-cols-3 gap-4 text-xs pt-2">
+                          <div>
+                            <div className="font-medium">Changes Applied</div>
+                            <div className="text-muted-foreground">{step.patches.length} patches</div>
+                          </div>
+                          <div>
+                            <div className="font-medium">Additions</div>
+                            <div className="text-muted-foreground">
+                              {step.patches.filter(p => p.op === 'add').length}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="font-medium">Modifications</div>
+                            <div className="text-muted-foreground">
+                              {step.patches.filter(p => p.op === 'replace').length}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <div>
-                        <div className="font-medium">Modifications</div>
-                        <div className="text-muted-foreground">
-                          {step.patches.filter(p => p.op === 'replace').length}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      </SortableAccordionItem>
+                    );
+                  })}
+                </SortableContext>
+              </DndContext>
             </div>
           )}
         </TabsContent>
