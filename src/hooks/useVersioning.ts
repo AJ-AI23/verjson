@@ -320,14 +320,25 @@ export const useVersioning = ({
       const patchToUpdate = updatedPatches.find(p => p.id === patchId);
       
       if (patchToUpdate) {
-        await updateVersion(patchId, {
+        const result = await updateVersion(patchId, {
           is_released: true,
           full_document: schemaForRelease,
           patches: null, // Remove patches as we now store full document
         });
         
+        if (!result) {
+          toast.error('Failed to mark version as released');
+          return;
+        }
+        
+        // Wait a bit for the database to update
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
         // Manually refresh versions to ensure immediate UI update
         await refetch();
+        
+        // Wait another moment for state to propagate
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
       
       toast.success('Version marked as released');

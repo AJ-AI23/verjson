@@ -32,7 +32,7 @@ interface VersionHistoryProps {
   userRole?: 'owner' | 'editor' | 'viewer' | null;
   isOwner?: boolean;
   onToggleSelection?: (patchId: string) => Promise<void>;
-  onMarkAsReleased?: (patchId: string) => void;
+  onMarkAsReleased?: (patchId: string) => Promise<void>;
   onDeleteVersion?: (patchId: string) => void;
   onImportVersion?: (importedSchema: any, comparison: DocumentVersionComparison, sourceDocumentName: string) => void;
   currentSchema?: any;
@@ -57,6 +57,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [selectedVersionForReview, setSelectedVersionForReview] = useState<string | null>(null);
   const [processingVersionId, setProcessingVersionId] = useState<string | null>(null);
+  const [releasingVersionId, setReleasingVersionId] = useState<string | null>(null);
   
   // Fetch document versions directly from database - use versions state directly for reactivity
   const { versions, userRole: hookUserRole, loading, error, deleteVersion } = useDocumentVersions(documentId);
@@ -434,10 +435,24 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                           size="sm"
                           variant="outline"
                           className="text-xs gap-1"
-                          onClick={() => onMarkAsReleased(patch.id)}
+                          onClick={async () => {
+                            setReleasingVersionId(patch.id);
+                            try {
+                              await onMarkAsReleased(patch.id);
+                              // Wait for state to update
+                              await new Promise(resolve => setTimeout(resolve, 300));
+                            } finally {
+                              setReleasingVersionId(null);
+                            }
+                          }}
+                          disabled={releasingVersionId === patch.id}
                           title="Mark this version as released"
                         >
-                          <Tag size={10} />
+                          {releasingVersionId === patch.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Tag size={10} />
+                          )}
                           Release
                         </Button>
                       )}
