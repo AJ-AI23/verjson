@@ -1148,14 +1148,28 @@ export const QADialog: React.FC<QADialogProps> = ({
                                     </div>
                                   </div>
                                   
-                                  <div>
-                                    <div className="text-xs font-medium text-muted-foreground mb-1">
-                                      {issue.type === 'missing-enum' ? 'Example Value:' : 'Current Name:'}
+                                  {/* Display current value/name or structure */}
+                                  {issue.type === 'duplicate-component' || issue.type === 'inline-structure' ? (
+                                    issue.details && (
+                                      <div>
+                                        <div className="text-xs font-medium text-muted-foreground mb-1">
+                                          Identified Structure:
+                                        </div>
+                                        <div className="text-xs bg-muted/50 border p-2 rounded font-mono whitespace-pre overflow-x-auto">
+                                          {issue.details.replace(/```\n?/g, '')}
+                                        </div>
+                                      </div>
+                                    )
+                                  ) : issue.value ? (
+                                    <div>
+                                      <div className="text-xs font-medium text-muted-foreground mb-1">
+                                        {issue.type === 'missing-enum' ? 'Example Value:' : 'Current Name:'}
+                                      </div>
+                                      <div className="text-sm bg-orange-50 border border-orange-200 p-2 rounded">
+                                        "{issue.value}"
+                                      </div>
                                     </div>
-                                    <div className="text-sm bg-orange-50 border border-orange-200 p-2 rounded">
-                                      "{issue.value}"
-                                    </div>
-                                  </div>
+                                  ) : null}
                                   
                                   {issue.type === 'missing-enum' && issue.suggestedEnum && (
                                     <div>
