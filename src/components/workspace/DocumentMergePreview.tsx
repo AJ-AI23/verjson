@@ -511,56 +511,58 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
                 onDragEnd={handleDragEnd}
               >
                 <SortableContext items={stepOrder.map(String)} strategy={verticalListSortingStrategy}>
-                  {stepOrder.map((stepIndex) => {
-                    const step = mergeResult.mergeSteps[stepIndex];
-                    if (!step) return null;
-                    
-                    return (
-                      <SortableAccordionItem
-                        key={stepIndex}
-                        id={String(stepIndex)}
-                        value={`step-${stepIndex}`}
-                        triggerContent={
-                          <div className="flex items-center justify-between w-full mr-4">
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-xs">
-                                Step {step.stepNumber}
-                              </Badge>
-                              <span className="text-sm">
-                                <span className="font-medium">{step.fromDocument}</span>
-                                <ArrowUpDown className="inline h-3 w-3 mx-1" />
-                                <span className="font-medium">{step.toDocument}</span>
-                              </span>
+                  <Accordion type="multiple" className="w-full">
+                    {stepOrder.map((stepIndex) => {
+                      const step = mergeResult.mergeSteps[stepIndex];
+                      if (!step) return null;
+                      
+                      return (
+                        <SortableAccordionItem
+                          key={stepIndex}
+                          id={String(stepIndex)}
+                          value={`step-${stepIndex}`}
+                          triggerContent={
+                            <div className="flex items-center justify-between w-full mr-4">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-xs">
+                                  Step {step.stepNumber}
+                                </Badge>
+                                <span className="text-sm">
+                                  <span className="font-medium">{step.fromDocument}</span>
+                                  <ArrowUpDown className="inline h-3 w-3 mx-1" />
+                                  <span className="font-medium">{step.toDocument}</span>
+                                </span>
+                              </div>
+                              {step.conflicts > 0 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {step.conflicts} conflicts
+                                </Badge>
+                              )}
                             </div>
-                            {step.conflicts > 0 && (
-                              <Badge variant="secondary" className="text-xs">
-                                {step.conflicts} conflicts
-                              </Badge>
-                            )}
-                          </div>
-                        }
-                      >
-                        <div className="grid grid-cols-3 gap-4 text-xs pt-2">
-                          <div>
-                            <div className="font-medium">Changes Applied</div>
-                            <div className="text-muted-foreground">{step.patches.length} patches</div>
-                          </div>
-                          <div>
-                            <div className="font-medium">Additions</div>
-                            <div className="text-muted-foreground">
-                              {step.patches.filter(p => p.op === 'add').length}
+                          }
+                        >
+                          <div className="grid grid-cols-3 gap-4 text-xs pt-2">
+                            <div>
+                              <div className="font-medium">Changes Applied</div>
+                              <div className="text-muted-foreground">{step.patches.length} patches</div>
+                            </div>
+                            <div>
+                              <div className="font-medium">Additions</div>
+                              <div className="text-muted-foreground">
+                                {step.patches.filter(p => p.op === 'add').length}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="font-medium">Modifications</div>
+                              <div className="text-muted-foreground">
+                                {step.patches.filter(p => p.op === 'replace').length}
+                              </div>
                             </div>
                           </div>
-                          <div>
-                            <div className="font-medium">Modifications</div>
-                            <div className="text-muted-foreground">
-                              {step.patches.filter(p => p.op === 'replace').length}
-                            </div>
-                          </div>
-                        </div>
-                      </SortableAccordionItem>
-                    );
-                  })}
+                        </SortableAccordionItem>
+                      );
+                    })}
+                  </Accordion>
                 </SortableContext>
               </DndContext>
             </div>
