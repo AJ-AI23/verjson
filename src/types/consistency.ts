@@ -39,6 +39,7 @@ export interface ConsistencyIssue {
   parameterType?: string;
   severity: 'error' | 'warning' | 'info';
   rule?: string;
+  details?: string;
 }
 
 export interface ConsistencyPreset {

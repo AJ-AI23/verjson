@@ -1,22 +1,13 @@
+import type { ConsistencyIssue } from '@/types/consistency';
+
 export interface TranslationEntry {
   key: string;
   value: string;
   path: string[];
 }
 
-export interface ConsistencyIssue {
-  type: string;
-  path: string;
-  value?: string;
-  suggestedEnum?: string[];
-  suggestedName?: string;
-  message: string;
-  suggestion?: string;
-  severity?: 'error' | 'warning' | 'info';
-  rule?: string;
-  parameterType?: string;
-  convention?: string;
-}
+// Re-export ConsistencyIssue for backward compatibility
+export type { ConsistencyIssue };
 
 // Schema type detection
 export type SchemaType = 'openapi' | 'json-schema' | 'unknown';
@@ -673,7 +664,8 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
                 path: newPath.join('.'),
                 value: exampleValue,
                 suggestedEnum: uniqueEnums,
-                message: `Example value "${exampleValue}" matches known enum values but parent object lacks enum definition. Consider adding: "enum": [${uniqueEnums.map(v => `"${v}"`).join(', ')}]`
+                message: `Example value "${exampleValue}" matches known enum values but parent object lacks enum definition. Consider adding: "enum": [${uniqueEnums.map(v => `"${v}"`).join(', ')}]`,
+                severity: 'info'
               });
             }
           }
@@ -1054,9 +1046,49 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
     findReferences(currentObj, path);
   }
 
+  // Format structure for display
+  function formatStructureDisplay(schema: any, indent = 0): string {
+    if (!schema || typeof schema !== 'object') {
+      return '';
+    }
+
+    const indentation = '  '.repeat(indent);
+    let result = '';
+
+    if (schema.type === 'object' && schema.properties) {
+      result += `${indentation}type: object\n`;
+      if (schema.required && schema.required.length > 0) {
+        result += `${indentation}required: [${schema.required.join(', ')}]\n`;
+      }
+      result += `${indentation}properties:\n`;
+      Object.keys(schema.properties).forEach(propName => {
+        const prop = schema.properties[propName];
+        result += `${indentation}  ${propName}:\n`;
+        if (prop.type === 'object') {
+          result += formatStructureDisplay(prop, indent + 2);
+        } else if (prop.type === 'array') {
+          result += `${indentation}    type: array\n`;
+          if (prop.items?.type) {
+            result += `${indentation}    items: ${prop.items.type}${prop.items.format ? ` (${prop.items.format})` : ''}\n`;
+          }
+        } else {
+          result += `${indentation}    type: ${prop.type}${prop.format ? ` (${prop.format})` : ''}${prop.enum ? ` [${prop.enum.join(', ')}]` : ''}\n`;
+        }
+      });
+    } else if (schema.type === 'array' && schema.items) {
+      result += `${indentation}type: array\n`;
+      result += `${indentation}items:\n`;
+      result += formatStructureDisplay(schema.items, indent + 1);
+    } else {
+      result += `${indentation}type: ${schema.type}${schema.format ? ` (${schema.format})` : ''}${schema.enum ? ` [${schema.enum.join(', ')}]` : ''}\n`;
+    }
+
+    return result;
+  }
+
   // Check for duplicate components
   function checkDuplicateComponents() {
-    const componentsByFingerprint = new Map<string, string[]>();
+    const componentsByFingerprint = new Map<string, { paths: string[], schema: any }>();
     
     // Collect all components and their fingerprints
     const componentSources = [
@@ -1074,23 +1106,25 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
           if (fingerprint) {
             const fullPath = `${path}.${componentName}`;
             if (!componentsByFingerprint.has(fingerprint)) {
-              componentsByFingerprint.set(fingerprint, []);
+              componentsByFingerprint.set(fingerprint, { paths: [], schema });
             }
-            componentsByFingerprint.get(fingerprint)!.push(fullPath);
+            componentsByFingerprint.get(fingerprint)!.paths.push(fullPath);
           }
         });
       }
     });
 
     // Report duplicates
-    componentsByFingerprint.forEach((components, fingerprint) => {
-      if (components.length > 1) {
-        const [first, ...duplicates] = components;
+    componentsByFingerprint.forEach(({ paths, schema }, fingerprint) => {
+      if (paths.length > 1) {
+        const [first, ...duplicates] = paths;
+        const structureDisplay = formatStructureDisplay(schema);
         duplicates.forEach(duplicate => {
           issues.push({
             type: 'duplicate-component',
             path: duplicate,
             message: `Component has identical structure to "${first}"`,
+            details: `Duplicate structure:\n\`\`\`\n${structureDisplay}\`\`\``,
             suggestion: `Consider removing this duplicate and using a $ref to "${first}" instead`,
             severity: 'warning',
             rule: 'Duplicate Component Structure'
@@ -1103,7 +1137,7 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
   // Check for inline structures that could be component references
   function checkInlineStructures() {
     // Build fingerprint map of all existing components
-    const componentFingerprints = new Map<string, string>();
+    const componentFingerprints = new Map<string, { ref: string, schema: any }>();
     
     const componentSources = [
       { prefix: '#/components/schemas/', data: obj.components?.schemas },
@@ -1117,7 +1151,10 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
           const schema = data[componentName];
           const fingerprint = generateStructuralFingerprint(schema);
           if (fingerprint) {
-            componentFingerprints.set(fingerprint, `${prefix}${componentName}`);
+            componentFingerprints.set(fingerprint, { 
+              ref: `${prefix}${componentName}`,
+              schema 
+            });
           }
         });
       }
@@ -1138,18 +1175,20 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
       if (currentObj.type === 'object' && currentObj.properties && Object.keys(currentObj.properties).length > 0) {
         const fingerprint = generateStructuralFingerprint(currentObj);
         if (fingerprint && componentFingerprints.has(fingerprint)) {
-          const matchingComponent = componentFingerprints.get(fingerprint)!;
+          const { ref, schema } = componentFingerprints.get(fingerprint)!;
           const currentPath = path.join('.');
           
           // Don't report if we're inside the component definitions themselves
           if (!currentPath.startsWith('components.schemas') && 
               !currentPath.startsWith('definitions') && 
               !currentPath.startsWith('$defs')) {
+            const structureDisplay = formatStructureDisplay(schema);
             issues.push({
               type: 'inline-structure',
               path: currentPath,
-              message: `Inline structure matches existing component "${matchingComponent}"`,
-              suggestion: `Replace with $ref: "${matchingComponent}"`,
+              message: `Inline structure matches existing component "${ref}"`,
+              details: `Matching structure:\n\`\`\`\n${structureDisplay}\`\`\``,
+              suggestion: `Replace with $ref: "${ref}"`,
               severity: 'info',
               rule: 'Reusable Inline Structure'
             });
