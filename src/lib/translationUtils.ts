@@ -935,6 +935,57 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
     }
   }
 
+  // Generate a structural fingerprint for a schema object
+  function generateStructuralFingerprint(schema: any): string {
+    if (!schema || typeof schema !== 'object') {
+      return '';
+    }
+
+    // Handle $ref - we don't fingerprint references themselves
+    if (schema.$ref) {
+      return '';
+    }
+
+    const structure: any = {
+      type: schema.type
+    };
+
+    // For objects, include property structure
+    if (schema.type === 'object' && schema.properties) {
+      const props: any = {};
+      Object.keys(schema.properties).sort().forEach(propName => {
+        const prop = schema.properties[propName];
+        props[propName] = {
+          type: prop.type,
+          format: prop.format,
+          // Recursively fingerprint nested objects
+          nested: prop.type === 'object' ? generateStructuralFingerprint(prop) : undefined
+        };
+      });
+      structure.properties = props;
+      structure.required = schema.required ? [...schema.required].sort() : undefined;
+    }
+
+    // For arrays, include item structure
+    if (schema.type === 'array' && schema.items) {
+      structure.items = {
+        type: schema.items.type,
+        format: schema.items.format,
+        nested: generateStructuralFingerprint(schema.items)
+      };
+    }
+
+    // For primitives, include format and enum
+    if (schema.format) {
+      structure.format = schema.format;
+    }
+    if (schema.enum) {
+      structure.enum = [...schema.enum].sort();
+    }
+
+    return JSON.stringify(structure);
+  }
+
   // Check for broken component references
   function checkBrokenReferences(currentObj: any, path: string[] = []) {
     if (currentObj === null || currentObj === undefined) {
@@ -1002,6 +1053,124 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
 
     findReferences(currentObj, path);
   }
+
+  // Check for duplicate components
+  function checkDuplicateComponents() {
+    const componentsByFingerprint = new Map<string, string[]>();
+    
+    // Collect all components and their fingerprints
+    const componentSources = [
+      { path: 'components.schemas', data: obj.components?.schemas },
+      { path: 'definitions', data: obj.definitions },
+      { path: '$defs', data: obj.$defs }
+    ];
+
+    componentSources.forEach(({ path, data }) => {
+      if (data && typeof data === 'object') {
+        Object.keys(data).forEach(componentName => {
+          const schema = data[componentName];
+          const fingerprint = generateStructuralFingerprint(schema);
+          
+          if (fingerprint) {
+            const fullPath = `${path}.${componentName}`;
+            if (!componentsByFingerprint.has(fingerprint)) {
+              componentsByFingerprint.set(fingerprint, []);
+            }
+            componentsByFingerprint.get(fingerprint)!.push(fullPath);
+          }
+        });
+      }
+    });
+
+    // Report duplicates
+    componentsByFingerprint.forEach((components, fingerprint) => {
+      if (components.length > 1) {
+        const [first, ...duplicates] = components;
+        duplicates.forEach(duplicate => {
+          issues.push({
+            type: 'duplicate-component',
+            path: duplicate,
+            message: `Component has identical structure to "${first}"`,
+            suggestion: `Consider removing this duplicate and using a $ref to "${first}" instead`,
+            severity: 'warning',
+            rule: 'Duplicate Component Structure'
+          });
+        });
+      }
+    });
+  }
+
+  // Check for inline structures that could be component references
+  function checkInlineStructures() {
+    // Build fingerprint map of all existing components
+    const componentFingerprints = new Map<string, string>();
+    
+    const componentSources = [
+      { prefix: '#/components/schemas/', data: obj.components?.schemas },
+      { prefix: '#/definitions/', data: obj.definitions },
+      { prefix: '#/$defs/', data: obj.$defs }
+    ];
+
+    componentSources.forEach(({ prefix, data }) => {
+      if (data && typeof data === 'object') {
+        Object.keys(data).forEach(componentName => {
+          const schema = data[componentName];
+          const fingerprint = generateStructuralFingerprint(schema);
+          if (fingerprint) {
+            componentFingerprints.set(fingerprint, `${prefix}${componentName}`);
+          }
+        });
+      }
+    });
+
+    // Recursively find inline object definitions
+    function findInlineObjects(currentObj: any, path: string[] = []) {
+      if (!currentObj || typeof currentObj !== 'object') {
+        return;
+      }
+
+      // Skip if this is a reference
+      if (currentObj.$ref) {
+        return;
+      }
+
+      // Check if this is an inline object with properties
+      if (currentObj.type === 'object' && currentObj.properties && Object.keys(currentObj.properties).length > 0) {
+        const fingerprint = generateStructuralFingerprint(currentObj);
+        if (fingerprint && componentFingerprints.has(fingerprint)) {
+          const matchingComponent = componentFingerprints.get(fingerprint)!;
+          const currentPath = path.join('.');
+          
+          // Don't report if we're inside the component definitions themselves
+          if (!currentPath.startsWith('components.schemas') && 
+              !currentPath.startsWith('definitions') && 
+              !currentPath.startsWith('$defs')) {
+            issues.push({
+              type: 'inline-structure',
+              path: currentPath,
+              message: `Inline structure matches existing component "${matchingComponent}"`,
+              suggestion: `Replace with $ref: "${matchingComponent}"`,
+              severity: 'info',
+              rule: 'Reusable Inline Structure'
+            });
+          }
+        }
+      }
+
+      // Recurse into nested structures
+      if (Array.isArray(currentObj)) {
+        currentObj.forEach((item, index) => {
+          findInlineObjects(item, [...path, index.toString()]);
+        });
+      } else {
+        Object.keys(currentObj).forEach(key => {
+          findInlineObjects(currentObj[key], [...path, key]);
+        });
+      }
+    }
+
+    findInlineObjects(obj);
+  }
   
   // Run all checks
   console.log('Running all consistency checks with config:', config);
@@ -1012,6 +1181,8 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
   checkExamples(obj);
   checkSemanticRules(obj);
   checkBrokenReferences(obj);
+  checkDuplicateComponents();
+  checkInlineStructures();
   
   console.log('Total issues found before deduplication:', issues.length);
   
