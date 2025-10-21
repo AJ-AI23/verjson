@@ -115,6 +115,48 @@ export const calculateLatestVersion = (patches: SchemaPatch[]): Version => {
   return sortedPatches[0].version;
 };
 
+// Check if a version already exists in the history
+export const versionExists = (patches: SchemaPatch[], version: Version): boolean => {
+  return patches.some(patch => 
+    patch.version.major === version.major &&
+    patch.version.minor === version.minor &&
+    patch.version.patch === version.patch
+  );
+};
+
+// Check if a version is higher than all existing versions
+export const isVersionHigherThanAll = (patches: SchemaPatch[], version: Version): boolean => {
+  if (patches.length === 0) return true;
+  
+  const latestVersion = calculateLatestVersion(patches);
+  return compareVersions(version, latestVersion) > 0;
+};
+
+// Validate version for creation
+export const validateVersionForCreation = (
+  patches: SchemaPatch[], 
+  version: Version
+): { valid: boolean; error?: string } => {
+  // Check if version already exists
+  if (versionExists(patches, version)) {
+    return {
+      valid: false,
+      error: `Version ${formatVersion(version)} already exists in history`
+    };
+  }
+  
+  // Check if version is higher than all existing versions
+  if (!isVersionHigherThanAll(patches, version)) {
+    const latestVersion = calculateLatestVersion(patches);
+    return {
+      valid: false,
+      error: `Version ${formatVersion(version)} must be higher than the latest version ${formatVersion(latestVersion)}`
+    };
+  }
+  
+  return { valid: true };
+};
+
 // Reverse an operation's type
 const reverseOperation = (op: Operation): Operation => {
   switch (op.op) {

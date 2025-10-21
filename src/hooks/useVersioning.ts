@@ -11,7 +11,8 @@ import {
   togglePatchSelection,
   markAsReleased,
   deleteVersion,
-  formatVersion
+  formatVersion,
+  validateVersionForCreation
 } from '@/lib/versionUtils';
 import { useDocumentVersions } from '@/hooks/useDocumentVersions';
 import { supabase } from '@/integrations/supabase/client';
@@ -160,6 +161,16 @@ export const useVersioning = ({
     }
 
     try {
+      // Validate version number before creation
+      const validation = validateVersionForCreation(patches, newVersion);
+      
+      if (!validation.valid) {
+        toast.error('Invalid version number', {
+          description: validation.error,
+        });
+        return;
+      }
+      
       // Ensure the current schema is valid
       const parsedCurrentSchema = JSON.parse(schema);
       

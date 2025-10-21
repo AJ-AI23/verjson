@@ -356,6 +356,64 @@ async function handleCreateDocumentVersion(supabaseClient: any, data: any, user:
     throw new Error('Operation not allowed for viewer role');
   }
 
+  // Use service role client for validation and creation
+  const serviceClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
+  // Fetch existing versions to validate version number
+  logger.debug('Fetching existing versions for validation', { documentId });
+  const { data: existingVersions, error: fetchError } = await serviceClient
+    .from('document_versions')
+    .select('version_major, version_minor, version_patch')
+    .eq('document_id', documentId)
+    .order('created_at', { ascending: true });
+
+  if (fetchError) {
+    logger.error('Failed to fetch existing versions for validation', fetchError);
+    throw new Error('Failed to validate version number');
+  }
+
+  // Validate version number
+  if (existingVersions && existingVersions.length > 0) {
+    const newVersion = patch.version;
+    
+    // Check if version already exists
+    const versionExists = existingVersions.some(v => 
+      v.version_major === newVersion.major &&
+      v.version_minor === newVersion.minor &&
+      v.version_patch === newVersion.patch
+    );
+    
+    if (versionExists) {
+      const versionStr = `${newVersion.major}.${newVersion.minor}.${newVersion.patch}`;
+      logger.warn('Version number already exists', { documentId, version: versionStr });
+      throw new Error(`Version ${versionStr} already exists in history`);
+    }
+    
+    // Check if version is higher than all existing versions
+    const latestVersion = existingVersions.reduce((latest, current) => {
+      const latestNum = latest.version_major * 1000000 + latest.version_minor * 1000 + latest.version_patch;
+      const currentNum = current.version_major * 1000000 + current.version_minor * 1000 + current.version_patch;
+      return currentNum > latestNum ? current : latest;
+    });
+    
+    const newVersionNum = newVersion.major * 1000000 + newVersion.minor * 1000 + newVersion.patch;
+    const latestVersionNum = latestVersion.version_major * 1000000 + latestVersion.version_minor * 1000 + latestVersion.version_patch;
+    
+    if (newVersionNum <= latestVersionNum) {
+      const newVersionStr = `${newVersion.major}.${newVersion.minor}.${newVersion.patch}`;
+      const latestVersionStr = `${latestVersion.version_major}.${latestVersion.version_minor}.${latestVersion.version_patch}`;
+      logger.warn('Version number is not higher than latest version', { 
+        documentId, 
+        newVersion: newVersionStr,
+        latestVersion: latestVersionStr 
+      });
+      throw new Error(`Version ${newVersionStr} must be higher than the latest version ${latestVersionStr}`);
+    }
+  }
+
   const versionData = {
     document_id: documentId,
     user_id: user.id,
@@ -369,13 +427,6 @@ async function handleCreateDocumentVersion(supabaseClient: any, data: any, user:
     patches: patch.patches ? JSON.stringify(patch.patches) : null,
     full_document: patch.fullDocument || null,
   };
-
-  // Use service role client to bypass RLS for version creation since 
-  // document_versions table RLS policy doesn't properly handle document_permissions
-  const serviceClient = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
 
   logger.debug('Creating document version with service role', { documentId, userId: user.id });
 
