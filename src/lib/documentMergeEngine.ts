@@ -135,8 +135,8 @@ export class DocumentMergeEngine {
         const comparison = compareDocumentVersions(currentResult, currentDoc.content);
         console.log(`📊 Step ${i} comparison:`, comparison);
 
-        // Apply patches to get merged result
-        const stepResult = applyImportPatches(currentResult, comparison.patches);
+        // Apply patches to get merged result - pass importSchema for smart array merging
+        const stepResult = applyImportPatches(currentResult, comparison.patches, undefined, currentDoc.content);
         
         // Convert import conflicts to merge conflicts and detect array item conflicts
         const stepConflicts = comparison.mergeConflicts.map(conflict => ({

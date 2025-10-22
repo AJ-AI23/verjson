@@ -410,7 +410,7 @@ export function getImportValueAtPath(importSchema: any, path: string): any {
  * Apply import patches to create merged schema with intelligent array handling
  * For partial imports, use the merged schema result directly
  */
-export function applyImportPatches(currentSchema: any, patches: Operation[], mergedSchema?: any): any {
+export function applyImportPatches(currentSchema: any, patches: Operation[], mergedSchema?: any, importSchema?: any): any {
   if (mergedSchema) {
     // If we have a merged schema from partial comparison, use it directly
     return mergedSchema;
@@ -421,7 +421,7 @@ export function applyImportPatches(currentSchema: any, patches: Operation[], mer
   
   try {
     // Group patches by their root path to detect array operations
-    const arrayPatches = detectArrayPatches(patches, currentSchema, targetSchema);
+    const arrayPatches = detectArrayPatches(patches, currentSchema, importSchema || targetSchema);
     
     // Apply array patches first using smart merge logic
     arrayPatches.forEach(arrayPatch => {

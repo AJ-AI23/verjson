@@ -89,12 +89,12 @@ export const ImportVersionConflictPreview: React.FC<ImportVersionConflictPreview
   // Generate merged schema preview
   const mergedSchema = React.useMemo(() => {
     try {
-      return applyImportPatches(currentSchema, comparison.patches);
+      return applyImportPatches(currentSchema, comparison.patches, comparison.mergedSchema, importSchema);
     } catch (error) {
       console.error('Error generating merged schema:', error);
       return null;
     }
-  }, [currentSchema, comparison.patches]);
+  }, [currentSchema, comparison.patches, comparison.mergedSchema, importSchema]);
 
   return (
     <div className="space-y-4">
