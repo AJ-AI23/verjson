@@ -202,17 +202,28 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
   const handleConflictResolution = useCallback((path: string, conflictIndex: number, resolution: MergeConflict['resolution']) => {
     console.log(`🔧 Resolving conflict at ${path}[${conflictIndex}] to: ${resolution}`);
     
-    const updatedConflicts = mergeResult.conflicts.map((conflict, idx) => {
-      // Find the actual conflict at this path and position
-      const pathConflicts = conflictsByPath[path] || [];
-      const targetConflict = pathConflicts[conflictIndex];
-      
-      if (targetConflict?.linkedConflictPaths?.length) {
-        console.log(`🔗 Target conflict has ${targetConflict.linkedConflictPaths.length} linked children:`, targetConflict.linkedConflictPaths);
-      }
+    // Find conflicts at this path
+    const pathConflicts = conflictsByPath[path] || [];
+    const targetConflict = pathConflicts[conflictIndex];
+    
+    if (!targetConflict) {
+      console.warn(`⚠️ Could not find target conflict at ${path}[${conflictIndex}]`);
+      return;
+    }
+    
+    if (targetConflict?.linkedConflictPaths?.length) {
+      console.log(`🔗 Target conflict has ${targetConflict.linkedConflictPaths.length} linked children:`, targetConflict.linkedConflictPaths);
+    }
+    
+    const updatedConflicts = mergeResult.conflicts.map((conflict) => {
+      // Match by path, type, and description since conflict objects may be regenerated
+      const isTargetConflict = 
+        conflict.path === targetConflict.path && 
+        conflict.type === targetConflict.type &&
+        conflict.description === targetConflict.description;
       
       // Only update the specific conflict that was changed
-      if (conflict === targetConflict) {
+      if (isTargetConflict) {
         const updated: MergeConflict = { ...conflict, resolution };
         
         // If setting to Smart Merge and this conflict has linked children, auto-toggle them too
