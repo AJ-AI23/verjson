@@ -286,9 +286,21 @@ export function generateMergeConflicts(
           severity = 'high';
           description = `Type at "${formatJsonPath(path)}" will change from "${getCurrentValue(currentSchema, path)}" to "${patch.value}"`;
         } else {
-          conflictType = 'value_changed';
-          severity = 'medium';
-          description = `Value at "${formatJsonPath(path)}" will change`;
+          // Check if the value types are changing (e.g., array to object)
+          const currentValue = getCurrentValue(currentSchema, path);
+          const newValue = patch.value;
+          const currentType = Array.isArray(currentValue) ? 'array' : typeof currentValue;
+          const newType = Array.isArray(newValue) ? 'array' : typeof newValue;
+          
+          if (currentType !== newType) {
+            conflictType = 'type_changed';
+            severity = 'high';
+            description = `Value at "${formatJsonPath(path)}" will change type from ${currentType} to ${newType}`;
+          } else {
+            conflictType = 'value_changed';
+            severity = 'medium';
+            description = `Value at "${formatJsonPath(path)}" will change`;
+          }
         }
         break;
         
