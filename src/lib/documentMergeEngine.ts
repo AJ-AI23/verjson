@@ -548,14 +548,9 @@ export class DocumentMergeEngine {
       console.log(`🔄 Regenerating step ${i}: Merging ${currentDoc.name}`);
       
       try {
-        // First, apply resolutions from the previous step to get the correct base state
-        if (i > changedStepNumber) {
-          const prevStepConflicts = newConflicts.filter(c => c.stepNumber === i - 1);
-          if (prevStepConflicts.length > 0) {
-            console.log(`📝 Applying ${prevStepConflicts.length} resolutions from step ${i - 1} before comparing`);
-            currentResult = this.applyConflictResolutions(currentResult, prevStepConflicts);
-          }
-        } else if (i === changedStepNumber) {
+        // Only apply resolutions at the start for the changed step
+        // For subsequent steps, resolutions are already applied at the end of the previous iteration
+        if (i === changedStepNumber) {
           // For the changed step, apply current resolutions to get the correct base
           const changedStepConflicts = currentMergeResult.conflicts.filter(c => c.stepNumber === changedStepNumber);
           if (changedStepConflicts.length > 0) {
@@ -614,8 +609,10 @@ export class DocumentMergeEngine {
         
         newConflicts.push(...enhancedConflictsWithStep);
         
-        // DON'T apply patches here - we rely on resolutions to build the correct state
-        // The next iteration will apply THIS step's resolutions before comparing
+        // CRITICAL: Apply the resolutions we just generated to update currentResult
+        // This ensures the next step compares against the correct resolved state
+        console.log(`📝 Applying ${enhancedConflictsWithStep.length} resolutions from step ${i} to update base state`);
+        currentResult = this.applyConflictResolutions(currentResult, enhancedConflictsWithStep);
       } catch (error) {
         console.error(`❌ Error regenerating step ${i}:`, error);
       }
