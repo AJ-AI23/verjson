@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DocumentMergeEngine, DocumentMergeResult, MergeConflict } from '@/lib/documentMergeEngine';
 import { Document } from '@/types/workspace';
-import { CheckCircle, AlertTriangle, ArrowUpDown, GitMerge, Layers, ChevronDown, ChevronRight, FileText, Download } from 'lucide-react';
+import { CheckCircle, AlertTriangle, ArrowUpDown, GitMerge, Layers, ChevronDown, ChevronRight, FileText, Download, ArrowUp, ArrowDown } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableAccordionItem } from './SortableAccordionItem';
@@ -103,6 +103,20 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  const moveStepUp = (index: number) => {
+    if (index === 0) return;
+    const newOrder = [...stepOrder];
+    [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+    setStepOrder(newOrder);
+  };
+
+  const moveStepDown = (index: number) => {
+    if (index === stepOrder.length - 1) return;
+    const newOrder = [...stepOrder];
+    [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+    setStepOrder(newOrder);
+  };
 
   // Default merge policy handler
   const handleDefaultMergePolicy = useCallback((policy: 'current' | 'incoming' | 'additive') => {
@@ -530,68 +544,87 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
           ) : (
             <div className="space-y-3">
               <div className="text-sm text-muted-foreground mb-3 p-3 bg-muted/50 rounded-lg">
-                Drag steps to reorder how documents are merged. This will also reorder conflicts in the Conflicts tab.
+                Use the arrow buttons to reorder how documents are merged. This will also reorder conflicts in the Conflicts tab.
               </div>
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext items={stepOrder.map(String)} strategy={verticalListSortingStrategy}>
-                  <Accordion type="multiple" className="w-full">
-                    {stepOrder.map((stepIndex) => {
-                      const step = mergeResult.mergeSteps[stepIndex];
-                      if (!step) return null;
-                      
-                      return (
-                         <SortableAccordionItem
-                          key={stepIndex}
-                          id={String(stepIndex)}
-                          value={`step-${stepIndex}`}
-                          triggerContent={
-                            <div className="flex items-center justify-between w-full mr-4">
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="text-xs">
-                                  Step {stepOrder.indexOf(stepIndex) + 1}
-                                </Badge>
-                                <span className="text-sm">
-                                  <span className="font-medium">{step.fromDocument}</span>
-                                  <ArrowUpDown className="inline h-3 w-3 mx-1" />
-                                  <span className="font-medium">{step.toDocument}</span>
-                                </span>
-                              </div>
-                              {step.conflicts > 0 && (
-                                <Badge variant="secondary" className="text-xs">
-                                  {step.conflicts} conflicts
-                                </Badge>
-                              )}
+              <Accordion type="multiple" className="w-full">
+                {stepOrder.map((stepIndex, displayIndex) => {
+                  const step = mergeResult.mergeSteps[stepIndex];
+                  if (!step) return null;
+                  
+                  return (
+                    <AccordionItem
+                      key={stepIndex}
+                      value={`step-${stepIndex}`}
+                    >
+                      <AccordionTrigger>
+                        <div className="flex items-center justify-between w-full mr-4">
+                          <div className="flex items-center gap-2">
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  moveStepUp(displayIndex);
+                                }}
+                                disabled={displayIndex === 0}
+                              >
+                                <ArrowUp className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  moveStepDown(displayIndex);
+                                }}
+                                disabled={displayIndex === stepOrder.length - 1}
+                              >
+                                <ArrowDown className="h-3 w-3" />
+                              </Button>
                             </div>
-                          }
-                        >
-                          <div className="grid grid-cols-3 gap-4 text-xs pt-2">
-                            <div>
-                              <div className="font-medium">Changes Applied</div>
-                              <div className="text-muted-foreground">{step.patches.length} patches</div>
-                            </div>
-                            <div>
-                              <div className="font-medium">Additions</div>
-                              <div className="text-muted-foreground">
-                                {step.patches.filter(p => p.op === 'add').length}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="font-medium">Modifications</div>
-                              <div className="text-muted-foreground">
-                                {step.patches.filter(p => p.op === 'replace').length}
-                              </div>
+                            <Badge variant="outline" className="text-xs">
+                              Step {displayIndex + 1}
+                            </Badge>
+                            <span className="text-sm">
+                              <span className="font-medium">{step.fromDocument}</span>
+                              <ArrowUpDown className="inline h-3 w-3 mx-1" />
+                              <span className="font-medium">{step.toDocument}</span>
+                            </span>
+                          </div>
+                          {step.conflicts > 0 && (
+                            <Badge variant="secondary" className="text-xs">
+                              {step.conflicts} conflicts
+                            </Badge>
+                          )}
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="grid grid-cols-3 gap-4 text-xs pt-2">
+                          <div>
+                            <div className="font-medium">Changes Applied</div>
+                            <div className="text-muted-foreground">{step.patches.length} patches</div>
+                          </div>
+                          <div>
+                            <div className="font-medium">Additions</div>
+                            <div className="text-muted-foreground">
+                              {step.patches.filter(p => p.op === 'add').length}
                             </div>
                           </div>
-                        </SortableAccordionItem>
-                      );
-                    })}
-                  </Accordion>
-                </SortableContext>
-              </DndContext>
+                          <div>
+                            <div className="font-medium">Modifications</div>
+                            <div className="text-muted-foreground">
+                              {step.patches.filter(p => p.op === 'replace').length}
+                            </div>
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
             </div>
           )}
         </TabsContent>
