@@ -16,6 +16,7 @@ export interface MergeConflict {
   currentValue?: any;
   incomingValue?: any;
   linkedConflictPaths?: string[]; // Child conflicts that should be auto-resolved when this conflict is resolved
+  stepNumber?: number; // Which merge step this conflict came from
 }
 
 export interface DocumentMergeResult {
@@ -150,13 +151,17 @@ export class DocumentMergeEngine {
           suggestedResolution: 'Manual review required',
           resolution: 'unresolved' as const,
           currentValue: conflict.currentValue,
-          incomingValue: conflict.importValue
+          incomingValue: conflict.importValue,
+          stepNumber: i // Track which step this conflict came from
         }));
 
     // Enhance with array item-level conflicts (without sorting yet)
     const enhancedConflicts = this.enhanceArrayConflicts(stepConflicts, currentResult, currentDoc.content, false);
     
-    allConflicts.push(...enhancedConflicts);
+    // Add step number to enhanced conflicts
+    const enhancedConflictsWithStep = enhancedConflicts.map(c => ({ ...c, stepNumber: i }));
+    
+    allConflicts.push(...enhancedConflictsWithStep);
         
         // Track merge step
         mergeSteps.push({
@@ -352,7 +357,7 @@ export class DocumentMergeEngine {
 
         // Only create conflict if items are actually different
         if (JSON.stringify(currentItem) !== JSON.stringify(incomingItem)) {
-          enhancedConflicts.push({
+            enhancedConflicts.push({
             path: itemPath,
             type: 'structure_conflict',
             severity: 'medium',
@@ -363,7 +368,8 @@ export class DocumentMergeEngine {
             suggestedResolution: 'Choose Smart Merge to combine array items intelligently',
             resolution: 'unresolved',
             currentValue: currentItem,
-            incomingValue: incomingItem
+            incomingValue: incomingItem,
+            stepNumber: undefined // Will be set by caller
           });
         }
       }
@@ -419,7 +425,8 @@ export class DocumentMergeEngine {
                 suggestedResolution: 'Choose Smart Merge to combine array items intelligently',
                 resolution: 'unresolved',
                 currentValue: currentItem,
-                incomingValue: incomingItem
+                incomingValue: incomingItem,
+                stepNumber: undefined // Will be set by caller
               });
             }
           }
@@ -486,6 +493,120 @@ export class DocumentMergeEngine {
     }
     
     return current;
+  }
+
+  /**
+   * Regenerate conflicts from a specific step onwards based on resolved state
+   */
+  static regenerateFromStep(
+    documents: Document[],
+    resultName: string,
+    currentMergeResult: DocumentMergeResult,
+    changedStepNumber: number
+  ): DocumentMergeResult {
+    console.log(`🔄 Regenerating merge from step ${changedStepNumber} onwards`);
+    
+    // Get conflicts for steps before the changed step (these remain unchanged)
+    const unchangedConflicts = currentMergeResult.conflicts.filter(
+      c => c.stepNumber !== undefined && c.stepNumber < changedStepNumber
+    );
+    
+    // Apply resolutions up to (but not including) the changed step to get the base state
+    let baseState = documents[0].content;
+    
+    for (let step = 1; step < changedStepNumber; step++) {
+      const stepConflicts = currentMergeResult.conflicts.filter(c => c.stepNumber === step);
+      if (stepConflicts.length > 0) {
+        baseState = this.applyConflictResolutions(baseState, stepConflicts);
+      } else {
+        // If no conflicts for this step, merge normally
+        if (documents[step]) {
+          const comparison = compareDocumentVersions(baseState, documents[step].content);
+          baseState = applyImportPatches(baseState, comparison.patches, undefined, documents[step].content);
+        }
+      }
+    }
+    
+    // Now regenerate from the changed step onwards
+    const newConflicts = [...unchangedConflicts];
+    let currentResult = baseState;
+    
+    for (let i = changedStepNumber; i < documents.length; i++) {
+      const currentDoc = documents[i];
+      console.log(`🔄 Regenerating step ${i}: Merging ${currentDoc.name}`);
+      
+      try {
+        // Get the resolved state from the previous step
+        if (i > changedStepNumber) {
+          const prevStepConflicts = newConflicts.filter(c => c.stepNumber === i - 1);
+          if (prevStepConflicts.length > 0) {
+            currentResult = this.applyConflictResolutions(currentResult, prevStepConflicts);
+          }
+        } else if (i === changedStepNumber) {
+          // For the changed step, apply current resolutions
+          const changedStepConflicts = currentMergeResult.conflicts.filter(c => c.stepNumber === changedStepNumber);
+          if (changedStepConflicts.length > 0) {
+            currentResult = this.applyConflictResolutions(currentResult, changedStepConflicts);
+          }
+        }
+        
+        // Compare against the resolved state (not the original document)
+        const comparison = compareDocumentVersions(currentResult, currentDoc.content);
+        
+        // Apply patches to get merged result
+        const stepResult = applyImportPatches(currentResult, comparison.patches, undefined, currentDoc.content);
+        
+        // Convert to merge conflicts
+        const stepConflicts = comparison.mergeConflicts.map(conflict => ({
+          path: conflict.path,
+          type: this.mapConflictType(conflict.conflictType),
+          severity: conflict.severity,
+          description: `Step ${i} (${currentDoc.name}): ${conflict.description}`,
+          documentSource: i === 1 ? documents[0].name : 'Previous merge result',
+          documentDestination: currentDoc.name,
+          values: [conflict.currentValue, conflict.importValue],
+          suggestedResolution: 'Manual review required',
+          resolution: 'unresolved' as const,
+          currentValue: conflict.currentValue,
+          incomingValue: conflict.importValue,
+          stepNumber: i
+        }));
+        
+        // Enhance with array conflicts
+        const enhancedConflicts = this.enhanceArrayConflicts(stepConflicts, currentResult, currentDoc.content, false);
+        const enhancedConflictsWithStep = enhancedConflicts.map(c => ({ ...c, stepNumber: i }));
+        
+        newConflicts.push(...enhancedConflictsWithStep);
+        
+        // Update current result
+        currentResult = stepResult;
+      } catch (error) {
+        console.error(`❌ Error regenerating step ${i}:`, error);
+      }
+    }
+    
+    // Sort all conflicts
+    const sortedConflicts = this.sortConflictsByPathDepth(newConflicts);
+    
+    // Apply all resolutions to get final schema
+    const finalMergedSchema = this.applyConflictResolutions(
+      currentResult,
+      sortedConflicts
+    );
+    
+    const resolvedCount = sortedConflicts.filter(c => c.resolution !== 'unresolved').length;
+    
+    return {
+      ...currentMergeResult,
+      conflicts: sortedConflicts,
+      mergedSchema: finalMergedSchema,
+      summary: {
+        ...currentMergeResult.summary,
+        totalConflicts: sortedConflicts.length,
+        resolvedConflicts: resolvedCount,
+        unresolvedConflicts: sortedConflicts.length - resolvedCount
+      }
+    };
   }
 
   /**

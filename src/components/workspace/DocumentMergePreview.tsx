@@ -284,26 +284,51 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
       return conflict;
     });
 
-    const finalMergedSchema = DocumentMergeEngine.applyConflictResolutions(
-      mergeResult.mergedSchema,
-      updatedConflicts,
-      pathOrder
-    );
+    // Check if this conflict belongs to a step and if there are subsequent steps
+    const changedStepNumber = targetConflict.stepNumber;
+    const hasSubsequentSteps = changedStepNumber !== undefined && 
+      updatedConflicts.some(c => c.stepNumber !== undefined && c.stepNumber > changedStepNumber);
 
-    const updatedResult: DocumentMergeResult = {
-      ...mergeResult,
-      conflicts: updatedConflicts,
-      mergedSchema: finalMergedSchema,
-      summary: {
-        ...mergeResult.summary,
-        resolvedConflicts: updatedConflicts.filter(c => c.resolution !== 'unresolved').length,
-        unresolvedConflicts: updatedConflicts.filter(c => c.resolution === 'unresolved').length
-      }
-    };
+    let updatedResult: DocumentMergeResult;
+
+    if (hasSubsequentSteps && documents.length > 1) {
+      // Regenerate conflicts from this step onwards based on resolved state
+      console.log(`🔄 Regenerating subsequent steps from step ${changedStepNumber}`);
+      
+      const resultWithUpdatedConflicts = {
+        ...mergeResult,
+        conflicts: updatedConflicts
+      };
+      
+      updatedResult = DocumentMergeEngine.regenerateFromStep(
+        documentOrder,
+        resultName,
+        resultWithUpdatedConflicts,
+        changedStepNumber
+      );
+    } else {
+      // No subsequent steps, just apply resolutions normally
+      const finalMergedSchema = DocumentMergeEngine.applyConflictResolutions(
+        mergeResult.mergedSchema,
+        updatedConflicts,
+        pathOrder
+      );
+
+      updatedResult = {
+        ...mergeResult,
+        conflicts: updatedConflicts,
+        mergedSchema: finalMergedSchema,
+        summary: {
+          ...mergeResult.summary,
+          resolvedConflicts: updatedConflicts.filter(c => c.resolution !== 'unresolved').length,
+          unresolvedConflicts: updatedConflicts.filter(c => c.resolution === 'unresolved').length
+        }
+      };
+    }
 
     setMergeResult(updatedResult);
     onConflictResolve?.(updatedResult);
-  }, [mergeResult, pathOrder, onConflictResolve, conflictsByPath]);
+  }, [mergeResult, pathOrder, onConflictResolve, conflictsByPath, documents, documentOrder, resultName]);
 
   const handleCustomValue = useCallback((path: string, conflictIndex: number, customValue: string) => {
     const updatedConflicts = mergeResult.conflicts.map((conflict, idx) => {
