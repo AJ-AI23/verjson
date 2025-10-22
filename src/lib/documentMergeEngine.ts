@@ -548,25 +548,28 @@ export class DocumentMergeEngine {
       console.log(`🔄 Regenerating step ${i}: Merging ${currentDoc.name}`);
       
       try {
-        // Get the resolved state from the previous step
+        // First, apply resolutions from the previous step to get the correct base state
         if (i > changedStepNumber) {
           const prevStepConflicts = newConflicts.filter(c => c.stepNumber === i - 1);
           if (prevStepConflicts.length > 0) {
+            console.log(`📝 Applying ${prevStepConflicts.length} resolutions from step ${i - 1} before comparing`);
             currentResult = this.applyConflictResolutions(currentResult, prevStepConflicts);
           }
         } else if (i === changedStepNumber) {
-          // For the changed step, apply current resolutions
+          // For the changed step, apply current resolutions to get the correct base
           const changedStepConflicts = currentMergeResult.conflicts.filter(c => c.stepNumber === changedStepNumber);
           if (changedStepConflicts.length > 0) {
+            console.log(`📝 Applying ${changedStepConflicts.length} resolutions from changed step ${changedStepNumber} before comparing`);
             currentResult = this.applyConflictResolutions(currentResult, changedStepConflicts);
           }
         }
         
-        // Compare against the resolved state (not the original document)
+        // Now compare the resolved state against the incoming document
+        // This ensures conflicts reflect the actual resolved state, not the original patches
+        console.log(`🔍 Comparing resolved state against ${currentDoc.name}`);
         const comparison = compareDocumentVersions(currentResult, currentDoc.content);
         
-        // Apply patches to get merged result
-        const stepResult = applyImportPatches(currentResult, comparison.patches, undefined, currentDoc.content);
+        console.log(`📊 Generated ${comparison.mergeConflicts.length} conflicts for step ${i}`);
         
         // Convert to merge conflicts
         const stepConflicts = comparison.mergeConflicts.map(conflict => {
@@ -611,8 +614,8 @@ export class DocumentMergeEngine {
         
         newConflicts.push(...enhancedConflictsWithStep);
         
-        // Update current result
-        currentResult = stepResult;
+        // DON'T apply patches here - we rely on resolutions to build the correct state
+        // The next iteration will apply THIS step's resolutions before comparing
       } catch (error) {
         console.error(`❌ Error regenerating step ${i}:`, error);
       }
@@ -621,11 +624,22 @@ export class DocumentMergeEngine {
     // Sort all conflicts
     const sortedConflicts = this.sortConflictsByPathDepth(newConflicts);
     
-    // Apply all resolutions to get final schema
-    const finalMergedSchema = this.applyConflictResolutions(
-      currentResult,
-      sortedConflicts
-    );
+    // Build final schema by applying resolutions step by step
+    console.log(`🔨 Building final schema from base state`);
+    let finalMergedSchema = baseState;
+    
+    for (let step = changedStepNumber; step < documents.length; step++) {
+      const stepConflicts = sortedConflicts.filter(c => c.stepNumber === step);
+      if (stepConflicts.length > 0) {
+        console.log(`📝 Applying ${stepConflicts.length} resolutions from step ${step}`);
+        finalMergedSchema = this.applyConflictResolutions(finalMergedSchema, stepConflicts);
+      } else {
+        // If no conflicts for this step, merge the document normally
+        console.log(`✅ No conflicts in step ${step}, merging ${documents[step].name} normally`);
+        const comparison = compareDocumentVersions(finalMergedSchema, documents[step].content);
+        finalMergedSchema = applyImportPatches(finalMergedSchema, comparison.patches, undefined, documents[step].content);
+      }
+    }
     
     const resolvedCount = sortedConflicts.filter(c => c.resolution !== 'unresolved').length;
     
