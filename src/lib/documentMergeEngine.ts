@@ -511,6 +511,18 @@ export class DocumentMergeEngine {
       c => c.stepNumber !== undefined && c.stepNumber < changedStepNumber
     );
     
+    // Save current resolutions for the changed step and onwards
+    const savedResolutions = new Map<string, MergeConflict['resolution']>();
+    currentMergeResult.conflicts.forEach(conflict => {
+      if (conflict.stepNumber !== undefined && conflict.stepNumber >= changedStepNumber) {
+        const key = `${conflict.stepNumber}|${conflict.path}|${conflict.type}|${conflict.description}`;
+        if (conflict.resolution && conflict.resolution !== 'unresolved') {
+          savedResolutions.set(key, conflict.resolution);
+          console.log(`💾 Saving resolution for ${conflict.path}: ${conflict.resolution}`);
+        }
+      }
+    });
+    
     // Apply resolutions up to (but not including) the changed step to get the base state
     let baseState = documents[0].content;
     
@@ -557,24 +569,45 @@ export class DocumentMergeEngine {
         const stepResult = applyImportPatches(currentResult, comparison.patches, undefined, currentDoc.content);
         
         // Convert to merge conflicts
-        const stepConflicts = comparison.mergeConflicts.map(conflict => ({
-          path: conflict.path,
-          type: this.mapConflictType(conflict.conflictType),
-          severity: conflict.severity,
-          description: `Step ${i} (${currentDoc.name}): ${conflict.description}`,
-          documentSource: i === 1 ? documents[0].name : 'Previous merge result',
-          documentDestination: currentDoc.name,
-          values: [conflict.currentValue, conflict.importValue],
-          suggestedResolution: 'Manual review required',
-          resolution: 'unresolved' as const,
-          currentValue: conflict.currentValue,
-          incomingValue: conflict.importValue,
-          stepNumber: i
-        }));
+        const stepConflicts = comparison.mergeConflicts.map(conflict => {
+          // Try to restore saved resolution
+          const key = `${i}|${conflict.path}|${this.mapConflictType(conflict.conflictType)}|Step ${i} (${currentDoc.name}): ${conflict.description}`;
+          const savedResolution = savedResolutions.get(key);
+          
+          if (savedResolution) {
+            console.log(`♻️ Restoring resolution for ${conflict.path} in step ${i}: ${savedResolution}`);
+          }
+          
+          return {
+            path: conflict.path,
+            type: this.mapConflictType(conflict.conflictType),
+            severity: conflict.severity,
+            description: `Step ${i} (${currentDoc.name}): ${conflict.description}`,
+            documentSource: i === 1 ? documents[0].name : 'Previous merge result',
+            documentDestination: currentDoc.name,
+            values: [conflict.currentValue, conflict.importValue],
+            suggestedResolution: 'Manual review required',
+            resolution: savedResolution || ('unresolved' as const),
+            currentValue: conflict.currentValue,
+            incomingValue: conflict.importValue,
+            stepNumber: i
+          };
+        });
         
         // Enhance with array conflicts
         const enhancedConflicts = this.enhanceArrayConflicts(stepConflicts, currentResult, currentDoc.content, false);
-        const enhancedConflictsWithStep = enhancedConflicts.map(c => ({ ...c, stepNumber: i }));
+        const enhancedConflictsWithStep = enhancedConflicts.map(c => {
+          // Try to restore resolution for enhanced conflicts too
+          const key = `${i}|${c.path}|${c.type}|${c.description}`;
+          const savedResolution = savedResolutions.get(key);
+          
+          if (savedResolution && c.resolution === 'unresolved') {
+            console.log(`♻️ Restoring resolution for enhanced conflict ${c.path}: ${savedResolution}`);
+            return { ...c, resolution: savedResolution, stepNumber: i };
+          }
+          
+          return { ...c, stepNumber: i };
+        });
         
         newConflicts.push(...enhancedConflictsWithStep);
         

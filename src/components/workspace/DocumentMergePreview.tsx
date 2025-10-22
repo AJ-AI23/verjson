@@ -152,26 +152,54 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
       return conflict;
     });
 
-    // Apply conflict resolutions to generate final merged schema
-    const finalMergedSchema = DocumentMergeEngine.applyConflictResolutions(
-      mergeResult.mergedSchema,
-      updatedConflicts,
-      pathOrder
-    );
+    // Check if we have multiple steps - if so, find the earliest step with changes
+    const hasMultipleSteps = documents.length > 1;
+    const earliestChangedStep = hasMultipleSteps 
+      ? Math.min(...updatedConflicts
+          .filter(c => c.resolution !== 'unresolved' && c.stepNumber !== undefined)
+          .map(c => c.stepNumber!))
+      : undefined;
 
-    const updatedResult: DocumentMergeResult = {
-      ...mergeResult,
-      conflicts: updatedConflicts,
-      mergedSchema: finalMergedSchema,
-      summary: {
-        ...mergeResult.summary,
-        resolvedConflicts: updatedConflicts.filter(c => c.resolution !== 'unresolved').length,
-        unresolvedConflicts: updatedConflicts.filter(c => c.resolution === 'unresolved').length
-      }
-    };
+    let updatedResult: DocumentMergeResult;
 
+    if (earliestChangedStep !== undefined && earliestChangedStep !== Infinity) {
+      // Regenerate from the earliest changed step
+      console.log(`🔄 Regenerating from step ${earliestChangedStep} after applying bulk resolution`);
+      
+      const resultWithUpdatedConflicts = {
+        ...mergeResult,
+        conflicts: updatedConflicts
+      };
+      
+      updatedResult = DocumentMergeEngine.regenerateFromStep(
+        documentOrder,
+        resultName,
+        resultWithUpdatedConflicts,
+        earliestChangedStep
+      );
+    } else {
+      // No steps or single document - just apply resolutions normally
+      const finalMergedSchema = DocumentMergeEngine.applyConflictResolutions(
+        mergeResult.mergedSchema,
+        updatedConflicts,
+        pathOrder
+      );
+
+      updatedResult = {
+        ...mergeResult,
+        conflicts: updatedConflicts,
+        mergedSchema: finalMergedSchema,
+        summary: {
+          ...mergeResult.summary,
+          resolvedConflicts: updatedConflicts.filter(c => c.resolution !== 'unresolved').length,
+          unresolvedConflicts: updatedConflicts.filter(c => c.resolution === 'unresolved').length
+        }
+      };
+    }
+
+    setMergeResult(updatedResult);
     onConflictResolve?.(updatedResult);
-  }, [mergeResult, pathOrder, onConflictResolve]);
+  }, [mergeResult, pathOrder, onConflictResolve, documents, documentOrder, resultName]);
 
   // Handle drag end for path or conflict reordering
   const handleDragEnd = useCallback((event: any) => {
@@ -359,26 +387,54 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
       return conflict;
     });
 
-    const finalMergedSchema = DocumentMergeEngine.applyConflictResolutions(
-      mergeResult.mergedSchema,
-      updatedConflicts,
-      pathOrder
-    );
+    // Check if we have multiple steps - if so, find the earliest step with changes
+    const hasMultipleSteps = documents.length > 1;
+    const earliestChangedStep = hasMultipleSteps 
+      ? Math.min(...conflicts
+          .filter(c => c.stepNumber !== undefined)
+          .map(c => c.stepNumber!))
+      : undefined;
 
-    const updatedResult: DocumentMergeResult = {
-      ...mergeResult,
-      conflicts: updatedConflicts,
-      mergedSchema: finalMergedSchema,
-      summary: {
-        ...mergeResult.summary,
-        resolvedConflicts: updatedConflicts.filter(c => c.resolution !== 'unresolved').length,
-        unresolvedConflicts: updatedConflicts.filter(c => c.resolution === 'unresolved').length
-      }
-    };
+    let updatedResult: DocumentMergeResult;
+
+    if (earliestChangedStep !== undefined && earliestChangedStep !== Infinity) {
+      // Regenerate from the earliest changed step
+      console.log(`🔄 Regenerating from step ${earliestChangedStep} after bulk resolve`);
+      
+      const resultWithUpdatedConflicts = {
+        ...mergeResult,
+        conflicts: updatedConflicts
+      };
+      
+      updatedResult = DocumentMergeEngine.regenerateFromStep(
+        documentOrder,
+        resultName,
+        resultWithUpdatedConflicts,
+        earliestChangedStep
+      );
+    } else {
+      // No steps or single document - just apply resolutions normally
+      const finalMergedSchema = DocumentMergeEngine.applyConflictResolutions(
+        mergeResult.mergedSchema,
+        updatedConflicts,
+        pathOrder
+      );
+
+      updatedResult = {
+        ...mergeResult,
+        conflicts: updatedConflicts,
+        mergedSchema: finalMergedSchema,
+        summary: {
+          ...mergeResult.summary,
+          resolvedConflicts: updatedConflicts.filter(c => c.resolution !== 'unresolved').length,
+          unresolvedConflicts: updatedConflicts.filter(c => c.resolution === 'unresolved').length
+        }
+      };
+    }
 
     setMergeResult(updatedResult);
     onConflictResolve?.(updatedResult);
-  }, [mergeResult, pathOrder, onConflictResolve]);
+  }, [mergeResult, pathOrder, onConflictResolve, documents, documentOrder, resultName]);
 
   const handleReviewedChange = useCallback((path: string, conflictIndex: number, reviewed: boolean) => {
     const key = `${path}-${conflictIndex}`;
