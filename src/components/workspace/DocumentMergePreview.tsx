@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -67,14 +67,19 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
 
   // Keep track of document order for reordering
   const [documentOrder, setDocumentOrder] = useState<Document[]>(() => documents);
+  
+  // Track previous document order to detect changes
+  const prevDocumentOrderRef = useRef<string>(documents.map(d => d.id).join(','));
 
   // Recalculate merge when document order changes
   useEffect(() => {
-    // Check if order has changed
-    const hasChanged = documentOrder.some((doc, idx) => doc.id !== documents[idx]?.id);
+    const currentOrderKey = documentOrder.map(d => d.id).join(',');
+    const hasChanged = currentOrderKey !== prevDocumentOrderRef.current;
+    
     if (!hasChanged) return;
 
     console.log('🔄 Recalculating merge with new document order:', documentOrder.map(d => d.name));
+    prevDocumentOrderRef.current = currentOrderKey;
 
     // Save current resolutions before recalculating
     const savedResolutions = new Map<string, MergeConflict['resolution']>();
@@ -113,7 +118,7 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
 
     setMergeResult(resultWithRestoredResolutions);
     onConflictResolve?.(resultWithRestoredResolutions);
-  }, [documentOrder, documents, resultName, onConflictResolve, mergeResult.conflicts]);
+  }, [documentOrder, resultName, onConflictResolve]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
