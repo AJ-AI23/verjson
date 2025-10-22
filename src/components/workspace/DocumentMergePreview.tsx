@@ -76,11 +76,44 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
 
     console.log('🔄 Recalculating merge with new document order:', documentOrder.map(d => d.name));
 
+    // Save current resolutions before recalculating
+    const savedResolutions = new Map<string, MergeConflict['resolution']>();
+    mergeResult.conflicts.forEach(conflict => {
+      const key = `${conflict.path}|${conflict.type}|${conflict.description}`;
+      if (conflict.resolution && conflict.resolution !== 'unresolved') {
+        savedResolutions.set(key, conflict.resolution);
+      }
+    });
+
     // Re-run merge with new order
     const newMergeResult = DocumentMergeEngine.mergeDocuments(documentOrder, resultName);
-    setMergeResult(newMergeResult);
-    onConflictResolve?.(newMergeResult);
-  }, [documentOrder, documents, resultName, onConflictResolve]);
+    
+    // Restore resolutions to matching conflicts
+    const conflictsWithRestoredResolutions = newMergeResult.conflicts.map(conflict => {
+      const key = `${conflict.path}|${conflict.type}|${conflict.description}`;
+      const savedResolution = savedResolutions.get(key);
+      
+      if (savedResolution) {
+        console.log(`♻️ Restoring resolution for ${conflict.path}: ${savedResolution}`);
+        return { ...conflict, resolution: savedResolution };
+      }
+      
+      return conflict;
+    });
+
+    const resultWithRestoredResolutions = {
+      ...newMergeResult,
+      conflicts: conflictsWithRestoredResolutions,
+      summary: {
+        ...newMergeResult.summary,
+        resolvedConflicts: conflictsWithRestoredResolutions.filter(c => c.resolution !== 'unresolved').length,
+        unresolvedConflicts: conflictsWithRestoredResolutions.filter(c => c.resolution === 'unresolved').length
+      }
+    };
+
+    setMergeResult(resultWithRestoredResolutions);
+    onConflictResolve?.(resultWithRestoredResolutions);
+  }, [documentOrder, documents, resultName, onConflictResolve, mergeResult.conflicts]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
