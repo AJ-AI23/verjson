@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { MergeConflict } from '@/lib/documentMergeEngine';
 import { GripVertical, AlertTriangle, CheckCircle, Link2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -22,6 +23,8 @@ interface SortableConflictItemProps {
   getSeverityIcon: (severity: MergeConflict['severity']) => React.ReactNode;
   allConflicts?: MergeConflict[];
   onBulkResolve?: (conflicts: MergeConflict[], resolution: MergeConflict['resolution']) => void;
+  reviewed?: boolean;
+  onReviewedChange?: (path: string, conflictIndex: number, reviewed: boolean) => void;
 }
 
 export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
@@ -35,7 +38,9 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
   getSeverityColor,
   getSeverityIcon,
   allConflicts,
-  onBulkResolve
+  onBulkResolve,
+  reviewed,
+  onReviewedChange
 }) => {
   const {
     attributes,
@@ -177,6 +182,22 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
                     onChange={(e) => onCustomValue(path, conflictIndex, e.target.value)}
                     className="flex-1 min-w-48"
                   />
+                )}
+
+                {conflict.severity === 'high' && onReviewedChange && (
+                  <div className="flex items-center gap-2 ml-auto">
+                    <Checkbox
+                      id={`review-${id}`}
+                      checked={reviewed || false}
+                      onCheckedChange={(checked) => onReviewedChange(path, conflictIndex, checked === true)}
+                    />
+                    <label
+                      htmlFor={`review-${id}`}
+                      className="text-sm font-medium cursor-pointer select-none"
+                    >
+                      Reviewed
+                    </label>
+                  </div>
                 )}
               </div>
             </div>

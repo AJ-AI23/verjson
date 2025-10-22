@@ -33,6 +33,8 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
   const [selectedTab, setSelectedTab] = useState<string>("summary");
   const [mergeResult, setMergeResult] = useState<DocumentMergeResult>(initialMergeResult);
   const [expandedConflicts, setExpandedConflicts] = useState<Set<number>>(new Set());
+  const [reviewedConflicts, setReviewedConflicts] = useState<Map<string, boolean>>(new Map());
+  const [expandedPaths, setExpandedPaths] = useState<string[]>([]);
 
   // Update internal state when prop changes
   useEffect(() => {
@@ -353,6 +355,71 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
     onConflictResolve?.(updatedResult);
   }, [mergeResult, pathOrder, onConflictResolve]);
 
+  const handleReviewedChange = useCallback((path: string, conflictIndex: number, reviewed: boolean) => {
+    const key = `${path}-${conflictIndex}`;
+    setReviewedConflicts(prev => {
+      const updated = new Map(prev);
+      updated.set(key, reviewed);
+      return updated;
+    });
+  }, []);
+
+  const getHighPriorityConflicts = useMemo(() => {
+    const highPriorityConflicts: Array<{ path: string; index: number; conflict: MergeConflict }> = [];
+    
+    Object.entries(conflictsByPath).forEach(([path, conflicts]) => {
+      conflicts.forEach((conflict, index) => {
+        if (conflict.severity === 'high') {
+          highPriorityConflicts.push({ path, index, conflict });
+        }
+      });
+    });
+    
+    return highPriorityConflicts;
+  }, [conflictsByPath]);
+
+  const scrollToNextUnreviewedConflict = useCallback(() => {
+    // Find next unreviewed high-priority conflict
+    const nextUnreviewed = getHighPriorityConflicts.find(({ path, index }) => {
+      const key = `${path}-${index}`;
+      return !reviewedConflicts.get(key);
+    });
+
+    if (nextUnreviewed) {
+      const { path } = nextUnreviewed;
+      
+      // Expand the path accordion if not already expanded
+      if (!expandedPaths.includes(path)) {
+        setExpandedPaths(prev => [...prev, path]);
+      }
+
+      // Switch to conflicts tab if not already there
+      setSelectedTab('conflicts');
+
+      // Scroll to the conflict after a brief delay to allow accordion to expand
+      setTimeout(() => {
+        const element = document.getElementById(`conflict-${path}-${nextUnreviewed.index}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Add a highlight effect
+          element.style.outline = '2px solid hsl(var(--primary))';
+          element.style.outlineOffset = '4px';
+          setTimeout(() => {
+            element.style.outline = '';
+            element.style.outlineOffset = '';
+          }, 2000);
+        }
+      }, 100);
+    }
+  }, [getHighPriorityConflicts, reviewedConflicts, expandedPaths]);
+
+  const unreviewedHighPriorityCount = useMemo(() => {
+    return getHighPriorityConflicts.filter(({ path, index }) => {
+      const key = `${path}-${index}`;
+      return !reviewedConflicts.get(key);
+    }).length;
+  }, [getHighPriorityConflicts, reviewedConflicts]);
+
   const toggleConflictExpansion = (index: number) => {
     const newExpanded = new Set(expandedConflicts);
     if (newExpanded.has(index)) {
@@ -613,8 +680,13 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
                     collisionDetection={closestCenter}
                     onDragEnd={handleDragEnd}
                   >
-                    <SortableContext items={pathOrder} strategy={verticalListSortingStrategy}>
-                      <Accordion type="multiple" className="w-full">
+                     <SortableContext items={pathOrder} strategy={verticalListSortingStrategy}>
+                      <Accordion 
+                        type="multiple" 
+                        className="w-full"
+                        value={expandedPaths}
+                        onValueChange={setExpandedPaths}
+                      >
                         {pathOrder.map((path) => {
                           const pathConflicts = conflictsByPath[path] || [];
                           if (pathConflicts.length === 0) return null;
@@ -669,21 +741,27 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
                                       const conflict = pathConflicts[conflictIndex];
                                       if (!conflict) return null;
 
+                                      const reviewKey = `${path}-${conflictIndex}`;
+                                      const isReviewed = reviewedConflicts.get(reviewKey) || false;
+
                                       return (
-                                         <SortableConflictItem
-                                           key={conflictId}
-                                           id={conflictId}
-                                           conflict={conflict}
-                                           conflictIndex={conflictIndex}
-                                           path={path}
-                                           onConflictResolve={handleConflictResolution}
-                                           onCustomValue={handleCustomValue}
-                                           formatJsonValue={formatJsonValue}
-                                           getSeverityColor={getSeverityColor}
-                                           getSeverityIcon={getSeverityIcon}
-                                           allConflicts={mergeResult.conflicts}
-                                           onBulkResolve={handleBulkResolve}
-                                         />
+                                         <div key={conflictId} id={`conflict-${path}-${conflictIndex}`}>
+                                           <SortableConflictItem
+                                             id={conflictId}
+                                             conflict={conflict}
+                                             conflictIndex={conflictIndex}
+                                             path={path}
+                                             onConflictResolve={handleConflictResolution}
+                                             onCustomValue={handleCustomValue}
+                                             formatJsonValue={formatJsonValue}
+                                             getSeverityColor={getSeverityColor}
+                                             getSeverityIcon={getSeverityIcon}
+                                             allConflicts={mergeResult.conflicts}
+                                             onBulkResolve={handleBulkResolve}
+                                             reviewed={isReviewed}
+                                             onReviewedChange={handleReviewedChange}
+                                           />
+                                         </div>
                                       );
                                     })}
                                   </div>
@@ -830,6 +908,21 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Next Review Button Footer */}
+      {unreviewedHighPriorityCount > 0 && (
+        <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border mt-4">
+          <div className="flex items-center gap-2 text-sm">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            <span className="font-medium">
+              {unreviewedHighPriorityCount} high-priority conflict{unreviewedHighPriorityCount !== 1 ? 's' : ''} need{unreviewedHighPriorityCount === 1 ? 's' : ''} review
+            </span>
+          </div>
+          <Button onClick={scrollToNextUnreviewedConflict} variant="default">
+            Next Review
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
