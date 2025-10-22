@@ -513,21 +513,58 @@ function applySmartArrayMerge(targetSchema: any, arrayPatch: {path: string, curr
 }
 
 /**
- * Compare array items for equality
+ * Compare array items for equality using deep fingerprinting
  */
 function areArrayItemsEqual(item1: any, item2: any): boolean {
   if (item1 === item2) return true;
   if (item1 == null || item2 == null) return item1 == item2;
   
+  // For objects and arrays, use deep comparison
   if (typeof item1 === 'object' && typeof item2 === 'object') {
-    try {
-      return JSON.stringify(item1) === JSON.stringify(item2);
-    } catch (error) {
-      return false;
-    }
+    return deepEqual(item1, item2);
   }
   
   return String(item1) === String(item2);
+}
+
+/**
+ * Deep equality check with fingerprinting for nested structures
+ */
+function deepEqual(obj1: any, obj2: any): boolean {
+  // Handle primitive types and null
+  if (obj1 === obj2) return true;
+  if (obj1 == null || obj2 == null) return false;
+  if (typeof obj1 !== 'object' || typeof obj2 !== 'object') return obj1 === obj2;
+  
+  // Handle arrays
+  if (Array.isArray(obj1) && Array.isArray(obj2)) {
+    if (obj1.length !== obj2.length) return false;
+    
+    for (let i = 0; i < obj1.length; i++) {
+      if (!deepEqual(obj1[i], obj2[i])) return false;
+    }
+    return true;
+  }
+  
+  // One is array, other is not
+  if (Array.isArray(obj1) || Array.isArray(obj2)) return false;
+  
+  // Handle objects - compare all keys and values
+  const keys1 = Object.keys(obj1).sort();
+  const keys2 = Object.keys(obj2).sort();
+  
+  // Different number of keys
+  if (keys1.length !== keys2.length) return false;
+  
+  // Different keys
+  if (!keys1.every((key, i) => key === keys2[i])) return false;
+  
+  // Compare all values recursively
+  for (const key of keys1) {
+    if (!deepEqual(obj1[key], obj2[key])) return false;
+  }
+  
+  return true;
 }
 
 /**
