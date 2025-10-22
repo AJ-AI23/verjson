@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DocumentMergeEngine, DocumentMergeResult, MergeConflict } from '@/lib/documentMergeEngine';
 import { Document } from '@/types/workspace';
-import { CheckCircle, AlertTriangle, ArrowUpDown, GitMerge, Layers, ChevronDown, ChevronRight, FileText, Download, ArrowUp, ArrowDown } from 'lucide-react';
+import { CheckCircle, AlertTriangle, ArrowUpDown, GitMerge, Layers, ChevronDown, ChevronRight, FileText, Download, ArrowUp, ArrowDown, MoveDown } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableAccordionItem } from './SortableAccordionItem';
@@ -65,37 +65,22 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
     return orders;
   });
 
-  // Keep track of step order for draggable steps
-  const [stepOrder, setStepOrder] = useState<number[]>(() => 
-    mergeResult.mergeSteps.map((_, idx) => idx)
-  );
+  // Keep track of document order for reordering
+  const [documentOrder, setDocumentOrder] = useState<Document[]>(() => documents);
 
-  // Recalculate merge when step order changes
+  // Recalculate merge when document order changes
   useEffect(() => {
-    if (stepOrder.length === 0 || stepOrder.every((idx, i) => idx === i)) {
-      // No reordering or original order, skip recalculation
-      return;
-    }
+    // Check if order has changed
+    const hasChanged = documentOrder.some((doc, idx) => doc.id !== documents[idx]?.id);
+    if (!hasChanged) return;
 
-    // Derive new document order from step order
-    // Original: documents array
-    // Steps merge documents[1], documents[2], ... into documents[0]
-    // So if stepOrder is [1, 0], we want to swap which document is merged first
-    const reorderedDocuments = [documents[0]]; // Always start with first document
-    stepOrder.forEach(stepIdx => {
-      // Each step index corresponds to documents[stepIdx + 1]
-      if (stepIdx + 1 < documents.length) {
-        reorderedDocuments.push(documents[stepIdx + 1]);
-      }
-    });
-
-    console.log('🔄 Recalculating merge with new document order:', reorderedDocuments.map(d => d.name));
+    console.log('🔄 Recalculating merge with new document order:', documentOrder.map(d => d.name));
 
     // Re-run merge with new order
-    const newMergeResult = DocumentMergeEngine.mergeDocuments(reorderedDocuments, resultName);
+    const newMergeResult = DocumentMergeEngine.mergeDocuments(documentOrder, resultName);
     setMergeResult(newMergeResult);
     onConflictResolve?.(newMergeResult);
-  }, [stepOrder, documents, resultName, onConflictResolve]);
+  }, [documentOrder, documents, resultName, onConflictResolve]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -104,18 +89,18 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
     })
   );
 
-  const moveStepUp = (index: number) => {
+  const moveDocumentUp = (index: number) => {
     if (index === 0) return;
-    const newOrder = [...stepOrder];
+    const newOrder = [...documentOrder];
     [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
-    setStepOrder(newOrder);
+    setDocumentOrder(newOrder);
   };
 
-  const moveStepDown = (index: number) => {
-    if (index === stepOrder.length - 1) return;
-    const newOrder = [...stepOrder];
+  const moveDocumentDown = (index: number) => {
+    if (index === documentOrder.length - 1) return;
+    const newOrder = [...documentOrder];
     [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
-    setStepOrder(newOrder);
+    setDocumentOrder(newOrder);
   };
 
   // Default merge policy handler
@@ -148,7 +133,7 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
     onConflictResolve?.(updatedResult);
   }, [mergeResult, pathOrder, onConflictResolve]);
 
-  // Handle drag end for path, conflict, or step reordering
+  // Handle drag end for path or conflict reordering
   const handleDragEnd = useCallback((event: any) => {
     const { active, over } = event;
 
@@ -156,17 +141,8 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
       const activeIdStr = String(active.id);
       const overIdStr = String(over.id);
       
-      // Check if it's a step reordering (numeric string IDs like "0", "1", "2")
-      const activeStepIndex = stepOrder.findIndex(idx => String(idx) === activeIdStr);
-      const overStepIndex = stepOrder.findIndex(idx => String(idx) === overIdStr);
-      
-      if (activeStepIndex !== -1 && overStepIndex !== -1) {
-        setStepOrder((items) => {
-          return arrayMove(items, activeStepIndex, overStepIndex);
-        });
-      }
       // Check if it's a path reordering
-      else if (pathOrder.includes(activeIdStr)) {
+      if (pathOrder.includes(activeIdStr)) {
         setPathOrder((items) => {
           const oldIndex = items.indexOf(activeIdStr);
           const newIndex = items.indexOf(overIdStr);
@@ -193,7 +169,7 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
         }
       }
     }
-  }, [pathOrder, conflictOrders, stepOrder]);
+  }, [pathOrder, conflictOrders]);
 
   const getSeverityColor = (severity: MergeConflict['severity']) => {
     switch (severity) {
@@ -438,16 +414,13 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
       </Alert>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="summary">Summary</TabsTrigger>
-          <TabsTrigger value="steps">
-            Steps ({mergeResult.mergeSteps.length})
+          <TabsTrigger value="documents">
+            Documents ({documents.length})
           </TabsTrigger>
           <TabsTrigger value="conflicts">
             Conflicts ({mergeResult.conflicts.length})
-          </TabsTrigger>
-          <TabsTrigger value="documents">
-            Documents ({documents.length})
           </TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>
         </TabsList>
@@ -534,100 +507,6 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
           )}
         </TabsContent>
 
-        <TabsContent value="steps" className="space-y-3">
-          {mergeResult.mergeSteps.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <GitMerge className="h-8 w-8 mx-auto mb-2 text-blue-500" />
-              <p>No sequential merge steps tracked.</p>
-              <p className="text-xs mt-1">Using bulk merge approach</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="text-sm text-muted-foreground mb-3 p-3 bg-muted/50 rounded-lg">
-                Use the arrow buttons to reorder how documents are merged. This will also reorder conflicts in the Conflicts tab.
-              </div>
-              <Accordion type="multiple" className="w-full">
-                {stepOrder.map((stepIndex, displayIndex) => {
-                  const step = mergeResult.mergeSteps[stepIndex];
-                  if (!step) return null;
-                  
-                  return (
-                    <AccordionItem
-                      key={stepIndex}
-                      value={`step-${stepIndex}`}
-                    >
-                      <AccordionTrigger>
-                        <div className="flex items-center justify-between w-full mr-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  moveStepUp(displayIndex);
-                                }}
-                                disabled={displayIndex === 0}
-                              >
-                                <ArrowUp className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  moveStepDown(displayIndex);
-                                }}
-                                disabled={displayIndex === stepOrder.length - 1}
-                              >
-                                <ArrowDown className="h-3 w-3" />
-                              </Button>
-                            </div>
-                            <Badge variant="outline" className="text-xs">
-                              Step {displayIndex + 1}
-                            </Badge>
-                            <span className="text-sm">
-                              <span className="font-medium">{step.fromDocument}</span>
-                              <ArrowUpDown className="inline h-3 w-3 mx-1" />
-                              <span className="font-medium">{step.toDocument}</span>
-                            </span>
-                          </div>
-                          {step.conflicts > 0 && (
-                            <Badge variant="secondary" className="text-xs">
-                              {step.conflicts} conflicts
-                            </Badge>
-                          )}
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <div className="grid grid-cols-3 gap-4 text-xs pt-2">
-                          <div>
-                            <div className="font-medium">Changes Applied</div>
-                            <div className="text-muted-foreground">{step.patches.length} patches</div>
-                          </div>
-                          <div>
-                            <div className="font-medium">Additions</div>
-                            <div className="text-muted-foreground">
-                              {step.patches.filter(p => p.op === 'add').length}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="font-medium">Modifications</div>
-                            <div className="text-muted-foreground">
-                              {step.patches.filter(p => p.op === 'replace').length}
-                            </div>
-                          </div>
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  );
-                })}
-              </Accordion>
-            </div>
-          )}
-        </TabsContent>
 
         <TabsContent value="conflicts" className="space-y-3">
           {mergeResult.conflicts.length === 0 ? (
@@ -775,37 +654,93 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
         </TabsContent>
 
         <TabsContent value="documents" className="space-y-3">
-          <div className="grid gap-3">
-            {documents.map((doc, index) => {
+          <div className="text-sm text-muted-foreground mb-3 p-3 bg-muted/50 rounded-lg">
+            Documents are merged in the order shown below. Use the arrow buttons to reorder. Steps show the merge operations and their conflict counts.
+          </div>
+          <div className="space-y-0">
+            {documentOrder.map((doc, index) => {
               const info = getDocumentInfo(doc);
+              const step = mergeResult.mergeSteps[index];
+              
               return (
-                <Card key={doc.id}>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
-                      {doc.name}
-                      <Badge variant="outline" className="ml-auto text-xs">
-                        {doc.file_type}
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="grid grid-cols-3 gap-4 text-xs">
-                      <div>
-                        <div className="font-medium">Title</div>
-                        <div className="text-muted-foreground">{info.title}</div>
+                <div key={doc.id}>
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <div className="flex gap-1 mr-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => moveDocumentUp(index)}
+                            disabled={index === 0}
+                          >
+                            <ArrowUp className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => moveDocumentDown(index)}
+                            disabled={index === documentOrder.length - 1}
+                          >
+                            <ArrowDown className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <FileText className="h-4 w-4" />
+                        {doc.name}
+                        {index === 0 && (
+                          <Badge variant="secondary" className="text-xs">Base</Badge>
+                        )}
+                        <Badge variant="outline" className="ml-auto text-xs">
+                          {doc.file_type}
+                        </Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="grid grid-cols-3 gap-4 text-xs">
+                        <div>
+                          <div className="font-medium">Title</div>
+                          <div className="text-muted-foreground">{info.title}</div>
+                        </div>
+                        <div>
+                          <div className="font-medium">Version</div>
+                          <div className="text-muted-foreground">{info.version}</div>
+                        </div>
+                        <div>
+                          <div className="font-medium">Properties</div>
+                          <div className="text-muted-foreground">{info.propertiesCount}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-medium">Version</div>
-                        <div className="text-muted-foreground">{info.version}</div>
-                      </div>
-                      <div>
-                        <div className="font-medium">Properties</div>
-                        <div className="text-muted-foreground">{info.propertiesCount}</div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Show merge step between documents */}
+                  {step && index < documentOrder.length - 1 && (
+                    <div className="flex items-center justify-center py-2 px-4">
+                      <div className="flex items-center gap-3 text-sm bg-muted/30 px-4 py-2 rounded-lg border border-border/50">
+                        <MoveDown className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-muted-foreground">Step {index + 1}:</span>
+                          <span className="text-xs">
+                            Merge <span className="font-medium">{step.fromDocument}</span> into{' '}
+                            <span className="font-medium">{step.toDocument}</span>
+                          </span>
+                          {step.conflicts > 0 && (
+                            <Badge variant="secondary" className="text-xs">
+                              {step.conflicts} conflict{step.conflicts !== 1 ? 's' : ''}
+                            </Badge>
+                          )}
+                          {step.conflicts === 0 && (
+                            <Badge variant="outline" className="text-xs text-green-600">
+                              No conflicts
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  )}
+                </div>
               );
             })}
           </div>
