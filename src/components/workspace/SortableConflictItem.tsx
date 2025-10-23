@@ -63,7 +63,7 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
     onConflictResolve(path, conflictIndex, resolution);
     
     // Handle cascading resolution for array item conflicts
-    if (isArrayItemConflict && resolution === 'additive' && allConflicts && onBulkResolve) {
+    if (isArrayItemConflict && resolution === 'combine' && allConflicts && onBulkResolve) {
       // Find all property-level conflicts within this array item
       const itemPath = path;
       const itemIndexMatch = itemPath.match(/\[(\d+)\]/);
@@ -77,8 +77,8 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
         );
         
         if (relatedPropertyConflicts.length > 0) {
-          console.log('🔄 Auto-resolving related property conflicts for Smart Merge:', relatedPropertyConflicts.map(c => c.path));
-          onBulkResolve(relatedPropertyConflicts, 'additive');
+          console.log('🔄 Auto-resolving related property conflicts for Combine:', relatedPropertyConflicts.map(c => c.path));
+          onBulkResolve(relatedPropertyConflicts, 'combine');
         }
       }
     }
@@ -104,11 +104,13 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
                   <Badge variant={getSeverityColor(conflict.severity) as any} className="text-xs">
                     {conflict.severity} priority
                   </Badge>
-                  <Badge variant={conflict.resolution === 'unresolved' ? 'destructive' : 'default'} className="text-xs">
+                   <Badge variant={conflict.resolution === 'unresolved' ? 'destructive' : 'default'} className="text-xs">
                     {conflict.resolution === 'unresolved' ? 'Unresolved' : 
                      conflict.resolution === 'current' ? 'Keep Current' :
                      conflict.resolution === 'incoming' ? 'Use Incoming' :
-                     conflict.resolution === 'additive' ? 'Smart Merge' :
+                     conflict.resolution === 'combine' ? 'Combine' :
+                     conflict.resolution === 'interpolate' ? 'Intersection' :
+                     conflict.resolution === 'extrapolate' ? 'Difference' :
                      conflict.resolution === 'custom' ? 'Custom Value' : conflict.resolution}
                   </Badge>
                   {isArrayItemConflict && (
@@ -170,7 +172,9 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
                     <SelectItem value="unresolved">Unresolved</SelectItem>
                     <SelectItem value="current">Keep Current</SelectItem>
                     <SelectItem value="incoming">Use Incoming</SelectItem>
-                    <SelectItem value="additive">Smart Merge</SelectItem>
+                    <SelectItem value="combine">Combine (Union)</SelectItem>
+                    <SelectItem value="interpolate">Intersection</SelectItem>
+                    <SelectItem value="extrapolate">Difference</SelectItem>
                     <SelectItem value="custom">Custom Value</SelectItem>
                   </SelectContent>
                 </Select>

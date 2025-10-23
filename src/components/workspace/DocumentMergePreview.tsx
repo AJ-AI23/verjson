@@ -144,7 +144,7 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
   };
 
   // Default merge policy handler
-  const handleDefaultMergePolicy = useCallback((policy: 'current' | 'incoming' | 'additive') => {
+  const handleDefaultMergePolicy = useCallback((policy: 'current' | 'incoming' | 'combine') => {
     const updatedConflicts = mergeResult.conflicts.map(conflict => {
       if (conflict.resolution === 'unresolved') {
         return { ...conflict, resolution: policy };
@@ -294,18 +294,18 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
       if (isTargetConflict) {
         const updated: MergeConflict = { ...conflict, resolution };
         
-        // If setting to Smart Merge and this conflict has linked children, auto-toggle them too
-        if (resolution === 'additive' && conflict.linkedConflictPaths && conflict.linkedConflictPaths.length > 0) {
-          console.log(`🔄 Auto-toggling Smart Merge for ${conflict.linkedConflictPaths.length} linked conflicts`);
+        // If setting to Combine and this conflict has linked children, auto-toggle them too
+        if (resolution === 'combine' && conflict.linkedConflictPaths && conflict.linkedConflictPaths.length > 0) {
+          console.log(`🔄 Auto-toggling Combine for ${conflict.linkedConflictPaths.length} linked conflicts`);
         }
         
         return updated;
       }
       
-      // If this conflict is a linked child of the target, auto-toggle it to Smart Merge
-      if (targetConflict?.linkedConflictPaths?.includes(conflict.path) && resolution === 'additive') {
-        console.log(`✅ Auto-toggling linked conflict to Smart Merge: ${conflict.path}`);
-        const updated: MergeConflict = { ...conflict, resolution: 'additive' as const };
+      // If this conflict is a linked child of the target, auto-toggle it to Combine
+      if (targetConflict?.linkedConflictPaths?.includes(conflict.path) && resolution === 'combine') {
+        console.log(`✅ Auto-toggling linked conflict to Combine: ${conflict.path}`);
+        const updated: MergeConflict = { ...conflict, resolution: 'combine' as const };
         return updated;
       }
       
