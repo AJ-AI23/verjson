@@ -99,12 +99,13 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
 
             <div className="flex-1 space-y-3">
               <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2">
                   {getSeverityIcon(conflict.severity)}
                   <Badge variant={getSeverityColor(conflict.severity) as any} className="text-xs">
                     {conflict.severity} priority
                   </Badge>
-                   <Badge variant={conflict.resolution === 'unresolved' ? 'destructive' : 'default'} className="text-xs">
+                  <Badge variant={conflict.resolution === 'unresolved' ? 'destructive' : 'default'} className="text-xs">
                     {conflict.resolution === 'unresolved' ? 'Unresolved' : 
                      conflict.resolution === 'current' ? 'Keep Current' :
                      conflict.resolution === 'incoming' ? 'Use Incoming' :
@@ -113,6 +114,22 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
                      conflict.resolution === 'extrapolate' ? 'Difference' :
                      conflict.resolution === 'custom' ? 'Custom Value' : conflict.resolution}
                   </Badge>
+                  {/* Conflict Type Badge */}
+                  <Badge variant="outline" className="text-xs font-mono">
+                    {conflict.type.replace(/_/g, ' ')}
+                  </Badge>
+                  {/* Auto-resolvable Indicator */}
+                  {conflict.autoResolvable && !conflict.requiresManualReview && (
+                    <Badge variant="secondary" className="text-xs">
+                      Auto-resolvable
+                    </Badge>
+                  )}
+                  {/* Manual Review Required */}
+                  {conflict.requiresManualReview && (
+                    <Badge variant="destructive" className="text-xs">
+                      Manual Review
+                    </Badge>
+                  )}
                   {isArrayItemConflict && (
                     <Badge variant="outline" className="text-xs">
                       Array Item
@@ -140,9 +157,15 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
                   )}
                 </div>
               </div>
+              </div>
 
-              <div className="text-sm text-muted-foreground">
-                {conflict.description}
+              <div className="text-sm text-muted-foreground space-y-1">
+                <div>{conflict.description}</div>
+                {conflict.resolutionRationale && (
+                  <div className="text-xs italic text-muted-foreground/80">
+                    {conflict.resolutionRationale}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

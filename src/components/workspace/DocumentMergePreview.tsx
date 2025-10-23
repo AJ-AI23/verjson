@@ -9,13 +9,14 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DocumentMergeEngine, DocumentMergeResult, MergeConflict } from '@/lib/documentMergeEngine';
+import { DocumentMergeEngine, DocumentMergeResult, MergeConflict, ResolutionParameters, DEFAULT_RESOLUTION_PARAMETERS } from '@/lib/documentMergeEngine';
 import { Document } from '@/types/workspace';
-import { CheckCircle, AlertTriangle, ArrowUpDown, GitMerge, Layers, ChevronDown, ChevronRight, FileText, Download, ArrowUp, ArrowDown, MoveDown } from 'lucide-react';
+import { CheckCircle, AlertTriangle, ArrowUpDown, GitMerge, Layers, ChevronDown, ChevronRight, FileText, Download, ArrowUp, ArrowDown, MoveDown, Settings } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableAccordionItem } from './SortableAccordionItem';
 import { SortableConflictItem } from './SortableConflictItem';
+import { ResolutionParametersDialog } from './ResolutionParametersDialog';
 
 interface DocumentMergePreviewProps {
   documents: Document[];
@@ -35,6 +36,10 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
   const [expandedConflicts, setExpandedConflicts] = useState<Set<number>>(new Set());
   const [reviewedConflicts, setReviewedConflicts] = useState<Map<string, boolean>>(new Map());
   const [expandedPaths, setExpandedPaths] = useState<string[]>([]);
+  
+  // Resolution parameters state
+  const [resolutionParameters, setResolutionParameters] = useState<ResolutionParameters>(DEFAULT_RESOLUTION_PARAMETERS);
+  const [parametersDialogOpen, setParametersDialogOpen] = useState(false);
 
   // Update internal state when prop changes
   useEffect(() => {
@@ -731,29 +736,42 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
                   </div>
                   
                   {/* Default Policy Controls */}
-                  <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-                    <span className="text-sm font-medium">Apply to all unresolved:</span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDefaultMergePolicy('current')}
-                    >
-                      Always Keep Current
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDefaultMergePolicy('incoming')}
-                    >
-                      Always Use Incoming
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDefaultMergePolicy('additive')}
-                    >
-                      Smart Merge (Preserve Non-null)
-                    </Button>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 flex-1">
+                        <span className="text-sm font-medium">Apply to all unresolved:</span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDefaultMergePolicy('current')}
+                        >
+                          Keep Current
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDefaultMergePolicy('incoming')}
+                        >
+                          Use Incoming
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDefaultMergePolicy('combine')}
+                        >
+                          Combine
+                        </Button>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setParametersDialogOpen(true)}
+                        className="flex items-center gap-2"
+                      >
+                        <Settings className="h-3 w-3" />
+                        Parameters
+                      </Button>
+                    </div>
                   </div>
 
                   <DndContext
@@ -1004,6 +1022,14 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
           </Button>
         </div>
       )}
+
+      {/* Resolution Parameters Dialog */}
+      <ResolutionParametersDialog
+        open={parametersDialogOpen}
+        onOpenChange={setParametersDialogOpen}
+        parameters={resolutionParameters}
+        onParametersChange={setResolutionParameters}
+      />
     </div>
   );
 };
