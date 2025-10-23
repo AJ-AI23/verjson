@@ -5,59 +5,59 @@ import { ConflictType, MergeConflict } from './documentMergeEngine';
  */
 export const CONFLICT_RESOLUTION_RULES: Record<ConflictType, MergeConflict['resolution'][]> = {
   // Property Structure Conflicts
-  'property_removed_required': ['current', 'incoming', 'unresolved'], // HIGH - breaking change
-  'property_removed_optional': ['current', 'incoming', 'combine', 'unresolved'], // MEDIUM - can auto-resolve
-  'property_added_new': ['incoming', 'combine', 'unresolved'], // LOW - safe to add
-  'property_added_duplicate': ['current', 'incoming', 'custom', 'unresolved'], // MEDIUM - needs decision
-  'property_renamed': ['current', 'incoming', 'custom', 'unresolved'], // MEDIUM - suggest merge
-  'property_moved': ['current', 'incoming', 'custom', 'unresolved'], // MEDIUM - path change
+  'property_removed_required': ['current', 'incoming', 'unresolved'], // Critical - breaking change, no auto
+  'property_removed_optional': ['incoming', 'combine', 'current', 'unresolved'], // Medium - prefer add back with combine
+  'property_added_new': ['incoming', 'combine', 'unresolved'], // Low - safe to add (no current option, property doesn't exist)
+  'property_added_duplicate': ['current', 'incoming', 'combine', 'custom', 'unresolved'], // Medium - can merge both
+  'property_renamed': ['current', 'incoming', 'combine', 'custom', 'unresolved'], // Medium - combine creates alias
+  'property_moved': ['current', 'incoming', 'combine', 'custom', 'unresolved'], // Medium - combine keeps both paths
   
-  // Type Conflicts
-  'type_primitive_changed': ['current', 'incoming', 'unresolved'], // HIGH - manual only
-  'type_expanded': ['current', 'incoming', 'unresolved'], // MEDIUM - could be compatible
-  'type_collapsed': ['current', 'incoming', 'unresolved'], // HIGH - data loss
-  'type_array_to_object': ['current', 'incoming', 'unresolved'], // HIGH - structural
-  'type_object_to_array': ['current', 'incoming', 'unresolved'], // HIGH - structural
-  'type_nullable_changed': ['current', 'incoming', 'unresolved'], // MEDIUM
+  // Type Conflicts - All require manual decision, no auto-resolution
+  'type_primitive_changed': ['current', 'incoming', 'unresolved'], // Critical - incompatible types
+  'type_expanded': ['incoming', 'current', 'unresolved'], // High - prefer expanded (backward compat)
+  'type_collapsed': ['current', 'incoming', 'unresolved'], // Critical - data loss, prefer current
+  'type_array_to_object': ['current', 'incoming', 'unresolved'], // Critical - structural change
+  'type_object_to_array': ['current', 'incoming', 'unresolved'], // Critical - structural change
+  'type_nullable_changed': ['incoming', 'current', 'unresolved'], // Medium - prefer nullable (safer)
   
-  // Array Conflicts
-  'array_items_added': ['current', 'incoming', 'combine', 'extrapolate', 'unresolved'], // LOW
-  'array_items_removed': ['current', 'incoming', 'interpolate', 'extrapolate', 'unresolved'], // MEDIUM
-  'array_items_reordered': ['current', 'incoming', 'unresolved'], // MEDIUM - needs preference
-  'array_items_modified': ['current', 'incoming', 'combine', 'interpolate', 'extrapolate', 'unresolved'], // HIGH
-  'array_length_mismatch': ['current', 'incoming', 'combine', 'interpolate', 'extrapolate', 'unresolved'], // MEDIUM
-  'array_type_conflict': ['current', 'incoming', 'unresolved'], // HIGH - manual
+  // Array Conflicts - Order matters, preferences required
+  'array_items_added': ['combine', 'incoming', 'extrapolate', 'current', 'unresolved'], // Low - prefer combine (union)
+  'array_items_removed': ['current', 'interpolate', 'incoming', 'extrapolate', 'unresolved'], // Medium - prefer keep
+  'array_items_reordered': ['current', 'incoming', 'unresolved'], // Medium - order preference required
+  'array_items_modified': ['combine', 'current', 'incoming', 'interpolate', 'extrapolate', 'unresolved'], // High - item-level merge
+  'array_length_mismatch': ['combine', 'current', 'incoming', 'interpolate', 'extrapolate', 'unresolved'], // Medium - merge strategy needed
+  'array_type_conflict': ['current', 'incoming', 'unresolved'], // Critical - incompatible item types
   
-  // Object Conflicts
-  'object_property_added': ['current', 'incoming', 'combine', 'extrapolate', 'unresolved'], // LOW
-  'object_property_removed': ['current', 'incoming', 'interpolate', 'extrapolate', 'unresolved'], // MEDIUM
-  'object_property_value_changed': ['current', 'incoming', 'custom', 'unresolved'], // MEDIUM
-  'object_structure_diverged': ['current', 'incoming', 'unresolved'], // HIGH - manual
-  'object_nested_conflict': ['current', 'incoming', 'combine', 'interpolate', 'extrapolate', 'unresolved'], // Cascade
+  // Object Conflicts - Recursive merge support
+  'object_property_added': ['combine', 'incoming', 'extrapolate', 'current', 'unresolved'], // Low - prefer add
+  'object_property_removed': ['current', 'interpolate', 'incoming', 'extrapolate', 'unresolved'], // Medium - prefer keep
+  'object_property_value_changed': ['current', 'incoming', 'combine', 'custom', 'unresolved'], // Medium - allow merge
+  'object_structure_diverged': ['current', 'incoming', 'unresolved'], // Critical - completely different
+  'object_nested_conflict': ['combine', 'current', 'incoming', 'interpolate', 'extrapolate', 'unresolved'], // Cascade - recursive
   
-  // Primitive Conflicts
-  'primitive_string_conflict': ['current', 'incoming', 'combine', 'custom', 'unresolved'], // LOW - can show diff
-  'primitive_number_conflict': ['current', 'incoming', 'custom', 'unresolved'], // MEDIUM
-  'primitive_boolean_conflict': ['current', 'incoming', 'unresolved'], // HIGH - logic conflict
-  'primitive_null_vs_value': ['current', 'incoming', 'unresolved'], // MEDIUM
+  // Primitive Conflicts - Simple value conflicts
+  'primitive_string_conflict': ['combine', 'current', 'incoming', 'custom', 'unresolved'], // Low - can concatenate
+  'primitive_number_conflict': ['current', 'incoming', 'custom', 'unresolved'], // Medium - can average/min/max
+  'primitive_boolean_conflict': ['current', 'incoming', 'custom', 'unresolved'], // High - logic requires decision
+  'primitive_null_vs_value': ['incoming', 'current', 'unresolved'], // Medium - prefer value over null
   
-  // Schema-Specific Conflicts
-  'enum_values_added': ['incoming', 'combine', 'unresolved'], // LOW - safe
-  'enum_values_removed': ['current', 'incoming', 'unresolved'], // HIGH - breaking
-  'required_array_modified': ['current', 'incoming', 'unresolved'], // HIGH - breaking
-  'constraint_tightened': ['current', 'incoming', 'unresolved'], // HIGH - breaking
-  'constraint_loosened': ['incoming', 'combine', 'unresolved'], // MEDIUM - usually safe
-  'format_changed': ['current', 'incoming', 'unresolved'], // MEDIUM
-  'pattern_changed': ['current', 'incoming', 'unresolved'], // HIGH
-  'reference_broken': ['current', 'incoming', 'unresolved'], // HIGH - manual
-  'reference_added': ['incoming', 'combine', 'unresolved'], // LOW
-  'schema_composition_conflict': ['current', 'incoming', 'unresolved'], // HIGH - complex
+  // Schema-Specific Conflicts - OpenAPI/JSON Schema rules
+  'enum_values_added': ['combine', 'incoming', 'unresolved'], // Low - backward compatible
+  'enum_values_removed': ['current', 'incoming', 'interpolate', 'unresolved'], // Critical - breaking, intersection available
+  'required_array_modified': ['current', 'incoming', 'combine', 'interpolate', 'unresolved'], // Critical - set operations
+  'constraint_tightened': ['current', 'incoming', 'unresolved'], // Critical - data may fail validation
+  'constraint_loosened': ['incoming', 'combine', 'current', 'unresolved'], // Medium - safe, prefer looser
+  'format_changed': ['current', 'incoming', 'unresolved'], // Medium - validation impact
+  'pattern_changed': ['current', 'incoming', 'unresolved'], // Critical - regex validation
+  'reference_broken': ['current', 'incoming', 'custom', 'unresolved'], // Critical - fix $ref path
+  'reference_added': ['incoming', 'combine', 'unresolved'], // Low - safe addition
+  'schema_composition_conflict': ['current', 'incoming', 'combine', 'unresolved'], // Critical - allOf/anyOf/oneOf merge
   
-  // Semantic/Content Conflicts
-  'description_conflict': ['current', 'incoming', 'combine', 'unresolved'], // LOW
-  'example_conflict': ['current', 'incoming', 'combine', 'unresolved'], // LOW
-  'default_value_conflict': ['current', 'incoming', 'unresolved'], // MEDIUM
-  'deprecated_status_conflict': ['current', 'incoming', 'unresolved'], // MEDIUM
+  // Semantic/Content Conflicts - Documentation and metadata
+  'description_conflict': ['combine', 'current', 'incoming', 'unresolved'], // Info - prefer concatenate
+  'example_conflict': ['combine', 'current', 'incoming', 'unresolved'], // Info - keep all examples
+  'default_value_conflict': ['current', 'incoming', 'unresolved'], // Medium - behavior impact
+  'deprecated_status_conflict': ['incoming', 'current', 'unresolved'], // Medium - prefer deprecated (safer)
   
   // Legacy types (backward compatibility)
   'property_removed': ['current', 'incoming', 'combine', 'unresolved'],

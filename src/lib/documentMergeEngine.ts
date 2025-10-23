@@ -135,6 +135,32 @@ export const DEFAULT_RESOLUTION_PARAMETERS: ResolutionParameters = {
 // INTERFACES
 // ============================================================================
 
+export interface ConflictResolutionPreferences {
+  // Array preferences
+  arrayOrderPreference?: ResolutionParameters['arrayOrderPreference'];
+  arrayDuplicateHandling?: ResolutionParameters['arrayDuplicateHandling'];
+  arrayMergeStrategy?: ResolutionParameters['arrayMergeStrategy'];
+  
+  // String preferences
+  stringMergeStrategy?: ResolutionParameters['stringMergeStrategy'];
+  stringConcatenationSeparator?: ResolutionParameters['stringConcatenationSeparator'];
+  
+  // Object preferences
+  objectPropertyConflict?: ResolutionParameters['objectPropertyConflict'];
+  objectMergeDepth?: number;
+  
+  // Schema preferences
+  enumStrategy?: ResolutionParameters['enumStrategy'];
+  constraintStrategy?: ResolutionParameters['constraintStrategy'];
+  descriptionStrategy?: ResolutionParameters['descriptionStrategy'];
+  
+  // Numeric preferences
+  numericStrategy?: 'average' | 'min' | 'max' | 'current' | 'incoming';
+  
+  // Boolean preferences
+  booleanStrategy?: 'and' | 'or' | 'current' | 'incoming';
+}
+
 export interface MergeConflict {
   path: string;
   type: ConflictType;
@@ -156,6 +182,9 @@ export interface MergeConflict {
   autoResolvable?: boolean;
   resolutionParameters?: ResolutionParameters;
   resolutionRationale?: string;
+  
+  // NEW: Per-conflict preferences
+  preferences?: ConflictResolutionPreferences;
 }
 
 export interface MergeStep {
