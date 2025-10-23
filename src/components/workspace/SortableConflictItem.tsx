@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { MergeConflict } from '@/lib/documentMergeEngine';
-import { GripVertical, AlertTriangle, CheckCircle, Link2 } from 'lucide-react';
+import { GripVertical, AlertTriangle, CheckCircle, Link2, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { getValidResolutions, getResolutionExplanation } from '@/lib/conflictResolutionRules';
 
 interface SortableConflictItemProps {
   id: string;
@@ -58,6 +59,10 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
   };
 
   const isArrayItemConflict = path.includes('[') && path.includes(']');
+  
+  // Get valid resolutions for this conflict type
+  const validResolutions = getValidResolutions(conflict.type);
+  const resolutionExplanation = getResolutionExplanation(conflict.type);
 
   const handleResolutionChange = (resolution: MergeConflict['resolution']) => {
     onConflictResolve(path, conflictIndex, resolution);
@@ -184,23 +189,52 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <Select
-                  value={conflict.resolution || 'unresolved'}
-                  onValueChange={handleResolutionChange}
-                >
-                  <SelectTrigger className="w-auto">
-                    <SelectValue placeholder="Choose resolution" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unresolved">Unresolved</SelectItem>
-                    <SelectItem value="current">Keep Current</SelectItem>
-                    <SelectItem value="incoming">Use Incoming</SelectItem>
-                    <SelectItem value="combine">Combine (Union)</SelectItem>
-                    <SelectItem value="interpolate">Intersection</SelectItem>
-                    <SelectItem value="extrapolate">Difference</SelectItem>
-                    <SelectItem value="custom">Custom Value</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={conflict.resolution || 'unresolved'}
+                    onValueChange={handleResolutionChange}
+                  >
+                    <SelectTrigger className="w-auto">
+                      <SelectValue placeholder="Choose resolution" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unresolved">Unresolved</SelectItem>
+                      {validResolutions.includes('current') && (
+                        <SelectItem value="current">Keep Current</SelectItem>
+                      )}
+                      {validResolutions.includes('incoming') && (
+                        <SelectItem value="incoming">Use Incoming</SelectItem>
+                      )}
+                      {validResolutions.includes('combine') && (
+                        <SelectItem value="combine">Combine (Union)</SelectItem>
+                      )}
+                      {validResolutions.includes('interpolate') && (
+                        <SelectItem value="interpolate">Intersection</SelectItem>
+                      )}
+                      {validResolutions.includes('extrapolate') && (
+                        <SelectItem value="extrapolate">Difference</SelectItem>
+                      )}
+                      {validResolutions.includes('custom') && (
+                        <SelectItem value="custom">Custom Value</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  
+                  {/* Resolution explanation tooltip */}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <div className="text-xs space-y-1">
+                          <div className="font-semibold">Available Resolutions:</div>
+                          <div>{resolutionExplanation}</div>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
 
                 {conflict.resolution === 'custom' && (
                   <Input

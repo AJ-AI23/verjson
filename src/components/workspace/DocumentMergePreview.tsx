@@ -40,6 +40,9 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
   // Resolution parameters state
   const [resolutionParameters, setResolutionParameters] = useState<ResolutionParameters>(DEFAULT_RESOLUTION_PARAMETERS);
   const [parametersDialogOpen, setParametersDialogOpen] = useState(false);
+  
+  // Step-level merge modes
+  const [stepModes, setStepModes] = useState<Map<number, 'manual' | 'additive' | 'subtractive' | 'interpolate' | 'extrapolate'>>(new Map());
 
   // Update internal state when prop changes
   useEffect(() => {
@@ -944,9 +947,9 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
                   {/* Show merge step between documents */}
                   {step && index < documentOrder.length - 1 && (
                     <div className="flex items-center justify-center py-2 px-4">
-                      <div className="flex items-center gap-3 text-sm bg-muted/30 px-4 py-2 rounded-lg border border-border/50">
-                        <MoveDown className="h-4 w-4 text-muted-foreground" />
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3 text-sm bg-muted/30 px-4 py-3 rounded-lg border border-border/50 w-full">
+                        <MoveDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <div className="flex items-center gap-2 flex-1">
                           <span className="font-medium text-muted-foreground">Step {index + 1}:</span>
                           <span className="text-xs">
                             Merge <span className="font-medium">{step.fromDocument}</span> into{' '}
@@ -963,6 +966,32 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
                             </Badge>
                           )}
                         </div>
+                        {/* Merge Mode Selector for this step */}
+                        {index > 0 && step.conflicts > 0 && (
+                          <div className="flex items-center gap-2 ml-auto">
+                            <span className="text-xs text-muted-foreground">Mode:</span>
+                            <Select
+                              value={stepModes.get(index + 1) || 'manual'}
+                              onValueChange={(mode: any) => {
+                                const newModes = new Map(stepModes);
+                                newModes.set(index + 1, mode);
+                                setStepModes(newModes);
+                                console.log(`Set step ${index + 1} to ${mode} mode`);
+                              }}
+                            >
+                              <SelectTrigger className="h-7 w-32 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="manual">Manual</SelectItem>
+                                <SelectItem value="additive">Additive</SelectItem>
+                                <SelectItem value="subtractive">Subtractive</SelectItem>
+                                <SelectItem value="interpolate">Interpolate</SelectItem>
+                                <SelectItem value="extrapolate">Extrapolate</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
