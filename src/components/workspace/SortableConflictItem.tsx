@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { MergeConflict } from '@/lib/documentMergeEngine';
 import { GripVertical, AlertTriangle, CheckCircle, Link2, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { getValidResolutions, getResolutionExplanation } from '@/lib/conflictResolutionRules';
+import { getValidResolutions, getResolutionExplanation, getConflictSeverity, requiresManualReview } from '@/lib/conflictResolutionRules';
 
 interface SortableConflictItemProps {
   id: string;

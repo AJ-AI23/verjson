@@ -7,38 +7,74 @@ import { compareDocumentVersions, applyImportPatches } from '@/lib/importVersion
 
 export type ConflictType =
   // Property Structure Conflicts
-  | 'property_removed'
-  | 'property_added'
+  | 'property_removed_required'
+  | 'property_removed_optional'
+  | 'property_added_new'
+  | 'property_added_duplicate'
   | 'property_renamed'
+  | 'property_moved'
   
   // Type Conflicts
-  | 'type_changed'
+  | 'type_primitive_changed'
+  | 'type_expanded'
+  | 'type_collapsed'
+  | 'type_array_to_object'
+  | 'type_object_to_array'
   | 'type_nullable_changed'
-  | 'type_format_changed'
   
   // Value Conflicts - Arrays
-  | 'array_length_changed'
-  | 'array_order_changed'
   | 'array_items_added'
   | 'array_items_removed'
+  | 'array_items_reordered'
   | 'array_items_modified'
+  | 'array_length_mismatch'
+  | 'array_type_conflict'
   
   // Value Conflicts - Objects
+  | 'object_property_added'
+  | 'object_property_removed'
+  | 'object_property_value_changed'
+  | 'object_structure_diverged'
+  | 'object_nested_conflict'
+  
+  // Value Conflicts - Primitives
+  | 'primitive_string_conflict'
+  | 'primitive_number_conflict'
+  | 'primitive_boolean_conflict'
+  | 'primitive_null_vs_value'
+  
+  // Schema-Specific Conflicts (OpenAPI/JSON Schema)
+  | 'enum_values_added'
+  | 'enum_values_removed'
+  | 'required_array_modified'
+  | 'constraint_tightened'
+  | 'constraint_loosened'
+  | 'format_changed'
+  | 'pattern_changed'
+  | 'reference_broken'
+  | 'reference_added'
+  | 'schema_composition_conflict'
+  
+  // Semantic/Content Conflicts
+  | 'description_conflict'
+  | 'example_conflict'
+  | 'default_value_conflict'
+  | 'deprecated_status_conflict'
+  
+  // Legacy types for backward compatibility
+  | 'property_removed'
+  | 'property_added'
+  | 'type_changed'
+  | 'type_format_changed'
+  | 'array_length_changed'
+  | 'array_order_changed'
   | 'object_properties_added'
   | 'object_properties_removed'
   | 'object_structure_changed'
-  
-  // Value Conflicts - Primitives
   | 'value_changed_primitive'
-  
-  // Schema-Specific Conflicts
   | 'enum_values_changed'
   | 'constraint_changed'
-  
-  // Semantic/Content Conflicts
   | 'description_changed'
-  
-  // Legacy types for compatibility
   | 'type_mismatch'
   | 'duplicate_key'
   | 'incompatible_schema'
