@@ -278,22 +278,33 @@ export class DocumentMergeEngine {
 
         const stepResult = applyImportPatches(currentResult, comparison.patches, undefined, currentDoc.content);
         
-        const stepConflicts = comparison.mergeConflicts.map(conflict => ({
-          path: conflict.path,
-          type: this.mapConflictType(conflict.conflictType),
-          severity: conflict.severity as MergeConflict['severity'],
-          description: `Step ${i} (${currentDoc.name}): ${conflict.description}`,
-          documentSource: i === 1 ? documents[0].name : 'Previous merge result',
-          documentDestination: currentDoc.name,
-          values: [conflict.currentValue, conflict.importValue],
-          suggestedResolution: 'Manual review required',
-          resolution: 'unresolved' as const,
-          currentValue: conflict.currentValue,
-          incomingValue: conflict.importValue,
-          stepNumber: i,
-          autoResolvable: false,
-          requiresManualReview: true
-        }));
+        const stepConflicts = comparison.mergeConflicts.map(conflict => {
+          const granularType = this.detectGranularConflictType(
+            conflict.path,
+            conflict.currentValue,
+            conflict.importValue,
+            currentResult,
+            currentDoc.content,
+            conflict.conflictType
+          );
+
+          return {
+            path: conflict.path,
+            type: granularType,
+            severity: conflict.severity as MergeConflict['severity'],
+            description: `Step ${i} (${currentDoc.name}): ${conflict.description}`,
+            documentSource: i === 1 ? documents[0].name : 'Previous merge result',
+            documentDestination: currentDoc.name,
+            values: [conflict.currentValue, conflict.importValue],
+            suggestedResolution: 'Manual review required',
+            resolution: 'unresolved' as const,
+            currentValue: conflict.currentValue,
+            incomingValue: conflict.importValue,
+            stepNumber: i,
+            autoResolvable: false,
+            requiresManualReview: true
+          };
+        });
 
         const enhancedConflicts = this.enhanceArrayConflicts(stepConflicts, currentResult, currentDoc.content, false);
         const enhancedConflictsWithStep = enhancedConflicts.map(c => ({ ...c, stepNumber: i }));
@@ -644,12 +655,21 @@ export class DocumentMergeEngine {
         const comparison = compareDocumentVersions(currentResult, currentDoc.content);
         
         const stepConflicts = comparison.mergeConflicts.map(conflict => {
-          const key = `${i}|${conflict.path}|${this.mapConflictType(conflict.conflictType)}|Step ${i} (${currentDoc.name}): ${conflict.description}`;
+          const granularType = this.detectGranularConflictType(
+            conflict.path,
+            conflict.currentValue,
+            conflict.importValue,
+            currentResult,
+            currentDoc.content,
+            conflict.conflictType
+          );
+
+          const key = `${i}|${conflict.path}|${granularType}|Step ${i} (${currentDoc.name}): ${conflict.description}`;
           const savedResolution = savedResolutions.get(key);
           
           return {
             path: conflict.path,
-            type: this.mapConflictType(conflict.conflictType),
+            type: granularType,
             severity: conflict.severity as MergeConflict['severity'],
             description: `Step ${i} (${currentDoc.name}): ${conflict.description}`,
             documentSource: i === 1 ? documents[0].name : 'Previous merge result',
@@ -1066,15 +1086,451 @@ export class DocumentMergeEngine {
   }
 
   // ============================================================================
-  // CONFLICT TYPE MAPPING
+  // GRANULAR CONFLICT DETECTION
+  // ============================================================================
+
+  private static detectGranularConflictType(
+    path: string,
+    currentValue: any,
+    incomingValue: any,
+    currentSchema: any,
+    incomingSchema: any,
+    importConflictType: string
+  ): ConflictType {
+    // Handle property additions/removals
+    if (currentValue === undefined && incomingValue !== undefined) {
+      return this.detectPropertyAddition(path, incomingValue, incomingSchema);
+    }
+    if (currentValue !== undefined && incomingValue === undefined) {
+      return this.detectPropertyRemoval(path, currentValue, currentSchema);
+    }
+
+    // Handle null vs value conflicts
+    if ((currentValue === null) !== (incomingValue === null)) {
+      return 'primitive_null_vs_value';
+    }
+
+    // Handle type changes
+    const currentType = this.getValueType(currentValue);
+    const incomingType = this.getValueType(incomingValue);
+    
+    if (currentType !== incomingType) {
+      return this.detectTypeChange(currentType, incomingType);
+    }
+
+    // Handle same-type conflicts
+    switch (currentType) {
+      case 'array':
+        return this.detectArrayConflict(currentValue, incomingValue, path);
+      case 'object':
+        return this.detectObjectConflict(currentValue, incomingValue, path, currentSchema, incomingSchema);
+      case 'string':
+        return this.detectStringConflict(currentValue, incomingValue, path, currentSchema, incomingSchema);
+      case 'number':
+        return 'primitive_number_conflict';
+      case 'boolean':
+        return 'primitive_boolean_conflict';
+      default:
+        return 'value_changed_primitive';
+    }
+  }
+
+  private static detectPropertyAddition(path: string, value: any, schema: any): ConflictType {
+    const propertyName = path.split('.').pop() || '';
+    const parentPath = path.substring(0, path.lastIndexOf('.'));
+    const parentSchema = this.getValueAtPath(schema, parentPath);
+
+    // Check if it's a duplicate (exists elsewhere)
+    if (this.propertyExistsElsewhere(propertyName, parentSchema, path)) {
+      return 'property_added_duplicate';
+    }
+
+    return 'property_added_new';
+  }
+
+  private static detectPropertyRemoval(path: string, value: any, schema: any): ConflictType {
+    const propertyName = path.split('.').pop() || '';
+    const parentPath = path.substring(0, path.lastIndexOf('.'));
+    const parentSchema = this.getValueAtPath(schema, parentPath);
+
+    // Check if property is in required array
+    if (parentSchema?.required?.includes(propertyName)) {
+      return 'property_removed_required';
+    }
+
+    // Check if property might be renamed (exists with similar name elsewhere)
+    if (this.possiblyRenamed(propertyName, parentSchema)) {
+      return 'property_renamed';
+    }
+
+    return 'property_removed_optional';
+  }
+
+  private static detectTypeChange(currentType: string, incomingType: string): ConflictType {
+    // Primitive type changes
+    if (currentType !== 'object' && currentType !== 'array' && 
+        incomingType !== 'object' && incomingType !== 'array') {
+      return 'type_primitive_changed';
+    }
+
+    // Expansion: primitive -> complex
+    if ((currentType !== 'object' && currentType !== 'array') &&
+        (incomingType === 'object' || incomingType === 'array')) {
+      return 'type_expanded';
+    }
+
+    // Collapse: complex -> primitive
+    if ((currentType === 'object' || currentType === 'array') &&
+        (incomingType !== 'object' && incomingType !== 'array')) {
+      return 'type_collapsed';
+    }
+
+    // Array <-> Object conversions
+    if (currentType === 'array' && incomingType === 'object') {
+      return 'type_array_to_object';
+    }
+    if (currentType === 'object' && incomingType === 'array') {
+      return 'type_object_to_array';
+    }
+
+    return 'type_changed';
+  }
+
+  private static detectArrayConflict(currentArray: any[], incomingArray: any[], path: string): ConflictType {
+    const currentLength = currentArray.length;
+    const incomingLength = incomingArray.length;
+
+    // Check for type conflicts in array items
+    if (this.hasArrayTypeConflict(currentArray, incomingArray)) {
+      return 'array_type_conflict';
+    }
+
+    // Check if items were added
+    const addedItems = incomingArray.filter(item => 
+      !currentArray.some(curr => this.areArrayItemsEqual(curr, item))
+    );
+
+    // Check if items were removed
+    const removedItems = currentArray.filter(item =>
+      !incomingArray.some(inc => this.areArrayItemsEqual(item, inc))
+    );
+
+    // Check if order changed (same items, different order)
+    if (addedItems.length === 0 && removedItems.length === 0 && currentLength === incomingLength) {
+      if (!this.arraysHaveSameOrder(currentArray, incomingArray)) {
+        return 'array_items_reordered';
+      }
+    }
+
+    // Check if items were modified
+    const hasModifiedItems = currentArray.some((item, idx) => {
+      const incomingItem = incomingArray[idx];
+      return incomingItem !== undefined && !this.areArrayItemsEqual(item, incomingItem);
+    });
+
+    if (hasModifiedItems) {
+      return 'array_items_modified';
+    }
+
+    if (addedItems.length > 0 && removedItems.length === 0) {
+      return 'array_items_added';
+    }
+
+    if (removedItems.length > 0 && addedItems.length === 0) {
+      return 'array_items_removed';
+    }
+
+    if (currentLength !== incomingLength) {
+      return 'array_length_mismatch';
+    }
+
+    return 'array_items_modified';
+  }
+
+  private static detectObjectConflict(
+    currentObj: any, 
+    incomingObj: any, 
+    path: string,
+    currentSchema: any,
+    incomingSchema: any
+  ): ConflictType {
+    const currentKeys = Object.keys(currentObj);
+    const incomingKeys = Object.keys(incomingObj);
+
+    const addedKeys = incomingKeys.filter(k => !currentKeys.includes(k));
+    const removedKeys = currentKeys.filter(k => !incomingKeys.includes(k));
+    const commonKeys = currentKeys.filter(k => incomingKeys.includes(k));
+
+    // Check for schema-specific conflicts first
+    const schemaConflict = this.detectSchemaSpecificConflict(currentObj, incomingObj, path, currentSchema, incomingSchema);
+    if (schemaConflict) {
+      return schemaConflict;
+    }
+
+    // Check if properties were modified
+    const modifiedKeys = commonKeys.filter(k => 
+      JSON.stringify(currentObj[k]) !== JSON.stringify(incomingObj[k])
+    );
+
+    // Structure completely diverged
+    const totalKeys = new Set([...currentKeys, ...incomingKeys]).size;
+    const divergenceRatio = (addedKeys.length + removedKeys.length) / totalKeys;
+    
+    if (divergenceRatio > 0.5) {
+      return 'object_structure_diverged';
+    }
+
+    // Check for nested conflicts
+    if (this.hasNestedConflicts(currentObj, incomingObj, commonKeys)) {
+      return 'object_nested_conflict';
+    }
+
+    if (modifiedKeys.length > 0) {
+      return 'object_property_value_changed';
+    }
+
+    if (addedKeys.length > 0 && removedKeys.length === 0) {
+      return 'object_property_added';
+    }
+
+    if (removedKeys.length > 0 && addedKeys.length === 0) {
+      return 'object_property_removed';
+    }
+
+    return 'object_structure_changed';
+  }
+
+  private static detectStringConflict(
+    currentStr: string,
+    incomingStr: string,
+    path: string,
+    currentSchema: any,
+    incomingSchema: any
+  ): ConflictType {
+    // Check for description conflicts
+    if (path.endsWith('.description') || path.includes('.description.')) {
+      return 'description_conflict';
+    }
+
+    // Check for example conflicts
+    if (path.endsWith('.example') || path.includes('.examples')) {
+      return 'example_conflict';
+    }
+
+    return 'primitive_string_conflict';
+  }
+
+  private static detectSchemaSpecificConflict(
+    currentObj: any,
+    incomingObj: any,
+    path: string,
+    currentSchema: any,
+    incomingSchema: any
+  ): ConflictType | null {
+    // Enum conflicts
+    if (currentObj.enum && incomingObj.enum) {
+      const currentEnum = new Set(currentObj.enum);
+      const incomingEnum = new Set(incomingObj.enum);
+      
+      const added = [...incomingEnum].filter(v => !currentEnum.has(v));
+      const removed = [...currentEnum].filter(v => !incomingEnum.has(v));
+
+      if (added.length > 0 && removed.length === 0) {
+        return 'enum_values_added';
+      }
+      if (removed.length > 0) {
+        return 'enum_values_removed';
+      }
+    }
+
+    // Required array conflicts
+    if (currentObj.required && incomingObj.required) {
+      if (JSON.stringify(currentObj.required) !== JSON.stringify(incomingObj.required)) {
+        return 'required_array_modified';
+      }
+    }
+
+    // Format conflicts
+    if (currentObj.format !== incomingObj.format && (currentObj.format || incomingObj.format)) {
+      return 'format_changed';
+    }
+
+    // Pattern conflicts
+    if (currentObj.pattern !== incomingObj.pattern && (currentObj.pattern || incomingObj.pattern)) {
+      return 'pattern_changed';
+    }
+
+    // Constraint conflicts
+    const constraintFields = ['minLength', 'maxLength', 'minimum', 'maximum', 'minItems', 'maxItems', 'minProperties', 'maxProperties'];
+    for (const field of constraintFields) {
+      if (currentObj[field] !== incomingObj[field] && (currentObj[field] !== undefined || incomingObj[field] !== undefined)) {
+        const tightened = this.isConstraintTightened(field, currentObj[field], incomingObj[field]);
+        return tightened ? 'constraint_tightened' : 'constraint_loosened';
+      }
+    }
+
+    // Reference conflicts
+    if (currentObj.$ref !== incomingObj.$ref) {
+      if (!currentObj.$ref && incomingObj.$ref) {
+        return 'reference_added';
+      }
+      if (currentObj.$ref && !incomingObj.$ref) {
+        return 'reference_broken';
+      }
+      return 'reference_broken';
+    }
+
+    // Schema composition conflicts
+    if ((currentObj.allOf || currentObj.anyOf || currentObj.oneOf) &&
+        (incomingObj.allOf || incomingObj.anyOf || incomingObj.oneOf)) {
+      return 'schema_composition_conflict';
+    }
+
+    // Default value conflicts
+    if (currentObj.default !== incomingObj.default && (currentObj.default !== undefined || incomingObj.default !== undefined)) {
+      return 'default_value_conflict';
+    }
+
+    // Deprecation status conflicts
+    if (currentObj.deprecated !== incomingObj.deprecated) {
+      return 'deprecated_status_conflict';
+    }
+
+    // Nullable changed
+    if (currentObj.nullable !== incomingObj.nullable) {
+      return 'type_nullable_changed';
+    }
+
+    return null;
+  }
+
+  // ============================================================================
+  // HELPER METHODS FOR CONFLICT DETECTION
+  // ============================================================================
+
+  private static getValueType(value: any): string {
+    if (value === null) return 'null';
+    if (Array.isArray(value)) return 'array';
+    return typeof value;
+  }
+
+  private static propertyExistsElsewhere(propertyName: string, parentSchema: any, currentPath: string): boolean {
+    // Simple heuristic: check if property with same name exists in different location
+    return false; // Simplified for now
+  }
+
+  private static possiblyRenamed(propertyName: string, parentSchema: any): boolean {
+    // Check for similar property names (edit distance < 3)
+    if (!parentSchema?.properties) return false;
+    
+    const propertyNames = Object.keys(parentSchema.properties);
+    return propertyNames.some(name => {
+      if (name === propertyName) return false;
+      return this.levenshteinDistance(name, propertyName) <= 2;
+    });
+  }
+
+  private static levenshteinDistance(str1: string, str2: string): number {
+    const matrix: number[][] = [];
+
+    for (let i = 0; i <= str2.length; i++) {
+      matrix[i] = [i];
+    }
+
+    for (let j = 0; j <= str1.length; j++) {
+      matrix[0][j] = j;
+    }
+
+    for (let i = 1; i <= str2.length; i++) {
+      for (let j = 1; j <= str1.length; j++) {
+        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
+          );
+        }
+      }
+    }
+
+    return matrix[str2.length][str1.length];
+  }
+
+  private static hasArrayTypeConflict(currentArray: any[], incomingArray: any[]): boolean {
+    if (currentArray.length === 0 || incomingArray.length === 0) return false;
+
+    const currentTypes = new Set(currentArray.map(item => this.getValueType(item)));
+    const incomingTypes = new Set(incomingArray.map(item => this.getValueType(item)));
+
+    // If both arrays have mixed types, no conflict
+    if (currentTypes.size > 1 && incomingTypes.size > 1) return false;
+
+    // If one has single type and other has different single type
+    if (currentTypes.size === 1 && incomingTypes.size === 1) {
+      const currentType = Array.from(currentTypes)[0];
+      const incomingType = Array.from(incomingTypes)[0];
+      return currentType !== incomingType;
+    }
+
+    return false;
+  }
+
+  private static arraysHaveSameOrder(arr1: any[], arr2: any[]): boolean {
+    if (arr1.length !== arr2.length) return false;
+    
+    for (let i = 0; i < arr1.length; i++) {
+      if (!this.areArrayItemsEqual(arr1[i], arr2[i])) {
+        return false;
+      }
+    }
+    
+    return true;
+  }
+
+  private static hasNestedConflicts(currentObj: any, incomingObj: any, commonKeys: string[]): boolean {
+    return commonKeys.some(key => {
+      const current = currentObj[key];
+      const incoming = incomingObj[key];
+      
+      if (typeof current === 'object' && typeof incoming === 'object' &&
+          current !== null && incoming !== null) {
+        return JSON.stringify(current) !== JSON.stringify(incoming);
+      }
+      
+      return false;
+    });
+  }
+
+  private static isConstraintTightened(field: string, currentValue: any, incomingValue: any): boolean {
+    if (currentValue === undefined) return true; // Adding constraint is tightening
+    if (incomingValue === undefined) return false; // Removing constraint is loosening
+
+    // For min* fields, higher value = tighter
+    if (field.startsWith('min')) {
+      return incomingValue > currentValue;
+    }
+    
+    // For max* fields, lower value = tighter
+    if (field.startsWith('max')) {
+      return incomingValue < currentValue;
+    }
+
+    return false;
+  }
+
+  // ============================================================================
+  // LEGACY CONFLICT TYPE MAPPING
   // ============================================================================
 
   private static mapConflictType(importConflictType: string): ConflictType {
+    // Legacy fallback - should not be used after refactoring
     switch (importConflictType) {
       case 'property_removed':
-        return 'property_removed';
+        return 'property_removed_optional';
       case 'property_added':
-        return 'property_added';
+        return 'property_added_new';
       case 'value_changed':
         return 'duplicate_key';
       case 'type_changed':
