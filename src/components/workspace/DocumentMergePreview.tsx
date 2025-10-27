@@ -37,9 +37,10 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
   const [reviewedConflicts, setReviewedConflicts] = useState<Map<string, boolean>>(new Map());
   const [expandedPaths, setExpandedPaths] = useState<string[]>([]);
   
-  // Resolution parameters state
+  // Resolution parameters state with merge mode
   const [resolutionParameters, setResolutionParameters] = useState<ResolutionParameters>(DEFAULT_RESOLUTION_PARAMETERS);
   const [parametersDialogOpen, setParametersDialogOpen] = useState(false);
+  const [selectedMergeMode, setSelectedMergeMode] = useState<'additive' | 'subtractive' | 'interpolate' | 'extrapolate'>('additive');
   
   // Step-level merge modes
   const [stepModes, setStepModes] = useState<Map<number, 'manual' | 'additive' | 'subtractive' | 'interpolate' | 'extrapolate'>>(new Map());
@@ -1053,12 +1054,14 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
       )}
 
       {/* Resolution Parameters Dialog */}
-      <ResolutionParametersDialog
-        open={parametersDialogOpen}
-        onOpenChange={setParametersDialogOpen}
-        parameters={resolutionParameters}
-        onParametersChange={setResolutionParameters}
-      />
+            <ResolutionParametersDialog
+              open={parametersDialogOpen}
+              onOpenChange={setParametersDialogOpen}
+              parameters={resolutionParameters}
+              onParametersChange={setResolutionParameters}
+              selectedMode={selectedMergeMode}
+              onModeChange={setSelectedMergeMode}
+            />
     </div>
   );
 };

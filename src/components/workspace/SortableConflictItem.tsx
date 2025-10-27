@@ -12,8 +12,9 @@ import { GripVertical, AlertTriangle, CheckCircle, Link2, Info, Settings } from 
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getValidResolutions, getResolutionExplanation, getConflictSeverity, requiresManualReview } from '@/lib/conflictResolutionRules';
-import { getApplicablePreferences, needsPreferences, getPreferenceLabel, getPreferenceDescription } from '@/lib/conflictPreferenceRules';
+import { getApplicablePreferences, needsPreferences, getPreferenceLabel, getPreferenceDefinition, getPreferenceValues, getPreferenceType } from '@/lib/conflictPreferenceRules';
 import { ResolutionParameters } from '@/lib/documentMergeEngine';
+import { conflictRegistry } from '@/lib/config';
 
 interface SortableConflictItemProps {
   id: string;
@@ -71,10 +72,11 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
   const validResolutions = getValidResolutions(conflict.type);
   const resolutionExplanation = getResolutionExplanation(conflict.type);
   
-  // Get applicable preferences for current resolution
+  // Get applicable preferences for current resolution from registry
   const applicablePreferences = getApplicablePreferences(conflict.type, conflict.resolution || 'unresolved');
   const showPreferences = needsPreferences(conflict.type, conflict.resolution) && conflict.resolution !== 'unresolved';
-  const preferenceDescription = getPreferenceDescription(conflict.type);
+  const conflictDefinition = conflictRegistry.getConflictDefinition(conflict.type);
+  const preferenceDescription = conflictDefinition?.description || '';
   
   // Get preference value with fallback to global
   const getPreferenceValue = (key: string) => {
@@ -299,24 +301,39 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
                     {applicablePreferences.map((prefKey) => {
                       const value = getPreferenceValue(prefKey);
                       const label = getPreferenceLabel(prefKey);
+                      const prefDefinition = getPreferenceDefinition(prefKey);
+                      const prefType = getPreferenceType(prefKey);
+                      const prefValues = getPreferenceValues(prefKey);
                       
-                      // Render different inputs based on preference type
-                      if (prefKey === 'objectMergeDepth') {
+                      // Render based on preference type from registry
+                      if (prefType === 'integer' || prefType === 'number') {
+                        const min = prefDefinition?.minimum;
+                        const max = prefDefinition?.maximum;
+                        const defaultValue = prefDefinition?.default;
+                        
                         return (
                           <div key={prefKey} className="space-y-1">
                             <Label className="text-xs">{label}</Label>
                             <Input
                               type="number"
+                              min={min}
+                              max={max}
                               className="h-8 text-xs"
                               value={value ?? ''}
-                              onChange={(e) => updatePreference(prefKey, parseInt(e.target.value) || -1)}
-                              placeholder={`Global: ${globalPreferences?.objectMergeDepth ?? -1}`}
+                              onChange={(e) => {
+                                const numValue = prefType === 'integer' 
+                                  ? parseInt(e.target.value) 
+                                  : parseFloat(e.target.value);
+                                updatePreference(prefKey, isNaN(numValue) ? defaultValue : numValue);
+                              }}
+                              placeholder={`Global: ${globalPreferences?.[prefKey as keyof ResolutionParameters] ?? defaultValue}`}
                             />
                           </div>
                         );
                       }
                       
-                      if (prefKey === 'stringConcatenationSeparator') {
+                      if (prefType === 'string' && !prefValues.length) {
+                        const defaultValue = prefDefinition?.default;
                         return (
                           <div key={prefKey} className="space-y-1">
                             <Label className="text-xs">{label}</Label>
@@ -324,113 +341,56 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
                               className="h-8 text-xs"
                               value={value ?? ''}
                               onChange={(e) => updatePreference(prefKey, e.target.value)}
-                              placeholder={`Global: ${globalPreferences?.stringConcatenationSeparator || ' | '}`}
+                              placeholder={`Global: ${globalPreferences?.[prefKey as keyof ResolutionParameters] || defaultValue}`}
                             />
                           </div>
                         );
                       }
                       
-                      // For all select-based preferences
-                      const getOptions = () => {
-                        switch (prefKey) {
-                          case 'arrayOrderPreference':
-                            return [
-                              { value: 'maintain_current', label: 'Maintain Current' },
-                              { value: 'use_incoming', label: 'Use Incoming' },
-                              { value: 'sort_alphabetical', label: 'Sort Alphabetical' },
-                              { value: 'sort_numeric', label: 'Sort Numeric' }
-                            ];
-                          case 'arrayDuplicateHandling':
-                            return [
-                              { value: 'keep_all', label: 'Keep All' },
-                              { value: 'keep_first', label: 'Keep First' },
-                              { value: 'keep_last', label: 'Keep Last' },
-                              { value: 'remove_duplicates', label: 'Remove Duplicates' }
-                            ];
-                          case 'arrayMergeStrategy':
-                            return [
-                              { value: 'append', label: 'Append' },
-                              { value: 'prepend', label: 'Prepend' },
-                              { value: 'interleave', label: 'Interleave' }
-                            ];
-                          case 'stringMergeStrategy':
-                            return [
-                              { value: 'concatenate', label: 'Concatenate' },
-                              { value: 'choose_longer', label: 'Choose Longer' },
-                              { value: 'choose_shorter', label: 'Choose Shorter' },
-                              { value: 'manual', label: 'Manual' }
-                            ];
-                          case 'objectPropertyConflict':
-                            return [
-                              { value: 'merge_recursive', label: 'Merge Recursive' },
-                              { value: 'prefer_current', label: 'Prefer Current' },
-                              { value: 'prefer_incoming', label: 'Prefer Incoming' },
-                              { value: 'manual', label: 'Manual' }
-                            ];
-                          case 'enumStrategy':
-                            return [
-                              { value: 'union', label: 'Union (All)' },
-                              { value: 'intersection', label: 'Intersection (Shared)' },
-                              { value: 'prefer_current', label: 'Prefer Current' },
-                              { value: 'prefer_incoming', label: 'Prefer Incoming' }
-                            ];
-                          case 'constraintStrategy':
-                            return [
-                              { value: 'most_restrictive', label: 'Most Restrictive' },
-                              { value: 'least_restrictive', label: 'Least Restrictive' },
-                              { value: 'prefer_current', label: 'Prefer Current' },
-                              { value: 'prefer_incoming', label: 'Prefer Incoming' }
-                            ];
-                          case 'descriptionStrategy':
-                            return [
-                              { value: 'prefer_current', label: 'Prefer Current' },
-                              { value: 'prefer_incoming', label: 'Prefer Incoming' },
-                              { value: 'concatenate', label: 'Concatenate' },
-                              { value: 'prefer_longer', label: 'Prefer Longer' }
-                            ];
-                          case 'numericStrategy':
-                            return [
-                              { value: 'average', label: 'Average' },
-                              { value: 'min', label: 'Minimum' },
-                              { value: 'max', label: 'Maximum' },
-                              { value: 'current', label: 'Current' },
-                              { value: 'incoming', label: 'Incoming' }
-                            ];
-                          case 'booleanStrategy':
-                            return [
-                              { value: 'and', label: 'AND (Both True)' },
-                              { value: 'or', label: 'OR (Either True)' },
-                              { value: 'current', label: 'Current' },
-                              { value: 'incoming', label: 'Incoming' }
-                            ];
-                          default:
-                            return [];
-                        }
-                      };
+                      if (prefType === 'boolean') {
+                        return (
+                          <div key={prefKey} className="space-y-1 flex items-center gap-2">
+                            <Checkbox
+                              checked={!!value}
+                              onCheckedChange={(checked) => updatePreference(prefKey, checked)}
+                            />
+                            <Label className="text-xs">{label}</Label>
+                          </div>
+                        );
+                      }
                       
-                      const options = getOptions();
-                      const globalValue = globalPreferences?.[prefKey as keyof ResolutionParameters];
+                      // For enum preferences, render select with values from registry
+                      if (prefType === 'enum' && prefValues.length > 0) {
+                        const defaultValue = prefDefinition?.default;
+                        const formatLabel = (val: string) => {
+                          return val.split(/[-_]/).map(word => 
+                            word.charAt(0).toUpperCase() + word.slice(1)
+                          ).join(' ');
+                        };
+                        
+                        return (
+                          <div key={prefKey} className="space-y-1">
+                            <Label className="text-xs">{label}</Label>
+                            <Select
+                              value={String(value || '')}
+                              onValueChange={(v) => updatePreference(prefKey, v)}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder={`Global: ${formatLabel(String(globalPreferences?.[prefKey as keyof ResolutionParameters] || defaultValue))}`} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {prefValues.map(val => (
+                                  <SelectItem key={val} value={val}>
+                                    {formatLabel(val)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        );
+                      }
                       
-                      return (
-                        <div key={prefKey} className="space-y-1">
-                          <Label className="text-xs">{label}</Label>
-                          <Select
-                            value={String(value || '')}
-                            onValueChange={(v) => updatePreference(prefKey, v)}
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue placeholder={`Global: ${globalValue || 'Default'}`} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {options.map(opt => (
-                                <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                                  {opt.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      );
+                      return null;
                     })}
                   </div>
                 </div>
