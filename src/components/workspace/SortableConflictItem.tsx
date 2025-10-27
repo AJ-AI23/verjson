@@ -66,6 +66,8 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const [resolveLinked, setResolveLinked] = React.useState(false);
+
   const isArrayItemConflict = path.includes('[') && path.includes(']');
   
   // Get valid resolutions for this conflict type
@@ -94,8 +96,30 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
     }
   };
 
+  const scrollToConflict = (conflictPath: string) => {
+    const element = document.querySelector(`[data-conflict-path="${conflictPath}"]`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Highlight briefly
+      element.classList.add('ring-2', 'ring-primary');
+      setTimeout(() => {
+        element.classList.remove('ring-2', 'ring-primary');
+      }, 2000);
+    }
+  };
+
   const handleResolutionChange = (resolution: MergeConflict['resolution']) => {
     onConflictResolve(path, conflictIndex, resolution);
+
+    // If user opted to resolve linked conflicts
+    if (resolveLinked && conflict.linkedConflictPaths && conflict.linkedConflictPaths.length > 0) {
+      conflict.linkedConflictPaths.forEach(linkedPath => {
+        const linkedConflictIndex = allConflicts?.findIndex(c => c.path === linkedPath);
+        if (linkedConflictIndex !== undefined && linkedConflictIndex >= 0) {
+          onConflictResolve(linkedPath, linkedConflictIndex, resolution);
+        }
+      });
+    }
     
     // Handle cascading resolution for array item conflicts
     if (isArrayItemConflict && resolution === 'combine' && allConflicts && onBulkResolve) {
@@ -120,7 +144,7 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="relative">
+    <div ref={setNodeRef} style={style} className="relative" data-conflict-path={path}>
       <Card className={`${isDragging ? 'shadow-lg' : ''}`}>
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
@@ -173,21 +197,53 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
                         Array Item
                       </Badge>
                     )}
+                    {/* Parent conflict badge */}
+                    {conflict.parentConflictPath && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge 
+                              variant="outline" 
+                              className="text-xs flex items-center gap-1 cursor-pointer hover:bg-accent transition-colors"
+                              onClick={() => scrollToConflict(conflict.parentConflictPath!)}
+                            >
+                              <Link2 className="h-3 w-3" />
+                              Linked to parent
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <div className="text-xs">
+                              <div className="font-semibold mb-1">Parent conflict:</div>
+                              <div className="font-mono">{conflict.parentConflictPath}</div>
+                              <div className="text-muted-foreground mt-1">Click to scroll</div>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                    {/* Child conflicts badge */}
                     {conflict.linkedConflictPaths && conflict.linkedConflictPaths.length > 0 && (
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Badge variant="outline" className="text-xs flex items-center gap-1">
                               <Link2 className="h-3 w-3" />
-                              {conflict.linkedConflictPaths.length} linked
+                              {conflict.linkedConflictPaths.length} child {conflict.linkedConflictPaths.length === 1 ? 'conflict' : 'conflicts'}
                             </Badge>
                           </TooltipTrigger>
                           <TooltipContent className="max-w-md">
                             <div className="text-xs space-y-1">
-                              <div className="font-semibold mb-1">Linked child conflicts:</div>
+                              <div className="font-semibold mb-1">Child conflicts:</div>
                               {conflict.linkedConflictPaths.map(linkedPath => (
-                                <div key={linkedPath} className="font-mono text-xs">• {linkedPath}</div>
+                                <div 
+                                  key={linkedPath} 
+                                  className="font-mono text-xs cursor-pointer hover:underline"
+                                  onClick={() => scrollToConflict(linkedPath)}
+                                >
+                                  • {linkedPath}
+                                </div>
                               ))}
+                              <div className="text-muted-foreground mt-1">Click to scroll</div>
                             </div>
                           </TooltipContent>
                         </Tooltip>
@@ -251,6 +307,23 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
                   </pre>
                 </div>
               </div>
+
+              {/* Grouped resolution for linked conflicts */}
+              {conflict.linkedConflictPaths && conflict.linkedConflictPaths.length > 0 && (
+                <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                  <Checkbox
+                    id={`resolve-linked-${path}`}
+                    checked={resolveLinked}
+                    onCheckedChange={(checked) => setResolveLinked(!!checked)}
+                  />
+                  <label 
+                    htmlFor={`resolve-linked-${path}`}
+                    className="text-sm cursor-pointer flex-1"
+                  >
+                    Also resolve {conflict.linkedConflictPaths.length} linked conflict(s) with same resolution
+                  </label>
+                </div>
+              )}
 
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center gap-2">

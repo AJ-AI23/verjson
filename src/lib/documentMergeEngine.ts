@@ -263,6 +263,7 @@ export interface MergeConflict {
   currentValue?: any;
   incomingValue?: any;
   linkedConflictPaths?: string[];
+  parentConflictPath?: string; // NEW: Reference to parent conflict
   stepNumber?: number;
   
   // NEW: Manual review and auto-resolution fields
@@ -1451,6 +1452,57 @@ export class DocumentMergeEngine {
 
       if (compositionKeywords.includes(key)) {
         if (JSON.stringify(currentVal) !== JSON.stringify(incomingVal)) {
+          // Check if this is just a reference update due to rename
+          const isReferenceUpdate = this.isCompositionReferenceRename(
+            currentVal,
+            incomingVal,
+            context.defsRenameMap
+          );
+
+          if (isReferenceUpdate) {
+            // Find the parent rename conflict
+            const renameConflictPath = this.findRenameConflictPath(
+              currentVal,
+              incomingVal,
+              context
+            );
+
+            if (renameConflictPath) {
+              const conflictType = `${key}_changed` as ConflictType;
+              const conflict = this.createConflict(
+                path,
+                conflictType,
+                'low', // Lower severity since it's just a reference update
+                `Composition keyword "${key}" updated due to definition rename`,
+                currentVal,
+                incomingVal,
+                documentSource,
+                documentDestination,
+                stepNumber
+              );
+
+              // Link to parent rename conflict
+              conflict.parentConflictPath = renameConflictPath;
+
+              // Update parent to include this as a child
+              const renameConflict = context.detectedConflicts.find(
+                c => c.path === renameConflictPath
+              );
+              if (renameConflict) {
+                if (!renameConflict.linkedConflictPaths) {
+                  renameConflict.linkedConflictPaths = [];
+                }
+                renameConflict.linkedConflictPaths.push(path);
+              }
+
+              context.detectedConflicts.push(conflict);
+              this.claimPath(context, path, 4);
+              console.log(`  ✅ Detected: ${conflictType} (linked to rename) at ${path}`);
+              return;
+            }
+          }
+
+          // Normal composition conflict
           const conflictType = `${key}_changed` as ConflictType;
           const conflict = this.createConflict(
             path,
@@ -1554,6 +1606,19 @@ export class DocumentMergeEngine {
   ): void {
     this.walkSchema(context.currentSchema, context.incomingSchema, '', (path, currentVal, incomingVal, key, currentParent, incomingParent) => {
       if (this.isPathClaimed(context, path)) return;
+
+      // Skip if this is part of a $defs rename
+      const isDefsProperty = path.includes('/$defs/') || path.includes('/definitions/');
+      if (isDefsProperty) {
+        const pathSegments = path.split('/');
+        const defName = pathSegments[pathSegments.findIndex(s => s === '$defs' || s === 'definitions') + 1];
+        if (defName && (context.defsRenameMap.has(defName) || 
+            Array.from(context.defsRenameMap.values()).includes(defName))) {
+          // This property is part of a renamed definition, skip
+          console.log(`  ⏭️ Skipping ${path} - part of renamed definition "${defName}"`);
+          return;
+        }
+      }
 
       // Check for property additions
       if (currentVal === undefined && incomingVal !== undefined && typeof incomingParent === 'object') {
@@ -2973,6 +3038,65 @@ export class DocumentMergeEngine {
       }
     }
     return null;
+  }
+
+  /**
+   * Check if a composition change is due to a definition rename
+   */
+  private static isCompositionReferenceRename(
+    currentVal: any,
+    incomingVal: any,
+    renameMap: Map<string, string>
+  ): boolean {
+    // Handle arrays like allOf, anyOf, oneOf
+    if (Array.isArray(currentVal) && Array.isArray(incomingVal)) {
+      if (currentVal.length !== incomingVal.length) return false;
+
+      return currentVal.every((curr, idx) => {
+        const inc = incomingVal[idx];
+        if (curr?.$ref && inc?.$ref) {
+          const currentDefName = curr.$ref.split('/').pop();
+          const incomingDefName = inc.$ref.split('/').pop();
+          return renameMap.get(currentDefName!) === incomingDefName;
+        }
+        return false;
+      });
+    }
+
+    // Handle single objects like not
+    if (currentVal?.$ref && incomingVal?.$ref) {
+      const currentDefName = currentVal.$ref.split('/').pop();
+      const incomingDefName = incomingVal.$ref.split('/').pop();
+      return renameMap.get(currentDefName!) === incomingDefName;
+    }
+
+    return false;
+  }
+
+  /**
+   * Find the parent rename conflict path for a composition change
+   */
+  private static findRenameConflictPath(
+    currentVal: any,
+    incomingVal: any,
+    context: ConflictDetectionContext
+  ): string | null {
+    let oldDefName: string | undefined;
+
+    if (Array.isArray(currentVal) && currentVal[0]?.$ref) {
+      oldDefName = currentVal[0].$ref.split('/').pop();
+    } else if (currentVal?.$ref) {
+      oldDefName = currentVal.$ref.split('/').pop();
+    }
+
+    if (!oldDefName) return null;
+
+    const defPath = context.currentSchema.$defs ? '/$defs' : '/definitions';
+    const renameConflict = context.detectedConflicts.find(
+      c => c.type === 'defs_renamed_moved' && c.path === `${defPath}/${oldDefName}`
+    );
+
+    return renameConflict?.path || null;
   }
 
   /**
