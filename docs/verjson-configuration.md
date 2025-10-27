@@ -19,6 +19,24 @@ Defines 4 merge modes:
 - **interpolate**: Favor reconstruction between versions
 - **extrapolate**: Favor forward projection from incoming
 
+### Rename Detection Strategy
+
+The `renameDetectionStrategy` preference controls how aggressively the merge engine detects renamed definitions and properties:
+
+- **strict**: Requires both structure match AND name similarity (Levenshtein distance ≤ 3). Conservative, minimizes false positives.
+  - Example: `User` → `UserData` ✓, `User` → `Person` ✗
+
+- **moderate** (default): Prioritizes structure match with name similarity as tiebreaker (Levenshtein distance ≤ 8). Balanced approach.
+  - Example: `User` → `UserData` ✓, `User` → `Person` ✓, `User` → `Customer` ✓
+
+- **loose**: Structure match only, no name similarity requirement. Most aggressive, may produce false positives.
+  - Example: Any structurally identical definitions are considered renames, regardless of name
+
+**Recommended settings:**
+- Use `strict` for stable APIs where renames should be explicit
+- Use `moderate` for active development with refactoring
+- Use `loose` for automated migrations where structure is the source of truth
+
 ## Usage
 
 ### Loading Conflict Information

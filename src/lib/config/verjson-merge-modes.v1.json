@@ -30,7 +30,8 @@
         "constraintStrategy": "loosest",
         "compositionStrategy": "flatten",
         "wideningGuard": "allow-with-warning",
-        "tighteningGuard": "allow"
+        "tighteningGuard": "allow",
+        "renameDetectionStrategy": "moderate"
       }
     },
     "subtractive": {
@@ -58,7 +59,8 @@
         "constraintStrategy": "strictest",
         "compositionStrategy": "preserve",
         "wideningGuard": "reject",
-        "tighteningGuard": "require-review"
+        "tighteningGuard": "require-review",
+        "renameDetectionStrategy": "strict"
       }
     },
     "interpolate": {
@@ -86,7 +88,8 @@
         "constraintStrategy": "current",
         "compositionStrategy": "flatten",
         "wideningGuard": "allow-with-warning",
-        "tighteningGuard": "allow"
+        "tighteningGuard": "allow",
+        "renameDetectionStrategy": "moderate"
       }
     },
     "extrapolate": {
@@ -114,7 +117,8 @@
         "constraintStrategy": "loosest",
         "compositionStrategy": "flatten",
         "wideningGuard": "allow-with-warning",
-        "tighteningGuard": "allow"
+        "tighteningGuard": "allow",
+        "renameDetectionStrategy": "loose"
       }
     }
   }

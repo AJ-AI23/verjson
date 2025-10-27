@@ -236,6 +236,7 @@ export interface ConflictResolutionPreferences {
   refNormalization?: 'preserve' | 'rebase' | 'dereference';
   refCycleStrategy?: 'reject' | 'inline-once' | 'break-with-anchor';
   defRenameStrategy?: 'track-by-hash' | 'track-by-similarity' | 'require-explicit-map';
+  renameDetectionStrategy?: 'strict' | 'moderate' | 'loose';
   
   // Composition preferences
   compositionStrategy?: 'flatten' | 'preserve';
@@ -1201,9 +1202,14 @@ export class DocumentMergeEngine {
     incomingSchema: any,
     documentSource: string,
     documentDestination: string,
-    stepNumber: number
+    stepNumber: number,
+    preferences: ConflictResolutionPreferences = {}
   ): MergeConflict[] {
     console.group(`🔍 PHASED CONFLICT DETECTION - Step ${stepNumber}`);
+    console.log(`📊 Detection Configuration:`, {
+      renameDetectionStrategy: preferences.renameDetectionStrategy || 'moderate',
+      defRenameStrategy: preferences.defRenameStrategy || 'track-by-hash',
+    });
     
     const context: ConflictDetectionContext = {
       currentSchema,
@@ -1228,7 +1234,7 @@ export class DocumentMergeEngine {
 
     // PHASE 3: $defs Identity and Rename/Move Mapping
     console.log('🔵 Phase 3: $defs Identity');
-    this.phaseDefsIdentity(context, documentSource, documentDestination, stepNumber);
+    this.phaseDefsIdentity(context, documentSource, documentDestination, stepNumber, preferences);
 
     // PHASE 4: High-Level Composition
     console.log('🔵 Phase 4: High-Level Composition');
@@ -1240,7 +1246,7 @@ export class DocumentMergeEngine {
 
     // PHASE 6: Property Set Topology
     console.log('🔵 Phase 6: Property Set Topology');
-    this.phasePropertySetTopology(context, documentSource, documentDestination, stepNumber);
+    this.phasePropertySetTopology(context, documentSource, documentDestination, stepNumber, preferences);
 
     // PHASE 7: Array Topology
     console.log('🔵 Phase 7: Array Topology');
@@ -1406,14 +1412,26 @@ export class DocumentMergeEngine {
     context: ConflictDetectionContext,
     documentSource: string,
     documentDestination: string,
-    stepNumber: number
+    stepNumber: number,
+    preferences: ConflictResolutionPreferences = {}
   ): void {
+    console.log('\n📋 PHASE 3: $DEFS IDENTITY AND RENAME DETECTION');
+    
     const currentDefs = context.currentSchema.$defs || context.currentSchema.definitions || {};
     const incomingDefs = context.incomingSchema.$defs || context.incomingSchema.definitions || {};
 
-    // Find renamed/moved definitions
-    const renameMap = this.findSimilarDefinitions(currentDefs, incomingDefs);
+    const strategy = preferences.renameDetectionStrategy || 'moderate';
+    console.log(`  Strategy: ${strategy}`);
+    console.log(`  Current definitions: ${Object.keys(currentDefs).join(', ') || 'none'}`);
+    console.log(`  Incoming definitions: ${Object.keys(incomingDefs).join(', ') || 'none'}`);
+
+    // Find renamed/moved definitions with strategy
+    const renameMap = this.findSimilarDefinitions(currentDefs, incomingDefs, strategy);
     context.defsRenameMap = renameMap;
+
+    if (renameMap.size === 0) {
+      console.log('  ℹ️ No renames detected');
+    }
 
     renameMap.forEach((newName, oldName) => {
       const defPath = context.currentSchema.$defs ? '/$defs' : '/definitions';
@@ -1602,7 +1620,8 @@ export class DocumentMergeEngine {
     context: ConflictDetectionContext,
     documentSource: string,
     documentDestination: string,
-    stepNumber: number
+    stepNumber: number,
+    preferences: ConflictResolutionPreferences = {}
   ): void {
     this.walkSchema(context.currentSchema, context.incomingSchema, '', (path, currentVal, incomingVal, key, currentParent, incomingParent) => {
       if (this.isPathClaimed(context, path)) return;
@@ -1647,7 +1666,8 @@ export class DocumentMergeEngine {
         
         // Check for rename
         if (incomingParent && typeof incomingParent === 'object') {
-          const similarKey = this.findSimilarProperty(key, Object.keys(incomingParent));
+          const strategy = preferences?.renameDetectionStrategy || 'moderate';
+          const similarKey = this.findSimilarProperty(key, incomingParent, currentVal, strategy);
           if (similarKey) {
             context.propertyRenameMap.set(path, path.replace(key, similarKey));
             const conflict = this.createConflict(
@@ -2974,31 +2994,71 @@ export class DocumentMergeEngine {
    */
   private static findSimilarDefinitions(
     currentDefs: Record<string, any>,
-    incomingDefs: Record<string, any>
+    incomingDefs: Record<string, any>,
+    strategy: 'strict' | 'moderate' | 'loose' = 'moderate'
   ): Map<string, string> {
     const renameMap = new Map<string, string>();
     
     const currentKeys = Object.keys(currentDefs);
     const incomingKeys = Object.keys(incomingDefs);
     
+    // Track which incoming keys have been matched
+    const matchedIncomingKeys = new Set<string>();
+    
+    // Define thresholds based on strategy
+    const thresholds = {
+      strict: { maxDistance: 3, requireNameSimilarity: true },
+      moderate: { maxDistance: 8, requireNameSimilarity: false },
+      loose: { maxDistance: Infinity, requireNameSimilarity: false }
+    };
+    
+    const config = thresholds[strategy];
+    
     currentKeys.forEach(oldName => {
-      // Check if definition was removed
-      if (!incomingDefs[oldName]) {
-        // Try to find similar definition by structure and name
-        const currentDef = currentDefs[oldName];
-        const currentHash = this.structureHash(currentDef);
+      // Skip if definition exists in both (not renamed)
+      if (incomingDefs[oldName]) return;
+      
+      const currentDef = currentDefs[oldName];
+      const currentHash = this.structureHash(currentDef, 0, 3);
+      
+      // Find all candidates with matching structure
+      const candidates: Array<{name: string, distance: number}> = [];
+      
+      for (const newName of incomingKeys) {
+        if (matchedIncomingKeys.has(newName)) continue; // Already mapped
+        if (currentDefs[newName]) continue; // Avoid mapping to existing names
         
-        for (const newName of incomingKeys) {
-          if (renameMap.has(newName)) continue; // Already mapped
+        const incomingDef = incomingDefs[newName];
+        const incomingHash = this.structureHash(incomingDef, 0, 3);
+        
+        // Structure must match
+        if (currentHash !== incomingHash) continue;
+        
+        const distance = this.levenshteinDistance(oldName, newName);
+        
+        // In strict mode, enforce name similarity
+        if (config.requireNameSimilarity && distance > config.maxDistance) {
+          continue;
+        }
+        
+        // In moderate/loose mode, collect all structure matches
+        candidates.push({ name: newName, distance });
+      }
+      
+      // If we have candidates, pick the one with smallest name distance
+      if (candidates.length > 0) {
+        // Filter by distance threshold (only relevant for moderate)
+        const validCandidates = candidates.filter(c => c.distance <= config.maxDistance);
+        
+        if (validCandidates.length > 0) {
+          // Sort by distance (prefer closer names as tiebreaker)
+          validCandidates.sort((a, b) => a.distance - b.distance);
+          const bestMatch = validCandidates[0];
           
-          const incomingDef = incomingDefs[newName];
-          const incomingHash = this.structureHash(incomingDef);
+          renameMap.set(oldName, bestMatch.name);
+          matchedIncomingKeys.add(bestMatch.name);
           
-          // Check structure similarity and name similarity
-          if (currentHash === incomingHash && this.levenshteinDistance(oldName, newName) <= 3) {
-            renameMap.set(oldName, newName);
-            break;
-          }
+          console.log(`  🔍 Rename detected [${strategy}]: "${oldName}" → "${bestMatch.name}" (distance: ${bestMatch.distance}, structure: ✓)`);
         }
       }
     });
@@ -3009,18 +3069,23 @@ export class DocumentMergeEngine {
   /**
    * Create a structural hash of an object (based on property names and types)
    */
-  private static structureHash(obj: any): string {
-    if (!obj || typeof obj !== 'object') return typeof obj;
+  private static structureHash(obj: any, depth: number = 0, maxDepth: number = 3): string {
+    if (depth > maxDepth || !obj || typeof obj !== 'object') {
+      return typeof obj;
+    }
     
     if (Array.isArray(obj)) {
-      return `[${obj.map(item => this.structureHash(item)).join(',')}]`;
+      // For arrays, hash the structure of first few items
+      const samples = obj.slice(0, 3).map(item => this.structureHash(item, depth + 1, maxDepth));
+      return `[${samples.join(',')}]`;
     }
     
     const keys = Object.keys(obj).sort();
     const signature = keys.map(key => {
       const value = obj[key];
-      if (typeof value === 'object') {
-        return `${key}:object`;
+      if (typeof value === 'object' && value !== null) {
+        // Recursively hash nested objects
+        return `${key}:{${this.structureHash(value, depth + 1, maxDepth)}}`;
       }
       return `${key}:${typeof value}`;
     }).join('|');
@@ -3029,15 +3094,40 @@ export class DocumentMergeEngine {
   }
 
   /**
-   * Find a similar property name using Levenshtein distance
+   * Find a similar property name using Levenshtein distance and structure match
    */
-  private static findSimilarProperty(propertyName: string, propertyNames: string[]): string | null {
-    for (const name of propertyNames) {
-      if (this.levenshteinDistance(propertyName, name) <= 2) {
-        return name;
+  private static findSimilarProperty(
+    propName: string,
+    properties: Record<string, any>,
+    currentPropSchema: any,
+    strategy: 'strict' | 'moderate' | 'loose' = 'moderate'
+  ): string | null {
+    const thresholds = {
+      strict: { maxDistance: 3 },
+      moderate: { maxDistance: 8 },
+      loose: { maxDistance: Infinity }
+    };
+    
+    const config = thresholds[strategy];
+    
+    let bestMatch: { name: string, distance: number } | null = null;
+    
+    for (const candidateName of Object.keys(properties)) {
+      const distance = this.levenshteinDistance(propName, candidateName);
+      
+      if (distance <= config.maxDistance && distance > 0) {
+        const candidateHash = this.structureHash(properties[candidateName], 0, 3);
+        const currentHash = this.structureHash(currentPropSchema, 0, 3);
+        
+        if (candidateHash === currentHash) {
+          if (!bestMatch || distance < bestMatch.distance) {
+            bestMatch = { name: candidateName, distance };
+          }
+        }
       }
     }
-    return null;
+    
+    return bestMatch?.name || null;
   }
 
   /**

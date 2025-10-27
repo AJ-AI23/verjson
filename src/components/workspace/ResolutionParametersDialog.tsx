@@ -52,7 +52,7 @@ export const ResolutionParametersDialog: React.FC<ResolutionParametersDialogProp
         categories['String Handling'].push([key, def]);
       } else if (key.startsWith('object') || key.includes('Property')) {
         categories['Object Handling'].push([key, def]);
-      } else if (['enumStrategy', 'constraintStrategy', 'formatStrategy', 'descriptionStrategy', 'examplesStrategy', 'deprecationStrategy'].includes(key)) {
+      } else if (['enumStrategy', 'constraintStrategy', 'formatStrategy', 'descriptionStrategy', 'examplesStrategy', 'deprecationStrategy', 'defRenameStrategy', 'renameDetectionStrategy'].includes(key)) {
         categories['Schema-Specific'].push([key, def]);
       } else {
         categories['Advanced'].push([key, def]);

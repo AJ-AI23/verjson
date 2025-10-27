@@ -1402,6 +1402,16 @@
       "default": "track-by-hash",
       "description": "How to detect/match moved/renamed $defs entries."
     },
+    "renameDetectionStrategy": {
+      "type": "enum",
+      "values": [
+        "strict",
+        "moderate",
+        "loose"
+      ],
+      "default": "moderate",
+      "description": "Controls rename detection sensitivity. strict: requires both structure match AND name similarity (Levenshtein ≤ 3); moderate: prioritizes structure match with name similarity as tiebreaker (Levenshtein ≤ 8); loose: structure match only, no name similarity requirement."
+    },
     "compositionStrategy": {
       "type": "enum",
       "values": [
