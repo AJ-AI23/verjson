@@ -133,75 +133,109 @@ export const SortableConflictItem: React.FC<SortableConflictItemProps> = ({
             </div>
 
             <div className="flex-1 space-y-3">
+              {/* Header with severity, resolution status, and step number */}
               <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2">
-                  {getSeverityIcon(conflict.severity)}
-                  <Badge variant={getSeverityColor(conflict.severity) as any} className="text-xs">
-                    {conflict.severity} priority
-                  </Badge>
-                  <Badge variant={conflict.resolution === 'unresolved' ? 'destructive' : 'default'} className="text-xs">
-                    {conflict.resolution === 'unresolved' ? 'Unresolved' : 
-                     conflict.resolution === 'current' ? 'Keep Current' :
-                     conflict.resolution === 'incoming' ? 'Use Incoming' :
-                     conflict.resolution === 'combine' ? 'Combine' :
-                     conflict.resolution === 'interpolate' ? 'Intersection' :
-                     conflict.resolution === 'extrapolate' ? 'Difference' :
-                     conflict.resolution === 'custom' ? 'Custom Value' : conflict.resolution}
-                  </Badge>
-                  {/* Conflict Type Badge */}
-                  <Badge variant="outline" className="text-xs font-mono">
-                    {conflict.type.replace(/_/g, ' ')}
-                  </Badge>
-                  {/* Auto-resolvable Indicator */}
-                  {conflict.autoResolvable && !conflict.requiresManualReview && (
-                    <Badge variant="secondary" className="text-xs">
-                      Auto-resolvable
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    {getSeverityIcon(conflict.severity)}
+                    <Badge variant={getSeverityColor(conflict.severity) as any} className="text-xs">
+                      {conflict.severity} priority
                     </Badge>
-                  )}
-                  {/* Manual Review Required */}
-                  {conflict.requiresManualReview && (
-                    <Badge variant="destructive" className="text-xs">
-                      Manual Review
+                    <Badge variant={conflict.resolution === 'unresolved' ? 'destructive' : 'default'} className="text-xs">
+                      {conflict.resolution === 'unresolved' ? 'Unresolved' : 
+                       conflict.resolution === 'current' ? 'Keep Current' :
+                       conflict.resolution === 'incoming' ? 'Use Incoming' :
+                       conflict.resolution === 'combine' ? 'Combine' :
+                       conflict.resolution === 'interpolate' ? 'Intersection' :
+                       conflict.resolution === 'extrapolate' ? 'Difference' :
+                       conflict.resolution === 'custom' ? 'Custom Value' : conflict.resolution}
                     </Badge>
-                  )}
-                  {isArrayItemConflict && (
-                    <Badge variant="outline" className="text-xs">
-                      Array Item
-                    </Badge>
-                  )}
-                  {conflict.linkedConflictPaths && conflict.linkedConflictPaths.length > 0 && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Badge variant="outline" className="text-xs flex items-center gap-1">
-                            <Link2 className="h-3 w-3" />
-                            {conflict.linkedConflictPaths.length} linked
-                          </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-md">
-                          <div className="text-xs space-y-1">
-                            <div className="font-semibold mb-1">Linked child conflicts:</div>
-                            {conflict.linkedConflictPaths.map(linkedPath => (
-                              <div key={linkedPath} className="font-mono text-xs">• {linkedPath}</div>
-                            ))}
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
+                    {/* Step Number Badge */}
+                    {conflict.stepNumber !== undefined && (
+                      <Badge variant="outline" className="text-xs font-semibold">
+                        Step {conflict.stepNumber}
+                      </Badge>
+                    )}
+                    {/* Auto-resolvable Indicator */}
+                    {conflict.autoResolvable && !conflict.requiresManualReview && (
+                      <Badge variant="secondary" className="text-xs">
+                        Auto-resolvable
+                      </Badge>
+                    )}
+                    {/* Manual Review Required */}
+                    {conflict.requiresManualReview && (
+                      <Badge variant="destructive" className="text-xs">
+                        Manual Review
+                      </Badge>
+                    )}
+                    {isArrayItemConflict && (
+                      <Badge variant="outline" className="text-xs">
+                        Array Item
+                      </Badge>
+                    )}
+                    {conflict.linkedConflictPaths && conflict.linkedConflictPaths.length > 0 && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="outline" className="text-xs flex items-center gap-1">
+                              <Link2 className="h-3 w-3" />
+                              {conflict.linkedConflictPaths.length} linked
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-md">
+                            <div className="text-xs space-y-1">
+                              <div className="font-semibold mb-1">Linked child conflicts:</div>
+                              {conflict.linkedConflictPaths.map(linkedPath => (
+                                <div key={linkedPath} className="font-mono text-xs">• {linkedPath}</div>
+                              ))}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
                 </div>
               </div>
-              </div>
 
-              <div className="text-sm text-muted-foreground space-y-1">
-                <div>{conflict.description}</div>
-                {conflict.resolutionRationale && (
-                  <div className="text-xs italic text-muted-foreground/80">
-                    {conflict.resolutionRationale}
+              {/* Conflict Type and Description from Registry */}
+              <div className="space-y-2 bg-muted/30 p-3 rounded-md">
+                <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                  <div className="text-xs font-semibold text-muted-foreground">Conflict Type:</div>
+                  <div className="font-mono text-xs font-semibold text-primary">
+                    {conflict.type}
+                  </div>
+                </div>
+                {conflictDefinition?.description && (
+                  <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                    <div className="text-xs font-semibold text-muted-foreground">Description:</div>
+                    <div className="text-xs text-muted-foreground">
+                      {conflictDefinition.description}
+                    </div>
+                  </div>
+                )}
+                <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                  <div className="text-xs font-semibold text-muted-foreground">Path:</div>
+                  <div className="font-mono text-xs break-all">
+                    {path}
+                  </div>
+                </div>
+                {conflict.documentSource && conflict.documentDestination && (
+                  <div className="grid grid-cols-[120px_1fr] gap-2 items-start">
+                    <div className="text-xs font-semibold text-muted-foreground">Documents:</div>
+                    <div className="text-xs">
+                      <span className="font-semibold">{conflict.documentSource}</span>
+                      {' → '}
+                      <span className="font-semibold">{conflict.documentDestination}</span>
+                    </div>
                   </div>
                 )}
               </div>
+
+              {conflict.resolutionRationale && (
+                <div className="text-xs italic text-muted-foreground/80 px-3">
+                  {conflict.resolutionRationale}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
