@@ -1217,11 +1217,18 @@ export class DocumentMergeEngine {
     const lastSegment = segments[segments.length - 1];
     const parentPath = '/' + segments.slice(0, -1).join('/');
 
-    // Root-level schema meta conflicts
-    if (path === '/$schema') {
+    // Debug logging for meta conflicts
+    if (lastSegment === '$schema' || lastSegment === '$id' || lastSegment === 'id') {
+      console.log('🔍 Meta conflict detected:', { path, lastSegment, currentValue, incomingValue });
+    }
+
+    // Root-level schema meta conflicts - check both path formats
+    if (path === '/$schema' || lastSegment === '$schema') {
+      console.log('✅ Returning $schema_version_mismatch');
       return '$schema_version_mismatch';
     }
-    if (path === '/$id' || path === '/id') {
+    if (path === '/$id' || path === '/id' || lastSegment === '$id' || lastSegment === 'id') {
+      console.log('✅ Returning id_base_uri_changed');
       return 'id_base_uri_changed';
     }
 
