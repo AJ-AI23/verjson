@@ -1526,6 +1526,14 @@ export class DocumentMergeEngine {
     path: string,
     keyword: string
   ): ConflictType {
+    // Check for schema meta conflicts FIRST
+    if (keyword === '$schema' || path === '/$schema') {
+      return '$schema_version_mismatch';
+    }
+    if (keyword === '$id' || keyword === 'id' || path === '/$id' || path === '/id') {
+      return 'id_base_uri_changed';
+    }
+
     // Check for description conflicts
     if (keyword === 'description' || path.endsWith('/description')) {
       return 'description_conflict';
