@@ -161,54 +161,27 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
       return conflict;
     });
 
-    // Check if we have multiple steps - if so, find the earliest step with changes
-    const hasMultipleSteps = documents.length > 1;
-    const earliestChangedStep = hasMultipleSteps 
-      ? Math.min(...updatedConflicts
-          .filter(c => c.resolution !== 'unresolved' && c.stepNumber !== undefined)
-          .map(c => c.stepNumber!))
-      : undefined;
+    // DISABLED: Reactive recalculation - apply resolutions directly without regenerating
+    const finalMergedSchema = DocumentMergeEngine.applyConflictResolutions(
+      mergeResult.mergedSchema,
+      updatedConflicts,
+      pathOrder
+    );
 
-    let updatedResult: DocumentMergeResult;
-
-    if (earliestChangedStep !== undefined && earliestChangedStep !== Infinity) {
-      // Regenerate from the earliest changed step
-      console.log(`🔄 Regenerating from step ${earliestChangedStep} after applying bulk resolution`);
-      
-      const resultWithUpdatedConflicts = {
-        ...mergeResult,
-        conflicts: updatedConflicts
-      };
-      
-      updatedResult = DocumentMergeEngine.regenerateFromStep(
-        documentOrder,
-        resultName,
-        resultWithUpdatedConflicts,
-        earliestChangedStep
-      );
-    } else {
-      // No steps or single document - just apply resolutions normally
-      const finalMergedSchema = DocumentMergeEngine.applyConflictResolutions(
-        mergeResult.mergedSchema,
-        updatedConflicts,
-        pathOrder
-      );
-
-      updatedResult = {
-        ...mergeResult,
-        conflicts: updatedConflicts,
-        mergedSchema: finalMergedSchema,
-        summary: {
-          ...mergeResult.summary,
-          resolvedConflicts: updatedConflicts.filter(c => c.resolution !== 'unresolved').length,
-          unresolvedConflicts: updatedConflicts.filter(c => c.resolution === 'unresolved').length
-        }
-      };
-    }
+    const updatedResult: DocumentMergeResult = {
+      ...mergeResult,
+      conflicts: updatedConflicts,
+      mergedSchema: finalMergedSchema,
+      summary: {
+        ...mergeResult.summary,
+        resolvedConflicts: updatedConflicts.filter(c => c.resolution !== 'unresolved').length,
+        unresolvedConflicts: updatedConflicts.filter(c => c.resolution === 'unresolved').length
+      }
+    };
 
     setMergeResult(updatedResult);
     onConflictResolve?.(updatedResult);
-  }, [mergeResult, pathOrder, onConflictResolve, documents, documentOrder, resultName]);
+  }, [mergeResult, pathOrder, onConflictResolve]);
 
   // Handle drag end for path or conflict reordering
   const handleDragEnd = useCallback((event: any) => {
@@ -321,51 +294,27 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
       return conflict;
     });
 
-    // Check if this conflict belongs to a step and if there are subsequent steps
-    const changedStepNumber = targetConflict.stepNumber;
-    const hasSubsequentSteps = changedStepNumber !== undefined && 
-      updatedConflicts.some(c => c.stepNumber !== undefined && c.stepNumber > changedStepNumber);
+    // DISABLED: Reactive recalculation - apply resolutions directly without regenerating
+    const finalMergedSchema = DocumentMergeEngine.applyConflictResolutions(
+      mergeResult.mergedSchema,
+      updatedConflicts,
+      pathOrder
+    );
 
-    let updatedResult: DocumentMergeResult;
-
-    if (hasSubsequentSteps && documents.length > 1) {
-      // Regenerate conflicts from this step onwards based on resolved state
-      console.log(`🔄 Regenerating subsequent steps from step ${changedStepNumber}`);
-      
-      const resultWithUpdatedConflicts = {
-        ...mergeResult,
-        conflicts: updatedConflicts
-      };
-      
-      updatedResult = DocumentMergeEngine.regenerateFromStep(
-        documentOrder,
-        resultName,
-        resultWithUpdatedConflicts,
-        changedStepNumber
-      );
-    } else {
-      // No subsequent steps, just apply resolutions normally
-      const finalMergedSchema = DocumentMergeEngine.applyConflictResolutions(
-        mergeResult.mergedSchema,
-        updatedConflicts,
-        pathOrder
-      );
-
-      updatedResult = {
-        ...mergeResult,
-        conflicts: updatedConflicts,
-        mergedSchema: finalMergedSchema,
-        summary: {
-          ...mergeResult.summary,
-          resolvedConflicts: updatedConflicts.filter(c => c.resolution !== 'unresolved').length,
-          unresolvedConflicts: updatedConflicts.filter(c => c.resolution === 'unresolved').length
-        }
-      };
-    }
+    const updatedResult: DocumentMergeResult = {
+      ...mergeResult,
+      conflicts: updatedConflicts,
+      mergedSchema: finalMergedSchema,
+      summary: {
+        ...mergeResult.summary,
+        resolvedConflicts: updatedConflicts.filter(c => c.resolution !== 'unresolved').length,
+        unresolvedConflicts: updatedConflicts.filter(c => c.resolution === 'unresolved').length
+      }
+    };
 
     setMergeResult(updatedResult);
     onConflictResolve?.(updatedResult);
-  }, [mergeResult, pathOrder, onConflictResolve, conflictsByPath, documents, documentOrder, resultName]);
+  }, [mergeResult, pathOrder, onConflictResolve, conflictsByPath]);
 
   const handleCustomValue = useCallback((path: string, conflictIndex: number, customValue: string) => {
     const updatedConflicts = mergeResult.conflicts.map((conflict, idx) => {
@@ -396,54 +345,27 @@ export const DocumentMergePreview: React.FC<DocumentMergePreviewProps> = ({
       return conflict;
     });
 
-    // Check if we have multiple steps - if so, find the earliest step with changes
-    const hasMultipleSteps = documents.length > 1;
-    const earliestChangedStep = hasMultipleSteps 
-      ? Math.min(...conflicts
-          .filter(c => c.stepNumber !== undefined)
-          .map(c => c.stepNumber!))
-      : undefined;
+    // DISABLED: Reactive recalculation - apply resolutions directly without regenerating
+    const finalMergedSchema = DocumentMergeEngine.applyConflictResolutions(
+      mergeResult.mergedSchema,
+      updatedConflicts,
+      pathOrder
+    );
 
-    let updatedResult: DocumentMergeResult;
-
-    if (earliestChangedStep !== undefined && earliestChangedStep !== Infinity) {
-      // Regenerate from the earliest changed step
-      console.log(`🔄 Regenerating from step ${earliestChangedStep} after bulk resolve`);
-      
-      const resultWithUpdatedConflicts = {
-        ...mergeResult,
-        conflicts: updatedConflicts
-      };
-      
-      updatedResult = DocumentMergeEngine.regenerateFromStep(
-        documentOrder,
-        resultName,
-        resultWithUpdatedConflicts,
-        earliestChangedStep
-      );
-    } else {
-      // No steps or single document - just apply resolutions normally
-      const finalMergedSchema = DocumentMergeEngine.applyConflictResolutions(
-        mergeResult.mergedSchema,
-        updatedConflicts,
-        pathOrder
-      );
-
-      updatedResult = {
-        ...mergeResult,
-        conflicts: updatedConflicts,
-        mergedSchema: finalMergedSchema,
-        summary: {
-          ...mergeResult.summary,
-          resolvedConflicts: updatedConflicts.filter(c => c.resolution !== 'unresolved').length,
-          unresolvedConflicts: updatedConflicts.filter(c => c.resolution === 'unresolved').length
-        }
-      };
-    }
+    const updatedResult: DocumentMergeResult = {
+      ...mergeResult,
+      conflicts: updatedConflicts,
+      mergedSchema: finalMergedSchema,
+      summary: {
+        ...mergeResult.summary,
+        resolvedConflicts: updatedConflicts.filter(c => c.resolution !== 'unresolved').length,
+        unresolvedConflicts: updatedConflicts.filter(c => c.resolution === 'unresolved').length
+      }
+    };
 
     setMergeResult(updatedResult);
     onConflictResolve?.(updatedResult);
-  }, [mergeResult, pathOrder, onConflictResolve, documents, documentOrder, resultName]);
+  }, [mergeResult, pathOrder, onConflictResolve]);
 
   const handleReviewedChange = useCallback((path: string, conflictIndex: number, reviewed: boolean) => {
     const key = `${path}-${conflictIndex}`;
