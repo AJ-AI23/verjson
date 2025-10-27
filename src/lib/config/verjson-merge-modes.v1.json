@@ -1,0 +1,121 @@
+{
+  "$schema": "https://verjson.dev/schemas/merge-modes.schema.json",
+  "$id": "https://verjson.dev/conflict-modes/v1.json",
+  "title": "VerJSON Merge Modes",
+  "version": "1.0.0",
+  "modes": {
+    "additive": {
+      "description": "Favor inclusion and expansion. Keeps both sides' data when possible, merges objects deeply, unions arrays and enums, and adopts relaxed constraints.",
+      "preferredResolutionOrder": [
+        "combine",
+        "incoming",
+        "extrapolate",
+        "current"
+      ],
+      "severityThresholds": {
+        "autoResolve": [
+          "low",
+          "medium"
+        ],
+        "requireManual": [
+          "high",
+          "critical"
+        ]
+      },
+      "defaultPreferencesOverrides": {
+        "arrayMergeStrategy": "union",
+        "arrayDuplicateHandling": "keep-all",
+        "objectPropertyConflict": "merge-recursive",
+        "enumStrategy": "union",
+        "constraintStrategy": "loosest",
+        "compositionStrategy": "flatten",
+        "wideningGuard": "allow-with-warning",
+        "tighteningGuard": "allow"
+      }
+    },
+    "subtractive": {
+      "description": "Favor reduction and strictness. Keeps current/base definitions, removes extras, intersects arrays/enums, and tightens constraints.",
+      "preferredResolutionOrder": [
+        "current",
+        "combine",
+        "incoming"
+      ],
+      "severityThresholds": {
+        "autoResolve": [
+          "low"
+        ],
+        "requireManual": [
+          "medium",
+          "high",
+          "critical"
+        ]
+      },
+      "defaultPreferencesOverrides": {
+        "arrayMergeStrategy": "intersection",
+        "arrayDuplicateHandling": "remove-all",
+        "objectPropertyConflict": "prefer-current",
+        "enumStrategy": "intersection",
+        "constraintStrategy": "strictest",
+        "compositionStrategy": "preserve",
+        "wideningGuard": "reject",
+        "tighteningGuard": "require-review"
+      }
+    },
+    "interpolate": {
+      "description": "Favor reconstruction between versions. Uses existing patterns from both current and incoming to fill gaps, aligning structures predictively.",
+      "preferredResolutionOrder": [
+        "interpolate",
+        "combine",
+        "current",
+        "incoming"
+      ],
+      "severityThresholds": {
+        "autoResolve": [
+          "low",
+          "medium"
+        ],
+        "requireManual": [
+          "high",
+          "critical"
+        ]
+      },
+      "defaultPreferencesOverrides": {
+        "arrayMergeStrategy": "union",
+        "objectPropertyConflict": "merge-recursive",
+        "enumStrategy": "union",
+        "constraintStrategy": "current",
+        "compositionStrategy": "flatten",
+        "wideningGuard": "allow-with-warning",
+        "tighteningGuard": "allow"
+      }
+    },
+    "extrapolate": {
+      "description": "Favor forward projection. Prioritizes new/incoming schema structure, predicts continuity from incoming data, and merges flexibly where possible.",
+      "preferredResolutionOrder": [
+        "extrapolate",
+        "incoming",
+        "combine",
+        "current"
+      ],
+      "severityThresholds": {
+        "autoResolve": [
+          "low",
+          "medium"
+        ],
+        "requireManual": [
+          "high",
+          "critical"
+        ]
+      },
+      "defaultPreferencesOverrides": {
+        "arrayMergeStrategy": "union",
+        "objectPropertyConflict": "prefer-incoming",
+        "enumStrategy": "union",
+        "constraintStrategy": "loosest",
+        "compositionStrategy": "flatten",
+        "wideningGuard": "allow-with-warning",
+        "tighteningGuard": "allow"
+      }
+    }
+  }
+}

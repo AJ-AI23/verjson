@@ -1,0 +1,1493 @@
+{
+  "$schema": "https://verjson.dev/schemas/conflict-registry.schema.json",
+  "$id": "https://verjson.dev/conflict-registry/v1.json",
+  "title": "VerJSON Conflict Resolution Registry",
+  "version": "1.2.0",
+  "conflicts": {
+    "$schema_version_mismatch": {
+      "severity": "high",
+      "resolutions": [
+        "current",
+        "incoming",
+        "custom",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "schemaVersionStrategy"
+      ],
+      "description": "Different $schema versions at {path}: current uses {current}, incoming uses {incoming}. Choose a metaschema to validate the merged output."
+    },
+    "id_base_uri_changed": {
+      "severity": "medium",
+      "resolutions": [
+        "current",
+        "incoming",
+        "custom",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "refNormalization"
+      ],
+      "description": "Base identifier/URI changed at {path}: {oldUri} → {newUri}. This may alter $ref resolution."
+    },
+    "ref_target_changed": {
+      "severity": "critical",
+      "resolutions": [
+        "current",
+        "incoming",
+        "custom",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "refNormalization"
+      ],
+      "description": "$ref at {path} resolves to different targets under current vs incoming contexts: {ref}. Check base URI changes or anchors."
+    },
+    "ref_cycle_detected": {
+      "severity": "critical",
+      "resolutions": [
+        "current",
+        "custom",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "refCycleStrategy"
+      ],
+      "description": "Merging introduces a reference cycle starting at {path} involving {ref}. Resolver reported: {reason}."
+    },
+    "defs_renamed_moved": {
+      "severity": "medium",
+      "resolutions": [
+        "combine",
+        "current",
+        "incoming",
+        "custom",
+        "unresolved"
+      ],
+      "manualReview": false,
+      "preferences": [
+        "defRenameStrategy",
+        "altDedupStrategy"
+      ],
+      "description": "Definition under $defs renamed or moved: key {defsKey} at {path}. Match was inferred by similarity/hash."
+    },
+    "property_removed_required": {
+      "severity": "critical",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "description": "Required property {property} at {path} is removed in incoming but required in current/base."
+    },
+    "property_removed_optional": {
+      "severity": "low",
+      "resolutions": [
+        "current",
+        "incoming",
+        "combine",
+        "unresolved"
+      ],
+      "manualReview": false,
+      "preferences": [
+        "objectPropertyConflict",
+        "objectMergeDepth"
+      ],
+      "description": "Optional property {property} at {path} present in current/base is missing in incoming."
+    },
+    "property_added_new": {
+      "severity": "low",
+      "resolutions": [
+        "incoming",
+        "combine",
+        "unresolved"
+      ],
+      "manualReview": false,
+      "preferences": [
+        "objectPropertyConflict",
+        "objectMergeDepth"
+      ],
+      "description": "New property {property} added at {path} only in incoming."
+    },
+    "property_added_duplicate": {
+      "severity": "medium",
+      "resolutions": [
+        "current",
+        "incoming",
+        "combine",
+        "custom",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "propertyRenamePolicy"
+      ],
+      "description": "Duplicate property name {property} detected at {path} with incompatible definitions in current vs incoming."
+    },
+    "property_renamed": {
+      "severity": "medium",
+      "resolutions": [
+        "incoming",
+        "current",
+        "combine",
+        "custom",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "propertyRenamePolicy"
+      ],
+      "description": "Property likely renamed at {path}: {from} → {to}. Detected by similarity; verify intent."
+    },
+    "property_moved": {
+      "severity": "medium",
+      "resolutions": [
+        "incoming",
+        "current",
+        "combine",
+        "custom",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "propertyRenamePolicy"
+      ],
+      "description": "Property {property} appears moved from {from} to {to}. Paths refer to object locations."
+    },
+    "type_primitive_changed": {
+      "severity": "critical",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "description": "Primitive type changed at {path}: {from} → {to}. Values may be incompatible."
+    },
+    "type_expanded": {
+      "severity": "high",
+      "resolutions": [
+        "incoming",
+        "current",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "description": "Type set widened at {path}: {from} → {to} (e.g., adding 'null')."
+    },
+    "type_collapsed": {
+      "severity": "critical",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "description": "Type set narrowed at {path}: {from} → {to}. May break existing instances."
+    },
+    "type_array_to_object": {
+      "severity": "critical",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "description": "Type flip at {path}: array → object."
+    },
+    "type_object_to_array": {
+      "severity": "critical",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "description": "Type flip at {path}: object → array."
+    },
+    "type_nullable_changed": {
+      "severity": "medium",
+      "resolutions": [
+        "incoming",
+        "current",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "description": "Nullability changed at {path}: {from} → {to} (OpenAPI nullable or type includes 'null')."
+    },
+    "array_items_added": {
+      "severity": "low",
+      "resolutions": [
+        "combine",
+        "incoming",
+        "extrapolate",
+        "current",
+        "unresolved"
+      ],
+      "manualReview": false,
+      "preferences": [
+        "arrayMergeStrategy",
+        "arrayDuplicateHandling",
+        "arrayOrderPreference"
+      ],
+      "description": "Array items added at {path}: incoming has extra elements compared to current/base."
+    },
+    "array_items_removed": {
+      "severity": "medium",
+      "resolutions": [
+        "current",
+        "interpolate",
+        "incoming",
+        "extrapolate",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "arrayMergeStrategy",
+        "arrayOrderPreference"
+      ],
+      "description": "Array items removed at {path}: incoming lacks elements present in current/base."
+    },
+    "array_items_reordered": {
+      "severity": "medium",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "arrayOrderPreference"
+      ],
+      "description": "Array order differs at {path} between current and incoming."
+    },
+    "array_items_modified": {
+      "severity": "high",
+      "resolutions": [
+        "combine",
+        "interpolate",
+        "current",
+        "incoming",
+        "extrapolate",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "arrayMergeStrategy",
+        "arrayDuplicateHandling",
+        "arrayOrderPreference"
+      ],
+      "description": "Array element schemas differ at {path}: content changed between current and incoming."
+    },
+    "array_length_mismatch": {
+      "severity": "medium",
+      "resolutions": [
+        "combine",
+        "interpolate",
+        "current",
+        "incoming",
+        "extrapolate",
+        "unresolved"
+      ],
+      "manualReview": false,
+      "preferences": [
+        "arrayMergeStrategy",
+        "arrayDuplicateHandling"
+      ],
+      "description": "Array length/arity differs at {path} (tuple/prefixItems or fixed-size semantics)."
+    },
+    "array_type_conflict": {
+      "severity": "critical",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "description": "Array-related keyword/type conflict at {path} (e.g., items vs prefixItems kind mismatch)."
+    },
+    "tuple_items_changed": {
+      "severity": "high",
+      "resolutions": [
+        "combine",
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "arrayMergeStrategy",
+        "arrayOrderPreference",
+        "tuplePolicy"
+      ],
+      "description": "Tuple (prefixItems) entry at index {index} differs at {path}: {from} → {to}."
+    },
+    "items_schema_changed": {
+      "severity": "high",
+      "resolutions": [
+        "combine",
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "arrayMergeStrategy"
+      ],
+      "description": "Items schema changed at {path}: {from} → {to}."
+    },
+    "uniqueItems_changed": {
+      "severity": "high",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "uniqueItemsPolicy"
+      ],
+      "description": "uniqueItems boolean changed at {path}: {from} → {to}."
+    },
+    "contains_changed": {
+      "severity": "high",
+      "resolutions": [
+        "current",
+        "incoming",
+        "combine",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "constraintStrategy"
+      ],
+      "description": "contains/minContains/maxContains configuration changed at {path}: {from} → {to}."
+    },
+    "minItems_changed": {
+      "severity": "high",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "constraintStrategy"
+      ],
+      "description": "minItems changed at {path}: {from} → {to}."
+    },
+    "maxItems_changed": {
+      "severity": "medium",
+      "resolutions": [
+        "incoming",
+        "current",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "constraintStrategy"
+      ],
+      "description": "maxItems changed at {path}: {from} → {to}."
+    },
+    "object_property_added": {
+      "severity": "low",
+      "resolutions": [
+        "combine",
+        "incoming",
+        "extrapolate",
+        "current",
+        "unresolved"
+      ],
+      "manualReview": false,
+      "preferences": [
+        "objectPropertyConflict",
+        "objectMergeDepth"
+      ],
+      "description": "Object at {path} gained new property {property} in incoming."
+    },
+    "object_property_removed": {
+      "severity": "medium",
+      "resolutions": [
+        "current",
+        "interpolate",
+        "incoming",
+        "extrapolate",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "objectPropertyConflict",
+        "objectMergeDepth"
+      ],
+      "description": "Object at {path} lost property {property} in incoming (present in current/base)."
+    },
+    "object_property_value_changed": {
+      "severity": "medium",
+      "resolutions": [
+        "current",
+        "incoming",
+        "custom",
+        "combine",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "objectPropertyConflict",
+        "objectMergeDepth"
+      ],
+      "description": "Property value/schema changed for {property} at {path}: {from} → {to}."
+    },
+    "object_structure_diverged": {
+      "severity": "critical",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "description": "Object structure diverged irreconcilably at {path}. {reason}"
+    },
+    "object_nested_conflict": {
+      "severity": "medium",
+      "resolutions": [
+        "combine",
+        "interpolate",
+        "current",
+        "incoming",
+        "extrapolate",
+        "unresolved"
+      ],
+      "manualReview": false,
+      "preferences": [
+        "objectPropertyConflict",
+        "objectMergeDepth"
+      ],
+      "description": "Nested object at {path} has multiple sub-conflicts requiring recursive merge."
+    },
+    "additionalProperties_changed": {
+      "severity": "high",
+      "resolutions": [
+        "current",
+        "incoming",
+        "combine",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "additionalPropsStrategy",
+        "objectPropertyConflict",
+        "objectMergeDepth"
+      ],
+      "description": "additionalProperties/unevaluatedProperties schema changed at {path}: {from} → {to}."
+    },
+    "unevaluatedProperties_changed": {
+      "severity": "high",
+      "resolutions": [
+        "current",
+        "incoming",
+        "combine",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "additionalPropsStrategy"
+      ],
+      "description": "unevaluatedProperties changed at {path}: {from} → {to}."
+    },
+    "patternProperties_changed": {
+      "severity": "high",
+      "resolutions": [
+        "combine",
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "objectPropertyConflict",
+        "objectMergeDepth"
+      ],
+      "description": "patternProperties entries changed at {path}."
+    },
+    "propertyNames_changed": {
+      "severity": "high",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "constraintStrategy"
+      ],
+      "description": "propertyNames schema changed at {path}: {from} → {to}."
+    },
+    "dependentRequired_changed": {
+      "severity": "critical",
+      "resolutions": [
+        "current",
+        "incoming",
+        "combine",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "dependentRequiredStrategy"
+      ],
+      "description": "dependentRequired changed at {path}: {from} → {to}. May tighten requirements."
+    },
+    "dependentSchemas_changed": {
+      "severity": "high",
+      "resolutions": [
+        "combine",
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "compositionStrategy"
+      ],
+      "description": "dependentSchemas changed at {path}: {from} → {to}."
+    },
+    "additionalProperties_boolean_flip": {
+      "severity": "critical",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "additionalPropsStrategy"
+      ],
+      "description": "additionalProperties flipped at {path}: {from} → {to}."
+    },
+    "primitive_string_conflict": {
+      "severity": "low",
+      "resolutions": [
+        "combine",
+        "current",
+        "incoming",
+        "custom",
+        "unresolved"
+      ],
+      "manualReview": false,
+      "preferences": [
+        "stringMergeStrategy",
+        "stringConcatenationSeparator",
+        "stringNormalization"
+      ],
+      "description": "String value conflict at {path}: current={current}, incoming={incoming}."
+    },
+    "primitive_number_conflict": {
+      "severity": "medium",
+      "resolutions": [
+        "current",
+        "incoming",
+        "custom",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "numericStrategy",
+        "numericPrecision",
+        "numericTieBreak"
+      ],
+      "description": "Numeric value conflict at {path}: current={current}, incoming={incoming}."
+    },
+    "primitive_boolean_conflict": {
+      "severity": "high",
+      "resolutions": [
+        "current",
+        "incoming",
+        "custom",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "booleanStrategy"
+      ],
+      "description": "Boolean value conflict at {path}: current={current}, incoming={incoming}."
+    },
+    "primitive_null_vs_value": {
+      "severity": "medium",
+      "resolutions": [
+        "incoming",
+        "current",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "description": "Null vs value at {path}: current={current}, incoming={incoming}."
+    },
+    "const_changed": {
+      "severity": "critical",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "description": "const changed at {path}: {from} → {to}."
+    },
+    "allOf_changed": {
+      "severity": "high",
+      "resolutions": [
+        "combine",
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "compositionStrategy",
+        "arrayDuplicateHandling"
+      ],
+      "description": "allOf array changed at {path}: alternatives differ between current and incoming."
+    },
+    "anyOf_changed": {
+      "severity": "high",
+      "resolutions": [
+        "combine",
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "disjunctionStrategy",
+        "altDedupStrategy"
+      ],
+      "description": "anyOf array changed at {path}: alternatives differ between current and incoming."
+    },
+    "oneOf_changed": {
+      "severity": "high",
+      "resolutions": [
+        "combine",
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "disjunctionStrategy",
+        "altDedupStrategy"
+      ],
+      "description": "oneOf array changed at {path}: alternatives differ between current and incoming."
+    },
+    "not_changed": {
+      "severity": "critical",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "description": "not schema changed at {path}: {from} → {to}."
+    },
+    "schema_composition_incompatible": {
+      "severity": "critical",
+      "resolutions": [
+        "current",
+        "incoming",
+        "custom",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "compositionStrategy"
+      ],
+      "description": "Composition at {path} became unsatisfiable or lost exclusivity. {reason}"
+    },
+    "conditional_structure_changed": {
+      "severity": "high",
+      "resolutions": [
+        "current",
+        "incoming",
+        "combine",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "conditionalStrategy"
+      ],
+      "description": "Conditional structure (if/then/else) changed at {path}."
+    },
+    "conditional_invalidated": {
+      "severity": "critical",
+      "resolutions": [
+        "current",
+        "custom",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "description": "Conditional logic invalid at {path}: if conflicts with then/else. {reason}"
+    },
+    "enum_values_added": {
+      "severity": "low",
+      "resolutions": [
+        "combine",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": false,
+      "preferences": [
+        "enumStrategy"
+      ],
+      "description": "Enum values added at {path}: incoming has additional literals."
+    },
+    "enum_values_removed": {
+      "severity": "critical",
+      "resolutions": [
+        "current",
+        "interpolate",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "enumStrategy"
+      ],
+      "description": "Enum values removed at {path}: incoming dropped literals present in current/base."
+    },
+    "enum_to_const": {
+      "severity": "high",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "description": "Enum changed to const at {path}: {from} → {to}."
+    },
+    "const_to_enum": {
+      "severity": "medium",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "description": "Const changed to enum at {path}: {from} → {to}."
+    },
+    "enum_order_changed": {
+      "severity": "info",
+      "resolutions": [
+        "combine",
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": false,
+      "preferences": [
+        "arrayOrderPreference"
+      ],
+      "description": "Order of enum values changed at {path}."
+    },
+    "required_entry_removed": {
+      "severity": "critical",
+      "resolutions": [
+        "current",
+        "incoming",
+        "combine",
+        "interpolate",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "description": "Entry removed from required[] at {path}: property {property}."
+    },
+    "required_entry_added": {
+      "severity": "medium",
+      "resolutions": [
+        "incoming",
+        "current",
+        "combine",
+        "interpolate",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "description": "Entry added to required[] at {path}: property {property}."
+    },
+    "constraint_tightened": {
+      "severity": "critical",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "constraintStrategy"
+      ],
+      "description": "Constraint tightened at {path}: {keyword} {from} → {to} ({safety})."
+    },
+    "constraint_loosened": {
+      "severity": "medium",
+      "resolutions": [
+        "incoming",
+        "combine",
+        "current",
+        "unresolved"
+      ],
+      "manualReview": false,
+      "preferences": [
+        "constraintStrategy"
+      ],
+      "description": "Constraint loosened at {path}: {keyword} {from} → {to} ({safety})."
+    },
+    "multipleOf_changed": {
+      "severity": "high",
+      "resolutions": [
+        "strictest",
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "constraintStrategy"
+      ],
+      "description": "multipleOf changed at {path}: {from} → {to}."
+    },
+    "min_changed": {
+      "severity": "high",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "constraintStrategy"
+      ],
+      "description": "minimum/exclusiveMinimum changed at {path}: {from} → {to}."
+    },
+    "max_changed": {
+      "severity": "medium",
+      "resolutions": [
+        "incoming",
+        "current",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "constraintStrategy"
+      ],
+      "description": "maximum/exclusiveMaximum changed at {path}: {from} → {to}."
+    },
+    "minLength_changed": {
+      "severity": "high",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "constraintStrategy"
+      ],
+      "description": "minLength changed at {path}: {from} → {to}."
+    },
+    "maxLength_changed": {
+      "severity": "medium",
+      "resolutions": [
+        "incoming",
+        "current",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "constraintStrategy"
+      ],
+      "description": "maxLength changed at {path}: {from} → {to}."
+    },
+    "format_added": {
+      "severity": "medium",
+      "resolutions": [
+        "incoming",
+        "current",
+        "combine",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "formatStrategy"
+      ],
+      "description": "format added at {path}: {to}."
+    },
+    "format_removed": {
+      "severity": "medium",
+      "resolutions": [
+        "current",
+        "incoming",
+        "combine",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "formatStrategy"
+      ],
+      "description": "format removed at {path}: was {from}."
+    },
+    "pattern_added": {
+      "severity": "high",
+      "resolutions": [
+        "current",
+        "incoming",
+        "combine",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "constraintStrategy"
+      ],
+      "description": "pattern added at {path}: {to}."
+    },
+    "pattern_removed": {
+      "severity": "medium",
+      "resolutions": [
+        "incoming",
+        "current",
+        "combine",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "constraintStrategy"
+      ],
+      "description": "pattern removed at {path}: was {from}."
+    },
+    "reference_broken": {
+      "severity": "critical",
+      "resolutions": [
+        "current",
+        "incoming",
+        "custom",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "refNormalization"
+      ],
+      "description": "$ref at {path} ({ref}) cannot be resolved post-merge. {reason}"
+    },
+    "reference_added": {
+      "severity": "low",
+      "resolutions": [
+        "incoming",
+        "combine",
+        "unresolved"
+      ],
+      "manualReview": false,
+      "preferences": [
+        "refNormalization"
+      ],
+      "description": "$ref introduced at {path}: {ref}."
+    },
+    "title_conflict": {
+      "severity": "info",
+      "resolutions": [
+        "combine",
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": false,
+      "preferences": [
+        "stringMergeStrategy",
+        "stringConcatenationSeparator",
+        "stringNormalization"
+      ],
+      "description": "Title differs at {path}: current={current}, incoming={incoming}."
+    },
+    "description_conflict": {
+      "severity": "info",
+      "resolutions": [
+        "combine",
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": false,
+      "preferences": [
+        "descriptionStrategy",
+        "stringConcatenationSeparator",
+        "stringNormalization"
+      ],
+      "description": "Description differs at {path}: current vs incoming."
+    },
+    "example_conflict": {
+      "severity": "info",
+      "resolutions": [
+        "combine",
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": false,
+      "preferences": [
+        "examplesStrategy"
+      ],
+      "description": "Examples differ at {path}: current vs incoming samples."
+    },
+    "default_value_conflict": {
+      "severity": "medium",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "description": "Default value differs at {path}: current={current}, incoming={incoming}."
+    },
+    "deprecated_status_conflict": {
+      "severity": "medium",
+      "resolutions": [
+        "incoming",
+        "current",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "deprecationStrategy"
+      ],
+      "description": "Deprecated flag differs at {path}: current={current}, incoming={incoming}."
+    },
+    "readOnly_writeOnly_changed": {
+      "severity": "medium",
+      "resolutions": [
+        "current",
+        "incoming",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "description": "readOnly/writeOnly flags differ at {path}: {from} → {to}."
+    },
+    "contentMediaType_changed": {
+      "severity": "high",
+      "resolutions": [
+        "current",
+        "incoming",
+        "combine",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "compositionStrategy"
+      ],
+      "description": "contentMediaType differs at {path}: {from} → {to}."
+    },
+    "contentEncoding_changed": {
+      "severity": "high",
+      "resolutions": [
+        "current",
+        "incoming",
+        "combine",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "compositionStrategy"
+      ],
+      "description": "contentEncoding differs at {path}: {from} → {to}."
+    },
+    "contentSchema_changed": {
+      "severity": "high",
+      "resolutions": [
+        "current",
+        "incoming",
+        "combine",
+        "unresolved"
+      ],
+      "manualReview": true,
+      "preferences": [
+        "compositionStrategy"
+      ],
+      "description": "contentSchema differs at {path}: {from} → {to}."
+    }
+  },
+  "preferences": {
+    "arrayOrderPreference": {
+      "type": "enum",
+      "values": [
+        "preserve-current",
+        "preserve-incoming",
+        "sort-alpha",
+        "sort-reverse"
+      ],
+      "default": "preserve-current",
+      "description": "Controls resulting order when arrays are combined or reconciled."
+    },
+    "arrayDuplicateHandling": {
+      "type": "enum",
+      "values": [
+        "keep-first",
+        "keep-last",
+        "keep-all",
+        "remove-all"
+      ],
+      "default": "keep-first",
+      "description": "How to treat duplicate array entries during merges."
+    },
+    "arrayMergeStrategy": {
+      "type": "enum",
+      "values": [
+        "union",
+        "intersection",
+        "difference-current",
+        "difference-incoming"
+      ],
+      "default": "union",
+      "description": "Set operation used when merging arrays."
+    },
+    "tuplePolicy": {
+      "type": "enum",
+      "values": [
+        "align-by-index",
+        "align-by-similarity",
+        "pad-shorter"
+      ],
+      "default": "align-by-index",
+      "description": "How to align tuple entries for prefixItems merges."
+    },
+    "uniqueItemsPolicy": {
+      "type": "enum",
+      "values": [
+        "prefer-true",
+        "prefer-false",
+        "prefer-current",
+        "prefer-incoming"
+      ],
+      "default": "prefer-true",
+      "description": "Preference when uniqueItems boolean differs."
+    },
+    "stringMergeStrategy": {
+      "type": "enum",
+      "values": [
+        "concatenate",
+        "prefer-longer",
+        "prefer-shorter",
+        "prefer-current",
+        "prefer-incoming"
+      ],
+      "default": "concatenate",
+      "description": "How to resolve conflicting string primitives or annotations."
+    },
+    "stringConcatenationSeparator": {
+      "type": "string",
+      "default": " | ",
+      "description": "Separator used when stringMergeStrategy=concatenate."
+    },
+    "stringNormalization": {
+      "type": "enum",
+      "values": [
+        "none",
+        "trim",
+        "collapse-whitespace",
+        "lowercase",
+        "uppercase",
+        "nfc"
+      ],
+      "default": "none",
+      "description": "Normalization applied before string comparisons/merges."
+    },
+    "objectPropertyConflict": {
+      "type": "enum",
+      "values": [
+        "merge-recursive",
+        "prefer-current",
+        "prefer-incoming"
+      ],
+      "default": "merge-recursive",
+      "description": "Strategy for property value conflicts during object combine."
+    },
+    "objectMergeDepth": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 3,
+      "description": "Max recursion depth for object 'combine' merges."
+    },
+    "additionalPropsStrategy": {
+      "type": "enum",
+      "values": [
+        "strictest",
+        "loosest",
+        "prefer-current",
+        "prefer-incoming"
+      ],
+      "default": "strictest",
+      "description": "How to merge additionalProperties/unevaluatedProperties policies."
+    },
+    "keyNormalization": {
+      "type": "enum",
+      "values": [
+        "case-sensitive",
+        "case-insensitive",
+        "unicode-nfc"
+      ],
+      "default": "case-sensitive",
+      "description": "Normalization applied to property keys for comparisons."
+    },
+    "propertyRenamePolicy": {
+      "type": "enum",
+      "values": [
+        "reject",
+        "auto-suffix",
+        "namespace-with-prefix"
+      ],
+      "default": "reject",
+      "description": "Automation policy when resolving duplicate/rename/move."
+    },
+    "dependentRequiredStrategy": {
+      "type": "enum",
+      "values": [
+        "union",
+        "intersection",
+        "strict-current",
+        "strict-incoming"
+      ],
+      "default": "union",
+      "description": "Combining rule for dependentRequired arrays."
+    },
+    "enumStrategy": {
+      "type": "enum",
+      "values": [
+        "union",
+        "intersection",
+        "strict-current",
+        "strict-incoming"
+      ],
+      "default": "union",
+      "description": "How to merge enum lists when combining."
+    },
+    "constraintStrategy": {
+      "type": "enum",
+      "values": [
+        "strictest",
+        "loosest",
+        "current",
+        "incoming"
+      ],
+      "default": "strictest",
+      "description": "Conflict resolution for numeric/string/array constraint keywords."
+    },
+    "formatStrategy": {
+      "type": "enum",
+      "values": [
+        "prefer-stricter",
+        "prefer-laxer",
+        "prefer-current",
+        "prefer-incoming"
+      ],
+      "default": "prefer-stricter",
+      "description": "Preference when format differs or is added/removed."
+    },
+    "descriptionStrategy": {
+      "type": "enum",
+      "values": [
+        "concatenate",
+        "prefer-current",
+        "prefer-incoming",
+        "prefer-longer"
+      ],
+      "default": "concatenate",
+      "description": "How to merge description annotations."
+    },
+    "examplesStrategy": {
+      "type": "enum",
+      "values": [
+        "union",
+        "prefer-current",
+        "prefer-incoming",
+        "dedupe-by-hash"
+      ],
+      "default": "union",
+      "description": "How to combine examples arrays."
+    },
+    "deprecationStrategy": {
+      "type": "enum",
+      "values": [
+        "prefer-deprecated",
+        "prefer-non-deprecated",
+        "prefer-current",
+        "prefer-incoming"
+      ],
+      "default": "prefer-non-deprecated",
+      "description": "Preference when deprecated flags disagree."
+    },
+    "numericStrategy": {
+      "type": "enum",
+      "values": [
+        "average",
+        "min",
+        "max",
+        "current",
+        "incoming"
+      ],
+      "default": "current",
+      "description": "Policy for primitive number conflicts in custom resolution."
+    },
+    "numericPrecision": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "description": "Round to N decimals before numeric comparisons/merge."
+    },
+    "numericTieBreak": {
+      "type": "enum",
+      "values": [
+        "current",
+        "incoming",
+        "min",
+        "max"
+      ],
+      "default": "current",
+      "description": "Fallback when numericStrategy yields ties."
+    },
+    "booleanStrategy": {
+      "type": "enum",
+      "values": [
+        "and",
+        "or",
+        "current",
+        "incoming"
+      ],
+      "default": "current",
+      "description": "Policy for primitive boolean conflicts in custom resolution."
+    },
+    "schemaVersionStrategy": {
+      "type": "enum",
+      "values": [
+        "prefer-current",
+        "prefer-incoming",
+        "max-supported",
+        "min-common"
+      ],
+      "default": "max-supported",
+      "description": "How to resolve differing $schema versions."
+    },
+    "refNormalization": {
+      "type": "enum",
+      "values": [
+        "preserve",
+        "rebase",
+        "dereference"
+      ],
+      "default": "rebase",
+      "description": "How to treat $ref when base URIs or paths differ."
+    },
+    "refCycleStrategy": {
+      "type": "enum",
+      "values": [
+        "reject",
+        "inline-once",
+        "break-with-anchor"
+      ],
+      "default": "reject",
+      "description": "Policy when merge introduces a reference cycle."
+    },
+    "defRenameStrategy": {
+      "type": "enum",
+      "values": [
+        "track-by-hash",
+        "track-by-similarity",
+        "require-explicit-map"
+      ],
+      "default": "track-by-hash",
+      "description": "How to detect/match moved/renamed $defs entries."
+    },
+    "compositionStrategy": {
+      "type": "enum",
+      "values": [
+        "flatten",
+        "preserve"
+      ],
+      "default": "flatten",
+      "description": "Whether to inline/flatten allOf/anyOf/oneOf during combine."
+    },
+    "disjunctionStrategy": {
+      "type": "enum",
+      "values": [
+        "union",
+        "prefer-current",
+        "prefer-incoming",
+        "minimize-alternatives"
+      ],
+      "default": "minimize-alternatives",
+      "description": "How to reconcile anyOf/oneOf lists."
+    },
+    "altDedupStrategy": {
+      "type": "enum",
+      "values": [
+        "by-hash",
+        "by-serialization"
+      ],
+      "default": "by-hash",
+      "description": "How to deduplicate alternatives in composition keywords."
+    },
+    "conditionalStrategy": {
+      "type": "enum",
+      "values": [
+        "preserve-if",
+        "preserve-then-else",
+        "re-evaluate"
+      ],
+      "default": "preserve-if",
+      "description": "Preference when if/then/else structures diverge."
+    },
+    "wideningGuard": {
+      "type": "enum",
+      "values": [
+        "reject",
+        "allow-with-warning"
+      ],
+      "default": "reject",
+      "description": "Global policy for changes that widen validation (more inputs allowed)."
+    },
+    "tighteningGuard": {
+      "type": "enum",
+      "values": [
+        "allow",
+        "require-review"
+      ],
+      "default": "allow",
+      "description": "Global policy for changes that tighten validation (fewer inputs allowed)."
+    },
+    "unknownKeywordPolicy": {
+      "type": "enum",
+      "values": [
+        "preserve",
+        "drop",
+        "fail"
+      ],
+      "default": "preserve",
+      "description": "What to do with unknown or vendor-extension keywords during merge."
+    }
+  },
+  "templatePlaceholders": {
+    "description": "Placeholders you can substitute when rendering conflict descriptions.",
+    "placeholders": {
+      "{path}": "JSON Pointer path of the node where the conflict is detected (relative to root).",
+      "{keyword}": "The JSON Schema keyword involved (e.g., properties, items, allOf).",
+      "{property}": "A property name when conflict refers to an object property.",
+      "{base}": "Value in the base schema (stringified, abbreviated when large).",
+      "{current}": "Value in the current schema (stringified).",
+      "{incoming}": "Value in the incoming schema (stringified).",
+      "{from}": "Shorthand for previous value (e.g., current) or type before change.",
+      "{to}": "Shorthand for next value (e.g., incoming) or type after change.",
+      "{ref}": "The $ref text (if applicable).",
+      "{oldUri}": "Old base URI or identifier when applicable.",
+      "{newUri}": "New base URI or identifier when applicable.",
+      "{defsKey}": "The key under $defs affected by rename/move.",
+      "{index}": "Array index when applicable (prefixItems/tuple conflicts).",
+      "{reason}": "Short reason emitted by validator/static analysis for incompatibilities.",
+      "{safety}": "Computed safety classification (tighten|loosen|neutral)."
+    }
+  }
+}

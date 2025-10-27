@@ -6,6 +6,13 @@ import { compareDocumentVersions, applyImportPatches } from '@/lib/importVersion
 // ============================================================================
 
 export type ConflictType =
+  // Schema/Meta Conflicts
+  | '$schema_version_mismatch'
+  | 'id_base_uri_changed'
+  | 'ref_target_changed'
+  | 'ref_cycle_detected'
+  | 'defs_renamed_moved'
+  
   // Property Structure Conflicts
   | 'property_removed_required'
   | 'property_removed_optional'
@@ -22,46 +29,88 @@ export type ConflictType =
   | 'type_object_to_array'
   | 'type_nullable_changed'
   
-  // Value Conflicts - Arrays
+  // Array Conflicts
   | 'array_items_added'
   | 'array_items_removed'
   | 'array_items_reordered'
   | 'array_items_modified'
   | 'array_length_mismatch'
   | 'array_type_conflict'
+  | 'tuple_items_changed'
+  | 'items_schema_changed'
+  | 'uniqueItems_changed'
+  | 'contains_changed'
+  | 'minItems_changed'
+  | 'maxItems_changed'
   
-  // Value Conflicts - Objects
+  // Object Conflicts
   | 'object_property_added'
   | 'object_property_removed'
   | 'object_property_value_changed'
   | 'object_structure_diverged'
   | 'object_nested_conflict'
+  | 'additionalProperties_changed'
+  | 'unevaluatedProperties_changed'
+  | 'patternProperties_changed'
+  | 'propertyNames_changed'
+  | 'dependentRequired_changed'
+  | 'dependentSchemas_changed'
+  | 'additionalProperties_boolean_flip'
   
-  // Value Conflicts - Primitives
+  // Primitive Conflicts
   | 'primitive_string_conflict'
   | 'primitive_number_conflict'
   | 'primitive_boolean_conflict'
   | 'primitive_null_vs_value'
+  | 'const_changed'
   
-  // Schema-Specific Conflicts (OpenAPI/JSON Schema)
+  // Composition/Conditional
+  | 'allOf_changed'
+  | 'anyOf_changed'
+  | 'oneOf_changed'
+  | 'not_changed'
+  | 'schema_composition_incompatible'
+  | 'conditional_structure_changed'
+  | 'conditional_invalidated'
+  
+  // Enum/Required Conflicts
   | 'enum_values_added'
   | 'enum_values_removed'
-  | 'required_array_modified'
+  | 'enum_to_const'
+  | 'const_to_enum'
+  | 'enum_order_changed'
+  | 'required_entry_removed'
+  | 'required_entry_added'
+  
+  // Constraint Conflicts
   | 'constraint_tightened'
   | 'constraint_loosened'
-  | 'format_changed'
-  | 'pattern_changed'
+  | 'multipleOf_changed'
+  | 'min_changed'
+  | 'max_changed'
+  | 'minLength_changed'
+  | 'maxLength_changed'
+  | 'format_added'
+  | 'format_removed'
+  | 'pattern_added'
+  | 'pattern_removed'
+  
+  // Reference Conflicts
   | 'reference_broken'
   | 'reference_added'
-  | 'schema_composition_conflict'
   
-  // Semantic/Content Conflicts
+  // Semantic/Metadata Conflicts
+  | 'title_conflict'
   | 'description_conflict'
   | 'example_conflict'
   | 'default_value_conflict'
   | 'deprecated_status_conflict'
+  | 'readOnly_writeOnly_changed'
+  | 'contentMediaType_changed'
+  | 'contentEncoding_changed'
+  | 'contentSchema_changed'
   
-  // Legacy types for backward compatibility
+  // Legacy types (backward compatibility)
   | 'property_removed'
   | 'property_added'
   | 'type_changed'
@@ -78,7 +127,11 @@ export type ConflictType =
   | 'type_mismatch'
   | 'duplicate_key'
   | 'incompatible_schema'
-  | 'structure_conflict';
+  | 'structure_conflict'
+  | 'required_array_modified'
+  | 'format_changed'
+  | 'pattern_changed'
+  | 'schema_composition_conflict';
 
 // ============================================================================
 // RESOLUTION PARAMETERS
@@ -137,28 +190,57 @@ export const DEFAULT_RESOLUTION_PARAMETERS: ResolutionParameters = {
 
 export interface ConflictResolutionPreferences {
   // Array preferences
-  arrayOrderPreference?: ResolutionParameters['arrayOrderPreference'];
-  arrayDuplicateHandling?: ResolutionParameters['arrayDuplicateHandling'];
-  arrayMergeStrategy?: ResolutionParameters['arrayMergeStrategy'];
+  arrayOrderPreference?: 'preserve-current' | 'preserve-incoming' | 'sort-alpha' | 'sort-reverse';
+  arrayDuplicateHandling?: 'keep-first' | 'keep-last' | 'keep-all' | 'remove-all';
+  arrayMergeStrategy?: 'union' | 'intersection' | 'difference-current' | 'difference-incoming';
+  tuplePolicy?: 'align-by-index' | 'align-by-similarity' | 'pad-shorter';
+  uniqueItemsPolicy?: 'prefer-true' | 'prefer-false' | 'prefer-current' | 'prefer-incoming';
   
   // String preferences
-  stringMergeStrategy?: ResolutionParameters['stringMergeStrategy'];
-  stringConcatenationSeparator?: ResolutionParameters['stringConcatenationSeparator'];
+  stringMergeStrategy?: 'concatenate' | 'prefer-longer' | 'prefer-shorter' | 'prefer-current' | 'prefer-incoming';
+  stringConcatenationSeparator?: string;
+  stringNormalization?: 'none' | 'trim' | 'collapse-whitespace' | 'lowercase' | 'uppercase' | 'nfc';
   
   // Object preferences
-  objectPropertyConflict?: ResolutionParameters['objectPropertyConflict'];
+  objectPropertyConflict?: 'merge-recursive' | 'prefer-current' | 'prefer-incoming';
   objectMergeDepth?: number;
+  additionalPropsStrategy?: 'strictest' | 'loosest' | 'prefer-current' | 'prefer-incoming';
+  keyNormalization?: 'case-sensitive' | 'case-insensitive' | 'unicode-nfc';
+  propertyRenamePolicy?: 'reject' | 'auto-suffix' | 'namespace-with-prefix';
+  dependentRequiredStrategy?: 'union' | 'intersection' | 'strict-current' | 'strict-incoming';
   
-  // Schema preferences
-  enumStrategy?: ResolutionParameters['enumStrategy'];
-  constraintStrategy?: ResolutionParameters['constraintStrategy'];
-  descriptionStrategy?: ResolutionParameters['descriptionStrategy'];
+  // Schema-specific preferences
+  enumStrategy?: 'union' | 'intersection' | 'strict-current' | 'strict-incoming';
+  constraintStrategy?: 'strictest' | 'loosest' | 'current' | 'incoming';
+  formatStrategy?: 'prefer-stricter' | 'prefer-laxer' | 'prefer-current' | 'prefer-incoming';
+  descriptionStrategy?: 'concatenate' | 'prefer-current' | 'prefer-incoming' | 'prefer-longer';
+  examplesStrategy?: 'union' | 'prefer-current' | 'prefer-incoming' | 'dedupe-by-hash';
+  deprecationStrategy?: 'prefer-deprecated' | 'prefer-non-deprecated' | 'prefer-current' | 'prefer-incoming';
   
   // Numeric preferences
   numericStrategy?: 'average' | 'min' | 'max' | 'current' | 'incoming';
+  numericPrecision?: number;
+  numericTieBreak?: 'current' | 'incoming' | 'min' | 'max';
   
   // Boolean preferences
   booleanStrategy?: 'and' | 'or' | 'current' | 'incoming';
+  
+  // Schema/Reference preferences
+  schemaVersionStrategy?: 'prefer-current' | 'prefer-incoming' | 'max-supported' | 'min-common';
+  refNormalization?: 'preserve' | 'rebase' | 'dereference';
+  refCycleStrategy?: 'reject' | 'inline-once' | 'break-with-anchor';
+  defRenameStrategy?: 'track-by-hash' | 'track-by-similarity' | 'require-explicit-map';
+  
+  // Composition preferences
+  compositionStrategy?: 'flatten' | 'preserve';
+  disjunctionStrategy?: 'union' | 'prefer-current' | 'prefer-incoming' | 'minimize-alternatives';
+  altDedupStrategy?: 'by-hash' | 'by-serialization';
+  conditionalStrategy?: 'preserve-if' | 'preserve-then-else' | 're-evaluate';
+  
+  // Guards
+  wideningGuard?: 'reject' | 'allow-with-warning';
+  tighteningGuard?: 'allow' | 'require-review';
+  unknownKeywordPolicy?: 'preserve' | 'drop' | 'fail';
 }
 
 export interface MergeConflict {
@@ -170,7 +252,7 @@ export interface MergeConflict {
   documentDestination: string;
   values: any[];
   suggestedResolution?: string;
-  resolution?: 'current' | 'incoming' | 'combine' | 'interpolate' | 'extrapolate' | 'custom' | 'unresolved';
+  resolution?: 'current' | 'incoming' | 'combine' | 'interpolate' | 'extrapolate' | 'custom' | 'unresolved' | 'strictest';
   customValue?: any;
   currentValue?: any;
   incomingValue?: any;
