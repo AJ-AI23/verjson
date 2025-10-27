@@ -90,6 +90,10 @@ export type ConflictType =
   | 'max_changed'
   | 'minLength_changed'
   | 'maxLength_changed'
+  | 'minProperties_changed'
+  | 'maxProperties_changed'
+  | 'minContains_changed'
+  | 'maxContains_changed'
   | 'format_added'
   | 'format_removed'
   | 'pattern_added'
@@ -1208,12 +1212,31 @@ export class DocumentMergeEngine {
     incomingSchema: any,
     importConflictType: string
   ): ConflictType {
+    // Extract path segments
+    const segments = path.split('/').filter(Boolean);
+    const lastSegment = segments[segments.length - 1];
+    const parentPath = '/' + segments.slice(0, -1).join('/');
+
+    // Root-level schema meta conflicts
+    if (path === '/$schema') {
+      return '$schema_version_mismatch';
+    }
+    if (path === '/$id' || path === '/id') {
+      return 'id_base_uri_changed';
+    }
+
     // Handle property additions/removals
     if (currentValue === undefined && incomingValue !== undefined) {
-      return this.detectPropertyAddition(path, incomingValue, incomingSchema);
+      return this.detectPropertyAddition(path, incomingValue, incomingSchema, currentSchema, segments);
     }
     if (currentValue !== undefined && incomingValue === undefined) {
-      return this.detectPropertyRemoval(path, currentValue, currentSchema);
+      return this.detectPropertyRemoval(path, currentValue, currentSchema, incomingSchema, segments);
+    }
+
+    // Check for schema-specific keyword conflicts first
+    const keywordConflict = this.detectKeywordConflict(lastSegment, currentValue, incomingValue, path, currentSchema, incomingSchema);
+    if (keywordConflict) {
+      return keywordConflict;
     }
 
     // Handle null vs value conflicts
@@ -1226,58 +1249,111 @@ export class DocumentMergeEngine {
     const incomingType = this.getValueType(incomingValue);
     
     if (currentType !== incomingType) {
-      return this.detectTypeChange(currentType, incomingType);
+      return this.detectTypeChange(currentType, incomingType, path, currentValue, incomingValue);
     }
 
     // Handle same-type conflicts
     switch (currentType) {
       case 'array':
-        return this.detectArrayConflict(currentValue, incomingValue, path);
+        return this.detectArrayConflict(currentValue, incomingValue, path, lastSegment);
       case 'object':
-        return this.detectObjectConflict(currentValue, incomingValue, path, currentSchema, incomingSchema);
+        return this.detectObjectConflict(currentValue, incomingValue, path, currentSchema, incomingSchema, lastSegment);
       case 'string':
-        return this.detectStringConflict(currentValue, incomingValue, path, currentSchema, incomingSchema);
+        return this.detectStringConflict(currentValue, incomingValue, path, lastSegment);
       case 'number':
         return 'primitive_number_conflict';
       case 'boolean':
-        return 'primitive_boolean_conflict';
+        return this.detectBooleanConflict(currentValue, incomingValue, path, lastSegment);
       default:
         return 'value_changed_primitive';
     }
   }
 
-  private static detectPropertyAddition(path: string, value: any, schema: any): ConflictType {
-    const propertyName = path.split('.').pop() || '';
-    const parentPath = path.substring(0, path.lastIndexOf('.'));
-    const parentSchema = this.getValueAtPath(schema, parentPath);
+  private static detectPropertyAddition(
+    path: string, 
+    value: any, 
+    incomingSchema: any, 
+    currentSchema: any,
+    segments: string[]
+  ): ConflictType {
+    const propertyName = segments[segments.length - 1];
+    
+    // Check for reference broken (added property with broken $ref)
+    if (typeof value === 'object' && value?.$ref) {
+      const refExists = this.checkReferenceExists(value.$ref, incomingSchema);
+      if (!refExists) {
+        return 'reference_broken';
+      }
+      return 'reference_added';
+    }
 
     // Check if it's a duplicate (exists elsewhere)
-    if (this.propertyExistsElsewhere(propertyName, parentSchema, path)) {
+    const parentPath = '/' + segments.slice(0, -1).join('/');
+    const incomingParent = this.getValueAtPath(incomingSchema, parentPath);
+    
+    if (this.propertyExistsElsewhere(propertyName, incomingParent, path)) {
       return 'property_added_duplicate';
     }
 
-    return 'property_added_new';
+    return 'object_property_added';
   }
 
-  private static detectPropertyRemoval(path: string, value: any, schema: any): ConflictType {
-    const propertyName = path.split('.').pop() || '';
-    const parentPath = path.substring(0, path.lastIndexOf('.'));
-    const parentSchema = this.getValueAtPath(schema, parentPath);
+  private static detectPropertyRemoval(
+    path: string, 
+    value: any, 
+    currentSchema: any,
+    incomingSchema: any,
+    segments: string[]
+  ): ConflictType {
+    const propertyName = segments[segments.length - 1];
+    const parentPath = '/' + segments.slice(0, -1).join('/');
+    const currentParent = this.getValueAtPath(currentSchema, parentPath);
+    const incomingParent = this.getValueAtPath(incomingSchema, parentPath);
 
     // Check if property is in required array
-    if (parentSchema?.required?.includes(propertyName)) {
+    if (currentParent?.required?.includes(propertyName)) {
       return 'property_removed_required';
     }
 
+    // Check for $defs/$definitions rename/move
+    if (segments.includes('$defs') || segments.includes('definitions')) {
+      const incomingDefs = incomingSchema.$defs || incomingSchema.definitions || {};
+      const hasRenamedDef = Object.keys(incomingDefs).some(key => 
+        this.levenshteinDistance(key, propertyName) <= 3
+      );
+      if (hasRenamedDef) {
+        return 'defs_renamed_moved';
+      }
+    }
+
     // Check if property might be renamed (exists with similar name elsewhere)
-    if (this.possiblyRenamed(propertyName, parentSchema)) {
+    if (this.possiblyRenamed(propertyName, incomingParent)) {
       return 'property_renamed';
     }
 
-    return 'property_removed_optional';
+    return 'object_property_removed';
   }
 
-  private static detectTypeChange(currentType: string, incomingType: string): ConflictType {
+  private static detectTypeChange(
+    currentType: string, 
+    incomingType: string, 
+    path: string,
+    currentValue: any,
+    incomingValue: any
+  ): ConflictType {
+    // Check for type expansion: single type -> array of types (e.g., "string" -> ["string", "null"])
+    if (currentType === 'string' && incomingType === 'array' && 
+        typeof currentValue === 'string' && Array.isArray(incomingValue)) {
+      // This is likely a JSON Schema type field being expanded
+      return 'type_expanded';
+    }
+
+    // Check for type collapse: array of types -> single type
+    if (currentType === 'array' && incomingType === 'string' &&
+        Array.isArray(currentValue) && typeof incomingValue === 'string') {
+      return 'type_collapsed';
+    }
+
     // Primitive type changes
     if (currentType !== 'object' && currentType !== 'array' && 
         incomingType !== 'object' && incomingType !== 'array') {
@@ -1307,7 +1383,39 @@ export class DocumentMergeEngine {
     return 'type_changed';
   }
 
-  private static detectArrayConflict(currentArray: any[], incomingArray: any[], path: string): ConflictType {
+  private static detectArrayConflict(currentArray: any[], incomingArray: any[], path: string, keyword: string): ConflictType {
+    // Check for specific array keyword conflicts
+    if (keyword === 'required') {
+      const added = incomingArray.filter(item => !currentArray.includes(item));
+      const removed = currentArray.filter(item => !incomingArray.includes(item));
+      
+      if (added.length > 0 && removed.length === 0) {
+        return 'required_entry_added';
+      }
+      if (removed.length > 0 && added.length === 0) {
+        return 'required_entry_removed';
+      }
+      if (added.length > 0 && removed.length > 0) {
+        return 'required_array_modified';
+      }
+    }
+
+    if (keyword === 'enum') {
+      const added = incomingArray.filter(item => !currentArray.includes(item));
+      const removed = currentArray.filter(item => !incomingArray.includes(item));
+      
+      if (added.length > 0 && removed.length === 0) {
+        return 'enum_values_added';
+      }
+      if (removed.length > 0) {
+        return 'enum_values_removed';
+      }
+    }
+
+    if (keyword === 'allOf' || keyword === 'anyOf' || keyword === 'oneOf') {
+      return `${keyword}_changed` as ConflictType;
+    }
+
     const currentLength = currentArray.length;
     const incomingLength = incomingArray.length;
 
@@ -1363,7 +1471,8 @@ export class DocumentMergeEngine {
     incomingObj: any, 
     path: string,
     currentSchema: any,
-    incomingSchema: any
+    incomingSchema: any,
+    keyword: string
   ): ConflictType {
     const currentKeys = Object.keys(currentObj);
     const incomingKeys = Object.keys(incomingObj);
@@ -1415,20 +1524,153 @@ export class DocumentMergeEngine {
     currentStr: string,
     incomingStr: string,
     path: string,
-    currentSchema: any,
-    incomingSchema: any
+    keyword: string
   ): ConflictType {
     // Check for description conflicts
-    if (path.endsWith('.description') || path.includes('.description.')) {
+    if (keyword === 'description' || path.endsWith('/description')) {
       return 'description_conflict';
     }
 
     // Check for example conflicts
-    if (path.endsWith('.example') || path.includes('.examples')) {
+    if (keyword === 'example' || keyword === 'examples' || path.includes('/example')) {
       return 'example_conflict';
     }
 
+    // Check for title conflicts
+    if (keyword === 'title') {
+      return 'title_conflict';
+    }
+
     return 'primitive_string_conflict';
+  }
+
+  private static detectBooleanConflict(
+    currentBool: boolean,
+    incomingBool: boolean,
+    path: string,
+    keyword: string
+  ): ConflictType {
+    // Check for specific boolean flip conflicts
+    if (keyword === 'additionalProperties') {
+      return 'additionalProperties_boolean_flip';
+    }
+    if (keyword === 'uniqueItems') {
+      return 'uniqueItems_changed';
+    }
+    if (keyword === 'readOnly' || keyword === 'writeOnly') {
+      return 'readOnly_writeOnly_changed';
+    }
+    if (keyword === 'deprecated') {
+      return 'deprecated_status_conflict';
+    }
+    if (keyword === 'nullable') {
+      return 'type_nullable_changed';
+    }
+    return 'primitive_boolean_conflict';
+  }
+
+  private static detectKeywordConflict(
+    keyword: string,
+    currentValue: any,
+    incomingValue: any,
+    path: string,
+    currentSchema: any,
+    incomingSchema: any
+  ): ConflictType | null {
+    // Handle specific JSON Schema keyword conflicts
+
+    // Meta and structural keywords
+    if (keyword === '$schema') return '$schema_version_mismatch';
+    if (keyword === '$id' || keyword === 'id') return 'id_base_uri_changed';
+    
+    // Specific constraint keywords - return granular types
+    if (keyword === 'minLength') return 'minLength_changed';
+    if (keyword === 'maxLength') return 'maxLength_changed';
+    if (keyword === 'minimum') return 'min_changed';
+    if (keyword === 'maximum') return 'max_changed';
+    if (keyword === 'minItems') return 'minItems_changed';
+    if (keyword === 'maxItems') return 'maxItems_changed';
+    if (keyword === 'minProperties') return 'minProperties_changed';
+    if (keyword === 'maxProperties') return 'maxProperties_changed';
+    if (keyword === 'minContains') return 'minContains_changed';
+    if (keyword === 'maxContains') return 'maxContains_changed';
+    if (keyword === 'multipleOf') return 'multipleOf_changed';
+
+    // Pattern and format
+    if (keyword === 'pattern') {
+      if (currentValue === undefined) return 'pattern_added';
+      if (incomingValue === undefined) return 'pattern_removed';
+      return 'pattern_changed';
+    }
+    if (keyword === 'format') {
+      if (currentValue === undefined) return 'format_added';
+      if (incomingValue === undefined) return 'format_removed';
+      return 'format_changed';
+    }
+
+    // Const and default
+    if (keyword === 'const') return 'const_changed';
+    if (keyword === 'default') return 'default_value_conflict';
+
+    // Items and tuple handling
+    if (keyword === 'items') return 'items_schema_changed';
+    if (keyword === 'prefixItems') return 'tuple_items_changed';
+    if (keyword === 'contains') return 'contains_changed';
+
+    // Property patterns
+    if (keyword === 'propertyNames') return 'propertyNames_changed';
+    if (keyword === 'patternProperties') return 'patternProperties_changed';
+    if (keyword === 'additionalProperties') {
+      // Check if it's a boolean flip
+      if (typeof currentValue === 'boolean' && typeof incomingValue === 'boolean') {
+        return 'additionalProperties_boolean_flip';
+      }
+      return 'additionalProperties_changed';
+    }
+    if (keyword === 'unevaluatedProperties') return 'unevaluatedProperties_changed';
+
+    // Composition keywords
+    if (keyword === 'allOf') return 'allOf_changed';
+    if (keyword === 'anyOf') return 'anyOf_changed';
+    if (keyword === 'oneOf') return 'oneOf_changed';
+    if (keyword === 'not') return 'not_changed';
+
+    // Conditional keywords
+    if (keyword === 'if' || keyword === 'then' || keyword === 'else') {
+      return 'conditional_structure_changed';
+    }
+
+    // Dependencies
+    if (keyword === 'dependentRequired') return 'dependentRequired_changed';
+    if (keyword === 'dependentSchemas') return 'dependentSchemas_changed';
+
+    // Boolean properties
+    if (keyword === 'uniqueItems') return 'uniqueItems_changed';
+    if (keyword === 'readOnly' || keyword === 'writeOnly') return 'readOnly_writeOnly_changed';
+    if (keyword === 'deprecated') return 'deprecated_status_conflict';
+    if (keyword === 'nullable') return 'type_nullable_changed';
+
+    // Semantic keywords
+    if (keyword === 'description') return 'description_conflict';
+    if (keyword === 'title') return 'title_conflict';
+    if (keyword === 'examples' || keyword === 'example') return 'example_conflict';
+
+    return null;
+  }
+
+  private static checkReferenceExists(ref: string, schema: any): boolean {
+    if (!ref || !ref.startsWith('#/')) return false;
+    
+    const path = ref.substring(2); // Remove '#/'
+    const segments = path.split('/');
+    
+    let current = schema;
+    for (const segment of segments) {
+      if (!current || typeof current !== 'object') return false;
+      current = current[segment];
+    }
+    
+    return current !== undefined;
   }
 
   private static detectSchemaSpecificConflict(
@@ -1438,78 +1680,64 @@ export class DocumentMergeEngine {
     currentSchema: any,
     incomingSchema: any
   ): ConflictType | null {
-    // Enum conflicts
-    if (currentObj.enum && incomingObj.enum) {
-      const currentEnum = new Set(currentObj.enum);
-      const incomingEnum = new Set(incomingObj.enum);
+    // Check for schema composition incompatibility (e.g., minContains > maxContains)
+    if (incomingObj.minContains !== undefined && incomingObj.maxContains !== undefined) {
+      if (incomingObj.minContains > incomingObj.maxContains) {
+        return 'schema_composition_incompatible';
+      }
+    }
+    if (incomingObj.minItems !== undefined && incomingObj.maxItems !== undefined) {
+      if (incomingObj.minItems > incomingObj.maxItems) {
+        return 'schema_composition_incompatible';
+      }
+    }
+    if (incomingObj.minLength !== undefined && incomingObj.maxLength !== undefined) {
+      if (incomingObj.minLength > incomingObj.maxLength) {
+        return 'schema_composition_incompatible';
+      }
+    }
+    if (incomingObj.minimum !== undefined && incomingObj.maximum !== undefined) {
+      if (incomingObj.minimum > incomingObj.maximum) {
+        return 'schema_composition_incompatible';
+      }
+    }
+    if (incomingObj.minProperties !== undefined && incomingObj.maxProperties !== undefined) {
+      if (incomingObj.minProperties > incomingObj.maxProperties) {
+        return 'schema_composition_incompatible';
+      }
+    }
+
+    // Check for type expansion (e.g., "string" -> ["string", "null"])
+    if (currentObj.type && incomingObj.type) {
+      const currentIsArray = Array.isArray(currentObj.type);
+      const incomingIsArray = Array.isArray(incomingObj.type);
       
-      const added = [...incomingEnum].filter(v => !currentEnum.has(v));
-      const removed = [...currentEnum].filter(v => !incomingEnum.has(v));
-
-      if (added.length > 0 && removed.length === 0) {
-        return 'enum_values_added';
+      if (!currentIsArray && incomingIsArray) {
+        return 'type_expanded';
       }
-      if (removed.length > 0) {
-        return 'enum_values_removed';
+      if (currentIsArray && !incomingIsArray) {
+        return 'type_collapsed';
       }
     }
 
-    // Required array conflicts
-    if (currentObj.required && incomingObj.required) {
-      if (JSON.stringify(currentObj.required) !== JSON.stringify(incomingObj.required)) {
-        return 'required_array_modified';
-      }
-    }
-
-    // Format conflicts
-    if (currentObj.format !== incomingObj.format && (currentObj.format || incomingObj.format)) {
-      return 'format_changed';
-    }
-
-    // Pattern conflicts
-    if (currentObj.pattern !== incomingObj.pattern && (currentObj.pattern || incomingObj.pattern)) {
-      return 'pattern_changed';
-    }
-
-    // Constraint conflicts
-    const constraintFields = ['minLength', 'maxLength', 'minimum', 'maximum', 'minItems', 'maxItems', 'minProperties', 'maxProperties'];
-    for (const field of constraintFields) {
-      if (currentObj[field] !== incomingObj[field] && (currentObj[field] !== undefined || incomingObj[field] !== undefined)) {
-        const tightened = this.isConstraintTightened(field, currentObj[field], incomingObj[field]);
-        return tightened ? 'constraint_tightened' : 'constraint_loosened';
-      }
-    }
-
-    // Reference conflicts
-    if (currentObj.$ref !== incomingObj.$ref) {
-      if (!currentObj.$ref && incomingObj.$ref) {
-        return 'reference_added';
-      }
-      if (currentObj.$ref && !incomingObj.$ref) {
+    // Reference conflicts - check if reference target exists
+    if (incomingObj.$ref && !currentObj.$ref) {
+      const refExists = this.checkReferenceExists(incomingObj.$ref, incomingSchema);
+      if (!refExists) {
         return 'reference_broken';
       }
-      return 'reference_broken';
+      return 'reference_added';
     }
-
-    // Schema composition conflicts
-    if ((currentObj.allOf || currentObj.anyOf || currentObj.oneOf) &&
-        (incomingObj.allOf || incomingObj.anyOf || incomingObj.oneOf)) {
-      return 'schema_composition_conflict';
+    if (currentObj.$ref && !incomingObj.$ref) {
+      return 'reference_broken'; // Removed reference is also a broken reference
     }
-
-    // Default value conflicts
-    if (currentObj.default !== incomingObj.default && (currentObj.default !== undefined || incomingObj.default !== undefined)) {
-      return 'default_value_conflict';
-    }
-
-    // Deprecation status conflicts
-    if (currentObj.deprecated !== incomingObj.deprecated) {
-      return 'deprecated_status_conflict';
-    }
-
-    // Nullable changed
-    if (currentObj.nullable !== incomingObj.nullable) {
-      return 'type_nullable_changed';
+    if (currentObj.$ref && incomingObj.$ref && currentObj.$ref !== incomingObj.$ref) {
+      // Check if incoming ref is broken
+      const refExists = this.checkReferenceExists(incomingObj.$ref, incomingSchema);
+      if (!refExists) {
+        return 'reference_broken';
+      }
+      return 'ref_target_changed';
     }
 
     return null;
