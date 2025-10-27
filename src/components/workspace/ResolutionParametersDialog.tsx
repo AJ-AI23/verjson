@@ -52,7 +52,7 @@ export const ResolutionParametersDialog: React.FC<ResolutionParametersDialogProp
         categories['String Handling'].push([key, def]);
       } else if (key.startsWith('object') || key.includes('Property')) {
         categories['Object Handling'].push([key, def]);
-      } else if (['enumStrategy', 'constraintStrategy', 'formatStrategy', 'descriptionStrategy', 'examplesStrategy', 'deprecationStrategy', 'defRenameStrategy', 'renameDetectionStrategy'].includes(key)) {
+      } else if (['enumStrategy', 'constraintStrategy', 'formatStrategy', 'descriptionStrategy', 'examplesStrategy', 'deprecationStrategy'].includes(key)) {
         categories['Schema-Specific'].push([key, def]);
       } else {
         categories['Advanced'].push([key, def]);
@@ -60,6 +60,20 @@ export const ResolutionParametersDialog: React.FC<ResolutionParametersDialogProp
     });
 
     return categories;
+  }, []);
+
+  // Separate conflict detection strategies
+  const detectionStrategies = useMemo(() => {
+    const allPrefs = conflictRegistry.getAllPreferences();
+    const strategies: Array<[string, any]> = [];
+    
+    Object.entries(allPrefs).forEach(([key, def]) => {
+      if (key === 'renameDetectionStrategy' || key === 'defRenameStrategy') {
+        strategies.push([key, def]);
+      }
+    });
+    
+    return strategies;
   }, []);
 
   const formatLabel = (key: string) => {
@@ -176,8 +190,9 @@ export const ResolutionParametersDialog: React.FC<ResolutionParametersDialogProp
         </DialogHeader>
         
         <Tabs defaultValue="modes" className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="modes">Merge Modes</TabsTrigger>
+            <TabsTrigger value="detection">Conflict Detection</TabsTrigger>
             <TabsTrigger value="preferences">Custom Preferences</TabsTrigger>
           </TabsList>
           
@@ -232,6 +247,26 @@ export const ResolutionParametersDialog: React.FC<ResolutionParametersDialogProp
                   </div>
                 );
               })}
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="detection" className="flex-1 overflow-y-auto space-y-4">
+            <div className="text-sm text-muted-foreground mb-4">
+              Configure how conflicts are detected during the merge process.
+            </div>
+            
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  <h3 className="font-semibold text-sm">Detection Strategies</h3>
+                </div>
+                <Separator />
+                
+                <div className="grid grid-cols-1 gap-4">
+                  {detectionStrategies.map(([key, def]) => renderPreferenceInput(key, def))}
+                </div>
+              </div>
             </div>
           </TabsContent>
           
