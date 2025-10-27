@@ -1212,68 +1212,99 @@ export class DocumentMergeEngine {
     incomingSchema: any,
     importConflictType: string
   ): ConflictType {
+    console.group(`🔍 Detecting conflict type for: ${path}`);
+    console.log('Current value:', currentValue);
+    console.log('Incoming value:', incomingValue);
+    console.log('Import conflict type:', importConflictType);
+
     // Extract path segments
     const segments = path.split('/').filter(Boolean);
     const lastSegment = segments[segments.length - 1];
     const parentPath = '/' + segments.slice(0, -1).join('/');
-
-    // Debug logging for meta conflicts
-    if (lastSegment === '$schema' || lastSegment === '$id' || lastSegment === 'id') {
-      console.log('🔍 Meta conflict detected:', { path, lastSegment, currentValue, incomingValue });
-    }
+    console.log('Path analysis:', { segments, lastSegment, parentPath });
 
     // Root-level schema meta conflicts - check both path formats
     if (path === '/$schema' || lastSegment === '$schema') {
-      console.log('✅ Returning $schema_version_mismatch');
+      console.log('✅ Detected: $schema_version_mismatch');
+      console.groupEnd();
       return '$schema_version_mismatch';
     }
     if (path === '/$id' || path === '/id' || lastSegment === '$id' || lastSegment === 'id') {
-      console.log('✅ Returning id_base_uri_changed');
+      console.log('✅ Detected: id_base_uri_changed');
+      console.groupEnd();
       return 'id_base_uri_changed';
     }
 
     // Handle property additions/removals
     if (currentValue === undefined && incomingValue !== undefined) {
-      return this.detectPropertyAddition(path, incomingValue, incomingSchema, currentSchema, segments);
+      console.log('🆕 Property addition detected');
+      const result = this.detectPropertyAddition(path, incomingValue, incomingSchema, currentSchema, segments);
+      console.log('✅ Detected:', result);
+      console.groupEnd();
+      return result;
     }
     if (currentValue !== undefined && incomingValue === undefined) {
-      return this.detectPropertyRemoval(path, currentValue, currentSchema, incomingSchema, segments);
+      console.log('🗑️ Property removal detected');
+      const result = this.detectPropertyRemoval(path, currentValue, currentSchema, incomingSchema, segments);
+      console.log('✅ Detected:', result);
+      console.groupEnd();
+      return result;
     }
 
     // Check for schema-specific keyword conflicts first
+    console.log('🔑 Checking keyword conflicts...');
     const keywordConflict = this.detectKeywordConflict(lastSegment, currentValue, incomingValue, path, currentSchema, incomingSchema);
     if (keywordConflict) {
+      console.log('✅ Detected keyword conflict:', keywordConflict);
+      console.groupEnd();
       return keywordConflict;
     }
 
     // Handle null vs value conflicts
     if ((currentValue === null) !== (incomingValue === null)) {
+      console.log('✅ Detected: primitive_null_vs_value');
+      console.groupEnd();
       return 'primitive_null_vs_value';
     }
 
     // Handle type changes
     const currentType = this.getValueType(currentValue);
     const incomingType = this.getValueType(incomingValue);
+    console.log('Type analysis:', { currentType, incomingType });
     
     if (currentType !== incomingType) {
-      return this.detectTypeChange(currentType, incomingType, path, currentValue, incomingValue);
+      console.log('🔄 Type change detected');
+      const result = this.detectTypeChange(currentType, incomingType, path, currentValue, incomingValue);
+      console.log('✅ Detected:', result);
+      console.groupEnd();
+      return result;
     }
 
     // Handle same-type conflicts
+    console.log(`📊 Handling ${currentType} type conflict`);
+    let result: ConflictType;
     switch (currentType) {
       case 'array':
-        return this.detectArrayConflict(currentValue, incomingValue, path, lastSegment);
+        result = this.detectArrayConflict(currentValue, incomingValue, path, lastSegment);
+        break;
       case 'object':
-        return this.detectObjectConflict(currentValue, incomingValue, path, currentSchema, incomingSchema, lastSegment);
+        result = this.detectObjectConflict(currentValue, incomingValue, path, currentSchema, incomingSchema, lastSegment);
+        break;
       case 'string':
-        return this.detectStringConflict(currentValue, incomingValue, path, lastSegment);
+        result = this.detectStringConflict(currentValue, incomingValue, path, lastSegment);
+        break;
       case 'number':
-        return 'primitive_number_conflict';
+        result = 'primitive_number_conflict';
+        break;
       case 'boolean':
-        return this.detectBooleanConflict(currentValue, incomingValue, path, lastSegment);
+        result = this.detectBooleanConflict(currentValue, incomingValue, path, lastSegment);
+        break;
       default:
-        return 'value_changed_primitive';
+        result = 'value_changed_primitive';
     }
+    console.log('✅ Detected:', result);
+    console.groupEnd();
+    return result;
   }
 
   private static detectPropertyAddition(
@@ -1283,11 +1314,13 @@ export class DocumentMergeEngine {
     currentSchema: any,
     segments: string[]
   ): ConflictType {
+    console.log('  🆕 detectPropertyAddition:', { path, value, segments });
     const propertyName = segments[segments.length - 1];
     
     // Check for reference broken (added property with broken $ref)
     if (typeof value === 'object' && value?.$ref) {
       const refExists = this.checkReferenceExists(value.$ref, incomingSchema);
+      console.log('  🔗 Reference check:', { ref: value.$ref, exists: refExists });
       if (!refExists) {
         return 'reference_broken';
       }
@@ -1298,7 +1331,9 @@ export class DocumentMergeEngine {
     const parentPath = '/' + segments.slice(0, -1).join('/');
     const incomingParent = this.getValueAtPath(incomingSchema, parentPath);
     
-    if (this.propertyExistsElsewhere(propertyName, incomingParent, path)) {
+    const isDuplicate = this.propertyExistsElsewhere(propertyName, incomingParent, path);
+    console.log('  🔄 Duplicate check:', { propertyName, isDuplicate });
+    if (isDuplicate) {
       return 'property_added_duplicate';
     }
 
@@ -1312,13 +1347,16 @@ export class DocumentMergeEngine {
     incomingSchema: any,
     segments: string[]
   ): ConflictType {
+    console.log('  🗑️ detectPropertyRemoval:', { path, value, segments });
     const propertyName = segments[segments.length - 1];
     const parentPath = '/' + segments.slice(0, -1).join('/');
     const currentParent = this.getValueAtPath(currentSchema, parentPath);
     const incomingParent = this.getValueAtPath(incomingSchema, parentPath);
 
     // Check if property is in required array
-    if (currentParent?.required?.includes(propertyName)) {
+    const isRequired = currentParent?.required?.includes(propertyName);
+    console.log('  ✔️ Required check:', { propertyName, isRequired, required: currentParent?.required });
+    if (isRequired) {
       return 'property_removed_required';
     }
 
@@ -1328,13 +1366,16 @@ export class DocumentMergeEngine {
       const hasRenamedDef = Object.keys(incomingDefs).some(key => 
         this.levenshteinDistance(key, propertyName) <= 3
       );
+      console.log('  🏷️ Defs rename check:', { propertyName, hasRenamedDef, incomingDefs: Object.keys(incomingDefs) });
       if (hasRenamedDef) {
         return 'defs_renamed_moved';
       }
     }
 
     // Check if property might be renamed (exists with similar name elsewhere)
-    if (this.possiblyRenamed(propertyName, incomingParent)) {
+    const possiblyRenamed = this.possiblyRenamed(propertyName, incomingParent);
+    console.log('  🔄 Rename check:', { propertyName, possiblyRenamed });
+    if (possiblyRenamed) {
       return 'property_renamed';
     }
 
@@ -1391,10 +1432,13 @@ export class DocumentMergeEngine {
   }
 
   private static detectArrayConflict(currentArray: any[], incomingArray: any[], path: string, keyword: string): ConflictType {
+    console.log('  📊 detectArrayConflict:', { keyword, path, currentLength: currentArray.length, incomingLength: incomingArray.length });
+    
     // Check for specific array keyword conflicts
     if (keyword === 'required') {
       const added = incomingArray.filter(item => !currentArray.includes(item));
       const removed = currentArray.filter(item => !incomingArray.includes(item));
+      console.log('  ✔️ Required array changes:', { added, removed });
       
       if (added.length > 0 && removed.length === 0) {
         return 'required_entry_added';
@@ -1533,29 +1577,37 @@ export class DocumentMergeEngine {
     path: string,
     keyword: string
   ): ConflictType {
+    console.log('  📝 detectStringConflict:', { keyword, path, currentStr, incomingStr });
+    
     // Check for schema meta conflicts FIRST
     if (keyword === '$schema' || path === '/$schema') {
+      console.log('  ✅ Matched $schema');
       return '$schema_version_mismatch';
     }
     if (keyword === '$id' || keyword === 'id' || path === '/$id' || path === '/id') {
+      console.log('  ✅ Matched $id/id');
       return 'id_base_uri_changed';
     }
 
     // Check for description conflicts
     if (keyword === 'description' || path.endsWith('/description')) {
+      console.log('  ✅ Matched description');
       return 'description_conflict';
     }
 
     // Check for example conflicts
     if (keyword === 'example' || keyword === 'examples' || path.includes('/example')) {
+      console.log('  ✅ Matched example');
       return 'example_conflict';
     }
 
     // Check for title conflicts
     if (keyword === 'title') {
+      console.log('  ✅ Matched title');
       return 'title_conflict';
     }
 
+    console.log('  ⚠️ Falling back to primitive_string_conflict');
     return 'primitive_string_conflict';
   }
 
@@ -1565,22 +1617,30 @@ export class DocumentMergeEngine {
     path: string,
     keyword: string
   ): ConflictType {
+    console.log('  🔘 detectBooleanConflict:', { keyword, path, currentBool, incomingBool });
+    
     // Check for specific boolean flip conflicts
     if (keyword === 'additionalProperties') {
+      console.log('  ✅ Matched additionalProperties');
       return 'additionalProperties_boolean_flip';
     }
     if (keyword === 'uniqueItems') {
+      console.log('  ✅ Matched uniqueItems');
       return 'uniqueItems_changed';
     }
     if (keyword === 'readOnly' || keyword === 'writeOnly') {
+      console.log('  ✅ Matched readOnly/writeOnly');
       return 'readOnly_writeOnly_changed';
     }
     if (keyword === 'deprecated') {
+      console.log('  ✅ Matched deprecated');
       return 'deprecated_status_conflict';
     }
     if (keyword === 'nullable') {
+      console.log('  ✅ Matched nullable');
       return 'type_nullable_changed';
     }
+    console.log('  ⚠️ Falling back to primitive_boolean_conflict');
     return 'primitive_boolean_conflict';
   }
 
@@ -1592,24 +1652,64 @@ export class DocumentMergeEngine {
     currentSchema: any,
     incomingSchema: any
   ): ConflictType | null {
+    console.log('  🔑 detectKeywordConflict:', { keyword, path });
     // Handle specific JSON Schema keyword conflicts
 
     // Meta and structural keywords
-    if (keyword === '$schema') return '$schema_version_mismatch';
-    if (keyword === '$id' || keyword === 'id') return 'id_base_uri_changed';
+    if (keyword === '$schema') {
+      console.log('  ✅ Matched $schema keyword');
+      return '$schema_version_mismatch';
+    }
+    if (keyword === '$id' || keyword === 'id') {
+      console.log('  ✅ Matched $id/id keyword');
+      return 'id_base_uri_changed';
+    }
     
     // Specific constraint keywords - return granular types
-    if (keyword === 'minLength') return 'minLength_changed';
-    if (keyword === 'maxLength') return 'maxLength_changed';
-    if (keyword === 'minimum') return 'min_changed';
-    if (keyword === 'maximum') return 'max_changed';
-    if (keyword === 'minItems') return 'minItems_changed';
-    if (keyword === 'maxItems') return 'maxItems_changed';
-    if (keyword === 'minProperties') return 'minProperties_changed';
-    if (keyword === 'maxProperties') return 'maxProperties_changed';
-    if (keyword === 'minContains') return 'minContains_changed';
-    if (keyword === 'maxContains') return 'maxContains_changed';
-    if (keyword === 'multipleOf') return 'multipleOf_changed';
+    if (keyword === 'minLength') {
+      console.log('  ✅ Matched minLength');
+      return 'minLength_changed';
+    }
+    if (keyword === 'maxLength') {
+      console.log('  ✅ Matched maxLength');
+      return 'maxLength_changed';
+    }
+    if (keyword === 'minimum') {
+      console.log('  ✅ Matched minimum');
+      return 'min_changed';
+    }
+    if (keyword === 'maximum') {
+      console.log('  ✅ Matched maximum');
+      return 'max_changed';
+    }
+    if (keyword === 'minItems') {
+      console.log('  ✅ Matched minItems');
+      return 'minItems_changed';
+    }
+    if (keyword === 'maxItems') {
+      console.log('  ✅ Matched maxItems');
+      return 'maxItems_changed';
+    }
+    if (keyword === 'minProperties') {
+      console.log('  ✅ Matched minProperties');
+      return 'minProperties_changed';
+    }
+    if (keyword === 'maxProperties') {
+      console.log('  ✅ Matched maxProperties');
+      return 'maxProperties_changed';
+    }
+    if (keyword === 'minContains') {
+      console.log('  ✅ Matched minContains');
+      return 'minContains_changed';
+    }
+    if (keyword === 'maxContains') {
+      console.log('  ✅ Matched maxContains');
+      return 'maxContains_changed';
+    }
+    if (keyword === 'multipleOf') {
+      console.log('  ✅ Matched multipleOf');
+      return 'multipleOf_changed';
+    }
 
     // Pattern and format
     if (keyword === 'pattern') {
