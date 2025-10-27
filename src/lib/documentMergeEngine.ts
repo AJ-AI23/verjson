@@ -88,6 +88,8 @@ export type ConflictType =
   | 'multipleOf_changed'
   | 'min_changed'
   | 'max_changed'
+  | 'exclusiveMin_changed'
+  | 'exclusiveMax_changed'
   | 'minLength_changed'
   | 'maxLength_changed'
   | 'minProperties_changed'
@@ -308,6 +310,23 @@ export interface DocumentCompatibilityCheck {
 }
 
 // ============================================================================
+// CONFLICT DETECTION CONTEXT FOR PHASED DETECTION
+// ============================================================================
+
+interface ConflictDetectionContext {
+  currentSchema: any;
+  incomingSchema: any;
+  detectedConflicts: MergeConflict[];
+  claimedPaths: Set<string>;
+  claimedPathsByPhase: Map<string, number>;
+  defsRenameMap: Map<string, string>; // oldName -> newName
+  propertyRenameMap: Map<string, string>; // oldPath -> newPath
+  referenceGraph: Map<string, string[]>; // ref -> [paths that use it]
+  normalizedCurrent: any; // After OpenAPI nullable conversion
+  normalizedIncoming: any; // After OpenAPI nullable conversion
+}
+
+// ============================================================================
 // DOCUMENT MERGE ENGINE
 // ============================================================================
 
@@ -393,33 +412,14 @@ export class DocumentMergeEngine {
 
         const stepResult = applyImportPatches(currentResult, comparison.patches, undefined, currentDoc.content);
         
-        const stepConflicts = comparison.mergeConflicts.map(conflict => {
-          const granularType = this.detectGranularConflictType(
-            conflict.path,
-            conflict.currentValue,
-            conflict.importValue,
-            currentResult,
-            currentDoc.content,
-            conflict.conflictType
-          );
-
-          return {
-            path: conflict.path,
-            type: granularType,
-            severity: conflict.severity as MergeConflict['severity'],
-            description: `Step ${i} (${currentDoc.name}): ${conflict.description}`,
-            documentSource: i === 1 ? documents[0].name : 'Previous merge result',
-            documentDestination: currentDoc.name,
-            values: [conflict.currentValue, conflict.importValue],
-            suggestedResolution: 'Manual review required',
-            resolution: 'unresolved' as const,
-            currentValue: conflict.currentValue,
-            incomingValue: conflict.importValue,
-            stepNumber: i,
-            autoResolvable: false,
-            requiresManualReview: true
-          };
-        });
+        // Use phased conflict detection
+        const stepConflicts = this.detectConflictsPhased(
+          currentResult,
+          currentDoc.content,
+          i === 1 ? documents[0].name : 'Previous merge result',
+          currentDoc.name,
+          i
+        );
 
         const enhancedConflicts = this.enhanceArrayConflicts(stepConflicts, currentResult, currentDoc.content, false);
         const enhancedConflictsWithStep = enhancedConflicts.map(c => ({ ...c, stepNumber: i }));
@@ -769,35 +769,22 @@ export class DocumentMergeEngine {
         
         const comparison = compareDocumentVersions(currentResult, currentDoc.content);
         
-        const stepConflicts = comparison.mergeConflicts.map(conflict => {
-          const granularType = this.detectGranularConflictType(
-            conflict.path,
-            conflict.currentValue,
-            conflict.importValue,
-            currentResult,
-            currentDoc.content,
-            conflict.conflictType
-          );
-
-          const key = `${i}|${conflict.path}|${granularType}|Step ${i} (${currentDoc.name}): ${conflict.description}`;
+        // Use phased conflict detection
+        const stepConflicts = this.detectConflictsPhased(
+          currentResult,
+          currentDoc.content,
+          i === 1 ? documents[0].name : 'Previous merge result',
+          currentDoc.name,
+          i
+        ).map(conflict => {
+          const key = `${i}|${conflict.path}|${conflict.type}|${conflict.description}`;
           const savedResolution = savedResolutions.get(key);
           
-          return {
-            path: conflict.path,
-            type: granularType,
-            severity: conflict.severity as MergeConflict['severity'],
-            description: `Step ${i} (${currentDoc.name}): ${conflict.description}`,
-            documentSource: i === 1 ? documents[0].name : 'Previous merge result',
-            documentDestination: currentDoc.name,
-            values: [conflict.currentValue, conflict.importValue],
-            suggestedResolution: 'Manual review required',
-            resolution: savedResolution || ('unresolved' as const),
-            currentValue: conflict.currentValue,
-            incomingValue: conflict.importValue,
-            stepNumber: i,
-            autoResolvable: false,
-            requiresManualReview: true
-          };
+          if (savedResolution && conflict.resolution === 'unresolved') {
+            return { ...conflict, resolution: savedResolution };
+          }
+          
+          return conflict;
         });
         
         const enhancedConflicts = this.enhanceArrayConflicts(stepConflicts, currentResult, currentDoc.content, false);
@@ -1201,110 +1188,850 @@ export class DocumentMergeEngine {
   }
 
   // ============================================================================
-  // GRANULAR CONFLICT DETECTION
+  // PHASED CONFLICT DETECTION (12 Phases)
   // ============================================================================
 
-  private static detectGranularConflictType(
-    path: string,
-    currentValue: any,
-    incomingValue: any,
+  // ============================================================================
+  // PHASED CONFLICT DETECTION (12 Phases)
+  // ============================================================================
+
+  private static detectConflictsPhased(
     currentSchema: any,
     incomingSchema: any,
-    importConflictType: string
-  ): ConflictType {
-    console.group(`🔍 Detecting conflict type for: ${path}`);
-    console.log('Current value:', currentValue);
-    console.log('Incoming value:', incomingValue);
-    console.log('Import conflict type:', importConflictType);
-
-    // Extract path segments
-    const segments = path.split('/').filter(Boolean);
-    const lastSegment = segments[segments.length - 1];
-    const parentPath = '/' + segments.slice(0, -1).join('/');
-    console.log('Path analysis:', { segments, lastSegment, parentPath });
-
-    // Root-level schema meta conflicts - check both path formats
-    if (path === '/$schema' || lastSegment === '$schema') {
-      console.log('✅ Detected: $schema_version_mismatch');
-      console.groupEnd();
-      return '$schema_version_mismatch';
-    }
-    if (path === '/$id' || path === '/id' || lastSegment === '$id' || lastSegment === 'id') {
-      console.log('✅ Detected: id_base_uri_changed');
-      console.groupEnd();
-      return 'id_base_uri_changed';
-    }
-
-    // Handle property additions/removals
-    if (currentValue === undefined && incomingValue !== undefined) {
-      console.log('🆕 Property addition detected');
-      const result = this.detectPropertyAddition(path, incomingValue, incomingSchema, currentSchema, segments);
-      console.log('✅ Detected:', result);
-      console.groupEnd();
-      return result;
-    }
-    if (currentValue !== undefined && incomingValue === undefined) {
-      console.log('🗑️ Property removal detected');
-      const result = this.detectPropertyRemoval(path, currentValue, currentSchema, incomingSchema, segments);
-      console.log('✅ Detected:', result);
-      console.groupEnd();
-      return result;
-    }
-
-    // Check for schema-specific keyword conflicts first
-    console.log('🔑 Checking keyword conflicts...');
-    const keywordConflict = this.detectKeywordConflict(lastSegment, currentValue, incomingValue, path, currentSchema, incomingSchema);
-    if (keywordConflict) {
-      console.log('✅ Detected keyword conflict:', keywordConflict);
-      console.groupEnd();
-      return keywordConflict;
-    }
-
-    // Handle null vs value conflicts
-    if ((currentValue === null) !== (incomingValue === null)) {
-      console.log('✅ Detected: primitive_null_vs_value');
-      console.groupEnd();
-      return 'primitive_null_vs_value';
-    }
-
-    // Handle type changes
-    const currentType = this.getValueType(currentValue);
-    const incomingType = this.getValueType(incomingValue);
-    console.log('Type analysis:', { currentType, incomingType });
+    documentSource: string,
+    documentDestination: string,
+    stepNumber: number
+  ): MergeConflict[] {
+    console.group(`🔍 PHASED CONFLICT DETECTION - Step ${stepNumber}`);
     
-    if (currentType !== incomingType) {
-      console.log('🔄 Type change detected');
-      const result = this.detectTypeChange(currentType, incomingType, path, currentValue, incomingValue);
-      console.log('✅ Detected:', result);
-      console.groupEnd();
-      return result;
+    const context: ConflictDetectionContext = {
+      currentSchema,
+      incomingSchema,
+      detectedConflicts: [],
+      claimedPaths: new Set(),
+      claimedPathsByPhase: new Map(),
+      defsRenameMap: new Map(),
+      propertyRenameMap: new Map(),
+      referenceGraph: new Map(),
+      normalizedCurrent: currentSchema,
+      normalizedIncoming: incomingSchema
+    };
+
+    // PHASE 1: Meta/Setup (Normalization)
+    console.log('🔵 Phase 1: Meta/Setup');
+    this.phaseMetaSetup(context, documentSource, documentDestination, stepNumber);
+
+    // PHASE 2: Reference Resolution/Safety
+    console.log('🔵 Phase 2: Reference Resolution/Safety');
+    this.phaseReferenceResolution(context, documentSource, documentDestination, stepNumber);
+
+    // PHASE 3: $defs Identity and Rename/Move Mapping
+    console.log('🔵 Phase 3: $defs Identity');
+    this.phaseDefsIdentity(context, documentSource, documentDestination, stepNumber);
+
+    // PHASE 4: High-Level Composition
+    console.log('🔵 Phase 4: High-Level Composition');
+    this.phaseHighLevelComposition(context, documentSource, documentDestination, stepNumber);
+
+    // PHASE 5: Object-Shape Governance
+    console.log('🔵 Phase 5: Object-Shape Governance');
+    this.phaseObjectShapeGovernance(context, documentSource, documentDestination, stepNumber);
+
+    // PHASE 6: Property Set Topology
+    console.log('🔵 Phase 6: Property Set Topology');
+    this.phasePropertySetTopology(context, documentSource, documentDestination, stepNumber);
+
+    // PHASE 7: Array Topology
+    console.log('🔵 Phase 7: Array Topology');
+    this.phaseArrayTopology(context, documentSource, documentDestination, stepNumber);
+
+    // PHASE 8: Type System Deltas
+    console.log('🔵 Phase 8: Type System Deltas');
+    this.phaseTypeSystemDeltas(context, documentSource, documentDestination, stepNumber);
+
+    // PHASE 9: Constraint Keywords
+    console.log('🔵 Phase 9: Constraint Keywords');
+    this.phaseConstraintKeywords(context, documentSource, documentDestination, stepNumber);
+
+    // PHASE 10: Required and Cross-Field Relations
+    console.log('🔵 Phase 10: Required Relations');
+    this.phaseRequiredRelations(context, documentSource, documentDestination, stepNumber);
+
+    // PHASE 11: Annotations and Content
+    console.log('🔵 Phase 11: Annotations');
+    this.phaseAnnotations(context, documentSource, documentDestination, stepNumber);
+
+    // PHASE 12: Late Reference Re-validation
+    console.log('🔵 Phase 12: Late Reference Re-validation');
+    this.phaseLateReferenceValidation(context, documentSource, documentDestination, stepNumber);
+
+    console.log(`✅ Total conflicts detected: ${context.detectedConflicts.length}`);
+    console.groupEnd();
+    
+    return context.detectedConflicts;
+  }
+
+  // ============================================================================
+  // PHASE 1: META/SETUP (NORMALIZATION)
+  // ============================================================================
+
+  private static phaseMetaSetup(
+    context: ConflictDetectionContext,
+    documentSource: string,
+    documentDestination: string,
+    stepNumber: number
+  ): void {
+    // Normalize OpenAPI nullable: true → type: ["string", "null"]
+    context.normalizedCurrent = this.normalizeOpenApiNullable(context.currentSchema);
+    context.normalizedIncoming = this.normalizeOpenApiNullable(context.incomingSchema);
+
+    // Check $schema at root
+    if (context.currentSchema.$schema && context.incomingSchema.$schema &&
+        context.currentSchema.$schema !== context.incomingSchema.$schema) {
+      const conflict = this.createConflict(
+        '/$schema',
+        '$schema_version_mismatch',
+        'high',
+        `$schema version differs: "${context.currentSchema.$schema}" vs "${context.incomingSchema.$schema}"`,
+        context.currentSchema.$schema,
+        context.incomingSchema.$schema,
+        documentSource,
+        documentDestination,
+        stepNumber
+      );
+      context.detectedConflicts.push(conflict);
+      this.claimPath(context, '/$schema', 1);
+      console.log('  ✅ Detected: $schema_version_mismatch');
     }
 
-    // Handle same-type conflicts
-    console.log(`📊 Handling ${currentType} type conflict`);
-    let result: ConflictType;
-    switch (currentType) {
-      case 'array':
-        result = this.detectArrayConflict(currentValue, incomingValue, path, lastSegment);
-        break;
-      case 'object':
-        result = this.detectObjectConflict(currentValue, incomingValue, path, currentSchema, incomingSchema, lastSegment);
-        break;
-      case 'string':
-        result = this.detectStringConflict(currentValue, incomingValue, path, lastSegment);
-        break;
-      case 'number':
-        result = 'primitive_number_conflict';
-        break;
-      case 'boolean':
-        result = this.detectBooleanConflict(currentValue, incomingValue, path, lastSegment);
-        break;
-      default:
-        result = 'value_changed_primitive';
+    // Check $id/id at root
+    const currentId = context.currentSchema.$id || context.currentSchema.id;
+    const incomingId = context.incomingSchema.$id || context.incomingSchema.id;
+    if (currentId && incomingId && currentId !== incomingId) {
+      const idPath = context.currentSchema.$id ? '/$id' : '/id';
+      const conflict = this.createConflict(
+        idPath,
+        'id_base_uri_changed',
+        'high',
+        `Base URI changed: "${currentId}" → "${incomingId}"`,
+        currentId,
+        incomingId,
+        documentSource,
+        documentDestination,
+        stepNumber
+      );
+      context.detectedConflicts.push(conflict);
+      this.claimPath(context, idPath, 1);
+      console.log('  ✅ Detected: id_base_uri_changed');
     }
-    console.log('✅ Detected:', result);
-    console.groupEnd();
-    return result;
+  }
+
+  // ============================================================================
+  // PHASE 2: REFERENCE RESOLUTION/SAFETY
+  // ============================================================================
+
+  private static phaseReferenceResolution(
+    context: ConflictDetectionContext,
+    documentSource: string,
+    documentDestination: string,
+    stepNumber: number
+  ): void {
+    // Build reference graphs
+    const currentRefs = this.buildReferenceGraph(context.currentSchema);
+    const incomingRefs = this.buildReferenceGraph(context.incomingSchema);
+
+    // Detect cyclic references
+    const currentCycles = this.detectCyclicReferences(context.currentSchema, currentRefs);
+    const incomingCycles = this.detectCyclicReferences(context.incomingSchema, incomingRefs);
+
+    currentCycles.forEach(cycle => {
+      const conflict = this.createConflict(
+        cycle.path,
+        'ref_cycle_detected',
+        'critical',
+        `Cyclic reference detected in current schema: ${cycle.cycle.join(' → ')}`,
+        cycle.ref,
+        null,
+        documentSource,
+        documentDestination,
+        stepNumber
+      );
+      context.detectedConflicts.push(conflict);
+      this.claimPath(context, cycle.path, 2);
+    });
+
+    incomingCycles.forEach(cycle => {
+      const conflict = this.createConflict(
+        cycle.path,
+        'ref_cycle_detected',
+        'critical',
+        `Cyclic reference detected in incoming schema: ${cycle.cycle.join(' → ')}`,
+        null,
+        cycle.ref,
+        documentSource,
+        documentDestination,
+        stepNumber
+      );
+      context.detectedConflicts.push(conflict);
+      this.claimPath(context, cycle.path, 2);
+    });
+
+    // Detect broken references
+    incomingRefs.forEach((ref, path) => {
+      if (!this.checkReferenceExists(ref, context.incomingSchema)) {
+        const conflict = this.createConflict(
+          path,
+          'reference_broken',
+          'high',
+          `Reference broken in incoming schema: "${ref}" does not exist`,
+          null,
+          ref,
+          documentSource,
+          documentDestination,
+          stepNumber
+        );
+        context.detectedConflicts.push(conflict);
+        this.claimPath(context, path, 2);
+        console.log(`  ✅ Detected: reference_broken at ${path}`);
+      }
+    });
+  }
+
+  // ============================================================================
+  // PHASE 3: $DEFS IDENTITY AND RENAME/MOVE MAPPING
+  // ============================================================================
+
+  private static phaseDefsIdentity(
+    context: ConflictDetectionContext,
+    documentSource: string,
+    documentDestination: string,
+    stepNumber: number
+  ): void {
+    const currentDefs = context.currentSchema.$defs || context.currentSchema.definitions || {};
+    const incomingDefs = context.incomingSchema.$defs || context.incomingSchema.definitions || {};
+
+    // Find renamed/moved definitions
+    const renameMap = this.findSimilarDefinitions(currentDefs, incomingDefs);
+    context.defsRenameMap = renameMap;
+
+    renameMap.forEach((newName, oldName) => {
+      const defPath = context.currentSchema.$defs ? '/$defs' : '/definitions';
+      const conflict = this.createConflict(
+        `${defPath}/${oldName}`,
+        'defs_renamed_moved',
+        'medium',
+        `Definition "${oldName}" renamed to "${newName}"`,
+        currentDefs[oldName],
+        incomingDefs[newName],
+        documentSource,
+        documentDestination,
+        stepNumber
+      );
+      context.detectedConflicts.push(conflict);
+      this.claimPath(context, `${defPath}/${oldName}`, 3);
+      this.claimPath(context, `${defPath}/${newName}`, 3);
+      console.log(`  ✅ Detected: defs_renamed_moved "${oldName}" → "${newName}"`);
+    });
+  }
+
+  // ============================================================================
+  // PHASE 4: HIGH-LEVEL COMPOSITION
+  // ============================================================================
+
+  private static phaseHighLevelComposition(
+    context: ConflictDetectionContext,
+    documentSource: string,
+    documentDestination: string,
+    stepNumber: number
+  ): void {
+    const compositionKeywords = ['allOf', 'anyOf', 'oneOf', 'not'];
+    
+    this.walkSchema(context.currentSchema, context.incomingSchema, '', (path, currentVal, incomingVal, key) => {
+      if (this.isPathClaimed(context, path)) return;
+
+      if (compositionKeywords.includes(key)) {
+        if (JSON.stringify(currentVal) !== JSON.stringify(incomingVal)) {
+          const conflictType = `${key}_changed` as ConflictType;
+          const conflict = this.createConflict(
+            path,
+            conflictType,
+            'high',
+            `Composition keyword "${key}" changed`,
+            currentVal,
+            incomingVal,
+            documentSource,
+            documentDestination,
+            stepNumber
+          );
+          context.detectedConflicts.push(conflict);
+          this.claimPath(context, path, 4);
+          console.log(`  ✅ Detected: ${conflictType} at ${path}`);
+        }
+      }
+
+      // Conditional keywords (if/then/else)
+      if (['if', 'then', 'else'].includes(key)) {
+        if (JSON.stringify(currentVal) !== JSON.stringify(incomingVal)) {
+          const conflict = this.createConflict(
+            path,
+            'conditional_structure_changed',
+            'high',
+            `Conditional structure "${key}" changed`,
+            currentVal,
+            incomingVal,
+            documentSource,
+            documentDestination,
+            stepNumber
+          );
+          context.detectedConflicts.push(conflict);
+          this.claimPath(context, path, 4);
+          console.log(`  ✅ Detected: conditional_structure_changed at ${path}`);
+        }
+      }
+    });
+  }
+
+  // ============================================================================
+  // PHASE 5: OBJECT-SHAPE GOVERNANCE
+  // ============================================================================
+
+  private static phaseObjectShapeGovernance(
+    context: ConflictDetectionContext,
+    documentSource: string,
+    documentDestination: string,
+    stepNumber: number
+  ): void {
+    const governanceKeywords = [
+      'additionalProperties',
+      'unevaluatedProperties',
+      'patternProperties',
+      'propertyNames',
+      'dependentRequired',
+      'dependentSchemas'
+    ];
+
+    this.walkSchema(context.currentSchema, context.incomingSchema, '', (path, currentVal, incomingVal, key) => {
+      if (this.isPathClaimed(context, path)) return;
+
+      if (governanceKeywords.includes(key)) {
+        if (JSON.stringify(currentVal) !== JSON.stringify(incomingVal)) {
+          let conflictType: ConflictType;
+          
+          if (key === 'additionalProperties' && typeof currentVal === 'boolean' && typeof incomingVal === 'boolean') {
+            conflictType = 'additionalProperties_boolean_flip';
+          } else {
+            conflictType = `${key}_changed` as ConflictType;
+          }
+
+          const conflict = this.createConflict(
+            path,
+            conflictType,
+            'medium',
+            `Object governance keyword "${key}" changed`,
+            currentVal,
+            incomingVal,
+            documentSource,
+            documentDestination,
+            stepNumber
+          );
+          context.detectedConflicts.push(conflict);
+          this.claimPath(context, path, 5);
+          console.log(`  ✅ Detected: ${conflictType} at ${path}`);
+        }
+      }
+    });
+  }
+
+  // ============================================================================
+  // PHASE 6: PROPERTY SET TOPOLOGY
+  // ============================================================================
+
+  private static phasePropertySetTopology(
+    context: ConflictDetectionContext,
+    documentSource: string,
+    documentDestination: string,
+    stepNumber: number
+  ): void {
+    this.walkSchema(context.currentSchema, context.incomingSchema, '', (path, currentVal, incomingVal, key, currentParent, incomingParent) => {
+      if (this.isPathClaimed(context, path)) return;
+
+      // Check for property additions
+      if (currentVal === undefined && incomingVal !== undefined && typeof incomingParent === 'object') {
+        const conflictType = this.detectPropertyAdditionPhased(path, key, incomingVal, incomingParent, context);
+        const conflict = this.createConflict(
+          path,
+          conflictType,
+          conflictType === 'property_added_duplicate' ? 'medium' : 'low',
+          `Property "${key}" added`,
+          currentVal,
+          incomingVal,
+          documentSource,
+          documentDestination,
+          stepNumber
+        );
+        context.detectedConflicts.push(conflict);
+        this.claimPath(context, path, 6);
+        console.log(`  ✅ Detected: ${conflictType} at ${path}`);
+        return;
+      }
+
+      // Check for property removals
+      if (currentVal !== undefined && incomingVal === undefined && typeof currentParent === 'object') {
+        const isRequired = currentParent.required?.includes(key);
+        const conflictType = isRequired ? 'property_removed_required' : 'property_removed_optional';
+        
+        // Check for rename
+        if (incomingParent && typeof incomingParent === 'object') {
+          const similarKey = this.findSimilarProperty(key, Object.keys(incomingParent));
+          if (similarKey) {
+            context.propertyRenameMap.set(path, path.replace(key, similarKey));
+            const conflict = this.createConflict(
+              path,
+              'property_renamed',
+              'medium',
+              `Property "${key}" renamed to "${similarKey}"`,
+              currentVal,
+              incomingParent[similarKey],
+              documentSource,
+              documentDestination,
+              stepNumber
+            );
+            context.detectedConflicts.push(conflict);
+            this.claimPath(context, path, 6);
+            this.claimPath(context, path.replace(key, similarKey), 6);
+            console.log(`  ✅ Detected: property_renamed "${key}" → "${similarKey}"`);
+            return;
+          }
+        }
+
+        const conflict = this.createConflict(
+          path,
+          conflictType,
+          isRequired ? 'high' : 'medium',
+          `Property "${key}" removed ${isRequired ? '(was required)' : '(was optional)'}`,
+          currentVal,
+          incomingVal,
+          documentSource,
+          documentDestination,
+          stepNumber
+        );
+        context.detectedConflicts.push(conflict);
+        this.claimPath(context, path, 6);
+        console.log(`  ✅ Detected: ${conflictType} at ${path}`);
+      }
+    });
+  }
+
+  // ============================================================================
+  // PHASE 7: ARRAY TOPOLOGY
+  // ============================================================================
+
+  private static phaseArrayTopology(
+    context: ConflictDetectionContext,
+    documentSource: string,
+    documentDestination: string,
+    stepNumber: number
+  ): void {
+    this.walkSchema(context.currentSchema, context.incomingSchema, '', (path, currentVal, incomingVal, key) => {
+      if (this.isPathClaimed(context, path)) return;
+
+      // Array-specific keywords
+      const arrayKeywords = ['items', 'prefixItems', 'contains', 'uniqueItems', 'minItems', 'maxItems', 'minContains', 'maxContains'];
+      
+      if (arrayKeywords.includes(key) && JSON.stringify(currentVal) !== JSON.stringify(incomingVal)) {
+        let conflictType: ConflictType;
+        
+        switch (key) {
+          case 'prefixItems':
+            conflictType = 'tuple_items_changed';
+            break;
+          case 'items':
+            conflictType = 'items_schema_changed';
+            break;
+          case 'contains':
+            conflictType = 'contains_changed';
+            break;
+          case 'uniqueItems':
+            conflictType = 'uniqueItems_changed';
+            break;
+          case 'minItems':
+            conflictType = 'minItems_changed';
+            break;
+          case 'maxItems':
+            conflictType = 'maxItems_changed';
+            break;
+          case 'minContains':
+            conflictType = 'minContains_changed';
+            break;
+          case 'maxContains':
+            conflictType = 'maxContains_changed';
+            break;
+          default:
+            conflictType = 'array_items_modified';
+        }
+
+        const conflict = this.createConflict(
+          path,
+          conflictType,
+          'medium',
+          `Array keyword "${key}" changed`,
+          currentVal,
+          incomingVal,
+          documentSource,
+          documentDestination,
+          stepNumber
+        );
+        context.detectedConflicts.push(conflict);
+        this.claimPath(context, path, 7);
+        console.log(`  ✅ Detected: ${conflictType} at ${path}`);
+      }
+
+      // Array length mismatches
+      if (Array.isArray(currentVal) && Array.isArray(incomingVal) && currentVal.length !== incomingVal.length) {
+        if (!this.isPathClaimed(context, path)) {
+          const conflict = this.createConflict(
+            path,
+            'array_length_mismatch',
+            'medium',
+            `Array length changed: ${currentVal.length} → ${incomingVal.length}`,
+            currentVal,
+            incomingVal,
+            documentSource,
+            documentDestination,
+            stepNumber
+          );
+          context.detectedConflicts.push(conflict);
+          this.claimPath(context, path, 7);
+          console.log(`  ✅ Detected: array_length_mismatch at ${path}`);
+        }
+      }
+    });
+  }
+
+  // ============================================================================
+  // PHASE 8: TYPE SYSTEM DELTAS
+  // ============================================================================
+
+  private static phaseTypeSystemDeltas(
+    context: ConflictDetectionContext,
+    documentSource: string,
+    documentDestination: string,
+    stepNumber: number
+  ): void {
+    this.walkSchema(context.currentSchema, context.incomingSchema, '', (path, currentVal, incomingVal, key) => {
+      if (this.isPathClaimed(context, path)) return;
+
+      if (key === 'type' && currentVal !== undefined && incomingVal !== undefined) {
+        if (JSON.stringify(currentVal) !== JSON.stringify(incomingVal)) {
+          const conflictType = this.detectTypeChangePhased(currentVal, incomingVal);
+          const conflict = this.createConflict(
+            path,
+            conflictType,
+            'high',
+            `Type changed: ${JSON.stringify(currentVal)} → ${JSON.stringify(incomingVal)}`,
+            currentVal,
+            incomingVal,
+            documentSource,
+            documentDestination,
+            stepNumber
+          );
+          context.detectedConflicts.push(conflict);
+          this.claimPath(context, path, 8);
+          
+          // Suppress downstream constraints when type changes
+          const parentPath = path.substring(0, path.lastIndexOf('/'));
+          this.claimPath(context, `${parentPath}/minLength`, 8);
+          this.claimPath(context, `${parentPath}/maxLength`, 8);
+          this.claimPath(context, `${parentPath}/pattern`, 8);
+          this.claimPath(context, `${parentPath}/format`, 8);
+          this.claimPath(context, `${parentPath}/minimum`, 8);
+          this.claimPath(context, `${parentPath}/maximum`, 8);
+          
+          console.log(`  ✅ Detected: ${conflictType} at ${path}`);
+        }
+      }
+
+      // Nullable changes
+      if (key === 'nullable' && currentVal !== incomingVal) {
+        if (!this.isPathClaimed(context, path)) {
+          const conflict = this.createConflict(
+            path,
+            'type_nullable_changed',
+            'medium',
+            `Nullable changed: ${currentVal} → ${incomingVal}`,
+            currentVal,
+            incomingVal,
+            documentSource,
+            documentDestination,
+            stepNumber
+          );
+          context.detectedConflicts.push(conflict);
+          this.claimPath(context, path, 8);
+          console.log(`  ✅ Detected: type_nullable_changed at ${path}`);
+        }
+      }
+    });
+  }
+
+  // ============================================================================
+  // PHASE 9: CONSTRAINT KEYWORDS
+  // ============================================================================
+
+  private static phaseConstraintKeywords(
+    context: ConflictDetectionContext,
+    documentSource: string,
+    documentDestination: string,
+    stepNumber: number
+  ): void {
+    const constraintKeywords: Record<string, ConflictType> = {
+      'minimum': 'min_changed',
+      'maximum': 'max_changed',
+      'exclusiveMinimum': 'exclusiveMin_changed',
+      'exclusiveMaximum': 'exclusiveMax_changed',
+      'multipleOf': 'multipleOf_changed',
+      'minLength': 'minLength_changed',
+      'maxLength': 'maxLength_changed',
+      'minProperties': 'minProperties_changed',
+      'maxProperties': 'maxProperties_changed'
+    };
+
+    this.walkSchema(context.currentSchema, context.incomingSchema, '', (path, currentVal, incomingVal, key) => {
+      if (this.isPathClaimed(context, path)) return;
+
+      // Numeric and string constraints
+      if (key in constraintKeywords && currentVal !== incomingVal) {
+        const conflict = this.createConflict(
+          path,
+          constraintKeywords[key],
+          'medium',
+          `Constraint "${key}" changed: ${currentVal} → ${incomingVal}`,
+          currentVal,
+          incomingVal,
+          documentSource,
+          documentDestination,
+          stepNumber
+        );
+        context.detectedConflicts.push(conflict);
+        this.claimPath(context, path, 9);
+        console.log(`  ✅ Detected: ${constraintKeywords[key]} at ${path}`);
+      }
+
+      // Pattern and format
+      if (key === 'pattern') {
+        if (currentVal === undefined && incomingVal !== undefined) {
+          const conflict = this.createConflict(path, 'pattern_added', 'low', `Pattern added: "${incomingVal}"`, currentVal, incomingVal, documentSource, documentDestination, stepNumber);
+          context.detectedConflicts.push(conflict);
+          this.claimPath(context, path, 9);
+          console.log(`  ✅ Detected: pattern_added at ${path}`);
+        } else if (currentVal !== undefined && incomingVal === undefined) {
+          const conflict = this.createConflict(path, 'pattern_removed', 'medium', `Pattern removed: "${currentVal}"`, currentVal, incomingVal, documentSource, documentDestination, stepNumber);
+          context.detectedConflicts.push(conflict);
+          this.claimPath(context, path, 9);
+          console.log(`  ✅ Detected: pattern_removed at ${path}`);
+        } else if (currentVal !== incomingVal) {
+          const conflict = this.createConflict(path, 'pattern_changed', 'medium', `Pattern changed: "${currentVal}" → "${incomingVal}"`, currentVal, incomingVal, documentSource, documentDestination, stepNumber);
+          context.detectedConflicts.push(conflict);
+          this.claimPath(context, path, 9);
+          console.log(`  ✅ Detected: pattern_changed at ${path}`);
+        }
+      }
+
+      if (key === 'format') {
+        if (currentVal === undefined && incomingVal !== undefined) {
+          const conflict = this.createConflict(path, 'format_added', 'low', `Format added: "${incomingVal}"`, currentVal, incomingVal, documentSource, documentDestination, stepNumber);
+          context.detectedConflicts.push(conflict);
+          this.claimPath(context, path, 9);
+        } else if (currentVal !== undefined && incomingVal === undefined) {
+          const conflict = this.createConflict(path, 'format_removed', 'medium', `Format removed: "${currentVal}"`, currentVal, incomingVal, documentSource, documentDestination, stepNumber);
+          context.detectedConflicts.push(conflict);
+          this.claimPath(context, path, 9);
+        } else if (currentVal !== incomingVal) {
+          const conflict = this.createConflict(path, 'format_changed', 'medium', `Format changed: "${currentVal}" → "${incomingVal}"`, currentVal, incomingVal, documentSource, documentDestination, stepNumber);
+          context.detectedConflicts.push(conflict);
+          this.claimPath(context, path, 9);
+        }
+      }
+
+      // Enum and const
+      if (key === 'enum' && Array.isArray(currentVal) && Array.isArray(incomingVal)) {
+        const added = incomingVal.filter(v => !currentVal.includes(v));
+        const removed = currentVal.filter(v => !incomingVal.includes(v));
+        
+        if (added.length > 0 && removed.length === 0) {
+          const conflict = this.createConflict(path, 'enum_values_added', 'low', `Enum values added: ${JSON.stringify(added)}`, currentVal, incomingVal, documentSource, documentDestination, stepNumber);
+          context.detectedConflicts.push(conflict);
+          this.claimPath(context, path, 9);
+          console.log(`  ✅ Detected: enum_values_added at ${path}`);
+        } else if (removed.length > 0) {
+          const conflict = this.createConflict(path, 'enum_values_removed', 'high', `Enum values removed: ${JSON.stringify(removed)}`, currentVal, incomingVal, documentSource, documentDestination, stepNumber);
+          context.detectedConflicts.push(conflict);
+          this.claimPath(context, path, 9);
+          console.log(`  ✅ Detected: enum_values_removed at ${path}`);
+        } else if (JSON.stringify(currentVal) !== JSON.stringify(incomingVal)) {
+          const conflict = this.createConflict(path, 'enum_order_changed', 'low', 'Enum order changed', currentVal, incomingVal, documentSource, documentDestination, stepNumber);
+          context.detectedConflicts.push(conflict);
+          this.claimPath(context, path, 9);
+        }
+      }
+
+      if (key === 'const' && currentVal !== incomingVal) {
+        const conflict = this.createConflict(path, 'const_changed', 'high', `Const value changed: ${JSON.stringify(currentVal)} → ${JSON.stringify(incomingVal)}`, currentVal, incomingVal, documentSource, documentDestination, stepNumber);
+        context.detectedConflicts.push(conflict);
+        this.claimPath(context, path, 9);
+        console.log(`  ✅ Detected: const_changed at ${path}`);
+      }
+    });
+  }
+
+  // ============================================================================
+  // PHASE 10: REQUIRED AND CROSS-FIELD RELATIONS
+  // ============================================================================
+
+  private static phaseRequiredRelations(
+    context: ConflictDetectionContext,
+    documentSource: string,
+    documentDestination: string,
+    stepNumber: number
+  ): void {
+    this.walkSchema(context.currentSchema, context.incomingSchema, '', (path, currentVal, incomingVal, key) => {
+      if (this.isPathClaimed(context, path)) return;
+
+      if (key === 'required' && Array.isArray(currentVal) && Array.isArray(incomingVal)) {
+        const added = incomingVal.filter(item => !currentVal.includes(item));
+        const removed = currentVal.filter(item => !incomingVal.includes(item));
+
+        if (added.length > 0) {
+          const conflict = this.createConflict(
+            path,
+            'required_entry_added',
+            'high',
+            `Required fields added: ${added.join(', ')}`,
+            currentVal,
+            incomingVal,
+            documentSource,
+            documentDestination,
+            stepNumber
+          );
+          context.detectedConflicts.push(conflict);
+          this.claimPath(context, path, 10);
+          console.log(`  ✅ Detected: required_entry_added at ${path}`);
+        }
+
+        if (removed.length > 0) {
+          const conflict = this.createConflict(
+            path,
+            'required_entry_removed',
+            'medium',
+            `Required fields removed: ${removed.join(', ')}`,
+            currentVal,
+            incomingVal,
+            documentSource,
+            documentDestination,
+            stepNumber
+          );
+          context.detectedConflicts.push(conflict);
+          this.claimPath(context, path, 10);
+          console.log(`  ✅ Detected: required_entry_removed at ${path}`);
+        }
+      }
+    });
+  }
+
+  // ============================================================================
+  // PHASE 11: ANNOTATIONS AND CONTENT
+  // ============================================================================
+
+  private static phaseAnnotations(
+    context: ConflictDetectionContext,
+    documentSource: string,
+    documentDestination: string,
+    stepNumber: number
+  ): void {
+    const annotationKeywords: Record<string, ConflictType> = {
+      'title': 'title_conflict',
+      'description': 'description_conflict',
+      'default': 'default_value_conflict',
+      'example': 'example_conflict',
+      'examples': 'example_conflict',
+      'deprecated': 'deprecated_status_conflict'
+    };
+
+    this.walkSchema(context.currentSchema, context.incomingSchema, '', (path, currentVal, incomingVal, key) => {
+      if (this.isPathClaimed(context, path)) return;
+
+      if (key in annotationKeywords && currentVal !== undefined && incomingVal !== undefined) {
+        if (JSON.stringify(currentVal) !== JSON.stringify(incomingVal)) {
+          const conflict = this.createConflict(
+            path,
+            annotationKeywords[key],
+            'info',
+            `Annotation "${key}" differs`,
+            currentVal,
+            incomingVal,
+            documentSource,
+            documentDestination,
+            stepNumber
+          );
+          context.detectedConflicts.push(conflict);
+          this.claimPath(context, path, 11);
+          console.log(`  ✅ Detected: ${annotationKeywords[key]} at ${path}`);
+        }
+      }
+
+      // ReadOnly/WriteOnly coalesced
+      if ((key === 'readOnly' || key === 'writeOnly') && currentVal !== incomingVal) {
+        if (!this.isPathClaimed(context, path)) {
+          const conflict = this.createConflict(
+            path,
+            'readOnly_writeOnly_changed',
+            'info',
+            `${key} changed: ${currentVal} → ${incomingVal}`,
+            currentVal,
+            incomingVal,
+            documentSource,
+            documentDestination,
+            stepNumber
+          );
+          context.detectedConflicts.push(conflict);
+          this.claimPath(context, path, 11);
+        }
+      }
+    });
+  }
+
+  // ============================================================================
+  // PHASE 12: LATE REFERENCE RE-VALIDATION
+  // ============================================================================
+
+  private static phaseLateReferenceValidation(
+    context: ConflictDetectionContext,
+    documentSource: string,
+    documentDestination: string,
+    stepNumber: number
+  ): void {
+    // After all structural merges, validate references again
+    const incomingRefs = this.buildReferenceGraph(context.incomingSchema);
+    
+    incomingRefs.forEach((ref, path) => {
+      if (!this.isPathClaimed(context, path)) {
+        if (!this.checkReferenceExists(ref, context.incomingSchema)) {
+          const conflict = this.createConflict(
+            path,
+            'reference_broken',
+            'high',
+            `Reference validation failed after merge: "${ref}" does not exist`,
+            null,
+            ref,
+            documentSource,
+            documentDestination,
+            stepNumber
+          );
+          context.detectedConflicts.push(conflict);
+          this.claimPath(context, path, 12);
+          console.log(`  ✅ Late validation: reference_broken at ${path}`);
+        }
+      }
+    });
   }
 
   private static detectPropertyAddition(
@@ -2017,5 +2744,377 @@ export class DocumentMergeEngine {
         (spec.info || spec.paths)
       );
     });
+  }
+
+  // ============================================================================
+  // PHASED DETECTION HELPER METHODS
+  // ============================================================================
+
+  /**
+   * Normalize OpenAPI nullable: true → type: ["string", "null"]
+   */
+  private static normalizeOpenApiNullable(schema: any): any {
+    if (!schema || typeof schema !== 'object') return schema;
+    
+    const normalized = JSON.parse(JSON.stringify(schema));
+    
+    const normalize = (obj: any) => {
+      if (!obj || typeof obj !== 'object') return;
+      
+      if (obj.nullable === true && obj.type && typeof obj.type === 'string') {
+        obj.type = [obj.type, 'null'];
+        delete obj.nullable;
+      }
+      
+      Object.keys(obj).forEach(key => {
+        if (typeof obj[key] === 'object') {
+          normalize(obj[key]);
+        }
+      });
+    };
+    
+    normalize(normalized);
+    return normalized;
+  }
+
+  /**
+   * Create a MergeConflict object
+   */
+  private static createConflict(
+    path: string,
+    type: ConflictType,
+    severity: MergeConflict['severity'],
+    description: string,
+    currentValue: any,
+    incomingValue: any,
+    documentSource: string,
+    documentDestination: string,
+    stepNumber: number
+  ): MergeConflict {
+    return {
+      path,
+      type,
+      severity,
+      description,
+      currentValue,
+      incomingValue,
+      values: [currentValue, incomingValue],
+      documentSource,
+      documentDestination,
+      stepNumber,
+      resolution: 'unresolved',
+      requiresManualReview: severity === 'high' || severity === 'critical',
+      autoResolvable: severity === 'low' || severity === 'info'
+    };
+  }
+
+  /**
+   * Mark a path as claimed by a detection phase
+   */
+  private static claimPath(context: ConflictDetectionContext, path: string, phase: number): void {
+    context.claimedPaths.add(path);
+    context.claimedPathsByPhase.set(path, phase);
+  }
+
+  /**
+   * Check if a path has already been claimed
+   */
+  private static isPathClaimed(context: ConflictDetectionContext, path: string): boolean {
+    return context.claimedPaths.has(path);
+  }
+
+  /**
+   * Build a map of all $ref references in the schema
+   */
+  private static buildReferenceGraph(schema: any, currentPath: string = ''): Map<string, string> {
+    const refs = new Map<string, string>();
+    
+    const traverse = (obj: any, path: string) => {
+      if (!obj || typeof obj !== 'object') return;
+      
+      if (obj.$ref && typeof obj.$ref === 'string') {
+        refs.set(path || '/', obj.$ref);
+      }
+      
+      if (Array.isArray(obj)) {
+        obj.forEach((item, idx) => traverse(item, `${path}[${idx}]`));
+      } else {
+        Object.keys(obj).forEach(key => {
+          traverse(obj[key], path ? `${path}/${key}` : `/${key}`);
+        });
+      }
+    };
+    
+    traverse(schema, currentPath);
+    return refs;
+  }
+
+  /**
+   * Detect cyclic references in schema
+   */
+  private static detectCyclicReferences(
+    schema: any,
+    refs: Map<string, string>
+  ): Array<{ path: string; ref: string; cycle: string[] }> {
+    const cycles: Array<{ path: string; ref: string; cycle: string[] }> = [];
+    
+    refs.forEach((ref, path) => {
+      const visited = new Set<string>();
+      const chain: string[] = [ref];
+      let currentRef = ref;
+      
+      while (currentRef && currentRef.startsWith('#/')) {
+        if (visited.has(currentRef)) {
+          // Cycle detected
+          cycles.push({ path, ref, cycle: chain });
+          break;
+        }
+        
+        visited.add(currentRef);
+        
+        // Try to resolve the reference
+        const targetValue = this.resolveReference(schema, currentRef);
+        if (targetValue && typeof targetValue === 'object' && targetValue.$ref) {
+          currentRef = targetValue.$ref;
+          chain.push(currentRef);
+        } else {
+          break;
+        }
+      }
+    });
+    
+    return cycles;
+  }
+
+  /**
+   * Resolve a $ref to its target value
+   */
+  private static resolveReference(schema: any, ref: string): any {
+    if (!ref || !ref.startsWith('#/')) return undefined;
+    
+    const path = ref.substring(2);
+    const segments = path.split('/');
+    
+    let current = schema;
+    for (const segment of segments) {
+      if (!current || typeof current !== 'object') return undefined;
+      current = current[segment];
+    }
+    
+    return current;
+  }
+
+  /**
+   * Find similar definitions using structure hashing and name similarity
+   */
+  private static findSimilarDefinitions(
+    currentDefs: Record<string, any>,
+    incomingDefs: Record<string, any>
+  ): Map<string, string> {
+    const renameMap = new Map<string, string>();
+    
+    const currentKeys = Object.keys(currentDefs);
+    const incomingKeys = Object.keys(incomingDefs);
+    
+    currentKeys.forEach(oldName => {
+      // Check if definition was removed
+      if (!incomingDefs[oldName]) {
+        // Try to find similar definition by structure and name
+        const currentDef = currentDefs[oldName];
+        const currentHash = this.structureHash(currentDef);
+        
+        for (const newName of incomingKeys) {
+          if (renameMap.has(newName)) continue; // Already mapped
+          
+          const incomingDef = incomingDefs[newName];
+          const incomingHash = this.structureHash(incomingDef);
+          
+          // Check structure similarity and name similarity
+          if (currentHash === incomingHash && this.levenshteinDistance(oldName, newName) <= 3) {
+            renameMap.set(oldName, newName);
+            break;
+          }
+        }
+      }
+    });
+    
+    return renameMap;
+  }
+
+  /**
+   * Create a structural hash of an object (based on property names and types)
+   */
+  private static structureHash(obj: any): string {
+    if (!obj || typeof obj !== 'object') return typeof obj;
+    
+    if (Array.isArray(obj)) {
+      return `[${obj.map(item => this.structureHash(item)).join(',')}]`;
+    }
+    
+    const keys = Object.keys(obj).sort();
+    const signature = keys.map(key => {
+      const value = obj[key];
+      if (typeof value === 'object') {
+        return `${key}:object`;
+      }
+      return `${key}:${typeof value}`;
+    }).join('|');
+    
+    return signature;
+  }
+
+  /**
+   * Find a similar property name using Levenshtein distance
+   */
+  private static findSimilarProperty(propertyName: string, propertyNames: string[]): string | null {
+    for (const name of propertyNames) {
+      if (this.levenshteinDistance(propertyName, name) <= 2) {
+        return name;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Walk through two schemas in parallel and invoke callback for each path
+   */
+  private static walkSchema(
+    current: any,
+    incoming: any,
+    basePath: string,
+    callback: (
+      path: string,
+      currentVal: any,
+      incomingVal: any,
+      key: string,
+      currentParent?: any,
+      incomingParent?: any
+    ) => void
+  ): void {
+    const walk = (curr: any, inc: any, path: string, parent: any = null, incParent: any = null) => {
+      if (curr === null || curr === undefined) {
+        if (inc !== null && inc !== undefined) {
+          // Value added
+          if (typeof inc === 'object' && !Array.isArray(inc)) {
+            Object.keys(inc).forEach(key => {
+              const newPath = path ? `${path}/${key}` : `/${key}`;
+              callback(newPath, undefined, inc[key], key, parent, incParent);
+            });
+          }
+        }
+        return;
+      }
+      
+      if (inc === null || inc === undefined) {
+        if (curr !== null && curr !== undefined) {
+          // Value removed
+          if (typeof curr === 'object' && !Array.isArray(curr)) {
+            Object.keys(curr).forEach(key => {
+              const newPath = path ? `${path}/${key}` : `/${key}`;
+              callback(newPath, curr[key], undefined, key, parent, incParent);
+            });
+          }
+        }
+        return;
+      }
+      
+      // Both values exist
+      const currType = Array.isArray(curr) ? 'array' : typeof curr;
+      const incType = Array.isArray(inc) ? 'array' : typeof inc;
+      
+      if (currType === 'object' && incType === 'object') {
+        const allKeys = new Set([...Object.keys(curr), ...Object.keys(inc)]);
+        allKeys.forEach(key => {
+          const newPath = path ? `${path}/${key}` : `/${key}`;
+          callback(newPath, curr[key], inc[key], key, curr, inc);
+          
+          // Recurse if both are objects
+          if (typeof curr[key] === 'object' && typeof inc[key] === 'object') {
+            walk(curr[key], inc[key], newPath, curr, inc);
+          }
+        });
+      } else if (currType === 'array' && incType === 'array') {
+        // Handle arrays
+        const maxLen = Math.max(curr.length, inc.length);
+        for (let i = 0; i < maxLen; i++) {
+          const newPath = `${path}[${i}]`;
+          callback(newPath, curr[i], inc[i], `${i}`, curr, inc);
+          
+          if (typeof curr[i] === 'object' && typeof inc[i] === 'object') {
+            walk(curr[i], inc[i], newPath, curr, inc);
+          }
+        }
+      }
+    };
+    
+    walk(current, incoming, basePath);
+  }
+
+  /**
+   * Detect property addition type in phased detection
+   */
+  private static detectPropertyAdditionPhased(
+    path: string,
+    propertyName: string,
+    incomingValue: any,
+    incomingParent: any,
+    context: ConflictDetectionContext
+  ): ConflictType {
+    // Check for reference broken
+    if (typeof incomingValue === 'object' && incomingValue?.$ref) {
+      const refExists = this.checkReferenceExists(incomingValue.$ref, context.incomingSchema);
+      if (!refExists) {
+        return 'reference_broken';
+      }
+      return 'reference_added';
+    }
+
+    // Check if it's a duplicate
+    const isDuplicate = this.propertyExistsElsewhere(propertyName, incomingParent, path);
+    if (isDuplicate) {
+      return 'property_added_duplicate';
+    }
+
+    return 'property_added_new';
+  }
+
+  /**
+   * Detect type change in phased detection
+   */
+  private static detectTypeChangePhased(currentType: any, incomingType: any): ConflictType {
+    // Type is a single value
+    const currIsArray = Array.isArray(currentType);
+    const incIsArray = Array.isArray(incomingType);
+    
+    if (!currIsArray && incIsArray) {
+      return 'type_expanded';
+    }
+    
+    if (currIsArray && !incIsArray) {
+      return 'type_collapsed';
+    }
+    
+    if (currIsArray && incIsArray) {
+      // Both are arrays - check for nullable changes
+      const currHasNull = currentType.includes('null');
+      const incHasNull = incomingType.includes('null');
+      
+      if (currHasNull !== incHasNull) {
+        return 'type_nullable_changed';
+      }
+      
+      return 'type_primitive_changed';
+    }
+    
+    // Both are strings
+    if (currentType === 'object' && incomingType === 'array') {
+      return 'type_object_to_array';
+    }
+    
+    if (currentType === 'array' && incomingType === 'object') {
+      return 'type_array_to_object';
+    }
+    
+    return 'type_primitive_changed';
   }
 }
