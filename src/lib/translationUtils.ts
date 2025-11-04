@@ -927,8 +927,8 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
     }
   }
 
-  // Generate a structural fingerprint for a schema object
-  function generateStructuralFingerprint(schema: any): string {
+  // Generate a comprehensive structural fingerprint for a schema object
+  function generateStructuralFingerprint(schema: any, depth: number = 0): string {
     if (!schema || typeof schema !== 'object') {
       return '';
     }
@@ -938,44 +938,185 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
       return '';
     }
 
+    // Limit recursion depth to prevent infinite loops
+    if (depth > 10) {
+      return 'MAX_DEPTH';
+    }
+
     const structure: any = {
       type: schema.type
     };
 
-    // For objects, include property structure
+    // Include all distinguishing constraints and metadata
+    const significantFields = [
+      'format', 'pattern', 'minLength', 'maxLength', 
+      'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum',
+      'minItems', 'maxItems', 'uniqueItems',
+      'minProperties', 'maxProperties',
+      'multipleOf', 'const', 'default',
+      'readOnly', 'writeOnly', 'deprecated',
+      'additionalProperties', 'nullable', 'allOf', 'anyOf', 'oneOf', 'not'
+    ];
+
+    significantFields.forEach(field => {
+      if (schema[field] !== undefined) {
+        // For boolean and simple values, include as-is
+        if (typeof schema[field] === 'boolean' || typeof schema[field] === 'number' || typeof schema[field] === 'string') {
+          structure[field] = schema[field];
+        } else if (Array.isArray(schema[field])) {
+          // For arrays like allOf/anyOf/oneOf, recursively fingerprint each element
+          structure[field] = schema[field].map((item: any) => generateStructuralFingerprint(item, depth + 1));
+        } else if (typeof schema[field] === 'object') {
+          // For objects like additionalProperties
+          structure[field] = generateStructuralFingerprint(schema[field], depth + 1);
+        }
+      }
+    });
+
+    // For objects, include property structure with full details
     if (schema.type === 'object' && schema.properties) {
       const props: any = {};
-      Object.keys(schema.properties).sort().forEach(propName => {
+      const propKeys = Object.keys(schema.properties).sort();
+      
+      propKeys.forEach(propName => {
         const prop = schema.properties[propName];
         props[propName] = {
           type: prop.type,
           format: prop.format,
-          // Recursively fingerprint nested objects
-          nested: prop.type === 'object' ? generateStructuralFingerprint(prop) : undefined
+          // Include constraints for each property
+          constraints: {
+            pattern: prop.pattern,
+            minLength: prop.minLength,
+            maxLength: prop.maxLength,
+            minimum: prop.minimum,
+            maximum: prop.maximum,
+            minItems: prop.minItems,
+            maxItems: prop.maxItems,
+            readOnly: prop.readOnly,
+            writeOnly: prop.writeOnly,
+            nullable: prop.nullable
+          },
+          // Recursively fingerprint nested objects/arrays
+          nested: (prop.type === 'object' || prop.type === 'array') ? generateStructuralFingerprint(prop, depth + 1) : undefined,
+          // Include enum values for comparison
+          enum: prop.enum ? [...prop.enum].sort() : undefined
         };
+        
+        // Remove empty constraints object to reduce noise
+        if (Object.values(props[propName].constraints).every(v => v === undefined)) {
+          delete props[propName].constraints;
+        }
       });
+      
       structure.properties = props;
+      structure.propertyCount = propKeys.length; // Add count as a quick differentiator
       structure.required = schema.required ? [...schema.required].sort() : undefined;
     }
 
-    // For arrays, include item structure
+    // For arrays, include item structure with full details
     if (schema.type === 'array' && schema.items) {
       structure.items = {
         type: schema.items.type,
         format: schema.items.format,
-        nested: generateStructuralFingerprint(schema.items)
+        enum: schema.items.enum ? [...schema.items.enum].sort() : undefined,
+        nested: generateStructuralFingerprint(schema.items, depth + 1)
       };
     }
 
-    // For primitives, include format and enum
-    if (schema.format) {
-      structure.format = schema.format;
-    }
+    // For primitives, include enum
     if (schema.enum) {
       structure.enum = [...schema.enum].sort();
     }
 
     return JSON.stringify(structure);
+  }
+
+  // Calculate similarity score between two schemas (0-100)
+  function calculateSchemaSimilarity(schema1: any, schema2: any): number {
+    if (!schema1 || !schema2) return 0;
+    
+    const fp1 = generateStructuralFingerprint(schema1);
+    const fp2 = generateStructuralFingerprint(schema2);
+    
+    // Exact match
+    if (fp1 === fp2) return 100;
+    
+    // Parse fingerprints for detailed comparison
+    try {
+      const obj1 = JSON.parse(fp1);
+      const obj2 = JSON.parse(fp2);
+      
+      let matches = 0;
+      let total = 0;
+      
+      // Compare type
+      total++;
+      if (obj1.type === obj2.type) matches++;
+      else return 0; // Different types = not similar
+      
+      // Compare property count for objects
+      if (obj1.type === 'object' && obj1.properties && obj2.properties) {
+        const props1 = Object.keys(obj1.properties);
+        const props2 = Object.keys(obj2.properties);
+        
+        total++;
+        // Property count similarity
+        const countDiff = Math.abs(props1.length - props2.length);
+        const maxCount = Math.max(props1.length, props2.length);
+        if (maxCount > 0) {
+          matches += (maxCount - countDiff) / maxCount;
+        }
+        
+        // Compare each property
+        const allProps = new Set([...props1, ...props2]);
+        allProps.forEach(propName => {
+          total++;
+          const prop1 = obj1.properties[propName];
+          const prop2 = obj2.properties[propName];
+          
+          if (prop1 && prop2) {
+            // Both have the property
+            const propFp1 = JSON.stringify(prop1);
+            const propFp2 = JSON.stringify(prop2);
+            if (propFp1 === propFp2) {
+              matches++; // Exact property match
+            } else if (prop1.type === prop2.type) {
+              matches += 0.5; // Same type, different constraints
+            }
+          } else {
+            // Property exists in only one schema - not a match
+            matches += 0;
+          }
+        });
+      }
+      
+      // For arrays, compare items
+      if (obj1.type === 'array' && obj1.items && obj2.items) {
+        total++;
+        const itemFp1 = JSON.stringify(obj1.items);
+        const itemFp2 = JSON.stringify(obj2.items);
+        if (itemFp1 === itemFp2) matches++;
+        else if (obj1.items.type === obj2.items.type) matches += 0.5;
+      }
+      
+      // For enums, compare values
+      if (obj1.enum && obj2.enum) {
+        total++;
+        const enum1 = new Set(obj1.enum);
+        const enum2 = new Set(obj2.enum);
+        const intersection = [...enum1].filter(v => enum2.has(v)).length;
+        const union = new Set([...enum1, ...enum2]).size;
+        matches += union > 0 ? intersection / union : 0;
+      }
+      
+      return total > 0 ? Math.round((matches / total) * 100) : 0;
+    } catch (e) {
+      // Fallback to simple string comparison
+      const len1 = fp1.length;
+      const len2 = fp2.length;
+      const maxLen = Math.max(len1, len2);
+      return maxLen > 0 ? Math.round((1 - Math.abs(len1 - len2) / maxLen) * 100) : 0;
+    }
   }
 
   // Check for broken component references
@@ -1086,11 +1227,11 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
     return result;
   }
 
-  // Check for duplicate components
+  // Check for duplicate components with improved similarity detection
   function checkDuplicateComponents() {
-    const componentsByFingerprint = new Map<string, { paths: string[], schema: any }>();
+    // Collect all components with their schemas
+    const allComponents: Array<{ path: string; name: string; schema: any }> = [];
     
-    // Collect all components and their fingerprints
     const componentSources = [
       { path: 'components.schemas', data: obj.components?.schemas },
       { path: 'definitions', data: obj.definitions },
@@ -1101,43 +1242,52 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
       if (data && typeof data === 'object') {
         Object.keys(data).forEach(componentName => {
           const schema = data[componentName];
-          const fingerprint = generateStructuralFingerprint(schema);
-          
-          if (fingerprint) {
-            const fullPath = `${path}.${componentName}`;
-            if (!componentsByFingerprint.has(fingerprint)) {
-              componentsByFingerprint.set(fingerprint, { paths: [], schema });
-            }
-            componentsByFingerprint.get(fingerprint)!.paths.push(fullPath);
-          }
-        });
-      }
-    });
-
-    // Report duplicates
-    componentsByFingerprint.forEach(({ paths, schema }, fingerprint) => {
-      if (paths.length > 1) {
-        const [first, ...duplicates] = paths;
-        const structureDisplay = formatStructureDisplay(schema);
-        duplicates.forEach(duplicate => {
-          issues.push({
-            type: 'duplicate-component',
-            path: duplicate,
-            message: `Component has identical structure to "${first}"`,
-            details: `Duplicate structure:\n\`\`\`\n${structureDisplay}\`\`\``,
-            suggestion: `Consider removing this duplicate and using a $ref to "${first}" instead`,
-            severity: 'warning',
-            rule: 'Duplicate Component Structure'
+          allComponents.push({
+            path: `${path}.${componentName}`,
+            name: componentName,
+            schema
           });
         });
       }
     });
+
+    // Compare each component with all others using similarity scoring
+    const processedPairs = new Set<string>();
+    
+    for (let i = 0; i < allComponents.length; i++) {
+      for (let j = i + 1; j < allComponents.length; j++) {
+        const comp1 = allComponents[i];
+        const comp2 = allComponents[j];
+        
+        // Create a unique pair key to avoid duplicate comparisons
+        const pairKey = [comp1.path, comp2.path].sort().join('|');
+        if (processedPairs.has(pairKey)) continue;
+        processedPairs.add(pairKey);
+        
+        // Calculate similarity
+        const similarity = calculateSchemaSimilarity(comp1.schema, comp2.schema);
+        
+        // Only report if similarity is very high (95%+) indicating likely duplicates
+        if (similarity >= 95) {
+          const structureDisplay = formatStructureDisplay(comp2.schema);
+          issues.push({
+            type: 'duplicate-component',
+            path: comp2.path,
+            message: `Component is ${similarity}% similar to "${comp1.path}"`,
+            details: `Similar structure:\n\`\`\`\n${structureDisplay}\`\`\``,
+            suggestion: `Consider ${similarity === 100 ? 'removing this duplicate and using' : 'reviewing if you can use'} a $ref to "${comp1.path}" instead`,
+            severity: similarity === 100 ? 'warning' : 'info',
+            rule: 'Duplicate Component Structure'
+          });
+        }
+      }
+    }
   }
 
-  // Check for inline structures that could be component references
+  // Check for inline structures that could be component references (using similarity)
   function checkInlineStructures() {
-    // Build fingerprint map of all existing components
-    const componentFingerprints = new Map<string, { ref: string, schema: any }>();
+    // Collect all existing components
+    const allComponents: Array<{ ref: string; schema: any }> = [];
     
     const componentSources = [
       { prefix: '#/components/schemas/', data: obj.components?.schemas },
@@ -1149,13 +1299,10 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
       if (data && typeof data === 'object') {
         Object.keys(data).forEach(componentName => {
           const schema = data[componentName];
-          const fingerprint = generateStructuralFingerprint(schema);
-          if (fingerprint) {
-            componentFingerprints.set(fingerprint, { 
-              ref: `${prefix}${componentName}`,
-              schema 
-            });
-          }
+          allComponents.push({
+            ref: `${prefix}${componentName}`,
+            schema
+          });
         });
       }
     });
@@ -1172,24 +1319,33 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
       }
 
       // Check if this is an inline object with properties
-      if (currentObj.type === 'object' && currentObj.properties && Object.keys(currentObj.properties).length > 0) {
-        const fingerprint = generateStructuralFingerprint(currentObj);
-        if (fingerprint && componentFingerprints.has(fingerprint)) {
-          const { ref, schema } = componentFingerprints.get(fingerprint)!;
-          const currentPath = path.join('.');
+      if (currentObj.type === 'object' && currentObj.properties && Object.keys(currentObj.properties).length > 2) {
+        const currentPath = path.join('.');
+        
+        // Don't report if we're inside the component definitions themselves
+        if (!currentPath.startsWith('components.schemas') && 
+            !currentPath.startsWith('definitions') && 
+            !currentPath.startsWith('$defs')) {
           
-          // Don't report if we're inside the component definitions themselves
-          if (!currentPath.startsWith('components.schemas') && 
-              !currentPath.startsWith('definitions') && 
-              !currentPath.startsWith('$defs')) {
-            const structureDisplay = formatStructureDisplay(schema);
+          // Find best matching component
+          let bestMatch: { ref: string; schema: any; similarity: number } | null = null;
+          
+          allComponents.forEach(({ ref, schema }) => {
+            const similarity = calculateSchemaSimilarity(currentObj, schema);
+            if (similarity >= 95 && (!bestMatch || similarity > bestMatch.similarity)) {
+              bestMatch = { ref, schema, similarity };
+            }
+          });
+          
+          if (bestMatch) {
+            const structureDisplay = formatStructureDisplay(bestMatch.schema);
             issues.push({
               type: 'inline-structure',
               path: currentPath,
-              message: `Inline structure matches existing component "${ref}"`,
-              details: `Matching structure:\n\`\`\`\n${structureDisplay}\`\`\``,
-              suggestion: `Replace with $ref: "${ref}"`,
-              severity: 'info',
+              message: `Inline structure is ${bestMatch.similarity}% similar to existing component "${bestMatch.ref}"`,
+              details: `Similar structure:\n\`\`\`\n${structureDisplay}\`\`\``,
+              suggestion: `Consider ${bestMatch.similarity === 100 ? 'replacing with' : 'reviewing if you can use'} $ref: "${bestMatch.ref}"`,
+              severity: bestMatch.similarity === 100 ? 'info' : 'info',
               rule: 'Reusable Inline Structure'
             });
           }
