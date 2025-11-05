@@ -16,6 +16,8 @@ import { DebugToggle } from '@/components/DebugToggle';
 import { QADialog } from '@/components/QADialog';
 import { OpenAPISplitDialog } from '@/components/OpenAPISplitDialog';
 import { DocumentConfigDialog } from '@/components/DocumentConfigDialog';
+import { UrlAuthDialog } from '@/components/workspace/UrlAuthDialog';
+import { supabase } from '@/integrations/supabase/client';
 
 import { SchemaType } from '@/lib/schemaUtils';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
@@ -61,6 +63,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const { updateMaxDepth } = useEditorSettings();
   const [isNotationsPanelOpen, setIsNotationsPanelOpen] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [pendingUrl, setPendingUrl] = useState<string>('');
   
   const { groupedNotations, activeNotationCount } = useNotationsManager(schema);
   
@@ -99,13 +103,36 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     
     setIsReloading(true);
     try {
-      const response = await fetch(selectedDocument.import_url);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Please sign in to reload from URL');
+        setIsReloading(false);
+        return;
       }
-      
-      const text = await response.text();
-      const content = JSON.parse(text);
+
+      const { data, error } = await supabase.functions.invoke('fetch-authenticated-url', {
+        body: { 
+          action: 'fetchWithStoredCredentials',
+          url: selectedDocument.import_url,
+          documentId: selectedDocument.id
+        }
+      });
+
+      if (error) throw error;
+
+      // Check if authentication is required
+      if (data.requiresAuth || (data.error && data.error.includes('requiresAuth'))) {
+        setPendingUrl(selectedDocument.import_url);
+        setAuthDialogOpen(true);
+        setIsReloading(false);
+        return;
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      const content = JSON.parse(data.content);
       
       // Update the schema in the editor
       const newSchema = JSON.stringify(content, null, 2);
@@ -118,6 +145,55 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       }
       
       toast.success('Document reloaded from URL and saved');
+    } catch (error) {
+      toast.error(`Failed to reload from URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsReloading(false);
+    }
+  };
+
+  const handleAuthenticate = async (authMethod: 'basic' | 'bearer', credentials: string) => {
+    if (!pendingUrl || !selectedDocument) return;
+    
+    setIsReloading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Please sign in to authenticate');
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('fetch-authenticated-url', {
+        body: { 
+          action: 'fetch',
+          url: pendingUrl,
+          authMethod,
+          credentials,
+          documentId: selectedDocument.id
+        }
+      });
+
+      if (error) throw error;
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      const content = JSON.parse(data.content);
+      
+      // Update the schema in the editor
+      const newSchema = JSON.stringify(content, null, 2);
+      setSchema(newSchema);
+      setSavedSchema(newSchema);
+      
+      // Save the updated content to the database
+      if (onSave) {
+        onSave(content);
+      }
+      
+      toast.success('Document reloaded from URL and saved');
+      setAuthDialogOpen(false);
+      setPendingUrl('');
     } catch (error) {
       toast.error(`Failed to reload from URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
@@ -355,6 +431,12 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           onReplyToNotation={handleReplyToNotation}
         />
 
+        <UrlAuthDialog
+          open={authDialogOpen}
+          onOpenChange={setAuthDialogOpen}
+          onAuthenticate={handleAuthenticate}
+          url={pendingUrl}
+        />
       </div>
     </TooltipProvider>
   );
