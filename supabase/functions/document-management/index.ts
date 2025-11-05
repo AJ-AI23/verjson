@@ -7,6 +7,50 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// AES-GCM encryption for credentials
+async function encryptCredentials(credentials: string, key: string): Promise<string> {
+  // Derive a proper encryption key from the secret
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(key),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveKey']
+  );
+
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const derivedKey = await crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt,
+      iterations: 100000,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt']
+  );
+
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const credBytes = new TextEncoder().encode(credentials);
+
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    derivedKey,
+    credBytes
+  );
+
+  // Combine salt + iv + encrypted data
+  const combined = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+  combined.set(salt, 0);
+  combined.set(iv, salt.length);
+  combined.set(new Uint8Array(encrypted), salt.length + iv.length);
+
+  // Convert to base64
+  return btoa(String.fromCharCode(...combined));
+}
+
 interface CreateDocumentRequest {
   workspace_id: string;
   name: string;
@@ -146,6 +190,26 @@ const handler = async (req: Request): Promise<Response> => {
         
         logger.debug('Creating document', { name: requestBody.name, workspaceId: requestBody.workspace_id });
         
+        // Encrypt credentials if provided
+        let encryptedCredentials = requestBody.import_auth_credentials;
+        if (encryptedCredentials && requestBody.import_auth_method) {
+          const encryptionKey = Deno.env.get('CREDENTIALS_ENCRYPTION_KEY');
+          if (encryptionKey) {
+            try {
+              encryptedCredentials = await encryptCredentials(encryptedCredentials, encryptionKey);
+              logger.debug('Credentials encrypted successfully');
+            } catch (error) {
+              logger.error('Failed to encrypt credentials', error);
+              return new Response(JSON.stringify({ error: 'Failed to encrypt credentials' }), {
+                status: 500,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              });
+            }
+          } else {
+            logger.warn('CREDENTIALS_ENCRYPTION_KEY not set, storing credentials unencrypted');
+          }
+        }
+        
         // Create document
         logger.logDatabaseQuery('documents', 'INSERT', { name: requestBody.name, workspaceId: requestBody.workspace_id });
         const { data: document, error: createError } = await supabaseClient
@@ -158,7 +222,7 @@ const handler = async (req: Request): Promise<Response> => {
             user_id: user.id,
             import_url: requestBody.import_url,
             import_auth_method: requestBody.import_auth_method,
-            import_auth_credentials: requestBody.import_auth_credentials,
+            import_auth_credentials: encryptedCredentials,
           })
           .select()
           .single();

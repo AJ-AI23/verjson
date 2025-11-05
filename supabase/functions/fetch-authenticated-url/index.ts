@@ -5,28 +5,87 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Simple XOR encryption/decryption for credentials
-function encryptCredentials(credentials: string, key: string): string {
-  const keyBytes = new TextEncoder().encode(key);
+// AES-GCM encryption/decryption for credentials
+async function encryptCredentials(credentials: string, key: string): Promise<string> {
+  // Derive a proper encryption key from the secret
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(key),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveKey']
+  );
+
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const derivedKey = await crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt,
+      iterations: 100000,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt']
+  );
+
+  const iv = crypto.getRandomValues(new Uint8Array(12));
   const credBytes = new TextEncoder().encode(credentials);
-  const encrypted = new Uint8Array(credBytes.length);
-  
-  for (let i = 0; i < credBytes.length; i++) {
-    encrypted[i] = credBytes[i] ^ keyBytes[i % keyBytes.length];
-  }
-  
-  return btoa(String.fromCharCode(...encrypted));
+
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    derivedKey,
+    credBytes
+  );
+
+  // Combine salt + iv + encrypted data
+  const combined = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+  combined.set(salt, 0);
+  combined.set(iv, salt.length);
+  combined.set(new Uint8Array(encrypted), salt.length + iv.length);
+
+  // Convert to base64
+  return btoa(String.fromCharCode(...combined));
 }
 
-function decryptCredentials(encrypted: string, key: string): string {
-  const keyBytes = new TextEncoder().encode(key);
-  const encryptedBytes = Uint8Array.from(atob(encrypted), c => c.charCodeAt(0));
-  const decrypted = new Uint8Array(encryptedBytes.length);
-  
-  for (let i = 0; i < encryptedBytes.length; i++) {
-    decrypted[i] = encryptedBytes[i] ^ keyBytes[i % keyBytes.length];
-  }
-  
+async function decryptCredentials(encrypted: string, key: string): Promise<string> {
+  // Decode from base64
+  const combined = Uint8Array.from(atob(encrypted), c => c.charCodeAt(0));
+
+  // Extract salt, iv, and encrypted data
+  const salt = combined.slice(0, 16);
+  const iv = combined.slice(16, 28);
+  const encryptedData = combined.slice(28);
+
+  // Derive the same key
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(key),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveKey']
+  );
+
+  const derivedKey = await crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt,
+      iterations: 100000,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['decrypt']
+  );
+
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    derivedKey,
+    encryptedData
+  );
+
   return new TextDecoder().decode(decrypted);
 }
 
@@ -38,7 +97,7 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const encryptionKey = Deno.env.get('CROWDIN_ENCRYPTION_KEY')!; // Reuse existing encryption key
+    const encryptionKey = Deno.env.get('CREDENTIALS_ENCRYPTION_KEY')!;
     
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -115,7 +174,7 @@ Deno.serve(async (req) => {
       
       // If documentId is provided and credentials were used, update the document with encrypted credentials
       if (documentId && authMethod && credentials) {
-        const encryptedCreds = encryptCredentials(credentials, encryptionKey);
+        const encryptedCreds = await encryptCredentials(credentials, encryptionKey);
         
         const { error: updateError } = await supabase
           .from('documents')
@@ -176,7 +235,7 @@ Deno.serve(async (req) => {
       };
 
       if (document.import_auth_method && document.import_auth_credentials) {
-        const decryptedCreds = decryptCredentials(document.import_auth_credentials, encryptionKey);
+        const decryptedCreds = await decryptCredentials(document.import_auth_credentials, encryptionKey);
         
         if (document.import_auth_method === 'basic') {
           const [username, password] = decryptedCreds.split(':');
