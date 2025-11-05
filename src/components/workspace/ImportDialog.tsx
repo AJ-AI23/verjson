@@ -16,6 +16,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Upload, FileText, Link, X, Download, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
+import { UrlAuthDialog } from './UrlAuthDialog';
+import { supabase } from '@/integrations/supabase/client';
 
 interface FileToImport {
   id: string;
@@ -45,6 +47,9 @@ export function ImportDialog({
   const [urlInput, setUrlInput] = useState('');
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [pendingUrl, setPendingUrl] = useState<string>('');
+  const [pendingDocumentId, setPendingDocumentId] = useState<string | null>(null);
 
   const detectFileType = (content: any): 'json-schema' | 'openapi' => {
     if (content.openapi || content.swagger) return 'openapi';
@@ -203,18 +208,42 @@ export function ImportDialog({
     e.target.value = '';
   }, [handleFiles]);
 
-  const handleUrlImport = async () => {
+  const handleUrlImport = async (authMethod?: 'basic' | 'bearer', credentials?: string) => {
     if (!urlInput.trim()) return;
     
     setIsLoadingUrl(true);
     try {
-      const response = await fetch(urlInput);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('You must be logged in to import from URL');
+        return;
       }
-      
-      const text = await response.text();
-      const content = JSON.parse(text);
+
+      const { data, error } = await supabase.functions.invoke('fetch-authenticated-url', {
+        body: {
+          action: 'fetch',
+          url: urlInput,
+          authMethod,
+          credentials,
+          documentId: pendingDocumentId
+        }
+      });
+
+      if (error) throw error;
+
+      // Check if authentication is required
+      if (data.error && data.requiresAuth) {
+        setPendingUrl(urlInput);
+        setAuthDialogOpen(true);
+        setIsLoadingUrl(false);
+        return;
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      const content = JSON.parse(data.content);
       const fileType = detectFileType(content);
       const filename = urlInput.split('/').pop() || 'imported-file';
       const validation = validateJsonContent(content, filename);
@@ -225,20 +254,28 @@ export function ImportDialog({
         content,
         fileType,
         source: 'url',
-        size: text.length,
+        size: data.content.length,
         valid: validation.valid,
         error: validation.error,
-        url: urlInput, // Store the URL
+        url: urlInput,
       };
       
       setFilesToImport(prev => [...prev, newFile]);
       setUrlInput('');
+      setPendingUrl('');
+      setPendingDocumentId(null);
       toast.success('File loaded from URL');
     } catch (error) {
       toast.error(`Failed to load from URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoadingUrl(false);
     }
+  };
+
+  const handleAuthenticate = async (authMethod: 'basic' | 'bearer', credentials: string) => {
+    setAuthDialogOpen(false);
+    setUrlInput(pendingUrl);
+    await handleUrlImport(authMethod, credentials);
   };
 
   const removeFile = (id: string) => {
@@ -339,7 +376,7 @@ export function ImportDialog({
                   onKeyPress={(e) => e.key === 'Enter' && handleUrlImport()}
                 />
                 <Button
-                  onClick={handleUrlImport}
+                  onClick={() => handleUrlImport()}
                   disabled={!urlInput.trim() || isLoadingUrl}
                 >
                   {isLoadingUrl ? 'Loading...' : 'Load'}
@@ -428,6 +465,13 @@ export function ImportDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <UrlAuthDialog
+        open={authDialogOpen}
+        onOpenChange={setAuthDialogOpen}
+        onAuthenticate={handleAuthenticate}
+        url={pendingUrl}
+      />
     </Dialog>
   );
 }

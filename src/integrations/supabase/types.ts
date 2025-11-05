@@ -281,6 +281,8 @@ export type Database = {
           crowdin_integration_id: string | null
           file_type: string
           id: string
+          import_auth_credentials: string | null
+          import_auth_method: string | null
           import_url: string | null
           is_public: boolean
           name: string
@@ -296,6 +298,8 @@ export type Database = {
           crowdin_integration_id?: string | null
           file_type?: string
           id?: string
+          import_auth_credentials?: string | null
+          import_auth_method?: string | null
           import_url?: string | null
           is_public?: boolean
           name: string
@@ -311,6 +315,8 @@ export type Database = {
           crowdin_integration_id?: string | null
           file_type?: string
           id?: string
+          import_auth_credentials?: string | null
+          import_auth_method?: string | null
           import_url?: string | null
           is_public?: boolean
           name?: string
@@ -632,14 +638,8 @@ export type Database = {
           workspace_id: string
         }[]
       }
-      cleanup_old_collaboration_sessions: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_old_editor_history: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      cleanup_old_collaboration_sessions: { Args: never; Returns: undefined }
+      cleanup_old_editor_history: { Args: never; Returns: undefined }
       create_initial_version_safe: {
         Args: { p_content: Json; p_document_id: string; p_user_id: string }
         Returns: string
@@ -661,10 +661,7 @@ export type Database = {
           success: boolean
         }[]
       }
-      generate_content_hash: {
-        Args: { content: string }
-        Returns: string
-      }
+      generate_content_hash: { Args: { content: string }; Returns: string }
       get_document_permissions: {
         Args: { doc_id: string }
         Returns: {
