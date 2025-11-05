@@ -229,17 +229,34 @@ export function ImportDialog({
         }
       });
 
-      if (error) throw error;
-
-      // Check if authentication is required
-      if (data.error && data.requiresAuth) {
-        setPendingUrl(urlInput);
-        setAuthDialogOpen(true);
-        setIsLoadingUrl(false);
-        return;
+      // Check if authentication is required (error with requiresAuth flag)
+      if (error) {
+        // Try to parse the error message as JSON to check for requiresAuth
+        try {
+          const errorData = typeof error === 'object' && 'message' in error 
+            ? JSON.parse(error.message) 
+            : error;
+          
+          if (errorData.requiresAuth) {
+            setPendingUrl(urlInput);
+            setAuthDialogOpen(true);
+            setIsLoadingUrl(false);
+            return;
+          }
+        } catch (e) {
+          // If parsing fails, just throw the original error
+        }
+        throw error;
       }
 
+      // Check if data contains an error
       if (data.error) {
+        if (data.requiresAuth) {
+          setPendingUrl(urlInput);
+          setAuthDialogOpen(true);
+          setIsLoadingUrl(false);
+          return;
+        }
         throw new Error(data.error);
       }
 

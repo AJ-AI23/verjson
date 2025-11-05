@@ -96,15 +96,16 @@ Deno.serve(async (req) => {
       console.log(`[fetch-authenticated-url] Response status: ${response.status}`);
 
       if (!response.ok) {
+        const requiresAuth = response.status === 401 || response.status === 403;
         return new Response(
           JSON.stringify({ 
             error: 'Failed to fetch URL',
             status: response.status,
             statusText: response.statusText,
-            requiresAuth: response.status === 401 || response.status === 403
+            requiresAuth
           }),
           { 
-            status: response.status, 
+            status: requiresAuth ? 200 : response.status, // Return 200 for auth errors so client can handle them
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           }
         );
@@ -196,8 +197,10 @@ Deno.serve(async (req) => {
       console.log(`[fetch-authenticated-url] Response status: ${response.status}`);
 
       if (!response.ok) {
+        const requiresAuth = response.status === 401 || response.status === 403;
+        
         // If auth failed, clear stored credentials
-        if (response.status === 401 || response.status === 403) {
+        if (requiresAuth) {
           await supabase
             .from('documents')
             .update({
@@ -214,10 +217,10 @@ Deno.serve(async (req) => {
             error: 'Failed to fetch URL',
             status: response.status,
             statusText: response.statusText,
-            requiresAuth: response.status === 401 || response.status === 403
+            requiresAuth
           }),
           { 
-            status: response.status, 
+            status: requiresAuth ? 200 : response.status, // Return 200 for auth errors so client can handle them
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           }
         );
