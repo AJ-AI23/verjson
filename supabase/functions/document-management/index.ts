@@ -13,6 +13,8 @@ interface CreateDocumentRequest {
   content: any;
   file_type: 'json-schema' | 'openapi';
   import_url?: string;
+  import_auth_method?: 'basic' | 'bearer';
+  import_auth_credentials?: string;
 }
 
 interface UpdateDocumentRequest {
@@ -155,6 +157,8 @@ const handler = async (req: Request): Promise<Response> => {
             file_type: requestBody.file_type,
             user_id: user.id,
             import_url: requestBody.import_url,
+            import_auth_method: requestBody.import_auth_method,
+            import_auth_credentials: requestBody.import_auth_credentials,
           })
           .select()
           .single();

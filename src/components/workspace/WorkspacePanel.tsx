@@ -373,13 +373,25 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   const handleImportFiles = async (filesToImport: any[]) => {
     try {
       for (const file of filesToImport) {
-        await createDocument({
+        const docData: any = {
           workspace_id: selectedWorkspace,
           name: file.name,
           content: file.content,
           file_type: file.fileType,
-          import_url: file.url, // Pass the URL if available
-        });
+        };
+        
+        // Add import URL and auth info if available
+        if (file.url) {
+          docData.import_url = file.url;
+        }
+        if (file.authMethod) {
+          docData.import_auth_method = file.authMethod;
+        }
+        if (file.credentials) {
+          docData.import_auth_credentials = file.credentials;
+        }
+        
+        await createDocument(docData);
       }
       toast.success(`Imported ${filesToImport.length} document${filesToImport.length !== 1 ? 's' : ''} successfully`);
     } catch (error) {

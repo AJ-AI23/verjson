@@ -29,6 +29,8 @@ interface FileToImport {
   valid: boolean;
   error?: string;
   url?: string; // Store the URL for URL imports
+  authMethod?: 'basic' | 'bearer'; // Store the auth method for URL imports
+  credentials?: string; // Store the encrypted credentials for URL imports
 }
 
 interface ImportDialogProps {
@@ -277,6 +279,8 @@ export function ImportDialog({
         valid: validation.valid,
         error: validation.error,
         url: urlInput,
+        authMethod: authMethod,
+        credentials: credentials,
       };
       
       setFilesToImport(prev => [...prev, newFile]);

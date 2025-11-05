@@ -37,6 +37,8 @@ export interface Document {
   created_at: string;
   updated_at: string;
   import_url?: string;
+  import_auth_method?: 'basic' | 'bearer';
+  import_auth_credentials?: string;
   // Properties for shared documents
   workspace_name?: string;
   shared_role?: 'editor' | 'viewer';
@@ -54,4 +56,6 @@ export interface CreateDocumentData {
   content: any;
   file_type: 'json-schema' | 'openapi';
   import_url?: string;
+  import_auth_method?: 'basic' | 'bearer';
+  import_auth_credentials?: string;
 }
