@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, FileText, Link, X, Download, AlertCircle } from 'lucide-react';
+import { Upload, FileText, Link, X, Download, AlertCircle, Pencil, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
 import { UrlAuthDialog } from './UrlAuthDialog';
@@ -50,6 +50,8 @@ export function ImportDialog({
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [pendingUrl, setPendingUrl] = useState<string>('');
   const [pendingDocumentId, setPendingDocumentId] = useState<string | null>(null);
+  const [editingFileId, setEditingFileId] = useState<string | null>(null);
+  const [editingFileName, setEditingFileName] = useState<string>('');
 
   const detectFileType = (content: any): 'json-schema' | 'openapi' => {
     if (content.openapi || content.swagger) return 'openapi';
@@ -299,6 +301,12 @@ export function ImportDialog({
     setFilesToImport(prev => prev.filter(file => file.id !== id));
   };
 
+  const renameFile = (id: string, newName: string) => {
+    setFilesToImport(prev => 
+      prev.map(file => file.id === id ? { ...file, name: newName } : file)
+    );
+  };
+
   const handleImport = async () => {
     const validFiles = filesToImport.filter(file => file.valid);
     if (validFiles.length === 0) {
@@ -411,14 +419,57 @@ export function ImportDialog({
                 {validFiles.map((file) => (
                   <div
                     key={file.id}
-                    className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg"
+                    className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg group"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <FileText className="h-4 w-4 text-green-600 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">
-                          {file.name}
-                        </div>
+                        {editingFileId === file.id ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={editingFileName}
+                              onChange={(e) => setEditingFileName(e.target.value)}
+                              className="h-7 text-sm"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  renameFile(file.id, editingFileName);
+                                  setEditingFileId(null);
+                                } else if (e.key === 'Escape') {
+                                  setEditingFileId(null);
+                                }
+                              }}
+                            />
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                renameFile(file.id, editingFileName);
+                                setEditingFileId(null);
+                              }}
+                              className="h-6 w-6 p-0"
+                            >
+                              <Check className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm font-medium truncate">
+                              {file.name}
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingFileId(file.id);
+                                setEditingFileName(file.name);
+                              }}
+                              className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Badge variant="secondary" className="text-xs">
                             {file.fileType}
@@ -442,14 +493,57 @@ export function ImportDialog({
                 {invalidFiles.map((file) => (
                   <div
                     key={file.id}
-                    className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg"
+                    className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg group"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">
-                          {file.name}
-                        </div>
+                        {editingFileId === file.id ? (
+                          <div className="flex items-center gap-2 mb-1">
+                            <Input
+                              value={editingFileName}
+                              onChange={(e) => setEditingFileName(e.target.value)}
+                              className="h-7 text-sm"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  renameFile(file.id, editingFileName);
+                                  setEditingFileId(null);
+                                } else if (e.key === 'Escape') {
+                                  setEditingFileId(null);
+                                }
+                              }}
+                            />
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                renameFile(file.id, editingFileName);
+                                setEditingFileId(null);
+                              }}
+                              className="h-6 w-6 p-0"
+                            >
+                              <Check className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm font-medium truncate">
+                              {file.name}
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingFileId(file.id);
+                                setEditingFileName(file.name);
+                              }}
+                              className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
                         <div className="text-xs text-red-600">
                           {file.error}
                         </div>
