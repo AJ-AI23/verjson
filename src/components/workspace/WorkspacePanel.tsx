@@ -372,6 +372,8 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
 
   const handleImportFiles = async (filesToImport: any[]) => {
     try {
+      console.log('[WorkspacePanel] Importing files:', filesToImport.map(f => ({ name: f.name, url: f.url })));
+      
       for (const file of filesToImport) {
         const docData: any = {
           workspace_id: selectedWorkspace,
@@ -379,6 +381,8 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
           content: file.content,
           file_type: file.fileType,
         };
+        
+        console.log('[WorkspacePanel] Creating document with data:', { name: docData.name, hasUrl: !!file.url });
         
         // Add import URL and auth info if available
         if (file.url) {

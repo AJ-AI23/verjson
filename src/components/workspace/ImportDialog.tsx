@@ -306,9 +306,11 @@ export function ImportDialog({
   };
 
   const renameFile = (id: string, newName: string) => {
+    if (!newName.trim()) return; // Don't allow empty names
     setFilesToImport(prev => 
-      prev.map(file => file.id === id ? { ...file, name: newName } : file)
+      prev.map(file => file.id === id ? { ...file, name: newName.trim() } : file)
     );
+    console.log('[ImportDialog] File renamed:', { id, newName: newName.trim() });
   };
 
   const handleImport = async () => {
@@ -317,6 +319,8 @@ export function ImportDialog({
       toast.error('No valid files to import');
       return;
     }
+    
+    console.log('[ImportDialog] Importing files:', validFiles.map(f => ({ id: f.id, name: f.name })));
     
     setIsImporting(true);
     try {
