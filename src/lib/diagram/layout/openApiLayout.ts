@@ -26,7 +26,7 @@ export const generateOpenApiLayout = (
   collapsedPaths: CollapsedState = {},
   maxIndividualProperties: number = 5
 ): DiagramElements => {
-  console.log(`🔥 [OPENAPI LAYOUT] Starting with maxDepth: ${maxDepth}`);
+  console.log(`🔥 [OPENAPI LAYOUT] Starting with maxDepth: ${maxDepth}, maxIndividualProperties: ${maxIndividualProperties}`);
   console.log(`🔥 [OPENAPI LAYOUT] CollapsedPaths:`, collapsedPaths);
   console.log(`🔥 [OPENAPI LAYOUT] Schema keys:`, Object.keys(schema));
   console.log(`🔥 [OPENAPI LAYOUT] Schema paths:`, schema.paths ? Object.keys(schema.paths) : 'none');
@@ -135,7 +135,8 @@ export const generateOpenApiLayout = (
             result,
             maxDepth,
             collapsedPaths,
-            'root.components.schemas'
+            'root.components.schemas',
+            maxIndividualProperties
           );
         }
       }
@@ -259,9 +260,10 @@ function processComponentsSchemas(
   result: DiagramElements,
   maxDepth: number,
   collapsedPaths: CollapsedState,
-  parentPath: string
+  parentPath: string,
+  maxIndividualProperties: number = 5
 ) {
-  console.log(`[OPENAPI LAYOUT] Processing ${Object.keys(schemas).length} schemas with grouping`);
+  console.log(`[OPENAPI LAYOUT] Processing ${Object.keys(schemas).length} schemas with grouping, maxIndividualProperties: ${maxIndividualProperties}`);
   
   // Count how many schemas are already individually expanded
   const schemaEntries = Object.entries(schemas);
@@ -271,7 +273,7 @@ function processComponentsSchemas(
   }).length;
   
   // Only group if we're not showing individual expanded schemas
-  const shouldGroup = expandedSchemasCount === 0 && schemaEntries.length > 5;
+  const shouldGroup = expandedSchemasCount === 0 && schemaEntries.length > maxIndividualProperties;
   
   console.log('🔥 [OPENAPI LAYOUT] Schema grouping decision:', {
     parentPath,
@@ -287,7 +289,7 @@ function processComponentsSchemas(
     yPos,
     xSpacing,
     result,
-    5, // Max individual schemas before grouping
+    maxIndividualProperties, // Use the passed parameter instead of hardcoded value
     collapsedPaths,
     parentPath,
     [] // schemas don't have required props
