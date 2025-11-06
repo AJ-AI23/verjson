@@ -168,7 +168,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     };
   });
 
-  // Convert edges - connect anchors to nodes
+  // Convert edges - connect anchors to nodes only
   const layoutEdges: Edge[] = [];
   
   // Create edges between anchors and their nodes
@@ -201,33 +201,6 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         animated: false,
         style: edgeStyles,
         data: { edgeType: 'default', styles }
-      });
-    }
-  });
-  
-  // Add labeled edges between source and target anchors
-  edges.forEach(edge => {
-    const sourceNode = nodes.find(n => n.id === edge.source);
-    const targetNode = nodes.find(n => n.id === edge.target);
-    
-    const sourceTargetAnchorId = sourceNode?.anchors?.[1]?.id;
-    const targetSourceAnchorId = targetNode?.anchors?.[0]?.id;
-    
-    if (sourceTargetAnchorId && targetSourceAnchorId) {
-      const edgeStyles = getEdgeStyle(edge.type || 'default');
-      
-      layoutEdges.push({
-        id: edge.id,
-        source: sourceTargetAnchorId,
-        target: targetSourceAnchorId,
-        label: edge.label,
-        type: 'sequenceEdge',
-        animated: edge.animated || edge.type === 'async',
-        style: edge.style || edgeStyles,
-        data: {
-          edgeType: edge.type || 'default',
-          styles
-        }
       });
     }
   });
