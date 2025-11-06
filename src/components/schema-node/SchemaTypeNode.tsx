@@ -129,7 +129,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
       // Enhanced styling for grouped properties - more distinct
       isGroupedProperties && 'border-2 border-purple-400 bg-gradient-to-br from-purple-50 to-indigo-50',
       isCollapsed && 'border-dashed bg-slate-50',
-      hasMoreLevels && !isCollapsed && 'border-dashed',
+      hasMoreLevels && !isCollapsed && 'border-2 border-dashed',
       hasNotations && 'border-l-2 border-l-amber-400'
     );
   }, [type, required, isRoot, isGroup, isGrouped, data.isGroupedProperties, isCollapsed, hasMoreLevels, hasNotations]);
