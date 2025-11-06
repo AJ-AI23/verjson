@@ -28,19 +28,19 @@ export const ContentTypeNode = memo(({ data, isConnectable, id, onAddNotation }:
 
   const getContentTypeColor = (type: string) => {
     if (type.includes('json')) {
-      return 'bg-purple-100 text-purple-800 border-purple-200';
+      return 'bg-primary/10 text-primary border-primary/20';
     } else if (type.includes('xml')) {
-      return 'bg-orange-100 text-orange-800 border-orange-200';
+      return 'bg-accent/10 text-accent-foreground border-accent/20';
     } else if (type.includes('text')) {
-      return 'bg-blue-100 text-blue-800 border-blue-200';
+      return 'bg-secondary/10 text-secondary-foreground border-secondary/20';
     }
-    return 'bg-gray-100 text-gray-800 border-gray-200';
+    return 'bg-muted text-muted-foreground border-border';
   };
 
   return (
     <div className={cn(
       'px-3 py-2 rounded-md shadow-sm min-w-[120px] max-w-[250px]',
-      'bg-indigo-50 border-indigo-200',
+      'bg-card text-card-foreground border-border',
       hasMoreLevels ? 'border-2 border-dashed' : 'border',
       hasNotations && 'border-l-2 border-l-amber-400'
     )}>
@@ -67,7 +67,7 @@ export const ContentTypeNode = memo(({ data, isConnectable, id, onAddNotation }:
                   </Badge>
                 ))}
               </div>
-              <span className="text-xs font-medium text-indigo-700">
+              <span className="text-xs font-medium text-foreground">
                 {contentTypes?.length === 1 ? 'Content Type' : 'Content Types'}
               </span>
             </div>
@@ -80,7 +80,7 @@ export const ContentTypeNode = memo(({ data, isConnectable, id, onAddNotation }:
               >
                 {contentType}
               </Badge>
-              <span className="text-xs font-medium text-indigo-700">Content Type</span>
+              <span className="text-xs font-medium text-foreground">Content Type</span>
             </div>
           )}
           <NodeNotations
@@ -92,7 +92,7 @@ export const ContentTypeNode = memo(({ data, isConnectable, id, onAddNotation }:
         </div>
         
         {description && (
-          <div className="text-xs text-indigo-600 line-clamp-2" title={description}>
+          <div className="text-xs text-muted-foreground line-clamp-2" title={description}>
             {description}
           </div>
         )}
