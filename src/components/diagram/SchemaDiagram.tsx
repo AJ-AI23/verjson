@@ -4,7 +4,7 @@ import { DiagramContainer } from './DiagramContainer';
 import { CollapsedState } from '@/lib/diagram/types';
 import { SequenceDiagramRenderer } from './sequence/SequenceDiagramRenderer';
 import { DiagramDocument, SequenceDiagramData } from '@/types/diagram';
-import { DiagramStyles } from '@/types/diagramStyles';
+import { DiagramStyles, defaultLightTheme, defaultDarkTheme } from '@/types/diagramStyles';
 
 interface SchemaDiagramProps {
   schema: any;
@@ -46,6 +46,23 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   // Check if this is a diagram document
   const diagramDocument = isDiagram && schema ? schema as DiagramDocument : null;
   const isSequenceDiagram = diagramDocument?.type === 'sequence';
+
+  // Ensure styles are initialized
+  React.useEffect(() => {
+    if (diagramDocument && !diagramDocument.styles && onSchemaChange) {
+      const updatedDocument = {
+        ...diagramDocument,
+        styles: {
+          activeTheme: 'light',
+          themes: {
+            light: defaultLightTheme,
+            dark: defaultDarkTheme
+          }
+        }
+      };
+      onSchemaChange(updatedDocument);
+    }
+  }, [diagramDocument, onSchemaChange]);
 
   if (isSequenceDiagram && diagramDocument) {
     return (
