@@ -129,13 +129,15 @@ export const OpenApiImportDialog: React.FC<OpenApiImportDialogProps> = ({
         const sourceAnchorId = `anchor-${nodeId}-source`;
         const targetAnchorId = `anchor-${nodeId}-target`;
         
+        const yPos = 100;
+        
         const node: DiagramNode = {
           id: nodeId,
           type: 'endpoint',
           label: endpoint.summary || `${endpoint.method} ${endpoint.path}`,
           anchors: [
-            { lifelineId: sourceLifelineId, id: sourceAnchorId },
-            { lifelineId: targetLifelineNextId, id: targetAnchorId }
+            { id: sourceAnchorId, lifelineId: sourceLifelineId, yPosition: yPos, anchorType: 'source' },
+            { id: targetAnchorId, lifelineId: targetLifelineNextId, yPosition: yPos, anchorType: 'target' }
           ],
           data: {
             method: endpoint.method,

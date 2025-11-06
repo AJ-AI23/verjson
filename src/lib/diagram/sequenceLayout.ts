@@ -7,7 +7,6 @@ interface LayoutOptions {
   lifelines: Lifeline[];
   nodes: DiagramNode[];
   edges: DiagramEdge[];
-  anchors: AnchorNode[];
   horizontalSpacing?: number;
   styles?: DiagramStyleTheme;
 }
@@ -27,10 +26,14 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     lifelines = [],
     nodes = [],
     edges = [],
-    anchors = [],
     horizontalSpacing = 100,
     styles
   } = options;
+
+  // Extract all anchors from nodes
+  const anchors: AnchorNode[] = nodes.flatMap(node => 
+    node.anchors?.map(anchor => ({ ...anchor })) || []
+  );
 
   // Guard against undefined lifelines
   if (!lifelines || lifelines.length === 0) {
@@ -66,14 +69,16 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   });
 
   // Build a dependency graph to determine node order
-  const nodeOrder = calculateNodeSequence(nodes, anchors);
+  const nodeOrder = calculateNodeSequence(nodes);
 
   // Create anchor nodes - positioned at the same Y as their connected node's center
   const anchorNodes: Node[] = anchors.map(anchor => {
     const xPos = lifelineXPositions.get(anchor.lifelineId) || 0;
     
     // Find the connected node to get its Y position and height
-    const connectedNode = nodes.find(n => n.id === anchor.connectedNodeId);
+    const connectedNode = nodes.find(n => 
+      n.anchors?.some(a => a.id === anchor.id)
+    );
     const connectedNodeYPos = connectedNode?.position?.y || anchor.yPosition;
     
     // Get node height from config
@@ -89,7 +94,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       position: { x: xPos - 8, y: anchorY },
       data: {
         lifelineId: anchor.lifelineId,
-        connectedNodeId: anchor.connectedNodeId,
+        connectedNodeId: connectedNode?.id,
         anchorType: anchor.anchorType,
         styles
       },
@@ -103,12 +108,9 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   const layoutNodes: Node[] = nodes.map((node, index) => {
     const config = getNodeTypeConfig(node.type);
     
-    // Get anchors for this node from node.anchors array
-    const sourceAnchorInfo = node.anchors?.[0];
-    const targetAnchorInfo = node.anchors?.[1];
-    
-    const sourceAnchor = sourceAnchorInfo ? anchors.find(a => a.id === sourceAnchorInfo.id) : undefined;
-    const targetAnchor = targetAnchorInfo ? anchors.find(a => a.id === targetAnchorInfo.id) : undefined;
+    // Get anchors for this node directly
+    const sourceAnchor = node.anchors?.[0];
+    const targetAnchor = node.anchors?.[1];
     
     // Find the sequence order of this node
     const sequenceIndex = nodeOrder.indexOf(node.id);
@@ -148,9 +150,9 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         width = 180;
         startX = (leftX + rightX) / 2 - 90; // Center if too narrow
       }
-    } else if (sourceAnchorInfo) {
+    } else if (sourceAnchor) {
       // Position at source anchor lifeline (centered)
-      startX = (lifelineXPositions.get(sourceAnchorInfo.lifelineId) || 0) - width / 2;
+      startX = (lifelineXPositions.get(sourceAnchor.lifelineId) || 0) - width / 2;
     }
 
     return {
@@ -171,7 +173,9 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   
   // Create edges between anchors and their nodes
   anchors.forEach(anchor => {
-    const node = nodes.find(n => n.id === anchor.connectedNodeId);
+    const node = nodes.find(n => 
+      n.anchors?.some(a => a.id === anchor.id)
+    );
     if (!node) return;
     
     const edgeStyles = getEdgeStyle('default');
@@ -235,14 +239,11 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
 };
 
 // Calculate the vertical order of nodes based on anchor positions
-function calculateNodeSequence(nodes: DiagramNode[], anchors: AnchorNode[]): string[] {
+function calculateNodeSequence(nodes: DiagramNode[]): string[] {
   // Sort nodes by their average anchor Y position
   const nodesWithPosition = nodes.map(node => {
-    const sourceAnchorInfo = node.anchors?.[0];
-    const targetAnchorInfo = node.anchors?.[1];
-    
-    const sourceAnchor = sourceAnchorInfo ? anchors.find(a => a.id === sourceAnchorInfo.id) : undefined;
-    const targetAnchor = targetAnchorInfo ? anchors.find(a => a.id === targetAnchorInfo.id) : undefined;
+    const sourceAnchor = node.anchors?.[0];
+    const targetAnchor = node.anchors?.[1];
     
     let avgY = 0;
     if (sourceAnchor && targetAnchor) {

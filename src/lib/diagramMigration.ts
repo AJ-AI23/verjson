@@ -29,8 +29,7 @@ export const migrateDiagramDocument = (document: DiagramDocument): DiagramDocume
     const migratedData: SequenceDiagramData = {
       lifelines,
       nodes: migratedNodes,
-      edges: data.edges || [],
-      anchors: []
+      edges: data.edges || []
     };
 
     return {
@@ -53,10 +52,8 @@ export const migrateDiagramDocument = (document: DiagramDocument): DiagramDocume
     data.lifelines = [defaultLifeline];
   }
 
-  // Update nodes to use anchors array instead of lifelineId/swimlaneId/columnId
+  // Update nodes to embed anchors instead of using separate arrays
   if (data.nodes) {
-    const anchors: any[] = [];
-    
     data.nodes = data.nodes.map((node: any, index: number) => {
       const updatedNode = { ...node };
       
@@ -68,59 +65,55 @@ export const migrateDiagramDocument = (document: DiagramDocument): DiagramDocume
         lifelineId = data.lifelines[0].id;
       }
       
-      // If node already has anchors array, keep it
+      // If node already has anchors with full AnchorNode structure, keep it
       if (node.anchors && Array.isArray(node.anchors) && node.anchors.length === 2) {
-        // Make sure anchors exist in anchors array
-        node.anchors.forEach((anchor: any, anchorIndex: number) => {
-          const anchorType = anchorIndex === 0 ? 'source' : 'target';
-          const existingAnchor = data.anchors?.find((a: any) => a.id === anchor.id);
-          
-          if (!existingAnchor) {
-            anchors.push({
-              id: anchor.id,
-              lifelineId: anchor.lifelineId,
-              yPosition: node.position?.y || 100 + index * 140,
-              connectedNodeId: node.id,
-              anchorType
-            });
+        // Check if anchors are already full AnchorNode objects (have yPosition and anchorType)
+        if (node.anchors[0].yPosition !== undefined && node.anchors[0].anchorType !== undefined) {
+          return updatedNode;
+        }
+        
+        // Convert from old reference format to full AnchorNode objects
+        const yPos = node.position?.y || 100 + index * 140;
+        updatedNode.anchors = [
+          {
+            id: node.anchors[0].id || `anchor-${node.id}-source`,
+            lifelineId: node.anchors[0].lifelineId || lifelineId,
+            yPosition: yPos,
+            anchorType: 'source'
+          },
+          {
+            id: node.anchors[1].id || `anchor-${node.id}-target`,
+            lifelineId: node.anchors[1].lifelineId || (data.lifelines && data.lifelines.length > 1 ? data.lifelines[1].id : lifelineId),
+            yPosition: yPos,
+            anchorType: 'target'
           }
-        });
+        ];
         
         return updatedNode;
       }
       
-      // Create new anchors structure
+      // Create new full anchor structure
       const sourceLifelineId = lifelineId;
       const targetLifelineId = data.lifelines && data.lifelines.length > 1 
         ? data.lifelines[1].id 
         : sourceLifelineId;
       
-      const sourceAnchorId = `anchor-${node.id}-source`;
-      const targetAnchorId = `anchor-${node.id}-target`;
-      
-      updatedNode.anchors = [
-        { lifelineId: sourceLifelineId, id: sourceAnchorId },
-        { lifelineId: targetLifelineId, id: targetAnchorId }
-      ];
-      
-      // Create anchor nodes
       const yPos = node.position?.y || 100 + index * 140;
       
-      anchors.push({
-        id: sourceAnchorId,
-        lifelineId: sourceLifelineId,
-        yPosition: yPos,
-        connectedNodeId: node.id,
-        anchorType: 'source'
-      });
-      
-      anchors.push({
-        id: targetAnchorId,
-        lifelineId: targetLifelineId,
-        yPosition: yPos,
-        connectedNodeId: node.id,
-        anchorType: 'target'
-      });
+      updatedNode.anchors = [
+        {
+          id: `anchor-${node.id}-source`,
+          lifelineId: sourceLifelineId,
+          yPosition: yPos,
+          anchorType: 'source'
+        },
+        {
+          id: `anchor-${node.id}-target`,
+          lifelineId: targetLifelineId,
+          yPosition: yPos,
+          anchorType: 'target'
+        }
+      ];
       
       // Remove old properties
       delete updatedNode.lifelineId;
@@ -132,12 +125,8 @@ export const migrateDiagramDocument = (document: DiagramDocument): DiagramDocume
       return updatedNode;
     });
     
-    // Add or merge anchors
-    if (!data.anchors) {
-      data.anchors = anchors;
-    } else {
-      data.anchors = [...data.anchors, ...anchors];
-    }
+    // Remove the global anchors array if it exists
+    delete data.anchors;
   }
 
   return document;

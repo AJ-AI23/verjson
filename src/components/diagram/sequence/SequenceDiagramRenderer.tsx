@@ -72,7 +72,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   isFullscreen = false,
   onToggleFullscreen
 }) => {
-  const { lifelines, nodes: diagramNodes, edges: diagramEdges, anchors = [] } = data;
+  const { lifelines, nodes: diagramNodes, edges: diagramEdges } = data;
   
   const [selectedNode, setSelectedNode] = useState<DiagramNode | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<DiagramEdge | null>(null);
@@ -87,10 +87,9 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
       lifelines,
       nodes: diagramNodes,
       edges: diagramEdges,
-      anchors,
       styles: activeTheme
     });
-  }, [lifelines, diagramNodes, diagramEdges, anchors, activeTheme]);
+  }, [lifelines, diagramNodes, diagramEdges, activeTheme]);
 
   const [nodes, setNodes, handleNodesChange] = useNodesState(layoutNodes);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
@@ -135,32 +134,28 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         const snappedX = closestLifelineX - 8; // Center the 16px anchor
         const newY = moveChange.position.y + 8; // Offset for anchor center
         
-        const updatedAnchors = anchors.map(a =>
-          a.id === moveChange.id 
-            ? { ...a, yPosition: newY, lifelineId: closestLifelineId } 
-            : a
-        );
-        
-        // Update the connected node's anchors and position
-        let updatedDiagramNodes = diagramNodes;
-        const sourceAnchor = updatedAnchors.find(a => a.connectedNodeId === connectedNodeId && a.anchorType === 'source');
-        const targetAnchor = updatedAnchors.find(a => a.connectedNodeId === connectedNodeId && a.anchorType === 'target');
-        
-        if (sourceAnchor && targetAnchor) {
-          const avgY = (sourceAnchor.yPosition + targetAnchor.yPosition) / 2;
-          updatedDiagramNodes = diagramNodes.map(n =>
-            n.id === connectedNodeId 
-              ? { 
-                  ...n, 
-                  position: { x: n.position?.x || 0, y: avgY },
-                  anchors: [
-                    { lifelineId: sourceAnchor.lifelineId, id: sourceAnchor.id },
-                    { lifelineId: targetAnchor.lifelineId, id: targetAnchor.id }
-                  ]
-                } 
-              : n
-          );
-        }
+        // Update the node that contains this anchor
+        const updatedDiagramNodes = diagramNodes.map(n => {
+          const anchorIndex = n.anchors?.findIndex(a => a.id === moveChange.id);
+          if (anchorIndex !== undefined && anchorIndex !== -1) {
+            const updatedAnchors = [...n.anchors];
+            updatedAnchors[anchorIndex] = {
+              ...updatedAnchors[anchorIndex],
+              yPosition: newY,
+              lifelineId: closestLifelineId
+            };
+            
+            // Update node position to average of anchor Y positions
+            const avgY = (updatedAnchors[0].yPosition + updatedAnchors[1].yPosition) / 2;
+            
+            return {
+              ...n,
+              anchors: updatedAnchors as [typeof updatedAnchors[0], typeof updatedAnchors[1]],
+              position: { x: n.position?.x || 0, y: avgY }
+            };
+          }
+          return n;
+        });
         
         // Apply the snap by updating the node position immediately
         setNodes(currentNodes => 
@@ -171,7 +166,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
           )
         );
         
-        onDataChange({ ...data, anchors: updatedAnchors, nodes: updatedDiagramNodes });
+        onDataChange({ ...data, nodes: updatedDiagramNodes });
       } else {
         // Regular node position update - also update connected anchors
         const movedDiagramNode = diagramNodes.find(n => n.id === moveChange.id);
@@ -221,17 +216,23 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
           }
         }
         
-        const updatedNodes = diagramNodes.map(n =>
-          n.id === moveChange.id ? { ...n, position: { x: snappedX, y: constrainedY } } : n
-        );
-        
-        // Update anchors connected to this node to match its Y position (center of node)
+        // Update node and its anchors
         const nodeCenterY = constrainedY + (nodeHeight / 2);
-        const updatedAnchors = anchors.map(a => {
-          if (a.connectedNodeId === moveChange.id) {
-            return { ...a, yPosition: nodeCenterY };
+        const updatedNodes = diagramNodes.map(n => {
+          if (n.id === moveChange.id) {
+            // Update node position and anchor Y positions
+            const updatedAnchors = n.anchors?.map(anchor => ({
+              ...anchor,
+              yPosition: nodeCenterY
+            }));
+            
+            return { 
+              ...n, 
+              position: { x: snappedX, y: constrainedY },
+              anchors: updatedAnchors as [typeof updatedAnchors[0], typeof updatedAnchors[1]]
+            };
           }
-          return a;
+          return n;
         });
         
         // Immediately update node and anchor positions visually
@@ -248,10 +249,10 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
           })
         );
         
-        onDataChange({ ...data, nodes: updatedNodes, anchors: updatedAnchors });
+        onDataChange({ ...data, nodes: updatedNodes });
       }
     }
-  }, [handleNodesChange, onNodesChange, nodes, diagramNodes, anchors, data, onDataChange, lifelines, setNodes]);
+  }, [handleNodesChange, onNodesChange, nodes, diagramNodes, data, onDataChange, lifelines, setNodes]);
 
   const onEdgesChangeHandler = useCallback((changes: any) => {
     handleEdgesChange(changes);
@@ -342,21 +343,15 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
       type,
       label: `New ${type}`,
       anchors: [
-        { lifelineId: sourceLifelineId, id: sourceAnchorId },
-        { lifelineId: targetLifelineId, id: targetAnchorId }
+        { id: sourceAnchorId, lifelineId: sourceLifelineId, yPosition: 100, anchorType: 'source' },
+        { id: targetAnchorId, lifelineId: targetLifelineId, yPosition: 100, anchorType: 'target' }
       ],
       position: { x: 100, y: 100 }
     };
     
-    const newAnchors = [
-      { id: sourceAnchorId, lifelineId: sourceLifelineId, yPosition: 100, connectedNodeId: nodeId, anchorType: 'source' as const },
-      { id: targetAnchorId, lifelineId: targetLifelineId, yPosition: 100, connectedNodeId: nodeId, anchorType: 'target' as const }
-    ];
-    
     const updatedNodes = [...diagramNodes, newNode];
-    const updatedAnchors = [...anchors, ...newAnchors];
-    onDataChange({ ...data, nodes: updatedNodes, anchors: updatedAnchors });
-  }, [diagramNodes, lifelines, anchors, data, onDataChange]);
+    onDataChange({ ...data, nodes: updatedNodes });
+  }, [diagramNodes, lifelines, data, onDataChange]);
 
   const handleImportFromOpenApi = useCallback((nodes: DiagramNode[]) => {
     if (!onDataChange) return;

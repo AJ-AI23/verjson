@@ -18,7 +18,6 @@ export interface SequenceDiagramData {
   lifelines: Lifeline[];
   nodes: DiagramNode[];
   edges: DiagramEdge[];
-  anchors: AnchorNode[];
 }
 
 export interface FlowchartData {
@@ -39,10 +38,7 @@ export interface DiagramNode {
   id: string;
   type: 'endpoint' | 'process' | 'decision' | 'data' | 'custom';
   label: string;
-  anchors: [
-    { lifelineId: string; id: string },
-    { lifelineId: string; id: string }
-  ];
+  anchors: [AnchorNode, AnchorNode];
   position?: { x: number; y: number };
   data?: {
     method?: string;
@@ -63,7 +59,6 @@ export interface AnchorNode {
   id: string;
   lifelineId: string;
   yPosition: number;
-  connectedNodeId: string;
   anchorType: 'source' | 'target';
 }
 

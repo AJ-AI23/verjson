@@ -58,17 +58,12 @@ const diagramSchema = {
   definitions: {
     sequenceDiagramData: {
       type: 'object',
-      required: ['swimlanes', 'columns', 'nodes', 'edges'],
+      required: ['lifelines', 'nodes', 'edges'],
       properties: {
-        swimlanes: {
+        lifelines: {
           type: 'array',
-          items: { $ref: '#/definitions/swimlane' },
-          description: 'Swimlanes for organizing nodes'
-        },
-        columns: {
-          type: 'array',
-          items: { $ref: '#/definitions/column' },
-          description: 'Columns for organizing nodes'
+          items: { $ref: '#/definitions/lifeline' },
+          description: 'Lifelines for organizing nodes'
         },
         nodes: {
           type: 'array',
@@ -98,7 +93,7 @@ const diagramSchema = {
         }
       }
     },
-    swimlane: {
+    lifeline: {
       type: 'object',
       required: ['id', 'name', 'order'],
       properties: {
@@ -110,7 +105,7 @@ const diagramSchema = {
         name: {
           type: 'string',
           minLength: 1,
-          description: 'Swimlane name'
+          description: 'Lifeline name'
         },
         color: {
           type: 'string',
@@ -122,45 +117,45 @@ const diagramSchema = {
           minimum: 0,
           description: 'Display order'
         },
+        width: {
+          type: 'number',
+          minimum: 100,
+          description: 'Lifeline width in pixels'
+        },
         description: {
           type: 'string',
           description: 'Optional description'
         }
       }
     },
-    column: {
+    anchor: {
       type: 'object',
-      required: ['id', 'name', 'order'],
+      required: ['id', 'lifelineId', 'yPosition', 'anchorType'],
       properties: {
         id: {
           type: 'string',
           minLength: 1,
-          description: 'Unique identifier'
+          description: 'Unique anchor identifier'
         },
-        name: {
+        lifelineId: {
           type: 'string',
           minLength: 1,
-          description: 'Column name'
+          description: 'Reference to lifeline ID'
         },
-        order: {
+        yPosition: {
           type: 'number',
-          minimum: 0,
-          description: 'Display order'
+          description: 'Vertical position'
         },
-        width: {
-          type: 'number',
-          minimum: 100,
-          description: 'Column width in pixels'
-        },
-        description: {
+        anchorType: {
           type: 'string',
-          description: 'Optional description'
+          enum: ['source', 'target'],
+          description: 'Anchor type'
         }
       }
     },
     node: {
       type: 'object',
-      required: ['id', 'type', 'label'],
+      required: ['id', 'type', 'label', 'anchors'],
       properties: {
         id: {
           type: 'string',
@@ -177,13 +172,12 @@ const diagramSchema = {
           minLength: 1,
           description: 'Node label'
         },
-        swimlaneId: {
-          type: 'string',
-          description: 'Reference to swimlane ID'
-        },
-        columnId: {
-          type: 'string',
-          description: 'Reference to column ID'
+        anchors: {
+          type: 'array',
+          minItems: 2,
+          maxItems: 2,
+          items: { $ref: '#/definitions/anchor' },
+          description: 'Source and target anchors'
         },
         position: {
           type: 'object',

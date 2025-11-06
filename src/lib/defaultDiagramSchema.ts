@@ -47,8 +47,8 @@ export const defaultDiagramSchema: DiagramDocument = {
         type: 'process',
         label: 'Click login link',
         anchors: [
-          { lifelineId: 'lifeline-1', id: 'anchor-1-source' },
-          { lifelineId: 'lifeline-2', id: 'anchor-1-target' }
+          { id: 'anchor-1-source', lifelineId: 'lifeline-1', yPosition: 140, anchorType: 'source' },
+          { id: 'anchor-1-target', lifelineId: 'lifeline-2', yPosition: 140, anchorType: 'target' }
         ],
         position: { x: 100, y: 140 },
         data: {
@@ -60,8 +60,8 @@ export const defaultDiagramSchema: DiagramDocument = {
         type: 'process',
         label: 'Authorization Code Request to /authorize',
         anchors: [
-          { lifelineId: 'lifeline-2', id: 'anchor-2-source' },
-          { lifelineId: 'lifeline-3', id: 'anchor-2-target' }
+          { id: 'anchor-2-source', lifelineId: 'lifeline-2', yPosition: 280, anchorType: 'source' },
+          { id: 'anchor-2-target', lifelineId: 'lifeline-3', yPosition: 280, anchorType: 'target' }
         ],
         position: { x: 100, y: 280 },
         data: {
@@ -73,8 +73,8 @@ export const defaultDiagramSchema: DiagramDocument = {
         type: 'process',
         label: 'Redirect to login/authorization prompt',
         anchors: [
-          { lifelineId: 'lifeline-3', id: 'anchor-3-source' },
-          { lifelineId: 'lifeline-1', id: 'anchor-3-target' }
+          { id: 'anchor-3-source', lifelineId: 'lifeline-3', yPosition: 420, anchorType: 'source' },
+          { id: 'anchor-3-target', lifelineId: 'lifeline-1', yPosition: 420, anchorType: 'target' }
         ],
         position: { x: 100, y: 420 },
         data: {
@@ -86,8 +86,8 @@ export const defaultDiagramSchema: DiagramDocument = {
         type: 'process',
         label: 'Authenticate and consent',
         anchors: [
-          { lifelineId: 'lifeline-1', id: 'anchor-4-source' },
-          { lifelineId: 'lifeline-3', id: 'anchor-4-target' }
+          { id: 'anchor-4-source', lifelineId: 'lifeline-1', yPosition: 560, anchorType: 'source' },
+          { id: 'anchor-4-target', lifelineId: 'lifeline-3', yPosition: 560, anchorType: 'target' }
         ],
         position: { x: 100, y: 560 },
         data: {
@@ -99,8 +99,8 @@ export const defaultDiagramSchema: DiagramDocument = {
         type: 'process',
         label: 'Authorization Code',
         anchors: [
-          { lifelineId: 'lifeline-3', id: 'anchor-5-source' },
-          { lifelineId: 'lifeline-2', id: 'anchor-5-target' }
+          { id: 'anchor-5-source', lifelineId: 'lifeline-3', yPosition: 700, anchorType: 'source' },
+          { id: 'anchor-5-target', lifelineId: 'lifeline-2', yPosition: 700, anchorType: 'target' }
         ],
         position: { x: 100, y: 700 },
         data: {
@@ -112,8 +112,8 @@ export const defaultDiagramSchema: DiagramDocument = {
         type: 'process',
         label: 'Authorization Code + Client ID + Client Secret to /oauth/token endpoint',
         anchors: [
-          { lifelineId: 'lifeline-2', id: 'anchor-6-source' },
-          { lifelineId: 'lifeline-3', id: 'anchor-6-target' }
+          { id: 'anchor-6-source', lifelineId: 'lifeline-2', yPosition: 840, anchorType: 'source' },
+          { id: 'anchor-6-target', lifelineId: 'lifeline-3', yPosition: 840, anchorType: 'target' }
         ],
         position: { x: 100, y: 840 },
         data: {
@@ -152,20 +152,6 @@ export const defaultDiagramSchema: DiagramDocument = {
         target: 'node-6',
         type: 'sync'
       }
-    ],
-    anchors: [
-      { id: 'anchor-1-source', lifelineId: 'lifeline-1', yPosition: 140, connectedNodeId: 'node-1', anchorType: 'source' },
-      { id: 'anchor-1-target', lifelineId: 'lifeline-2', yPosition: 140, connectedNodeId: 'node-1', anchorType: 'target' },
-      { id: 'anchor-2-source', lifelineId: 'lifeline-2', yPosition: 280, connectedNodeId: 'node-2', anchorType: 'source' },
-      { id: 'anchor-2-target', lifelineId: 'lifeline-3', yPosition: 280, connectedNodeId: 'node-2', anchorType: 'target' },
-      { id: 'anchor-3-source', lifelineId: 'lifeline-3', yPosition: 420, connectedNodeId: 'node-3', anchorType: 'source' },
-      { id: 'anchor-3-target', lifelineId: 'lifeline-1', yPosition: 420, connectedNodeId: 'node-3', anchorType: 'target' },
-      { id: 'anchor-4-source', lifelineId: 'lifeline-1', yPosition: 560, connectedNodeId: 'node-4', anchorType: 'source' },
-      { id: 'anchor-4-target', lifelineId: 'lifeline-3', yPosition: 560, connectedNodeId: 'node-4', anchorType: 'target' },
-      { id: 'anchor-5-source', lifelineId: 'lifeline-3', yPosition: 700, connectedNodeId: 'node-5', anchorType: 'source' },
-      { id: 'anchor-5-target', lifelineId: 'lifeline-2', yPosition: 700, connectedNodeId: 'node-5', anchorType: 'target' },
-      { id: 'anchor-6-source', lifelineId: 'lifeline-2', yPosition: 840, connectedNodeId: 'node-6', anchorType: 'source' },
-      { id: 'anchor-6-target', lifelineId: 'lifeline-3', yPosition: 840, connectedNodeId: 'node-6', anchorType: 'target' }
     ]
   },
   styles: {
