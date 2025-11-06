@@ -186,130 +186,113 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
                 })
               );
               
-              // Check for swaps with non-selected nodes
+              // Check for swaps with non-selected nodes (iterative collision resolution)
               const otherSequenceNodes = nodes.filter(n => 
                 n.type === 'sequenceNode' && !selectedNodeIds.includes(n.id)
               );
               
-              // Find if any selected node crosses a non-selected node
-              let shouldSwapWith: Node | null = null;
-              for (const selectedId of selectedNodeIds) {
-                const selectedNode = nodes.find(n => n.id === selectedId);
-                if (!selectedNode) continue;
-                
-                const selectedDiagram = diagramNodes.find(n => n.id === selectedId);
-                if (!selectedDiagram) continue;
-                
-                const selectedStartPos = dragStartPositions.get(selectedId);
-                if (!selectedStartPos) continue;
-                
-                const selectedConfig = getNodeTypeConfig(selectedDiagram.type);
-                const selectedHeight = selectedConfig?.defaultHeight || 70;
-                const selectedNewY = selectedStartPos.y + deltaY;
-                const selectedNewCenterY = selectedNewY + (selectedHeight / 2);
-                const selectedOriginalCenterY = selectedStartPos.y + (selectedHeight / 2);
-                
-                for (const otherNode of otherSequenceNodes) {
-                  const otherDiagram = diagramNodes.find(n => n.id === otherNode.id);
-                  if (!otherDiagram) continue;
-                  
-                  const otherConfig = getNodeTypeConfig(otherDiagram.type);
-                  const otherHeight = otherConfig?.defaultHeight || 70;
-                  const otherCenterY = otherNode.position.y + (otherHeight / 2);
-                  
-                  // Check if crossing
-                  if (selectedOriginalCenterY < otherCenterY && selectedNewCenterY > otherCenterY) {
-                    shouldSwapWith = otherNode;
-                    break;
-                  } else if (selectedOriginalCenterY > otherCenterY && selectedNewCenterY < otherCenterY) {
-                    shouldSwapWith = otherNode;
-                    break;
-                  }
-                }
-                
-                if (shouldSwapWith) break;
-              }
+              // Keep swapping until no collisions detected
+              let hasCollision = true;
+              let swapCount = 0;
+              const maxSwaps = 10; // Prevent infinite loops
               
-              if (shouldSwapWith) {
-                // Find which selected node crossed the target
-                const crossingNode = nodes.find(n => selectedNodeIds.includes(n.id) && n.type === 'sequenceNode');
-                if (crossingNode) {
-                  const crossingDiagram = diagramNodes.find(n => n.id === crossingNode.id);
-                  const swapDiagram = diagramNodes.find(n => n.id === shouldSwapWith.id);
+              while (hasCollision && swapCount < maxSwaps) {
+                hasCollision = false;
+                
+                // Check each selected node for collisions
+                for (const selectedId of selectedNodeIds) {
+                  const selectedNode = nodes.find(n => n.id === selectedId);
+                  if (!selectedNode) continue;
                   
-                  if (crossingDiagram && swapDiagram) {
-                    const crossingStartPos = dragStartPositions.get(crossingNode.id);
-                    const swapY = shouldSwapWith.position.y;
+                  const selectedDiagram = diagramNodes.find(n => n.id === selectedId);
+                  if (!selectedDiagram) continue;
+                  
+                  const selectedStartPos = dragStartPositions.get(selectedId);
+                  if (!selectedStartPos) continue;
+                  
+                  const selectedConfig = getNodeTypeConfig(selectedDiagram.type);
+                  const selectedHeight = selectedConfig?.defaultHeight || 70;
+                  const selectedNewY = selectedStartPos.y + deltaY;
+                  const selectedNewCenterY = selectedNewY + (selectedHeight / 2);
+                  const selectedOriginalCenterY = selectedDiagram.position.y + (selectedHeight / 2);
+                  
+                  // Check against all non-selected nodes
+                  for (const otherNode of otherSequenceNodes) {
+                    const otherDiagram = diagramNodes.find(n => n.id === otherNode.id);
+                    if (!otherDiagram) continue;
                     
-                    if (crossingStartPos) {
-                      // Calculate how much each selected node should shift
-                      const swapDelta = swapY - crossingStartPos.y;
+                    const otherConfig = getNodeTypeConfig(otherDiagram.type);
+                    const otherHeight = otherConfig?.defaultHeight || 70;
+                    const otherCenterY = otherDiagram.position.y + (otherHeight / 2);
+                    
+                    // Check if crossing
+                    if ((selectedOriginalCenterY < otherCenterY && selectedNewCenterY > otherCenterY) ||
+                        (selectedOriginalCenterY > otherCenterY && selectedNewCenterY < otherCenterY)) {
+                      // Collision detected - perform swap
+                      hasCollision = true;
                       
-                      // Update all nodes with swapped positions
+                      // Swap positions in diagram data
+                      const selectedY = selectedDiagram.position.y;
+                      const otherY = otherDiagram.position.y;
+                      
                       const updatedDiagramNodes = diagramNodes.map(n => {
-                        if (selectedNodeIds.includes(n.id)) {
-                          // Shift selected nodes by swap delta
-                          const nStartPos = dragStartPositions.get(n.id);
-                          if (nStartPos) {
-                            const newY = nStartPos.y + swapDelta;
-                            const nConfig = getNodeTypeConfig(n.type);
-                            const nHeight = nConfig?.defaultHeight || 70;
-                            const nCenterY = newY + (nHeight / 2);
-                            return {
-                              ...n,
-                              position: { ...n.position, y: newY },
-                              anchors: n.anchors?.map(a => ({ ...a, yPosition: nCenterY })) as any
-                            };
-                          }
-                        } else if (n.id === shouldSwapWith.id) {
-                          // Move the swapped node to where the crossing node started
-                          if (crossingStartPos) {
-                            const swapConfig = getNodeTypeConfig(n.type);
-                            const swapHeight = swapConfig?.defaultHeight || 70;
-                            const swapCenterY = crossingStartPos.y + (swapHeight / 2);
-                            return {
-                              ...n,
-                              position: { ...n.position, y: crossingStartPos.y },
-                              anchors: n.anchors?.map(a => ({ ...a, yPosition: swapCenterY })) as any
-                            };
-                          }
+                        if (n.id === selectedId) {
+                          const nConfig = getNodeTypeConfig(n.type);
+                          const nHeight = nConfig?.defaultHeight || 70;
+                          const nCenterY = otherY + (nHeight / 2);
+                          return {
+                            ...n,
+                            position: { ...n.position, y: otherY },
+                            anchors: n.anchors?.map(a => ({ ...a, yPosition: nCenterY })) as any
+                          };
+                        } else if (n.id === otherNode.id) {
+                          const nConfig = getNodeTypeConfig(n.type);
+                          const nHeight = nConfig?.defaultHeight || 70;
+                          const nCenterY = selectedY + (nHeight / 2);
+                          return {
+                            ...n,
+                            position: { ...n.position, y: selectedY },
+                            anchors: n.anchors?.map(a => ({ ...a, yPosition: nCenterY })) as any
+                          };
                         }
                         return n;
                       });
                       
+                      // Update diagram nodes for next iteration
+                      diagramNodes.splice(0, diagramNodes.length, ...updatedDiagramNodes);
+                      
+                      // Update drag start positions
+                      const selectedStartPos = dragStartPositions.get(selectedId);
+                      if (selectedStartPos) {
+                        const deltaSwap = otherY - selectedY;
+                        dragStartPositions.set(selectedId, { 
+                          x: selectedStartPos.x, 
+                          y: selectedStartPos.y + deltaSwap 
+                        });
+                      }
+                      
                       // Update visual positions
                       setNodes(currentNodes =>
                         currentNodes.map(n => {
-                          if (selectedNodeIds.includes(n.id) && n.type === 'sequenceNode') {
-                            const nStartPos = dragStartPositions.get(n.id);
-                            if (nStartPos) {
-                              const newY = nStartPos.y + swapDelta;
-                              return { ...n, position: { ...n.position, y: newY } };
-                            }
-                          } else if (n.id === shouldSwapWith.id) {
-                            return { ...n, position: { ...n.position, y: crossingStartPos.y } };
+                          if (n.id === selectedId) {
+                            return { ...n, position: { ...n.position, y: otherY } };
+                          } else if (n.id === otherNode.id) {
+                            return { ...n, position: { ...n.position, y: selectedY } };
                           }
                           
                           // Update anchors
                           const anchorData = n.data as any;
                           if (n.type === 'anchorNode') {
-                            if (selectedNodeIds.includes(anchorData?.connectedNodeId)) {
-                              const connectedStartPos = dragStartPositions.get(anchorData.connectedNodeId);
-                              if (connectedStartPos) {
-                                const connectedDiagram = diagramNodes.find(dn => dn.id === anchorData.connectedNodeId);
-                                if (connectedDiagram) {
-                                  const connectedConf = getNodeTypeConfig(connectedDiagram.type);
-                                  const connectedH = connectedConf?.defaultHeight || 70;
-                                  const connectedNewY = connectedStartPos.y + swapDelta;
-                                  const connectedCenterY = connectedNewY + (connectedH / 2);
-                                  return { ...n, position: { x: n.position.x, y: connectedCenterY - 8 } };
-                                }
-                              }
-                            } else if (anchorData?.connectedNodeId === shouldSwapWith.id) {
-                              const swapConfig = swapDiagram ? getNodeTypeConfig(swapDiagram.type) : null;
-                              const swapHeight = swapConfig?.defaultHeight || 70;
-                              const swapCenterY = crossingStartPos.y + (swapHeight / 2);
-                              return { ...n, position: { x: n.position.x, y: swapCenterY - 8 } };
+                            if (anchorData?.connectedNodeId === selectedId) {
+                              const nConfig = selectedConfig;
+                              const nHeight = selectedHeight;
+                              const nCenterY = otherY + (nHeight / 2);
+                              return { ...n, position: { x: n.position.x, y: nCenterY - 8 } };
+                            } else if (anchorData?.connectedNodeId === otherNode.id) {
+                              const nConfig = otherConfig;
+                              const nHeight = otherHeight;
+                              const nCenterY = selectedY + (nHeight / 2);
+                              return { ...n, position: { x: n.position.x, y: nCenterY - 8 } };
                             }
                           }
                           return n;
@@ -318,18 +301,15 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
                       
                       onDataChange({ ...data, nodes: updatedDiagramNodes });
                       
-                      // Update drag start positions for next frame
-                      const newStartPositions = new Map(dragStartPositions);
-                      selectedNodeIds.forEach(id => {
-                        const oldPos = newStartPositions.get(id);
-                        if (oldPos) {
-                          newStartPositions.set(id, { ...oldPos, y: oldPos.y + swapDelta });
-                        }
-                      });
-                      setDragStartPositions(newStartPositions);
+                      // Break after first swap to re-check collisions
+                      break;
                     }
                   }
+                  
+                  if (hasCollision) break; // Re-check from the start
                 }
+                
+                swapCount++;
               }
             }
           }
