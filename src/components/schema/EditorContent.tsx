@@ -85,6 +85,10 @@ export const EditorContent: React.FC<EditorContentProps> = ({
         onAddNotation={onAddNotation}
         expandedNotationPaths={expandedNotationPaths}
         isDiagram={currentFileType === 'diagram'}
+        onSchemaChange={(updatedSchema) => {
+          // When diagram is edited, update the JSON editor
+          onEditorChange(JSON.stringify(updatedSchema, null, 2));
+        }}
       />
     </SplitPane>
   );

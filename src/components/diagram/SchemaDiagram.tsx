@@ -14,6 +14,7 @@ interface SchemaDiagramProps {
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
   expandedNotationPaths?: Set<string>;
   isDiagram?: boolean;
+  onSchemaChange?: (schema: any) => void;
 }
 
 export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
@@ -24,7 +25,8 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   maxDepth,
   onAddNotation,
   expandedNotationPaths,
-  isDiagram = false
+  isDiagram = false,
+  onSchemaChange
 }) => {
   // Check if this is a diagram document
   const diagramDocument = isDiagram && schema ? schema as DiagramDocument : null;
@@ -33,7 +35,22 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   if (isSequenceDiagram && diagramDocument) {
     return (
       <div className="h-full flex flex-col min-h-0">
-        <SequenceDiagramRenderer data={diagramDocument.data as SequenceDiagramData} />
+        <SequenceDiagramRenderer 
+          data={diagramDocument.data as SequenceDiagramData}
+          onDataChange={(newData) => {
+            if (onSchemaChange) {
+              const updatedDocument = {
+                ...diagramDocument,
+                data: newData,
+                metadata: {
+                  ...diagramDocument.metadata,
+                  modified: new Date().toISOString()
+                }
+              };
+              onSchemaChange(updatedDocument);
+            }
+          }}
+        />
       </div>
     );
   }
