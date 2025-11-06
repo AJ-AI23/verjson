@@ -24,6 +24,7 @@ import { EdgeEditor } from './EdgeEditor';
 import { DiagramToolbar } from './DiagramToolbar';
 import { DiagramStylesDialog } from './DiagramStylesDialog';
 import { OpenApiImportDialog } from './OpenApiImportDialog';
+import { DiagramHeader } from '../DiagramHeader';
 import '@xyflow/react/dist/style.css';
 
 interface SequenceDiagramRendererProps {
@@ -39,6 +40,8 @@ interface SequenceDiagramRendererProps {
   onStylesDialogClose?: () => void;
   isOpenApiImportOpen?: boolean;
   onOpenApiImportClose?: () => void;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 const nodeTypes: NodeTypes = {
@@ -61,7 +64,9 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   isStylesDialogOpen = false,
   onStylesDialogClose,
   isOpenApiImportOpen = false,
-  onOpenApiImportClose
+  onOpenApiImportClose,
+  isFullscreen = false,
+  onToggleFullscreen
 }) => {
   const { swimlanes, columns, nodes: diagramNodes, edges: diagramEdges } = data;
   
@@ -206,6 +211,11 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
 
   return (
     <div className="w-full h-full flex flex-col" style={{ backgroundColor: activeTheme?.colors.background }}>
+      <DiagramHeader 
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={onToggleFullscreen}
+      />
+      
       {!readOnly && (
         <DiagramToolbar
           onAddNode={handleAddNode}

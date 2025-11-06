@@ -22,6 +22,7 @@ interface SchemaDiagramProps {
   isOpenApiImportOpen?: boolean;
   onOpenApiImportClose?: () => void;
   isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
@@ -39,7 +40,8 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   onStylesDialogClose,
   isOpenApiImportOpen,
   onOpenApiImportClose,
-  isFullscreen
+  isFullscreen,
+  onToggleFullscreen
 }) => {
   // Check if this is a diagram document
   const diagramDocument = isDiagram && schema ? schema as DiagramDocument : null;
@@ -56,6 +58,8 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
           onStylesDialogClose={onStylesDialogClose}
           isOpenApiImportOpen={isOpenApiImportOpen}
           onOpenApiImportClose={onOpenApiImportClose}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={onToggleFullscreen}
           onDataChange={(newData) => {
             if (onSchemaChange) {
               const updatedDocument = {

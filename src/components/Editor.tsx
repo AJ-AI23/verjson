@@ -166,6 +166,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         isOpenApiImportOpen={isOpenApiImportOpen}
         onOpenApiImportClose={() => setIsOpenApiImportOpen(false)}
         isFullscreen={isFullscreen}
+        onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
       />
       
       {/* Version History Dialog */}
