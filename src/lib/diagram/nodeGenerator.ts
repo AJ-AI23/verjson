@@ -175,7 +175,8 @@ export const createPropertyNode = (
 export const createInfoNode = (
   infoData: any,
   xPos: number,
-  yOffset: number
+  yOffset: number,
+  isExpanded?: boolean
 ): Node => {
   // Extract notations from info data
   const notations = extractNotations(infoData);
@@ -200,7 +201,8 @@ export const createInfoNode = (
       properties,
       notations: notations,
       notationCount: notationCount,
-      hasNotations: notationCount > 0
+      hasNotations: notationCount > 0,
+      hasMoreLevels: isExpanded // Add dashed border when expanded
     }
   };
 };

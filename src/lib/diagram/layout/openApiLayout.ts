@@ -95,13 +95,13 @@ export const generateOpenApiLayout = (
       
       console.log(`🔥 [OPENAPI LAYOUT] Info path: ${infoPath}, explicitly expanded: ${infoExplicitlyExpanded}`);
       
-      // Always create info box when showing OpenAPI structure
-      const infoNode = createInfoNode(schema.info, -400, yOffset);
+      // Always create info box when showing OpenAPI structure, pass expanded state
+      const infoNode = createInfoNode(schema.info, -400, yOffset, infoExplicitlyExpanded);
       const infoEdge = createEdge('root', infoNode.id, undefined, false, {}, 'default');
       result.nodes.push(infoNode);
       result.edges.push(infoEdge);
       specialNodes.push('info');
-      console.log(`🔥 [OPENAPI LAYOUT] Created info node with ID: ${infoNode.id}`);
+      console.log(`🔥 [OPENAPI LAYOUT] Created info node with ID: ${infoNode.id}, expanded: ${infoExplicitlyExpanded}`);
       
       // If info is explicitly expanded, process its internal structure (if any)
       // Note: Info typically doesn't have expandable children, but keeping this for consistency
