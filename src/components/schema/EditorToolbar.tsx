@@ -236,9 +236,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             {/* Document Information Section */}
             {selectedDocument ? (
               <div className="mb-3">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-4 min-w-0 flex-1">
-                    <div className="flex items-center gap-2 min-w-0">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-sm">
+                  <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       <DocumentConfigDialog 
                         document={selectedDocument}
                         onDocumentUpdate={onDocumentUpdate || (() => {})}
@@ -248,9 +248,12 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                       <h3 className="font-semibold text-foreground truncate">
                         {selectedDocument.name}
                       </h3>
+                      <Badge variant="secondary" className="text-xs shrink-0">
+                        {getFileTypeLabel(selectedDocument.file_type)}
+                      </Badge>
                     </div>
                     
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <div className="hidden md:flex items-center gap-3 text-xs text-muted-foreground">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
@@ -305,14 +308,10 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                           </TooltipContent>
                         </Tooltip>
                       )}
-                      
-                      <Badge variant="secondary" className="text-xs">
-                        {getFileTypeLabel(selectedDocument.file_type)}
-                      </Badge>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <div className="hidden lg:flex items-center gap-4 text-xs text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
                       <span>Created: {formatDate(selectedDocument.created_at)}</span>
@@ -329,7 +328,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-muted-foreground" />
                   <h3 className="text-sm font-semibold text-muted-foreground">No document selected</h3>
-                  <span className="text-xs text-muted-foreground">— Select a document from the workspace panel</span>
+                  <span className="hidden sm:inline text-xs text-muted-foreground">— Select a document from the workspace panel</span>
                 </div>
               </div>
             )}
@@ -337,28 +336,28 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             <Separator className="my-3" />
 
             {/* Controls Section */}
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={() => toggleVersionHistory(true)}
-                  className="gap-2 h-8"
+                  className="gap-1 md:gap-2 h-8 text-xs md:text-sm"
                   disabled={!selectedDocument}
                 >
                   <Save className="h-4 w-4" />
-                  <span>History</span>
+                  <span className="hidden sm:inline">History</span>
                 </Button>
 
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={() => setIsNotationsPanelOpen(true)}
-                  className="gap-2 relative h-8"
+                  className="gap-1 md:gap-2 relative h-8 text-xs md:text-sm"
                   disabled={!selectedDocument}
                 >
                   <MessageCircle className="h-4 w-4" />
-                  <span>Notations</span>
+                  <span className="hidden sm:inline">Notations</span>
                   {activeNotationCount > 0 && (
                     <Badge variant="secondary" className="ml-1 h-4 min-w-4 text-xs">
                       {activeNotationCount}
@@ -383,11 +382,11 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                         variant="outline" 
                         size="sm" 
                         onClick={onImportOpenApi}
-                        className="gap-2 h-8"
+                        className="gap-1 md:gap-2 h-8 text-xs md:text-sm"
                         disabled={!selectedDocument}
                       >
                         <Upload className="h-4 w-4" />
-                        <span>Import OpenAPI</span>
+                        <span className="hidden sm:inline">Import OpenAPI</span>
                       </Button>
                     )}
                     {onOpenStyles && (
@@ -395,11 +394,11 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                         variant="outline" 
                         size="sm" 
                         onClick={onOpenStyles}
-                        className="gap-2 h-8"
+                        className="gap-1 md:gap-2 h-8 text-xs md:text-sm"
                         disabled={!selectedDocument}
                       >
                         <Palette className="h-4 w-4" />
-                        <span>Styles</span>
+                        <span className="hidden sm:inline">Styles</span>
                       </Button>
                     )}
                     {onToggleFullscreen && (
@@ -407,11 +406,11 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                         variant="outline" 
                         size="sm" 
                         onClick={onToggleFullscreen}
-                        className="gap-2 h-8"
+                        className="gap-1 md:gap-2 h-8 text-xs md:text-sm"
                         disabled={!selectedDocument}
                       >
                         <Maximize className="h-4 w-4" />
-                        <span>Fullscreen</span>
+                        <span className="hidden sm:inline">Fullscreen</span>
                       </Button>
                     )}
                   </>
@@ -437,11 +436,13 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 )}
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 md:gap-3">
                 {/* Hierarchy Depth Control */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 md:gap-3">
                   <Label htmlFor="max-depth" className="text-xs text-muted-foreground whitespace-nowrap">
-                    Hierarchy Depth: {maxDepth}
+                    <span className="hidden md:inline">Hierarchy Depth: </span>
+                    <span className="md:hidden">Depth: </span>
+                    {maxDepth}
                   </Label>
                   <Slider
                     id="max-depth"
@@ -453,7 +454,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                       debugToast('[DEBUG] Slider changed to', value);
                       updateMaxDepth(value);
                     }}
-                    className="w-28"
+                    className="w-16 md:w-28"
                     disabled={!selectedDocument}
                   />
                 </div>

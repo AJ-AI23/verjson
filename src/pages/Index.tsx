@@ -140,7 +140,7 @@ const Index = () => {
       defaultOpen={true} 
       style={{ 
         '--sidebar-width': '24rem',
-        '--sidebar-width-mobile': '24rem' 
+        '--sidebar-width-mobile': '100%' 
       } as React.CSSProperties}
     >
       <div className="min-h-screen bg-background flex w-full">
@@ -151,18 +151,18 @@ const Index = () => {
         />
         
         <div className="flex flex-col flex-1 min-w-0">
-          <header className="bg-card border-b py-3 px-6 shadow-sm">
+          <header className="bg-card border-b py-2 px-3 md:py-3 md:px-6 shadow-sm">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 md:gap-4">
                 <SidebarTrigger className="animate-fade-in" />
                 <img 
                   src="/lovable-uploads/7294f82f-d904-40c7-afc7-fdf654d21170.png" 
                   alt="VerJSON" 
-                  className="h-8"
+                  className="h-6 md:h-8"
                 />
               </div>
-              <div className="flex items-center gap-4">
-                <div className="text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 md:gap-4">
+                <div className="hidden lg:block text-sm text-muted-foreground">
                   Version, edit and render all your JSON files in collaboration!
                 </div>
                 <NotificationsButton />
@@ -171,7 +171,7 @@ const Index = () => {
             </div>
           </header>
           
-          <main className="flex-1 p-4 min-h-0">
+          <main className="flex-1 p-2 md:p-4 min-h-0">
             {selectedDocument ? (
               contentLoading ? (
                 <div className="h-full flex items-center justify-center">

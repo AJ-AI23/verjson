@@ -79,7 +79,13 @@
 
 /* JSON Schema Editor specific styles */
 .json-schema-editor {
-  height: calc(100vh - 5rem);
+  height: calc(100vh - 8rem);
+}
+
+@media (max-width: 768px) {
+  .json-schema-editor {
+    height: calc(100vh - 6rem);
+  }
 }
 
 .node-property {

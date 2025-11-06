@@ -19,19 +19,19 @@ export const SplitPane = ({
       direction={direction}
       className={cn(
         "h-full w-full flex",
-        direction === 'horizontal' ? 'flex-row' : 'flex-col',
+        direction === 'horizontal' ? 'flex-col md:flex-row' : 'flex-col',
         className
       )}
     >
-      <ResizablePrimitive.Panel defaultSize={50} minSize={30}>
+      <ResizablePrimitive.Panel defaultSize={50} minSize={30} className={direction === 'horizontal' ? 'h-1/2 md:h-full' : ''}>
         {children[0]}
       </ResizablePrimitive.Panel>
-      <ResizablePrimitive.PanelResizeHandle className="w-1.5 bg-border hover:bg-primary/20 transition-colors duration-200">
+      <ResizablePrimitive.PanelResizeHandle className="w-1.5 bg-border hover:bg-primary/20 transition-colors duration-200 hidden md:block">
         <div className="h-full w-full flex items-center justify-center">
           <div className="h-8 w-1 rounded-full bg-slate-300" />
         </div>
       </ResizablePrimitive.PanelResizeHandle>
-      <ResizablePrimitive.Panel defaultSize={50} minSize={30}>
+      <ResizablePrimitive.Panel defaultSize={50} minSize={30} className={direction === 'horizontal' ? 'h-1/2 md:h-full' : ''}>
         {children[1]}
       </ResizablePrimitive.Panel>
     </ResizablePrimitive.PanelGroup>
