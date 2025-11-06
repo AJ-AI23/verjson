@@ -100,7 +100,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       },
       draggable: true,
       selectable: false,
-      focusable: false
+      focusable: false,
+      zIndex: 1000 // Ensure anchors are always on top
     };
   });
 
