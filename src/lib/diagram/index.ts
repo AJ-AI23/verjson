@@ -5,13 +5,15 @@ import { createRootNode } from './nodeGenerator';
 import { generateGroupedLayout } from './layout/groupedPropertiesLayout';
 import { generateExpandedLayout } from './layout/expandedPropertiesLayout';
 import { generateOpenApiLayout } from './layout/openApiLayout';
+import { truncateAncestralBoxes } from './truncateAncestralBoxes';
 
 export const generateNodesAndEdges = (
   schema: any, 
   groupProperties: boolean = false, 
   maxDepth: number,
   collapsedPaths: CollapsedState = {},
-  maxIndividualProperties: number = 5
+  maxIndividualProperties: number = 5,
+  truncateAncestral: boolean = false
 ): DiagramElements => {
   const result: DiagramElements = {
     nodes: [],
@@ -112,6 +114,15 @@ export const generateNodesAndEdges = (
     }
     
     console.log(`Final diagram: ${result.nodes.length} nodes and ${result.edges.length} edges`);
+    
+    // Apply ancestral box truncation if enabled
+    if (truncateAncestral) {
+      console.log('Applying ancestral box truncation');
+      const truncatedResult = truncateAncestralBoxes(result);
+      console.log(`After truncation: ${truncatedResult.nodes.length} nodes and ${truncatedResult.edges.length} edges`);
+      return truncatedResult;
+    }
+    
     return result;
   } catch (error) {
     console.error('Error generating nodes and edges:', error);

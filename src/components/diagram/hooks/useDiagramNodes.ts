@@ -11,12 +11,14 @@ export const useDiagramNodes = (
   groupProperties: boolean,
   collapsedPaths: CollapsedState = {},
   maxDepth: number = 1,
-  maxIndividualProperties: number = 5
+  maxIndividualProperties: number = 5,
+  truncateAncestral: boolean = false
 ) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [prevGroupSetting, setPrevGroupSetting] = useState(groupProperties);
   const [prevMaxIndividualProperties, setPrevMaxIndividualProperties] = useState(maxIndividualProperties);
+  const [prevTruncateAncestral, setPrevTruncateAncestral] = useState(truncateAncestral);
   const [schemaKey, setSchemaKey] = useState(0);
   const { nodePositionsRef, applyStoredPositions } = useNodePositions(nodes);
   
@@ -102,11 +104,12 @@ export const useDiagramNodes = (
     const groupSettingChanged = prevGroupSetting !== groupProperties;
     const collapsedPathsChanged = collapsedPathsString !== JSON.stringify(collapsedPathsRef.current);
     const maxIndividualPropertiesChanged = prevMaxIndividualProperties !== maxIndividualProperties;
+    const truncateAncestralChanged = prevTruncateAncestral !== truncateAncestral;
     
     // Force update on initial render to make sure root node is always shown
     const forceUpdate = isInitialRender;
     
-    if (schemaChanged || groupSettingChanged || collapsedPathsChanged || maxIndividualPropertiesChanged || forceUpdate) {
+    if (schemaChanged || groupSettingChanged || collapsedPathsChanged || maxIndividualPropertiesChanged || truncateAncestralChanged || forceUpdate) {
       // Update refs with current values
       schemaStringRef.current = schemaString;
       collapsedPathsRef.current = {...collapsedPaths};
@@ -129,7 +132,8 @@ export const useDiagramNodes = (
         groupProperties, 
         999, // Very high limit - effectively unlimited for practical schemas
         collapsedPaths,
-        maxIndividualProperties
+        maxIndividualProperties,
+        truncateAncestral
       );
       
       // Apply saved positions to new nodes where possible
@@ -154,6 +158,11 @@ export const useDiagramNodes = (
       setPrevMaxIndividualProperties(maxIndividualProperties);
     }
     
+    // Update truncateAncestral setting when it changes
+    if (prevTruncateAncestral !== truncateAncestral) {
+      setPrevTruncateAncestral(truncateAncestral);
+    }
+    
   }, [
     schema, 
     schemaString, 
@@ -165,7 +174,8 @@ export const useDiagramNodes = (
     setEdges, 
     applyStoredPositions,
     prevGroupSetting,
-    maxIndividualProperties
+    maxIndividualProperties,
+    truncateAncestral
   ]);
 
   return {

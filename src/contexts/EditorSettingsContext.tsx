@@ -7,6 +7,7 @@ interface EditorSettings {
   undoRedoStrategy: 'local-with-notifications' | 'server-based';
   showVersionMismatchWarning: boolean;
   maxIndividualProperties: number;
+  truncateAncestralBoxes: boolean;
 }
 
 interface EditorSettingsContextType {
@@ -16,6 +17,7 @@ interface EditorSettingsContextType {
   updateUndoRedoStrategy: (strategy: 'local-with-notifications' | 'server-based') => void;
   updateShowVersionMismatchWarning: (show: boolean) => void;
   updateMaxIndividualProperties: (maxIndividualProperties: number) => void;
+  updateTruncateAncestralBoxes: (truncate: boolean) => void;
 }
 
 const EditorSettingsContext = createContext<EditorSettingsContextType | undefined>(undefined);
@@ -31,7 +33,8 @@ export const EditorSettingsProvider: React.FC<EditorSettingsProviderProps> = ({ 
     groupProperties: false,
     undoRedoStrategy: 'local-with-notifications',
     showVersionMismatchWarning: true,
-    maxIndividualProperties: 5
+    maxIndividualProperties: 5,
+    truncateAncestralBoxes: false
   });
 
   const updateMaxDepth = (depth: number) => {
@@ -55,13 +58,18 @@ export const EditorSettingsProvider: React.FC<EditorSettingsProviderProps> = ({ 
     setSettings(prev => ({ ...prev, maxIndividualProperties }));
   };
 
+  const updateTruncateAncestralBoxes = (truncate: boolean) => {
+    setSettings(prev => ({ ...prev, truncateAncestralBoxes: truncate }));
+  };
+
   const value = {
     settings,
     updateMaxDepth,
     updateGroupProperties,
     updateUndoRedoStrategy,
     updateShowVersionMismatchWarning,
-    updateMaxIndividualProperties
+    updateMaxIndividualProperties,
+    updateTruncateAncestralBoxes
   };
 
   return (

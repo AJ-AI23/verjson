@@ -80,7 +80,8 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     groupProperties, 
     memoizedCollapsedPaths,
     localMaxDepth,
-    settings.maxIndividualProperties
+    settings.maxIndividualProperties,
+    settings.truncateAncestralBoxes
   );
 
   // Show diagram based on nodes count and error state

@@ -2,6 +2,7 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 
 interface DiagramSettingsDialogProps {
@@ -13,7 +14,7 @@ export const DiagramSettingsDialog: React.FC<DiagramSettingsDialogProps> = ({
   open,
   onOpenChange
 }) => {
-  const { settings, updateMaxIndividualProperties } = useEditorSettings();
+  const { settings, updateMaxIndividualProperties, updateTruncateAncestralBoxes } = useEditorSettings();
 
   const handleMaxIndividualPropertiesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(e.target.value);
@@ -48,6 +49,21 @@ export const DiagramSettingsDialog: React.FC<DiagramSettingsDialogProps> = ({
               Maximum number of properties to show individually before grouping them. 
               When exceeded, remaining properties are grouped into a single "More Properties" box. 
               Range: 0-250, default: 5
+            </p>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="truncate-ancestral-boxes">Truncate Ancestral Boxes</Label>
+              <Switch
+                id="truncate-ancestral-boxes"
+                checked={settings.truncateAncestralBoxes}
+                onCheckedChange={updateTruncateAncestralBoxes}
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Simplify diagrams by removing intermediate boxes that only connect one parent to one child. 
+              The truncated properties will be listed in a consolidated box.
             </p>
           </div>
         </div>

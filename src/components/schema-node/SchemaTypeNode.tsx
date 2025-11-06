@@ -49,6 +49,7 @@ interface SchemaTypeNodeProps {
     notationCount?: number;
     hasNotations?: boolean;
     path?: string; // For tracking paths in grouped nodes
+    truncatedAncestors?: string[]; // List of property names that were truncated
   };
   id: string;
   isConnectable: boolean;
@@ -80,6 +81,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
     notationCount = 0,
     hasNotations = false,
     path,
+    truncatedAncestors,
   } = data;
 
   const [isNotationsExpanded, setIsNotationsExpanded] = useState(false);
@@ -163,6 +165,23 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
           isGrouped={isGrouped}
           required={required}
         />
+        
+        {/* Truncated ancestors indicator */}
+        {truncatedAncestors && truncatedAncestors.length > 0 && (
+          <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs">
+            <div className="font-medium text-amber-800 mb-1">
+              ↓ Truncated Path ({truncatedAncestors.length} {truncatedAncestors.length === 1 ? 'level' : 'levels'})
+            </div>
+            <div className="text-amber-700 space-y-0.5">
+              {truncatedAncestors.map((ancestor, index) => (
+                <div key={index} className="flex items-center gap-1">
+                  <span className="text-amber-400">→</span>
+                  <span className="font-mono">{ancestor}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         
         {/* Property details section */}
         {propertyDetails && propertyDetails.length > 0 && (
