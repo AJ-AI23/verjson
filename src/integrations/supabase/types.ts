@@ -62,6 +62,27 @@ export type Database = {
           },
         ]
       }
+      demo_sessions: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       document_access_logs: {
         Row: {
           access_type: string
@@ -638,6 +659,7 @@ export type Database = {
           workspace_id: string
         }[]
       }
+      cleanup_expired_demo_sessions: { Args: never; Returns: undefined }
       cleanup_old_collaboration_sessions: { Args: never; Returns: undefined }
       cleanup_old_editor_history: { Args: never; Returns: undefined }
       create_initial_version_safe: {

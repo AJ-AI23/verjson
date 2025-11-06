@@ -24,6 +24,7 @@ interface AuthContextType {
   getNotationUsername: () => string;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signInDemo: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
   updateEmail: (newEmail: string) => Promise<{ error: Error | null }>;
@@ -160,6 +161,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error };
   };
 
+  const signInDemo = async () => {
+    console.log('Creating demo session');
+    
+    try {
+      // Create demo session via edge function
+      const { data, error } = await supabase.functions.invoke('demo-session', {
+        body: { action: 'createDemoSession' }
+      });
+
+      if (error) throw error;
+
+      console.log('Demo session created, signing in:', data.email);
+
+      // Sign in with the generated demo credentials
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+
+      if (signInError) {
+        console.error('Demo sign in error:', signInError);
+        return { error: signInError };
+      }
+
+      console.log('Demo session active, expires at:', data.expiresAt);
+      
+      // Schedule automatic logout when session expires
+      const expiresIn = new Date(data.expiresAt).getTime() - Date.now();
+      setTimeout(() => {
+        console.log('Demo session expired, logging out');
+        signOut();
+      }, expiresIn);
+
+      return { error: null };
+    } catch (error) {
+      console.error('Demo session creation error:', error);
+      return { error: error as Error };
+    }
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     window.location.href = '/auth';
@@ -253,6 +294,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         getNotationUsername,
         signUp,
         signIn,
+        signInDemo,
         signOut,
         updatePassword,
         updateEmail,

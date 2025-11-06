@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2 } from 'lucide-react';
 
 const Auth = () => {
-  const { user, signIn, signUp, resetPassword, loading } = useAuth();
+  const { user, signIn, signUp, signInDemo, resetPassword, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -160,6 +160,26 @@ const Auth = () => {
     }
   };
 
+  const handleDemoSignIn = async () => {
+    setError('');
+    setMessage('');
+    setIsSubmitting(true);
+
+    try {
+      const { error } = await signInDemo();
+      if (error) {
+        setError('Failed to create demo session. Please try again.');
+      } else {
+        setMessage('Demo session created! You will be automatically logged out after 10 minutes.');
+      }
+    } catch (err) {
+      console.error('Demo sign in error:', err);
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -184,6 +204,30 @@ const Auth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <Button
+            onClick={handleDemoSignIn}
+            variant="outline"
+            className="w-full mb-4"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating demo...
+              </>
+            ) : (
+              'Try Demo (10 minutes)'
+            )}
+          </Button>
+          
+          <div className="relative mb-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+            </div>
+          </div>
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
