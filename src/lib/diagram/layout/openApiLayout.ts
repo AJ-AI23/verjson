@@ -282,6 +282,9 @@ function processComponentsSchemas(
     shouldGroup
   });
   
+  // Track nodes before processing to identify newly created schema nodes
+  const nodeCountBefore = result.nodes.length;
+  
   const groupingResult = processWithGrouping(
     schemas,
     parentNodeId,
@@ -289,13 +292,54 @@ function processComponentsSchemas(
     yPos,
     xSpacing,
     result,
-    maxIndividualProperties, // Use the passed parameter instead of hardcoded value
+    maxIndividualProperties,
     collapsedPaths,
     parentPath,
-    [] // schemas don't have required props
+    []
   );
   
   console.log(`[OPENAPI LAYOUT] Created ${groupingResult.totalNodesCreated} nodes for ${groupingResult.nodesProcessed} schemas`);
+  
+  // Get the newly created schema nodes
+  const newSchemaNodes = result.nodes.slice(nodeCountBefore);
+  
+  // For each schema node, check if it has expanded properties and process them recursively
+  newSchemaNodes.forEach((schemaNode) => {
+    // Extract schema name from node ID (format: prop-SchemaName)
+    const schemaName = schemaNode.id.replace('prop-', '');
+    const schemaPath = `${parentPath}.${schemaName}`;
+    const schemaData = schemas[schemaName];
+    
+    // Check if this schema is expanded
+    const isSchemaExpanded = collapsedPaths[schemaPath] === false;
+    
+    if (isSchemaExpanded && schemaData?.properties) {
+      console.log(`🔥 [OPENAPI LAYOUT] Schema "${schemaName}" is expanded, processing its properties`);
+      
+      // Process the schema's properties recursively
+      const propertiesPath = `${schemaPath}.properties`;
+      const propertiesExpanded = collapsedPaths[propertiesPath] === false || 
+        Object.keys(collapsedPaths).some(path => path.startsWith(`${propertiesPath}.`));
+      
+      if (propertiesExpanded) {
+        console.log(`🔥 [OPENAPI LAYOUT] Properties of "${schemaName}" are expanded, creating property nodes`);
+        processJsonSchemaProperties(
+          schemaData.properties,
+          schemaData.required || [],
+          schemaNode.id,
+          schemaNode.position.x,
+          schemaNode.position.y + 200,
+          200,
+          result,
+          maxDepth,
+          collapsedPaths,
+          schemaPath,
+          schemas,
+          maxIndividualProperties
+        );
+      }
+    }
+  });
   
   return;
 }
