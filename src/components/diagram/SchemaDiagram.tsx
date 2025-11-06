@@ -50,6 +50,7 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   // Ensure styles are initialized
   React.useEffect(() => {
     if (diagramDocument && !diagramDocument.styles && onSchemaChange) {
+      console.log('🎨 Initializing missing styles for diagram');
       const updatedDocument = {
         ...diagramDocument,
         styles: {
@@ -73,6 +74,8 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
         dark: defaultDarkTheme
       }
     };
+
+    console.log('🎨 Rendering SequenceDiagram - isStylesDialogOpen:', isStylesDialogOpen, 'has styles:', !!documentStyles);
 
     return (
       <div className={`h-full flex flex-col min-h-0 ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
@@ -140,7 +143,10 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
       prevProps.error === nextProps.error &&
       prevProps.groupProperties === nextProps.groupProperties &&
       collapsedEqual &&
-      prevProps.maxDepth === nextProps.maxDepth
+      prevProps.maxDepth === nextProps.maxDepth &&
+      prevProps.isStylesDialogOpen === nextProps.isStylesDialogOpen &&
+      prevProps.isOpenApiImportOpen === nextProps.isOpenApiImportOpen &&
+      prevProps.isFullscreen === nextProps.isFullscreen
     );
     
     return result;
