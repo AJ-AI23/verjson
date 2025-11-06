@@ -21,6 +21,7 @@ import { SwimlaneHeader } from './SwimlaneHeader';
 import { NodeEditor } from './NodeEditor';
 import { EdgeEditor } from './EdgeEditor';
 import { DiagramToolbar } from './DiagramToolbar';
+import { OpenApiImportDialog } from './OpenApiImportDialog';
 import '@xyflow/react/dist/style.css';
 
 interface SequenceDiagramRendererProps {
@@ -29,6 +30,7 @@ interface SequenceDiagramRendererProps {
   onEdgesChange?: (edges: Edge[]) => void;
   onDataChange?: (data: SequenceDiagramData) => void;
   readOnly?: boolean;
+  workspaceId?: string;
 }
 
 const nodeTypes: NodeTypes = {
@@ -44,7 +46,8 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   onNodesChange,
   onEdgesChange,
   onDataChange,
-  readOnly = false
+  readOnly = false,
+  workspaceId
 }) => {
   const { swimlanes, columns, nodes: diagramNodes, edges: diagramEdges } = data;
   
@@ -52,6 +55,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [selectedEdge, setSelectedEdge] = useState<DiagramEdge | null>(null);
   const [isNodeEditorOpen, setIsNodeEditorOpen] = useState(false);
   const [isEdgeEditorOpen, setIsEdgeEditorOpen] = useState(false);
+  const [isOpenApiImportOpen, setIsOpenApiImportOpen] = useState(false);
 
   // Calculate layout
   const { nodes: layoutNodes, edges: layoutEdges } = useMemo(() => {
@@ -177,6 +181,13 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
     onDataChange({ ...data, nodes: updatedNodes });
   }, [diagramNodes, swimlanes, columns, data, onDataChange]);
 
+  const handleImportFromOpenApi = useCallback((nodes: DiagramNode[]) => {
+    if (!onDataChange) return;
+    
+    const updatedNodes = [...diagramNodes, ...nodes];
+    onDataChange({ ...data, nodes: updatedNodes });
+  }, [diagramNodes, data, onDataChange]);
+
   return (
     <div className="w-full h-full flex flex-col">
       {!readOnly && (
@@ -186,6 +197,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
             setSelectedNode(null);
             setSelectedEdge(null);
           }}
+          onImportOpenApi={() => setIsOpenApiImportOpen(true)}
           hasSelection={selectedNode !== null || selectedEdge !== null}
         />
       )}
@@ -256,6 +268,15 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         }}
         onUpdate={handleEdgeUpdate}
         onDelete={handleEdgeDelete}
+      />
+
+      <OpenApiImportDialog
+        isOpen={isOpenApiImportOpen}
+        onClose={() => setIsOpenApiImportOpen(false)}
+        onImport={handleImportFromOpenApi}
+        swimlanes={swimlanes}
+        columns={columns}
+        currentWorkspaceId={workspaceId}
       />
     </div>
   );

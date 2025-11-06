@@ -15,6 +15,7 @@ interface SchemaDiagramProps {
   expandedNotationPaths?: Set<string>;
   isDiagram?: boolean;
   onSchemaChange?: (schema: any) => void;
+  workspaceId?: string;
 }
 
 export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
@@ -26,7 +27,8 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   onAddNotation,
   expandedNotationPaths,
   isDiagram = false,
-  onSchemaChange
+  onSchemaChange,
+  workspaceId
 }) => {
   // Check if this is a diagram document
   const diagramDocument = isDiagram && schema ? schema as DiagramDocument : null;
@@ -37,6 +39,7 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
       <div className="h-full flex flex-col min-h-0">
         <SequenceDiagramRenderer 
           data={diagramDocument.data as SequenceDiagramData}
+          workspaceId={workspaceId}
           onDataChange={(newData) => {
             if (onSchemaChange) {
               const updatedDocument = {

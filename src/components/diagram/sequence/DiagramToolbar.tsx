@@ -1,4 +1,3 @@
-import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2, Download, Upload } from 'lucide-react';
 import {

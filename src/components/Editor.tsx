@@ -155,6 +155,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         onImportVersion={handleImportVersion}
         currentFileType={selectedDocument?.file_type}
         suggestedVersion={suggestedVersion}
+        workspaceId={selectedDocument?.workspace_id}
       />
       
       {/* Version History Dialog */}

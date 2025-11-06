@@ -28,6 +28,7 @@ interface EditorContentProps {
   onImportVersion?: (importedSchema: any, comparison: DocumentVersionComparison, sourceDocumentName: string) => void;
   currentFileType?: string;
   suggestedVersion?: Version | null;
+  workspaceId?: string;
 }
 
 export const EditorContent: React.FC<EditorContentProps> = ({
@@ -50,6 +51,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
   onImportVersion,
   currentFileType,
   suggestedVersion,
+  workspaceId,
 }) => {
   return (
     <SplitPane>
@@ -85,6 +87,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
         onAddNotation={onAddNotation}
         expandedNotationPaths={expandedNotationPaths}
         isDiagram={currentFileType === 'diagram'}
+        workspaceId={workspaceId}
         onSchemaChange={(updatedSchema) => {
           // When diagram is edited, update the JSON editor
           onEditorChange(JSON.stringify(updatedSchema, null, 2));
