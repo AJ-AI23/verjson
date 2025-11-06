@@ -16,6 +16,7 @@ export const useDiagramNodes = (
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [prevGroupSetting, setPrevGroupSetting] = useState(groupProperties);
+  const [prevMaxIndividualProperties, setPrevMaxIndividualProperties] = useState(maxIndividualProperties);
   const [schemaKey, setSchemaKey] = useState(0);
   const { nodePositionsRef, applyStoredPositions } = useNodePositions(nodes);
   
@@ -100,11 +101,12 @@ export const useDiagramNodes = (
     const schemaChanged = schemaString !== schemaStringRef.current;
     const groupSettingChanged = prevGroupSetting !== groupProperties;
     const collapsedPathsChanged = collapsedPathsString !== JSON.stringify(collapsedPathsRef.current);
+    const maxIndividualPropertiesChanged = prevMaxIndividualProperties !== maxIndividualProperties;
     
     // Force update on initial render to make sure root node is always shown
     const forceUpdate = isInitialRender;
     
-    if (schemaChanged || groupSettingChanged || collapsedPathsChanged || forceUpdate) {
+    if (schemaChanged || groupSettingChanged || collapsedPathsChanged || maxIndividualPropertiesChanged || forceUpdate) {
       // Update refs with current values
       schemaStringRef.current = schemaString;
       collapsedPathsRef.current = {...collapsedPaths};
@@ -145,6 +147,11 @@ export const useDiagramNodes = (
     // Update group properties setting when it changes
     if (prevGroupSetting !== groupProperties) {
       setPrevGroupSetting(groupProperties);
+    }
+    
+    // Update maxIndividualProperties setting when it changes
+    if (prevMaxIndividualProperties !== maxIndividualProperties) {
+      setPrevMaxIndividualProperties(maxIndividualProperties);
     }
     
   }, [
