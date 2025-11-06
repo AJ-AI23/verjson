@@ -308,6 +308,38 @@ export const createServerNode = (
   };
 };
 
+export const createTagNode = (
+  tagData: any,
+  index: number,
+  xPos: number,
+  yOffset: number
+): Node => {
+  // Extract notations from tag data
+  const notations = extractNotations(tagData);
+  const notationCount = getNotationCount(tagData);
+  
+  const name = tagData.name || `Tag ${index + 1}`;
+  const description = tagData.description || '';
+  const hasExternalDocs = !!tagData.externalDocs;
+  
+  return {
+    id: `tag-${index}`,
+    type: 'schemaType',
+    position: { x: xPos, y: yOffset },
+    data: {
+      label: name,
+      type: 'tag',
+      nodeType: 'tag',
+      tagName: name,
+      description,
+      hasExternalDocs,
+      notations: notations,
+      notationCount: notationCount,
+      hasNotations: notationCount > 0
+    }
+  };
+};
+
 export const createComponentsNode = (
   schemasData: Record<string, any>,
   xPos: number,

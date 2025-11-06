@@ -12,7 +12,8 @@ import {
   createRequestBodyNode,
   createConsolidatedResponseNode,
   createGroupedPropertiesNode,
-  createServerNode
+  createServerNode,
+  createTagNode
 } from '../nodeGenerator';
 import { createEdge } from '../edgeGenerator';
 import { processWithGrouping, processPropertiesWithGrouping } from '../utils/propertyGroupingUtils';
@@ -830,6 +831,57 @@ function processOtherOpenApiProperties(
         });
         
         console.log(`🔥 [OPENAPI LAYOUT] Created ${propValue.length} individual server nodes`);
+      } else if (propName === 'tags' && Array.isArray(propValue) && isPropExpanded) {
+        console.log(`🔥 [OPENAPI LAYOUT] Creating individual tag nodes for ${propValue.length} tags`);
+        
+        // Create a container node for tags
+        const tagsContainerNode = createPropertyNode(
+          'tags',
+          { 
+            type: 'array', 
+            description: `API tags (${propValue.length} tags)`,
+            items: { type: 'object' }
+          },
+          [],
+          propX,
+          yPos,
+          false
+        );
+        
+        // Apply expanded styling
+        tagsContainerNode.data = {
+          ...tagsContainerNode.data,
+          hasMoreLevels: true,
+          isCollapsed: false
+        };
+        
+        const containerEdge = createEdge('root', tagsContainerNode.id, undefined, false, {}, 'structure');
+        result.nodes.push(tagsContainerNode);
+        result.edges.push(containerEdge);
+        
+        // Create individual tag nodes
+        propValue.forEach((tagData: any, tagIndex: number) => {
+          const tagNode = createTagNode(
+            tagData,
+            tagIndex,
+            propX + (tagIndex - (propValue.length - 1) / 2) * 300,
+            yPos + 200
+          );
+          
+          const tagEdge = createEdge(
+            tagsContainerNode.id,
+            tagNode.id,
+            undefined,
+            false,
+            {},
+            'default'
+          );
+          
+          result.nodes.push(tagNode);
+          result.edges.push(tagEdge);
+        });
+        
+        console.log(`🔥 [OPENAPI LAYOUT] Created ${propValue.length} individual tag nodes`);
       } else {
         // Default handling for other properties
         const propSchema = createOpenApiPropertySchema(propName, propValue);

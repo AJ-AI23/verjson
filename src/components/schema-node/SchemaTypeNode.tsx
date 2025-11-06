@@ -56,6 +56,9 @@ interface SchemaTypeNodeProps {
     nodeType?: string;
     url?: string;
     variables?: string[];
+    // Tag-specific properties
+    tagName?: string;
+    hasExternalDocs?: boolean;
   };
   id: string;
   isConnectable: boolean;
@@ -258,6 +261,26 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
           </div>
         )}
 
+        {/* Tag-specific details */}
+        {type === 'tag' && data.tagName && (
+          <div className="mt-2 border-t border-border pt-2 space-y-2">
+            {description && (
+              <div className="space-y-1">
+                <div className="text-xs font-medium text-muted-foreground">Description:</div>
+                <div className="text-xs text-foreground/80 px-2 py-1 bg-muted/30 rounded">
+                  {description}
+                </div>
+              </div>
+            )}
+            {data.hasExternalDocs && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                <span>Has external documentation</span>
+              </div>
+            )}
+          </div>
+        )}
+
         {(hasNotations || onAddNotation) && (
           <NotationsPanel
             notations={notations}
@@ -290,7 +313,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
         />
       </div>
 
-      {(type === 'object' || type === 'array' || type === 'reference' || type === 'openapi' || type === 'info' || type === 'components' || type === 'endpoint' || type === 'method' || type === 'truncated' || type === 'server') && (
+      {(type === 'object' || type === 'array' || type === 'reference' || type === 'openapi' || type === 'info' || type === 'components' || type === 'endpoint' || type === 'method' || type === 'truncated' || type === 'server' || type === 'tag') && (
         <Handle
           type="source"
           position={Position.Bottom}
