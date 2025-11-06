@@ -29,7 +29,7 @@ export interface Document {
   user_id: string;
   name: string;
   content: any;
-  file_type: 'json-schema' | 'openapi';
+  file_type: 'json-schema' | 'openapi' | 'diagram';
   pin_code?: string;
   pin_enabled: boolean;
   crowdin_integration_id?: string;
@@ -54,7 +54,7 @@ export interface CreateDocumentData {
   workspace_id: string;
   name: string;
   content: any;
-  file_type: 'json-schema' | 'openapi';
+  file_type: 'json-schema' | 'openapi' | 'diagram';
   import_url?: string;
   import_auth_method?: 'basic' | 'bearer';
   import_auth_credentials?: string;
