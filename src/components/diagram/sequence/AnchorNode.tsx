@@ -22,7 +22,7 @@ export const AnchorNode: React.FC<AnchorNodeProps> = ({ data }) => {
     >
       <Handle 
         type="target" 
-        position={Position.Top} 
+        position={Position.Left} 
         className="!opacity-0 !pointer-events-none" 
       />
       <div
@@ -34,7 +34,7 @@ export const AnchorNode: React.FC<AnchorNodeProps> = ({ data }) => {
       />
       <Handle 
         type="source" 
-        position={Position.Bottom} 
+        position={Position.Right} 
         className="!opacity-0 !pointer-events-none" 
       />
     </div>
