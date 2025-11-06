@@ -134,7 +134,8 @@ export const defaultDiagramSchema: DiagramDocument = {
         target: 'node-6',
         type: 'sync'
       }
-    ]
+    ],
+    anchors: []
   },
   styles: {
     activeTheme: 'light',

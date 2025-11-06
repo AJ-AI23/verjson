@@ -1,5 +1,5 @@
 import { Node, Edge } from '@xyflow/react';
-import { DiagramNode, DiagramEdge, Lifeline } from '@/types/diagram';
+import { DiagramNode, DiagramEdge, Lifeline, AnchorNode } from '@/types/diagram';
 import { DiagramStyleTheme } from '@/types/diagramStyles';
 import { getNodeTypeConfig } from './sequenceNodeTypes';
 
@@ -7,6 +7,7 @@ interface LayoutOptions {
   lifelines: Lifeline[];
   nodes: DiagramNode[];
   edges: DiagramEdge[];
+  anchors: AnchorNode[];
   horizontalSpacing?: number;
   styles?: DiagramStyleTheme;
 }
@@ -26,6 +27,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     lifelines = [],
     nodes = [],
     edges = [],
+    anchors = [],
     horizontalSpacing = 100,
     styles
   } = options;
@@ -64,7 +66,28 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   });
 
   // Build a dependency graph to determine node order
-  const nodeOrder = calculateNodeSequence(nodes, edges);
+  const nodeOrder = calculateNodeSequence(nodes, anchors);
+
+  // Create anchor nodes
+  const anchorNodes: Node[] = anchors.map(anchor => {
+    const xPos = lifelineXPositions.get(anchor.lifelineId) || 0;
+    const yPos = anchor.yPosition;
+    
+    return {
+      id: anchor.id,
+      type: 'anchorNode',
+      position: { x: xPos - 8, y: yPos }, // Center the 16px anchor
+      data: {
+        lifelineId: anchor.lifelineId,
+        connectedNodeId: anchor.connectedNodeId,
+        anchorType: anchor.anchorType,
+        styles
+      },
+      draggable: true,
+      selectable: false,
+      focusable: false
+    };
+  });
 
   // Calculate positions for each node
   const layoutNodes: Node[] = nodes.map((node, index) => {
@@ -86,37 +109,36 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
 
     // Find the sequence order of this node
     const sequenceIndex = nodeOrder.indexOf(node.id);
-    const yPos = LIFELINE_HEADER_HEIGHT + 40 + sequenceIndex * NODE_VERTICAL_SPACING;
-
-    // Determine horizontal positioning based on connected edges
-    const incomingEdge = edges.find(e => e.target === node.id);
-    const outgoingEdge = edges.find(e => e.source === node.id);
     
+    // Get anchors for this node
+    const sourceAnchor = anchors.find(a => a.id === node.sourceAnchorId);
+    const targetAnchor = anchors.find(a => a.id === node.targetAnchorId);
+    
+    // Use anchor positions for Y coordinate (average of both anchors)
+    let yPos = LIFELINE_HEADER_HEIGHT + 40 + sequenceIndex * NODE_VERTICAL_SPACING;
+    if (sourceAnchor && targetAnchor) {
+      yPos = (sourceAnchor.yPosition + targetAnchor.yPosition) / 2;
+    } else if (sourceAnchor) {
+      yPos = sourceAnchor.yPosition;
+    } else if (targetAnchor) {
+      yPos = targetAnchor.yPosition;
+    }
+
+    // Determine horizontal positioning based on connected anchors
     let startX = 0;
     let endX = 0;
     let width = 180; // Default width
 
-    if (incomingEdge && outgoingEdge) {
-      // Node connects two lifelines - span between them
-      const sourceNode = nodes.find(n => n.id === incomingEdge.source);
-      const targetNode = nodes.find(n => n.id === outgoingEdge.target);
-      
-      const sourceX = lifelineXPositions.get(sourceNode?.lifelineId || '') || 0;
-      const targetX = lifelineXPositions.get(targetNode?.lifelineId || '') || 0;
+    if (sourceAnchor && targetAnchor) {
+      // Node connects two lifelines via anchors - span between them
+      const sourceX = lifelineXPositions.get(sourceAnchor.lifelineId) || 0;
+      const targetX = lifelineXPositions.get(targetAnchor.lifelineId) || 0;
       
       startX = Math.min(sourceX, targetX);
       endX = Math.max(sourceX, targetX);
       width = Math.abs(endX - startX);
-    } else if (incomingEdge) {
-      // Only incoming edge - position at source lifeline
-      const sourceNode = nodes.find(n => n.id === incomingEdge.source);
-      startX = lifelineXPositions.get(sourceNode?.lifelineId || '') || 0;
-    } else if (outgoingEdge) {
-      // Only outgoing edge - position at source lifeline
-      const targetNode = nodes.find(n => n.id === outgoingEdge.target);
-      startX = lifelineXPositions.get(targetNode?.lifelineId || '') || 0;
     } else if (node.lifelineId) {
-      // No edges - position at assigned lifeline
+      // No anchors - position at assigned lifeline
       startX = lifelineXPositions.get(node.lifelineId) || 0;
     }
 
@@ -138,85 +160,94 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     };
   });
 
-  // Convert edges with proper styling
-  const layoutEdges: Edge[] = edges.map(edge => {
-    const edgeStyles = getEdgeStyle(edge.type || 'default');
+  // Convert edges - connect anchors to nodes
+  const layoutEdges: Edge[] = [];
+  
+  // Create edges between anchors and their nodes
+  anchors.forEach(anchor => {
+    const node = nodes.find(n => n.id === anchor.connectedNodeId);
+    if (!node) return;
     
-    return {
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      label: edge.label,
-      type: 'sequenceEdge',
-      animated: edge.animated || edge.type === 'async',
-      style: edge.style || edgeStyles,
-      data: {
-        edgeType: edge.type || 'default',
-        styles
-      }
-    };
+    const edgeStyles = getEdgeStyle('default');
+    
+    if (anchor.anchorType === 'source') {
+      // Edge from anchor to node
+      layoutEdges.push({
+        id: `anchor-edge-${anchor.id}`,
+        source: anchor.id,
+        target: node.id,
+        type: 'sequenceEdge',
+        animated: false,
+        style: edgeStyles,
+        data: { edgeType: 'default', styles }
+      });
+    } else {
+      // Edge from node to anchor
+      layoutEdges.push({
+        id: `anchor-edge-${anchor.id}`,
+        source: node.id,
+        target: anchor.id,
+        type: 'sequenceEdge',
+        animated: false,
+        style: edgeStyles,
+        data: { edgeType: 'default', styles }
+      });
+    }
+  });
+  
+  // Add labeled edges between source and target anchors
+  edges.forEach(edge => {
+    const sourceNode = nodes.find(n => n.id === edge.source);
+    const targetNode = nodes.find(n => n.id === edge.target);
+    
+    if (sourceNode?.targetAnchorId && targetNode?.sourceAnchorId) {
+      const edgeStyles = getEdgeStyle(edge.type || 'default');
+      
+      layoutEdges.push({
+        id: edge.id,
+        source: sourceNode.targetAnchorId,
+        target: targetNode.sourceAnchorId,
+        label: edge.label,
+        type: 'sequenceEdge',
+        animated: edge.animated || edge.type === 'async',
+        style: edge.style || edgeStyles,
+        data: {
+          edgeType: edge.type || 'default',
+          styles
+        }
+      });
+    }
   });
 
   return {
-    nodes: [...lifelineNodes, ...layoutNodes],
+    nodes: [...lifelineNodes, ...anchorNodes, ...layoutNodes],
     edges: layoutEdges
   };
 };
 
-// Calculate the vertical order of nodes based on edge dependencies
-function calculateNodeSequence(nodes: DiagramNode[], edges: DiagramEdge[]): string[] {
-  const nodeIds = nodes.map(n => n.id);
-  const ordered: string[] = [];
-  const visited = new Set<string>();
-  
-  // Build adjacency map
-  const outgoing = new Map<string, string[]>();
-  const incoming = new Map<string, number>();
-  
-  nodeIds.forEach(id => {
-    outgoing.set(id, []);
-    incoming.set(id, 0);
-  });
-  
-  edges.forEach(edge => {
-    if (nodeIds.includes(edge.source) && nodeIds.includes(edge.target)) {
-      outgoing.get(edge.source)?.push(edge.target);
-      incoming.set(edge.target, (incoming.get(edge.target) || 0) + 1);
-    }
-  });
-  
-  // Topological sort using Kahn's algorithm
-  const queue: string[] = [];
-  nodeIds.forEach(id => {
-    if (incoming.get(id) === 0) {
-      queue.push(id);
-    }
-  });
-  
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    ordered.push(current);
-    visited.add(current);
+// Calculate the vertical order of nodes based on anchor positions
+function calculateNodeSequence(nodes: DiagramNode[], anchors: AnchorNode[]): string[] {
+  // Sort nodes by their average anchor Y position
+  const nodesWithPosition = nodes.map(node => {
+    const sourceAnchor = anchors.find(a => a.id === node.sourceAnchorId);
+    const targetAnchor = anchors.find(a => a.id === node.targetAnchorId);
     
-    const neighbors = outgoing.get(current) || [];
-    neighbors.forEach(neighbor => {
-      const inCount = incoming.get(neighbor) || 0;
-      incoming.set(neighbor, inCount - 1);
-      
-      if (incoming.get(neighbor) === 0) {
-        queue.push(neighbor);
-      }
-    });
-  }
-  
-  // Add any remaining nodes that weren't in the dependency graph
-  nodeIds.forEach(id => {
-    if (!visited.has(id)) {
-      ordered.push(id);
+    let avgY = 0;
+    if (sourceAnchor && targetAnchor) {
+      avgY = (sourceAnchor.yPosition + targetAnchor.yPosition) / 2;
+    } else if (sourceAnchor) {
+      avgY = sourceAnchor.yPosition;
+    } else if (targetAnchor) {
+      avgY = targetAnchor.yPosition;
     }
+    
+    return { id: node.id, yPosition: avgY };
   });
   
-  return ordered;
+  // Sort by Y position
+  nodesWithPosition.sort((a, b) => a.yPosition - b.yPosition);
+  
+  return nodesWithPosition.map(n => n.id);
 }
 
 export const getEdgeStyle = (type: string) => {

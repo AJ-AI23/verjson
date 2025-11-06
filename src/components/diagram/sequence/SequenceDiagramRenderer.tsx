@@ -19,6 +19,7 @@ import { calculateSequenceLayout } from '@/lib/diagram/sequenceLayout';
 import { SequenceNode } from './SequenceNode';
 import { SequenceEdge } from './SequenceEdge';
 import { ColumnLifelineNode } from './ColumnLifelineNode';
+import { AnchorNode } from './AnchorNode';
 import { NodeEditor } from './NodeEditor';
 import { EdgeEditor } from './EdgeEditor';
 import { DiagramToolbar } from './DiagramToolbar';
@@ -47,6 +48,7 @@ interface SequenceDiagramRendererProps {
 const nodeTypes: NodeTypes = {
   sequenceNode: SequenceNode,
   columnLifeline: ColumnLifelineNode,
+  anchorNode: AnchorNode,
 };
 
 const edgeTypes: EdgeTypes = {
@@ -69,7 +71,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   isFullscreen = false,
   onToggleFullscreen
 }) => {
-  const { lifelines, nodes: diagramNodes, edges: diagramEdges } = data;
+  const { lifelines, nodes: diagramNodes, edges: diagramEdges, anchors = [] } = data;
   
   const [selectedNode, setSelectedNode] = useState<DiagramNode | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<DiagramEdge | null>(null);
@@ -84,9 +86,10 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
       lifelines,
       nodes: diagramNodes,
       edges: diagramEdges,
+      anchors,
       styles: activeTheme
     });
-  }, [lifelines, diagramNodes, diagramEdges, activeTheme]);
+  }, [lifelines, diagramNodes, diagramEdges, anchors, activeTheme]);
 
   const [nodes, setNodes, handleNodesChange] = useNodesState(layoutNodes);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
@@ -100,12 +103,59 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
     // Sync position changes back to data
     const moveChange = changes.find((c: any) => c.type === 'position' && c.position);
     if (moveChange && onDataChange) {
-      const updatedNodes = diagramNodes.map(n =>
-        n.id === moveChange.id ? { ...n, position: moveChange.position } : n
-      );
-      onDataChange({ ...data, nodes: updatedNodes });
+      // Check if this is an anchor node
+      const movedNode = nodes.find(n => n.id === moveChange.id);
+      const isAnchor = movedNode?.type === 'anchorNode';
+      
+      if (isAnchor) {
+        // Update anchor position (Y only, constrain to lifeline)
+        const anchorData = movedNode?.data as any;
+        const connectedNodeId = anchorData?.connectedNodeId;
+        
+        // Find which lifeline this anchor is on based on X position
+        const anchorX = moveChange.position.x + 8; // Add half width to get center
+        let closestLifelineId = anchorData?.lifelineId;
+        let minDistance = Infinity;
+        
+        // Calculate lifeline positions
+        const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
+        sortedLifelines.forEach((lifeline, index) => {
+          const lifelineX = index * (300 + 100) + 150; // LIFELINE_WIDTH + horizontalSpacing + padding
+          const distance = Math.abs(anchorX - lifelineX);
+          if (distance < minDistance && distance < 100) { // Within 100px snap range
+            minDistance = distance;
+            closestLifelineId = lifeline.id;
+          }
+        });
+        
+        const updatedAnchors = anchors.map(a =>
+          a.id === moveChange.id 
+            ? { ...a, yPosition: moveChange.position.y + 8, lifelineId: closestLifelineId } 
+            : a
+        );
+        
+        // Update connected node's Y position to match anchor
+        const sourceAnchor = updatedAnchors.find(a => a.connectedNodeId === connectedNodeId && a.anchorType === 'source');
+        const targetAnchor = updatedAnchors.find(a => a.connectedNodeId === connectedNodeId && a.anchorType === 'target');
+        
+        let updatedNodes = diagramNodes;
+        if (sourceAnchor && targetAnchor) {
+          const avgY = (sourceAnchor.yPosition + targetAnchor.yPosition) / 2;
+          updatedNodes = diagramNodes.map(n =>
+            n.id === connectedNodeId ? { ...n, position: { ...n.position, x: n.position?.x || 0, y: avgY } } : n
+          );
+        }
+        
+        onDataChange({ ...data, anchors: updatedAnchors, nodes: updatedNodes });
+      } else {
+        // Regular node position update
+        const updatedNodes = diagramNodes.map(n =>
+          n.id === moveChange.id ? { ...n, position: moveChange.position } : n
+        );
+        onDataChange({ ...data, nodes: updatedNodes });
+      }
     }
-  }, [handleNodesChange, onNodesChange, nodes, diagramNodes, data, onDataChange]);
+  }, [handleNodesChange, onNodesChange, nodes, diagramNodes, anchors, data, onDataChange, lifelines]);
 
   const onEdgesChangeHandler = useCallback((changes: any) => {
     handleEdgesChange(changes);
