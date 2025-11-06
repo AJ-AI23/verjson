@@ -577,134 +577,111 @@ function processMethodDetails(
   const rightColumnX = methodX + 250;
   
   // Process parameters if they exist
-  if (methodData.parameters && methodData.parameters.length > 0) {
-    const parametersPath = `${methodPath}.parameters`;
-    const parametersExpanded = collapsedPaths[parametersPath] === false || 
-      (collapsedPaths[parametersPath] && typeof collapsedPaths[parametersPath] === 'object');
-    
-    if (parametersExpanded) {
+  const methodExpanded = collapsedPaths[methodPath] === false;
+  
+  if (methodData.parameters && methodData.parameters.length > 0 && methodExpanded) {
       const parametersNode = createParametersNode(
         methodData.parameters,
         leftColumnX,
         yOffset
       );
       
-      const parametersEdge = createEdge(methodNode.id, parametersNode.id, undefined, false, {}, 'default');
-      
-      result.nodes.push(parametersNode);
-      result.edges.push(parametersEdge);
-      
-      console.log(`🔥 [OPENAPI LAYOUT] Created parameters node for method`);
-      yOffset += 120;
-    }
+    const parametersEdge = createEdge(methodNode.id, parametersNode.id, undefined, false, {}, 'default');
+    
+    result.nodes.push(parametersNode);
+    result.edges.push(parametersEdge);
+    
+    console.log(`🔥 [OPENAPI LAYOUT] Created parameters node for method`);
+    yOffset += 120;
   }
   
   // Process tags if they exist
-  if (methodData.tags && methodData.tags.length > 0) {
-    const tagsPath = `${methodPath}.tags`;
-    const tagsExpanded = collapsedPaths[tagsPath] === false || 
-      (collapsedPaths[tagsPath] && typeof collapsedPaths[tagsPath] === 'object');
-    
-    if (tagsExpanded) {
+  if (methodData.tags && methodData.tags.length > 0 && methodExpanded) {
       const tagsNode = createTagsNode(
         methodData.tags,
         leftColumnX,
         yOffset
       );
       
-      const tagsEdge = createEdge(methodNode.id, tagsNode.id, undefined, false, {}, 'default');
-      
-      result.nodes.push(tagsNode);
-      result.edges.push(tagsEdge);
-      
-      console.log(`🔥 [OPENAPI LAYOUT] Created tags node for method`);
-      yOffset += 100;
-    }
+    const tagsEdge = createEdge(methodNode.id, tagsNode.id, undefined, false, {}, 'default');
+    
+    result.nodes.push(tagsNode);
+    result.edges.push(tagsEdge);
+    
+    console.log(`🔥 [OPENAPI LAYOUT] Created tags node for method`);
+    yOffset += 100;
   }
   
   // Process security if it exists
-  if (methodData.security && methodData.security.length > 0) {
-    const securityPath = `${methodPath}.security`;
-    const securityExpanded = collapsedPaths[securityPath] === false || 
-      (collapsedPaths[securityPath] && typeof collapsedPaths[securityPath] === 'object');
-    
-    if (securityExpanded) {
+  if (methodData.security && methodData.security.length > 0 && methodExpanded) {
       const securityNode = createSecurityNode(
         methodData.security,
         leftColumnX,
         yOffset
       );
       
-      const securityEdge = createEdge(methodNode.id, securityNode.id, undefined, false, {}, 'default');
-      
-      result.nodes.push(securityNode);
-      result.edges.push(securityEdge);
-      
-      console.log(`🔥 [OPENAPI LAYOUT] Created security node for method`);
-    }
+    const securityEdge = createEdge(methodNode.id, securityNode.id, undefined, false, {}, 'default');
+    
+    result.nodes.push(securityNode);
+    result.edges.push(securityEdge);
+    
+    console.log(`🔥 [OPENAPI LAYOUT] Created security node for method`);
   }
   
   // Reset yOffset for right column (request body and responses)
   yOffset = yPos + 150;
   
   // Process request body if it has application/json content
-  if (methodData.requestBody?.content?.['application/json']) {
-    const requestBodyPath = `${methodPath}.requestBody`;
-    const requestBodyExpanded = collapsedPaths[requestBodyPath] === false || 
-      (collapsedPaths[requestBodyPath] && typeof collapsedPaths[requestBodyPath] === 'object');
-    
-    if (requestBodyExpanded) {
+  if (methodData.requestBody?.content?.['application/json'] && methodExpanded) {
       const requestBodyNode = createRequestBodyNode(
         methodData.requestBody,
         rightColumnX,
         yOffset
       );
       
-      const requestBodyEdge = createEdge(methodNode.id, requestBodyNode.id, undefined, false, {}, 'default');
+    const requestBodyEdge = createEdge(methodNode.id, requestBodyNode.id, undefined, false, {}, 'default');
+    
+    result.nodes.push(requestBodyNode);
+    result.edges.push(requestBodyEdge);
+    
+    console.log(`🔥 [OPENAPI LAYOUT] Created request body node for method`);
+    
+    // Process request body schema if expanded
+    const requestBodySchema = methodData.requestBody.content['application/json'].schema;
+    if (requestBodySchema) {
+      const requestBodyPath = `${methodPath}.requestBody`;
+      const schemaPath = `${requestBodyPath}.content.application/json.schema`;
+      const schemaExpanded = collapsedPaths[schemaPath] === false || 
+        (collapsedPaths[schemaPath] && typeof collapsedPaths[schemaPath] === 'object');
       
-      result.nodes.push(requestBodyNode);
-      result.edges.push(requestBodyEdge);
-      
-      console.log(`🔥 [OPENAPI LAYOUT] Created request body node for method`);
-      
-      // Process request body schema if expanded
-      const requestBodySchema = methodData.requestBody.content['application/json'].schema;
-      if (requestBodySchema) {
-        const schemaPath = `${requestBodyPath}.content.application/json.schema`;
-        const schemaExpanded = collapsedPaths[schemaPath] === false || 
-          (collapsedPaths[schemaPath] && typeof collapsedPaths[schemaPath] === 'object');
+      if (schemaExpanded) {
+        const schemaNode = createPropertyNode(
+          'Schema',
+          requestBodySchema,
+          [],
+          rightColumnX + 200,
+          yOffset,
+          false
+        );
         
-        if (schemaExpanded) {
-          const schemaNode = createPropertyNode(
-            'Schema',
-            requestBodySchema,
-            [],
-            rightColumnX + 200,
-            yOffset,
-            false
-          );
-          
-          const schemaEdge = createEdge(requestBodyNode.id, schemaNode.id, undefined, false, {}, 'default');
-          
-          result.nodes.push(schemaNode);
-          result.edges.push(schemaEdge);
-          
-          // Handle references for request body schema
-          handleSchemaReferences(requestBodySchema, schemaNode.id, result);
-        }
+        const schemaEdge = createEdge(requestBodyNode.id, schemaNode.id, undefined, false, {}, 'default');
+        
+        result.nodes.push(schemaNode);
+        result.edges.push(schemaEdge);
+        
+        // Handle references for request body schema
+        handleSchemaReferences(requestBodySchema, schemaNode.id, result);
       }
-      
-      yOffset += 150;
     }
+    
+    yOffset += 150;
   }
   
   // Process responses that have application/json content
-  if (methodData.responses) {
+  if (methodData.responses && methodExpanded) {
     const responsesPath = `${methodPath}.responses`;
-    const responsesExpanded = collapsedPaths[responsesPath] === false || 
-      (collapsedPaths[responsesPath] && typeof collapsedPaths[responsesPath] === 'object');
     
-    console.log(`🔥 [OPENAPI LAYOUT] Responses path: ${responsesPath}, expanded: ${responsesExpanded}`);
+    console.log(`🔥 [OPENAPI LAYOUT] Responses path: ${responsesPath}, method expanded: ${methodExpanded}`);
     
     const responseEntries = Object.entries(methodData.responses)
       .filter(([_, responseData]: [string, any]) => 
@@ -712,11 +689,10 @@ function processMethodDetails(
       );
     
     if (responseEntries.length > 0) {
-      if (responsesExpanded) {
-        // EXPANDED MODE: Show individual response boxes
-        console.log(`🔥 [OPENAPI LAYOUT] Creating individual response boxes`);
-        
-        responseEntries.forEach(([statusCode, responseData]: [string, any], responseIndex) => {
+      // EXPANDED MODE: Show individual response boxes
+      console.log(`🔥 [OPENAPI LAYOUT] Creating individual response boxes`);
+      
+      responseEntries.forEach(([statusCode, responseData]: [string, any], responseIndex) => {
           const responseNode = createResponseNode(
             statusCode,
             responseData,
@@ -761,33 +737,8 @@ function processMethodDetails(
             console.log(`🔥 [OPENAPI LAYOUT] Created schema node for response ${statusCode}`);
           }
           
-          yOffset += 150;
-        });
-      } else {
-        // CONSOLIDATED MODE: Show single consolidated response box
-        console.log(`🔥 [OPENAPI LAYOUT] Creating consolidated response box`);
-        
-        const consolidatedResponseNode = createConsolidatedResponseNode(
-          methodData.responses,
-          rightColumnX,
-          yOffset
-        );
-        
-        const responseEdge = createEdge(methodNode.id, consolidatedResponseNode.id, undefined, false, {}, 'default');
-        
-        result.nodes.push(consolidatedResponseNode);
-        result.edges.push(responseEdge);
-        
-        console.log(`🔥 [OPENAPI LAYOUT] Created consolidated response node`);
-        
-        // For consolidated view, check if any response has references and create dotted edges
-        responseEntries.forEach(([statusCode, responseData]: [string, any]) => {
-          const responseSchema = responseData.content['application/json'].schema;
-          if (responseSchema) {
-            handleSchemaReferences(responseSchema, consolidatedResponseNode.id, result);
-          }
-        });
-      }
+        yOffset += 150;
+      });
     }
   }
 }
