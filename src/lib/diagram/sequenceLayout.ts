@@ -93,26 +93,15 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   const layoutNodes: Node[] = nodes.map((node, index) => {
     const config = getNodeTypeConfig(node.type);
     
-    // If node has manual position, use it
-    if (node.position) {
-      return {
-        id: node.id,
-        type: 'sequenceNode',
-        position: node.position,
-        data: {
-          ...node,
-          config,
-          styles
-        }
-      };
-    }
-
+    // Get anchors for this node from node.anchors array
+    const sourceAnchorInfo = node.anchors?.[0];
+    const targetAnchorInfo = node.anchors?.[1];
+    
+    const sourceAnchor = sourceAnchorInfo ? anchors.find(a => a.id === sourceAnchorInfo.id) : undefined;
+    const targetAnchor = targetAnchorInfo ? anchors.find(a => a.id === targetAnchorInfo.id) : undefined;
+    
     // Find the sequence order of this node
     const sequenceIndex = nodeOrder.indexOf(node.id);
-    
-    // Get anchors for this node
-    const sourceAnchor = anchors.find(a => a.id === node.sourceAnchorId);
-    const targetAnchor = anchors.find(a => a.id === node.targetAnchorId);
     
     // Use anchor positions for Y coordinate (average of both anchors)
     let yPos = LIFELINE_HEADER_HEIGHT + 40 + sequenceIndex * NODE_VERTICAL_SPACING;
@@ -137,9 +126,9 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       startX = Math.min(sourceX, targetX);
       endX = Math.max(sourceX, targetX);
       width = Math.abs(endX - startX);
-    } else if (node.lifelineId) {
-      // No anchors - position at assigned lifeline
-      startX = lifelineXPositions.get(node.lifelineId) || 0;
+    } else if (sourceAnchorInfo) {
+      // Position at source anchor lifeline
+      startX = lifelineXPositions.get(sourceAnchorInfo.lifelineId) || 0;
     }
 
     // Center the node if it doesn't span lifelines
@@ -200,13 +189,16 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     const sourceNode = nodes.find(n => n.id === edge.source);
     const targetNode = nodes.find(n => n.id === edge.target);
     
-    if (sourceNode?.targetAnchorId && targetNode?.sourceAnchorId) {
+    const sourceTargetAnchorId = sourceNode?.anchors?.[1]?.id;
+    const targetSourceAnchorId = targetNode?.anchors?.[0]?.id;
+    
+    if (sourceTargetAnchorId && targetSourceAnchorId) {
       const edgeStyles = getEdgeStyle(edge.type || 'default');
       
       layoutEdges.push({
         id: edge.id,
-        source: sourceNode.targetAnchorId,
-        target: targetNode.sourceAnchorId,
+        source: sourceTargetAnchorId,
+        target: targetSourceAnchorId,
         label: edge.label,
         type: 'sequenceEdge',
         animated: edge.animated || edge.type === 'async',
@@ -229,8 +221,11 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
 function calculateNodeSequence(nodes: DiagramNode[], anchors: AnchorNode[]): string[] {
   // Sort nodes by their average anchor Y position
   const nodesWithPosition = nodes.map(node => {
-    const sourceAnchor = anchors.find(a => a.id === node.sourceAnchorId);
-    const targetAnchor = anchors.find(a => a.id === node.targetAnchorId);
+    const sourceAnchorInfo = node.anchors?.[0];
+    const targetAnchorInfo = node.anchors?.[1];
+    
+    const sourceAnchor = sourceAnchorInfo ? anchors.find(a => a.id === sourceAnchorInfo.id) : undefined;
+    const targetAnchor = targetAnchorInfo ? anchors.find(a => a.id === targetAnchorInfo.id) : undefined;
     
     let avgY = 0;
     if (sourceAnchor && targetAnchor) {

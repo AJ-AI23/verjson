@@ -39,10 +39,11 @@ export interface DiagramNode {
   id: string;
   type: 'endpoint' | 'process' | 'decision' | 'data' | 'custom';
   label: string;
-  lifelineId?: string;
+  anchors: [
+    { lifelineId: string; id: string },
+    { lifelineId: string; id: string }
+  ];
   position?: { x: number; y: number };
-  sourceAnchorId?: string;
-  targetAnchorId?: string;
   data?: {
     method?: string;
     path?: string;

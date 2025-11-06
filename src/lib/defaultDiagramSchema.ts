@@ -46,7 +46,10 @@ export const defaultDiagramSchema: DiagramDocument = {
         id: 'node-1',
         type: 'process',
         label: 'Click login link',
-        lifelineId: 'lifeline-1',
+        anchors: [
+          { lifelineId: 'lifeline-1', id: 'anchor-1-source' },
+          { lifelineId: 'lifeline-2', id: 'anchor-1-target' }
+        ],
         position: { x: 100, y: 140 },
         data: {
           description: 'User initiates login'
@@ -56,7 +59,10 @@ export const defaultDiagramSchema: DiagramDocument = {
         id: 'node-2',
         type: 'process',
         label: 'Authorization Code Request to /authorize',
-        lifelineId: 'lifeline-2',
+        anchors: [
+          { lifelineId: 'lifeline-2', id: 'anchor-2-source' },
+          { lifelineId: 'lifeline-3', id: 'anchor-2-target' }
+        ],
         position: { x: 100, y: 280 },
         data: {
           description: 'Request authorization code'
@@ -66,7 +72,10 @@ export const defaultDiagramSchema: DiagramDocument = {
         id: 'node-3',
         type: 'process',
         label: 'Redirect to login/authorization prompt',
-        lifelineId: 'lifeline-3',
+        anchors: [
+          { lifelineId: 'lifeline-3', id: 'anchor-3-source' },
+          { lifelineId: 'lifeline-1', id: 'anchor-3-target' }
+        ],
         position: { x: 100, y: 420 },
         data: {
           description: 'Show login screen'
@@ -76,7 +85,10 @@ export const defaultDiagramSchema: DiagramDocument = {
         id: 'node-4',
         type: 'process',
         label: 'Authenticate and consent',
-        lifelineId: 'lifeline-1',
+        anchors: [
+          { lifelineId: 'lifeline-1', id: 'anchor-4-source' },
+          { lifelineId: 'lifeline-3', id: 'anchor-4-target' }
+        ],
         position: { x: 100, y: 560 },
         data: {
           description: 'User provides credentials'
@@ -86,7 +98,10 @@ export const defaultDiagramSchema: DiagramDocument = {
         id: 'node-5',
         type: 'process',
         label: 'Authorization Code',
-        lifelineId: 'lifeline-2',
+        anchors: [
+          { lifelineId: 'lifeline-3', id: 'anchor-5-source' },
+          { lifelineId: 'lifeline-2', id: 'anchor-5-target' }
+        ],
         position: { x: 100, y: 700 },
         data: {
           description: 'Return authorization code'
@@ -96,7 +111,10 @@ export const defaultDiagramSchema: DiagramDocument = {
         id: 'node-6',
         type: 'process',
         label: 'Authorization Code + Client ID + Client Secret to /oauth/token endpoint',
-        lifelineId: 'lifeline-3',
+        anchors: [
+          { lifelineId: 'lifeline-2', id: 'anchor-6-source' },
+          { lifelineId: 'lifeline-3', id: 'anchor-6-target' }
+        ],
         position: { x: 100, y: 840 },
         data: {
           description: 'Exchange code for token'
@@ -135,7 +153,20 @@ export const defaultDiagramSchema: DiagramDocument = {
         type: 'sync'
       }
     ],
-    anchors: []
+    anchors: [
+      { id: 'anchor-1-source', lifelineId: 'lifeline-1', yPosition: 140, connectedNodeId: 'node-1', anchorType: 'source' },
+      { id: 'anchor-1-target', lifelineId: 'lifeline-2', yPosition: 140, connectedNodeId: 'node-1', anchorType: 'target' },
+      { id: 'anchor-2-source', lifelineId: 'lifeline-2', yPosition: 280, connectedNodeId: 'node-2', anchorType: 'source' },
+      { id: 'anchor-2-target', lifelineId: 'lifeline-3', yPosition: 280, connectedNodeId: 'node-2', anchorType: 'target' },
+      { id: 'anchor-3-source', lifelineId: 'lifeline-3', yPosition: 420, connectedNodeId: 'node-3', anchorType: 'source' },
+      { id: 'anchor-3-target', lifelineId: 'lifeline-1', yPosition: 420, connectedNodeId: 'node-3', anchorType: 'target' },
+      { id: 'anchor-4-source', lifelineId: 'lifeline-1', yPosition: 560, connectedNodeId: 'node-4', anchorType: 'source' },
+      { id: 'anchor-4-target', lifelineId: 'lifeline-3', yPosition: 560, connectedNodeId: 'node-4', anchorType: 'target' },
+      { id: 'anchor-5-source', lifelineId: 'lifeline-3', yPosition: 700, connectedNodeId: 'node-5', anchorType: 'source' },
+      { id: 'anchor-5-target', lifelineId: 'lifeline-2', yPosition: 700, connectedNodeId: 'node-5', anchorType: 'target' },
+      { id: 'anchor-6-source', lifelineId: 'lifeline-2', yPosition: 840, connectedNodeId: 'node-6', anchorType: 'source' },
+      { id: 'anchor-6-target', lifelineId: 'lifeline-3', yPosition: 840, connectedNodeId: 'node-6', anchorType: 'target' }
+    ]
   },
   styles: {
     activeTheme: 'light',
@@ -156,87 +187,8 @@ export const defaultFlowchartSchema: DiagramDocument = {
     modified: new Date().toISOString()
   },
   data: {
-    nodes: [
-      {
-        id: 'node-1',
-        type: 'process',
-        label: 'Start',
-        position: { x: 250, y: 50 },
-        data: {
-          description: 'Process starting point'
-        }
-      },
-      {
-        id: 'node-2',
-        type: 'decision',
-        label: 'Condition Check',
-        position: { x: 250, y: 200 },
-        data: {
-          description: 'Decision point in the flow'
-        }
-      },
-      {
-        id: 'node-3',
-        type: 'process',
-        label: 'Process A',
-        position: { x: 100, y: 350 },
-        data: {
-          description: 'First processing branch'
-        }
-      },
-      {
-        id: 'node-4',
-        type: 'process',
-        label: 'Process B',
-        position: { x: 400, y: 350 },
-        data: {
-          description: 'Second processing branch'
-        }
-      },
-      {
-        id: 'node-5',
-        type: 'process',
-        label: 'End',
-        position: { x: 250, y: 500 },
-        data: {
-          description: 'Process ending point'
-        }
-      }
-    ],
-    edges: [
-      {
-        id: 'edge-1',
-        source: 'node-1',
-        target: 'node-2',
-        type: 'default'
-      },
-      {
-        id: 'edge-2',
-        source: 'node-2',
-        target: 'node-3',
-        label: 'Yes',
-        type: 'default'
-      },
-      {
-        id: 'edge-3',
-        source: 'node-2',
-        target: 'node-4',
-        label: 'No',
-        type: 'default'
-      },
-      {
-        id: 'edge-4',
-        source: 'node-3',
-        target: 'node-5',
-        type: 'default'
-      },
-      {
-        id: 'edge-5',
-        source: 'node-4',
-        target: 'node-5',
-        type: 'default'
-      }
-    ]
+    nodes: [],
+    edges: []
   },
   styles: {
     activeTheme: 'light',

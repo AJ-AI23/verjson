@@ -50,20 +50,94 @@ export const migrateDiagramDocument = (document: DiagramDocument): DiagramDocume
       description: 'Default lifeline'
     };
 
-    const migratedData: SequenceDiagramData = {
-      lifelines: [defaultLifeline],
-      nodes: (data.nodes || []).map((node: any) => ({
-        ...node,
-        lifelineId: node.lifelineId || defaultLifeline.id
-      })),
-      edges: data.edges || [],
-      anchors: []
-    };
+    data.lifelines = [defaultLifeline];
+  }
 
-    return {
-      ...document,
-      data: migratedData
-    };
+  // Update nodes to use anchors array instead of lifelineId/swimlaneId/columnId
+  if (data.nodes) {
+    const anchors: any[] = [];
+    
+    data.nodes = data.nodes.map((node: any, index: number) => {
+      const updatedNode = { ...node };
+      
+      // Get the lifeline ID (from old or new structure)
+      let lifelineId = node.lifelineId || node.swimlaneId || node.columnId;
+      
+      // If no lifeline, use first lifeline or create default
+      if (!lifelineId && data.lifelines && data.lifelines.length > 0) {
+        lifelineId = data.lifelines[0].id;
+      }
+      
+      // If node already has anchors array, keep it
+      if (node.anchors && Array.isArray(node.anchors) && node.anchors.length === 2) {
+        // Make sure anchors exist in anchors array
+        node.anchors.forEach((anchor: any, anchorIndex: number) => {
+          const anchorType = anchorIndex === 0 ? 'source' : 'target';
+          const existingAnchor = data.anchors?.find((a: any) => a.id === anchor.id);
+          
+          if (!existingAnchor) {
+            anchors.push({
+              id: anchor.id,
+              lifelineId: anchor.lifelineId,
+              yPosition: node.position?.y || 100 + index * 140,
+              connectedNodeId: node.id,
+              anchorType
+            });
+          }
+        });
+        
+        return updatedNode;
+      }
+      
+      // Create new anchors structure
+      const sourceLifelineId = lifelineId;
+      const targetLifelineId = data.lifelines && data.lifelines.length > 1 
+        ? data.lifelines[1].id 
+        : sourceLifelineId;
+      
+      const sourceAnchorId = `anchor-${node.id}-source`;
+      const targetAnchorId = `anchor-${node.id}-target`;
+      
+      updatedNode.anchors = [
+        { lifelineId: sourceLifelineId, id: sourceAnchorId },
+        { lifelineId: targetLifelineId, id: targetAnchorId }
+      ];
+      
+      // Create anchor nodes
+      const yPos = node.position?.y || 100 + index * 140;
+      
+      anchors.push({
+        id: sourceAnchorId,
+        lifelineId: sourceLifelineId,
+        yPosition: yPos,
+        connectedNodeId: node.id,
+        anchorType: 'source'
+      });
+      
+      anchors.push({
+        id: targetAnchorId,
+        lifelineId: targetLifelineId,
+        yPosition: yPos,
+        connectedNodeId: node.id,
+        anchorType: 'target'
+      });
+      
+      // Remove old properties
+      delete updatedNode.lifelineId;
+      delete updatedNode.swimlaneId;
+      delete updatedNode.columnId;
+      delete updatedNode.sourceAnchorId;
+      delete updatedNode.targetAnchorId;
+      
+      return updatedNode;
+    });
+    
+    // Add or merge anchors
+    if (!data.anchors) {
+      data.anchors = anchors;
+    } else {
+      data.anchors = [...data.anchors, ...anchors];
+    }
   }
 
   return document;

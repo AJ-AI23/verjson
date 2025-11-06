@@ -139,22 +139,18 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="node-lifeline">Lifeline</Label>
-            <Select
-              value={node.lifelineId || ''}
-              onValueChange={(value) => handleUpdate('lifelineId', value)}
-            >
-              <SelectTrigger id="node-lifeline">
-                <SelectValue placeholder="Select lifeline" />
-              </SelectTrigger>
-              <SelectContent>
-                {lifelines.map((lifeline) => (
-                  <SelectItem key={lifeline.id} value={lifeline.id}>
-                    {lifeline.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Connected Lifelines</Label>
+            <div className="text-sm text-slate-600 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-slate-500">Source:</span>
+                <span>{lifelines.find(l => l.id === node.anchors[0].lifelineId)?.name || 'Unknown'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-slate-500">Target:</span>
+                <span>{lifelines.find(l => l.id === node.anchors[1].lifelineId)?.name || 'Unknown'}</span>
+              </div>
+              <p className="text-xs text-slate-500 mt-2">Drag the anchor points on the diagram to change lifeline connections</p>
+            </div>
           </div>
 
           {node.data?.openApiRef && (

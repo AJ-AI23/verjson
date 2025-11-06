@@ -117,15 +117,26 @@ export const OpenApiImportDialog: React.FC<OpenApiImportDialogProps> = ({
     if (selectedEndpoints.size === 0 || !targetLifelineId) return;
 
     const nodesToImport: DiagramNode[] = [];
+    const sourceLifelineId = targetLifelineId;
+    const targetLifelineNextId = lifelines.length > 1 
+      ? lifelines.find(l => l.id !== targetLifelineId)?.id || targetLifelineId
+      : targetLifelineId;
     
     endpoints.forEach(endpoint => {
       const key = `${endpoint.method}:${endpoint.path}`;
       if (selectedEndpoints.has(key)) {
+        const nodeId = `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const sourceAnchorId = `anchor-${nodeId}-source`;
+        const targetAnchorId = `anchor-${nodeId}-target`;
+        
         const node: DiagramNode = {
-          id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: nodeId,
           type: 'endpoint',
           label: endpoint.summary || `${endpoint.method} ${endpoint.path}`,
-          lifelineId: targetLifelineId,
+          anchors: [
+            { lifelineId: sourceLifelineId, id: sourceAnchorId },
+            { lifelineId: targetLifelineNextId, id: targetAnchorId }
+          ],
           data: {
             method: endpoint.method,
             path: endpoint.path,
