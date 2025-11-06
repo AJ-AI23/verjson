@@ -52,6 +52,10 @@ interface SchemaTypeNodeProps {
     truncatedAncestors?: string[]; // List of property names that were truncated
     isTruncatedRepresentative?: boolean; // True if this node represents truncated boxes
     truncatedProperties?: Array<{ label: string; type?: string }>; // Properties represented by this truncated box
+    // Server-specific properties
+    nodeType?: string;
+    url?: string;
+    variables?: string[];
   };
   id: string;
   isConnectable: boolean;
@@ -225,6 +229,35 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
           />
         )}
 
+        {/* Server-specific details */}
+        {type === 'server' && data.url && (
+          <div className="mt-2 border-t border-border pt-2 space-y-2">
+            <div className="space-y-1">
+              <div className="text-xs font-medium text-muted-foreground">URL:</div>
+              <div className="text-xs font-mono bg-muted/30 px-2 py-1 rounded break-all">
+                {data.url}
+              </div>
+            </div>
+            {data.variables && data.variables.length > 0 && (
+              <div className="space-y-1">
+                <div className="text-xs font-medium text-muted-foreground">
+                  Variables ({data.variables.length}):
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {data.variables.map((variable, index) => (
+                    <span 
+                      key={index} 
+                      className="text-xs px-1.5 py-0.5 rounded bg-background text-foreground border border-border font-mono"
+                    >
+                      {variable}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {(hasNotations || onAddNotation) && (
           <NotationsPanel
             notations={notations}
@@ -257,7 +290,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
         />
       </div>
 
-      {(type === 'object' || type === 'array' || type === 'reference' || type === 'openapi' || type === 'info' || type === 'components' || type === 'endpoint' || type === 'method' || type === 'truncated') && (
+      {(type === 'object' || type === 'array' || type === 'reference' || type === 'openapi' || type === 'info' || type === 'components' || type === 'endpoint' || type === 'method' || type === 'truncated' || type === 'server') && (
         <Handle
           type="source"
           position={Position.Bottom}

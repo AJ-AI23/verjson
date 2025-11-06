@@ -276,6 +276,38 @@ export const createMethodNode = (
   };
 };
 
+export const createServerNode = (
+  serverData: any,
+  index: number,
+  xPos: number,
+  yOffset: number
+): Node => {
+  // Extract notations from server data
+  const notations = extractNotations(serverData);
+  const notationCount = getNotationCount(serverData);
+  
+  const url = serverData.url || 'No URL';
+  const description = serverData.description || '';
+  const variables = serverData.variables ? Object.keys(serverData.variables) : [];
+  
+  return {
+    id: `server-${index}`,
+    type: 'schemaType',
+    position: { x: xPos, y: yOffset },
+    data: {
+      label: `Server ${index + 1}`,
+      type: 'server',
+      nodeType: 'server',
+      url,
+      description,
+      variables,
+      notations: notations,
+      notationCount: notationCount,
+      hasNotations: notationCount > 0
+    }
+  };
+};
+
 export const createComponentsNode = (
   schemasData: Record<string, any>,
   xPos: number,
