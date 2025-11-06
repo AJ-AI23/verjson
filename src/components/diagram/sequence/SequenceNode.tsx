@@ -106,9 +106,9 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data }) => {
         color: nodeColors.text
       }}
     >
-      <Handle type="target" position={Position.Top} className="w-3 h-3 !bg-slate-400" />
+      <Handle type="target" position={Position.Left} className="w-3 h-3 !bg-slate-400" />
       {renderNodeContent()}
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3 !bg-slate-400" />
+      <Handle type="source" position={Position.Right} className="w-3 h-3 !bg-slate-400" />
     </div>
   );
 };
