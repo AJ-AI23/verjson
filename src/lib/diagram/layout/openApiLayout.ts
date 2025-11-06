@@ -319,54 +319,80 @@ function processComponentsSchemas(
       const propertiesPath = `${schemaPath}.properties`;
       const propertiesExpanded = collapsedPaths[propertiesPath] === false;
       
-      // Check if any individual property is explicitly expanded
-      const hasIndividualPropertyExpanded = Object.keys(collapsedPaths).some(path => 
-        path.startsWith(`${propertiesPath}.`) && collapsedPaths[path] === false
-      );
+      // Find which individual properties are explicitly expanded
+      const expandedPropertyNames = new Set<string>();
+      Object.keys(collapsedPaths).forEach(path => {
+        if (path.startsWith(`${propertiesPath}.`) && collapsedPaths[path] === false) {
+          const propName = path.substring(`${propertiesPath}.`.length);
+          // Only add if it's a direct property (not nested deeper)
+          if (!propName.includes('.')) {
+            expandedPropertyNames.add(propName);
+          }
+        }
+      });
+      
+      const hasIndividualPropertyExpanded = expandedPropertyNames.size > 0;
       
       console.log(`🔥 [OPENAPI LAYOUT] Properties analysis for "${schemaName}":`, {
         propertiesExpanded,
-        hasIndividualPropertyExpanded
+        hasIndividualPropertyExpanded,
+        expandedPropertyNames: Array.from(expandedPropertyNames)
       });
       
-      if (propertiesExpanded && !hasIndividualPropertyExpanded) {
-        // Properties container is expanded but no individual properties are expanded
-        // Show properties as a list inside the schema box
-        console.log(`🔥 [OPENAPI LAYOUT] Showing properties inside "${schemaName}" box`);
+      if (propertiesExpanded) {
+        // Properties container is expanded - show non-expanded properties inline
+        const allPropertyNames = Object.keys(schemaData.properties);
+        const nonExpandedProperties = allPropertyNames.filter(name => !expandedPropertyNames.has(name));
         
-        const propertyDetails = Object.entries(schemaData.properties).map(([propName, propSchema]: [string, any]) => ({
-          name: propName,
-          type: propSchema?.type || 'any',
-          required: schemaData.required?.includes(propName) || false,
-          format: propSchema?.format,
-          description: propSchema?.description,
-          reference: propSchema?.$ref
-        }));
+        console.log(`🔥 [OPENAPI LAYOUT] Properties for "${schemaName}": ${allPropertyNames.length} total, ${expandedPropertyNames.size} expanded, ${nonExpandedProperties.length} inline`);
         
-        // Update the schema node to include property details
-        schemaNode.data = {
-          ...schemaNode.data,
-          propertyDetails,
-          hasCollapsibleContent: true,
-          isCollapsed: false
-        };
-      } else if (hasIndividualPropertyExpanded) {
-        // Individual properties are expanded - create separate boxes for them
-        console.log(`🔥 [OPENAPI LAYOUT] Creating separate boxes for individually expanded properties of "${schemaName}"`);
-        processJsonSchemaProperties(
-          schemaData.properties,
-          schemaData.required || [],
-          schemaNode.id,
-          schemaNode.position.x,
-          schemaNode.position.y + 200,
-          200,
-          result,
-          maxDepth,
-          collapsedPaths,
-          schemaPath,
-          schemas,
-          maxIndividualProperties
-        );
+        // Show non-expanded properties as a list inside the schema box
+        if (nonExpandedProperties.length > 0) {
+          const propertyDetails = nonExpandedProperties.map((propName) => {
+            const propSchema = schemaData.properties[propName];
+            return {
+              name: propName,
+              type: propSchema?.type || 'any',
+              required: schemaData.required?.includes(propName) || false,
+              format: propSchema?.format,
+              description: propSchema?.description,
+              reference: propSchema?.$ref
+            };
+          });
+          
+          // Update the schema node to include property details
+          schemaNode.data = {
+            ...schemaNode.data,
+            propertyDetails,
+            hasCollapsibleContent: true,
+            isCollapsed: false
+          };
+        }
+        
+        // Create separate boxes ONLY for explicitly expanded properties
+        if (hasIndividualPropertyExpanded) {
+          console.log(`🔥 [OPENAPI LAYOUT] Creating separate boxes for ${expandedPropertyNames.size} explicitly expanded properties`);
+          
+          // Filter to only include expanded properties
+          const expandedPropertiesOnly = Object.fromEntries(
+            Object.entries(schemaData.properties).filter(([propName]) => expandedPropertyNames.has(propName))
+          );
+          
+          processJsonSchemaProperties(
+            expandedPropertiesOnly,
+            schemaData.required || [],
+            schemaNode.id,
+            schemaNode.position.x,
+            schemaNode.position.y + 200,
+            200,
+            result,
+            maxDepth,
+            collapsedPaths,
+            schemaPath,
+            schemas,
+            maxIndividualProperties
+          );
+        }
       }
     }
   });
