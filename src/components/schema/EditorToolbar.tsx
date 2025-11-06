@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Save, MessageCircle, FileText, Calendar, Clock, Copy, X, Share, Download, RefreshCw, Palette, Upload, Maximize } from 'lucide-react';
+import { Save, MessageCircle, FileText, Calendar, Clock, Copy, X, Share, Download, RefreshCw, Palette, Upload } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -42,7 +42,6 @@ interface EditorToolbarProps {
   onSave?: (content: any) => void;
   onOpenStyles?: () => void;
   onImportOpenApi?: () => void;
-  onToggleFullscreen?: () => void;
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
@@ -63,7 +62,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onSave,
   onOpenStyles,
   onImportOpenApi,
-  onToggleFullscreen,
 }) => {
   const { debugToast } = useDebug();
   const { updateMaxDepth } = useEditorSettings();
@@ -399,18 +397,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                       >
                         <Palette className="h-4 w-4" />
                         <span className="hidden sm:inline">Styles</span>
-                      </Button>
-                    )}
-                    {onToggleFullscreen && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={onToggleFullscreen}
-                        className="gap-1 md:gap-2 h-8 text-xs md:text-sm"
-                        disabled={!selectedDocument}
-                      >
-                        <Maximize className="h-4 w-4" />
-                        <span className="hidden sm:inline">Fullscreen</span>
                       </Button>
                     )}
                   </>

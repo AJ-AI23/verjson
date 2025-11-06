@@ -138,7 +138,6 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         onSave={onSave}
         onOpenStyles={() => setIsStylesDialogOpen(true)}
         onImportOpenApi={() => setIsOpenApiImportOpen(true)}
-        onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
       />
       
       <EditorContent
