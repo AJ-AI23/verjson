@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Save, MessageCircle, FileText, Calendar, Clock, Copy, X, Share, Download, RefreshCw, Palette } from 'lucide-react';
+import { Save, MessageCircle, FileText, Calendar, Clock, Copy, X, Share, Download, RefreshCw, Palette, Upload, Maximize } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -41,6 +41,8 @@ interface EditorToolbarProps {
   onDocumentUpdate?: (updates: { name?: string; is_public?: boolean }) => void;
   onSave?: (content: any) => void;
   onOpenStyles?: () => void;
+  onImportOpenApi?: () => void;
+  onToggleFullscreen?: () => void;
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
@@ -60,6 +62,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onDocumentUpdate,
   onSave,
   onOpenStyles,
+  onImportOpenApi,
+  onToggleFullscreen,
 }) => {
   const { debugToast } = useDebug();
   const { updateMaxDepth } = useEditorSettings();
@@ -372,17 +376,45 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 )}
 
                 {/* Diagram-specific buttons */}
-                {isDiagram && onOpenStyles && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={onOpenStyles}
-                    className="gap-2 h-8"
-                    disabled={!selectedDocument}
-                  >
-                    <Palette className="h-4 w-4" />
-                    <span>Styles</span>
-                  </Button>
+                {isDiagram && (
+                  <>
+                    {onImportOpenApi && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={onImportOpenApi}
+                        className="gap-2 h-8"
+                        disabled={!selectedDocument}
+                      >
+                        <Upload className="h-4 w-4" />
+                        <span>Import OpenAPI</span>
+                      </Button>
+                    )}
+                    {onOpenStyles && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={onOpenStyles}
+                        className="gap-2 h-8"
+                        disabled={!selectedDocument}
+                      >
+                        <Palette className="h-4 w-4" />
+                        <span>Styles</span>
+                      </Button>
+                    )}
+                    {onToggleFullscreen && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={onToggleFullscreen}
+                        className="gap-2 h-8"
+                        disabled={!selectedDocument}
+                      >
+                        <Maximize className="h-4 w-4" />
+                        <span>Fullscreen</span>
+                      </Button>
+                    )}
+                  </>
                 )}
 
                 {/* OpenAPI-specific buttons */}

@@ -31,6 +31,9 @@ interface EditorContentProps {
   workspaceId?: string;
   isStylesDialogOpen?: boolean;
   onStylesDialogClose?: () => void;
+  isOpenApiImportOpen?: boolean;
+  onOpenApiImportClose?: () => void;
+  isFullscreen?: boolean;
 }
 
 export const EditorContent: React.FC<EditorContentProps> = ({
@@ -56,6 +59,9 @@ export const EditorContent: React.FC<EditorContentProps> = ({
   workspaceId,
   isStylesDialogOpen,
   onStylesDialogClose,
+  isOpenApiImportOpen,
+  onOpenApiImportClose,
+  isFullscreen,
 }) => {
   return (
     <SplitPane>
@@ -94,6 +100,9 @@ export const EditorContent: React.FC<EditorContentProps> = ({
         workspaceId={workspaceId}
         isStylesDialogOpen={isStylesDialogOpen}
         onStylesDialogClose={onStylesDialogClose}
+        isOpenApiImportOpen={isOpenApiImportOpen}
+        onOpenApiImportClose={onOpenApiImportClose}
+        isFullscreen={isFullscreen}
         onSchemaChange={(updatedSchema) => {
           // When diagram is edited, update the JSON editor
           onEditorChange(JSON.stringify(updatedSchema, null, 2));

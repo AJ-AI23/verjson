@@ -19,6 +19,9 @@ interface SchemaDiagramProps {
   workspaceId?: string;
   isStylesDialogOpen?: boolean;
   onStylesDialogClose?: () => void;
+  isOpenApiImportOpen?: boolean;
+  onOpenApiImportClose?: () => void;
+  isFullscreen?: boolean;
 }
 
 export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
@@ -33,7 +36,10 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   onSchemaChange,
   workspaceId,
   isStylesDialogOpen,
-  onStylesDialogClose
+  onStylesDialogClose,
+  isOpenApiImportOpen,
+  onOpenApiImportClose,
+  isFullscreen
 }) => {
   // Check if this is a diagram document
   const diagramDocument = isDiagram && schema ? schema as DiagramDocument : null;
@@ -41,13 +47,15 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
 
   if (isSequenceDiagram && diagramDocument) {
     return (
-      <div className="h-full flex flex-col min-h-0">
+      <div className={`h-full flex flex-col min-h-0 ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
         <SequenceDiagramRenderer 
           data={diagramDocument.data as SequenceDiagramData}
           styles={diagramDocument.styles}
           workspaceId={workspaceId}
           isStylesDialogOpen={isStylesDialogOpen}
           onStylesDialogClose={onStylesDialogClose}
+          isOpenApiImportOpen={isOpenApiImportOpen}
+          onOpenApiImportClose={onOpenApiImportClose}
           onDataChange={(newData) => {
             if (onSchemaChange) {
               const updatedDocument = {

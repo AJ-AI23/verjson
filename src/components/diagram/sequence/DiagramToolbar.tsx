@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, Download, Upload } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,16 +11,12 @@ import { DiagramNodeType } from '@/types/diagram';
 interface DiagramToolbarProps {
   onAddNode: (type: DiagramNodeType) => void;
   onClearSelection: () => void;
-  onExport?: () => void;
-  onImportOpenApi?: () => void;
   hasSelection: boolean;
 }
 
 export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
   onAddNode,
   onClearSelection,
-  onExport,
-  onImportOpenApi,
   hasSelection
 }) => {
   return (
@@ -59,22 +55,6 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
         >
           <Trash2 className="h-4 w-4 mr-1" />
           Clear Selection
-        </Button>
-      )}
-
-      <div className="flex-1" />
-
-      {onImportOpenApi && (
-        <Button size="sm" variant="outline" onClick={onImportOpenApi}>
-          <Upload className="h-4 w-4 mr-1" />
-          Import from OpenAPI
-        </Button>
-      )}
-
-      {onExport && (
-        <Button size="sm" variant="outline" onClick={onExport}>
-          <Download className="h-4 w-4 mr-1" />
-          Export
         </Button>
       )}
     </div>

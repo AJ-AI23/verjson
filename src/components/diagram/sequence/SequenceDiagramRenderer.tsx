@@ -37,6 +37,8 @@ interface SequenceDiagramRendererProps {
   workspaceId?: string;
   isStylesDialogOpen?: boolean;
   onStylesDialogClose?: () => void;
+  isOpenApiImportOpen?: boolean;
+  onOpenApiImportClose?: () => void;
 }
 
 const nodeTypes: NodeTypes = {
@@ -57,7 +59,9 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   readOnly = false,
   workspaceId,
   isStylesDialogOpen = false,
-  onStylesDialogClose
+  onStylesDialogClose,
+  isOpenApiImportOpen = false,
+  onOpenApiImportClose
 }) => {
   const { swimlanes, columns, nodes: diagramNodes, edges: diagramEdges } = data;
   
@@ -65,7 +69,6 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [selectedEdge, setSelectedEdge] = useState<DiagramEdge | null>(null);
   const [isNodeEditorOpen, setIsNodeEditorOpen] = useState(false);
   const [isEdgeEditorOpen, setIsEdgeEditorOpen] = useState(false);
-  const [isOpenApiImportOpen, setIsOpenApiImportOpen] = useState(false);
 
   const activeTheme = styles?.themes[styles?.activeTheme || 'light'] || styles?.themes.light;
 
@@ -210,7 +213,6 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
             setSelectedNode(null);
             setSelectedEdge(null);
           }}
-          onImportOpenApi={() => setIsOpenApiImportOpen(true)}
           hasSelection={selectedNode !== null || selectedEdge !== null}
         />
       )}
@@ -286,7 +288,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
 
       <OpenApiImportDialog
         isOpen={isOpenApiImportOpen}
-        onClose={() => setIsOpenApiImportOpen(false)}
+        onClose={onOpenApiImportClose || (() => {})}
         onImport={handleImportFromOpenApi}
         swimlanes={swimlanes}
         columns={columns}

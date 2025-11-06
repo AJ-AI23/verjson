@@ -23,6 +23,8 @@ interface EditorProps {
 export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, onClearRequest, onClose, onDocumentUpdate }: EditorProps) => {
   const { user } = useAuth();
   const [isStylesDialogOpen, setIsStylesDialogOpen] = React.useState(false);
+  const [isOpenApiImportOpen, setIsOpenApiImportOpen] = React.useState(false);
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
   
   // Convert initialSchema to string if it's an object to prevent crashes in versioning hooks
   const schemaAsString = React.useMemo(() => {
@@ -135,6 +137,8 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         onDocumentUpdate={onDocumentUpdate}
         onSave={onSave}
         onOpenStyles={() => setIsStylesDialogOpen(true)}
+        onImportOpenApi={() => setIsOpenApiImportOpen(true)}
+        onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
       />
       
       <EditorContent
@@ -160,6 +164,9 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         workspaceId={selectedDocument?.workspace_id}
         isStylesDialogOpen={isStylesDialogOpen}
         onStylesDialogClose={() => setIsStylesDialogOpen(false)}
+        isOpenApiImportOpen={isOpenApiImportOpen}
+        onOpenApiImportClose={() => setIsOpenApiImportOpen(false)}
+        isFullscreen={isFullscreen}
       />
       
       {/* Version History Dialog */}
