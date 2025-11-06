@@ -25,7 +25,7 @@ export function processArrayItemsWithGrouping(
   items: any[],
   result: DiagramElements,
   options: ArrayItemGroupingOptions,
-  createItemNode: (itemData: any, index: number, xPos: number, yPos: number) => Node,
+  createItemNode: (itemData: any, index: number, xPos: number, yPos: number, isExpanded?: boolean) => Node,
   createGroupedNode: (groupedItems: any[], xPos: number, yPos: number, parentNodeId: string) => Node
 ): ArrayItemGroupingResult {
   const { maxIndividualArrayItems, parentNodeId, yPosition, startXPosition, xSpacing, collapsedPaths, parentPath } = options;
@@ -79,11 +79,16 @@ export function processArrayItemsWithGrouping(
     individualIndices.forEach((itemIndex, displayIndex) => {
       const xPos = startXPosition - centerOffset + (displayIndex * xSpacing);
       
+      // Check if this item is expanded
+      const itemPath = `${parentPath}[${itemIndex}]`;
+      const isExpanded = collapsedPaths ? collapsedPaths[itemPath] === false : false;
+      
       const itemNode = createItemNode(
         items[itemIndex],
         itemIndex,
         xPos,
-        yPosition
+        yPosition,
+        isExpanded
       );
       
       const edge = createEdge(parentNodeId, itemNode.id, undefined, false, {}, 'structure');
@@ -111,11 +116,16 @@ export function processArrayItemsWithGrouping(
     items.forEach((item, index) => {
       const xPos = startXPosition - centerOffset + (index * xSpacing);
       
+      // Check if this item is expanded
+      const itemPath = `${parentPath}[${index}]`;
+      const isExpanded = collapsedPaths ? collapsedPaths[itemPath] === false : false;
+      
       const itemNode = createItemNode(
         item,
         index,
         xPos,
-        yPosition
+        yPosition,
+        isExpanded
       );
       
       const edge = createEdge(parentNodeId, itemNode.id, undefined, false, {}, 'structure');

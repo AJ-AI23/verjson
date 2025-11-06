@@ -280,7 +280,8 @@ export const createServerNode = (
   serverData: any,
   index: number,
   xPos: number,
-  yOffset: number
+  yOffset: number,
+  isExpanded?: boolean
 ): Node => {
   // Extract notations from server data
   const notations = extractNotations(serverData);
@@ -303,7 +304,8 @@ export const createServerNode = (
       variables,
       notations: notations,
       notationCount: notationCount,
-      hasNotations: notationCount > 0
+      hasNotations: notationCount > 0,
+      hasMoreLevels: isExpanded // Add dashed border when expanded
     }
   };
 };
@@ -312,7 +314,8 @@ export const createTagNode = (
   tagData: any,
   index: number,
   xPos: number,
-  yOffset: number
+  yOffset: number,
+  isExpanded?: boolean
 ): Node => {
   // Extract notations from tag data
   const notations = extractNotations(tagData);
@@ -335,7 +338,8 @@ export const createTagNode = (
       hasExternalDocs,
       notations: notations,
       notationCount: notationCount,
-      hasNotations: notationCount > 0
+      hasNotations: notationCount > 0,
+      hasMoreLevels: isExpanded // Add dashed border when expanded
     }
   };
 };
