@@ -568,6 +568,96 @@ export const createRequestBodyNode = (
   };
 };
 
+export const createParametersNode = (
+  parameters: any[],
+  x: number,
+  y: number
+): Node => {
+  const notations = extractNotations(parameters);
+  const notationCount = getNotationCount(parameters);
+  
+  const nodeId = `parameters-${Math.random().toString(36).substr(2, 9)}`;
+  
+  const paramDetails = parameters.map((param) => ({
+    name: param.name,
+    in: param.in,
+    required: param.required || false,
+    type: param.schema?.type || 'any',
+    description: param.description
+  }));
+  
+  return {
+    id: nodeId,
+    type: 'schemaType',
+    position: { x, y },
+    data: {
+      label: `Parameters (${parameters.length})`,
+      type: 'parameters',
+      nodeType: 'parameters',
+      paramDetails,
+      notations: notations,
+      notationCount: notationCount,
+      hasNotations: notationCount > 0
+    }
+  };
+};
+
+export const createTagsNode = (
+  tags: string[],
+  x: number,
+  y: number
+): Node => {
+  const nodeId = `tags-${Math.random().toString(36).substr(2, 9)}`;
+  
+  return {
+    id: nodeId,
+    type: 'schemaType',
+    position: { x, y },
+    data: {
+      label: 'Tags',
+      type: 'tags',
+      nodeType: 'tags',
+      tags,
+      tagCount: tags.length
+    }
+  };
+};
+
+export const createSecurityNode = (
+  security: any[],
+  x: number,
+  y: number
+): Node => {
+  const notations = extractNotations(security);
+  const notationCount = getNotationCount(security);
+  
+  const nodeId = `security-${Math.random().toString(36).substr(2, 9)}`;
+  
+  const securityDetails = security.map((secObj) => {
+    const schemeName = Object.keys(secObj)[0];
+    const scopes = secObj[schemeName] || [];
+    return {
+      scheme: schemeName,
+      scopes
+    };
+  });
+  
+  return {
+    id: nodeId,
+    type: 'schemaType',
+    position: { x, y },
+    data: {
+      label: 'Security',
+      type: 'security',
+      nodeType: 'security',
+      securityDetails,
+      notations: notations,
+      notationCount: notationCount,
+      hasNotations: notationCount > 0
+    }
+  };
+};
+
 export const createGroupedPropertiesNode = (
   nodeId: string,
   properties: [string, any][],

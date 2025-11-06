@@ -6,6 +6,9 @@ import { ComponentsNode } from './ComponentsNode';
 import { MethodNode } from './MethodNode';
 import { ResponseNode } from './ResponseNode';
 import { RequestBodyNode } from './RequestBodyNode';
+import { ParametersNode } from './ParametersNode';
+import { MethodTagsNode } from './MethodTagsNode';
+import { SecurityNode } from './SecurityNode';
 
 interface NodeRendererProps {
   data: any;
@@ -27,6 +30,9 @@ export const NodeRenderer = memo(({ data, id, isConnectable, onAddNotation, expa
                    id.includes('method') ? 'method' :
                    id.includes('response') ? 'response' :
                    id.includes('request-body') ? 'requestBody' :
+                   id.includes('parameters') ? 'parameters' :
+                   id.includes('tags') ? 'tags' :
+                   id.includes('security') ? 'security' :
                    'schemaType');
 
   switch (nodeType) {
@@ -42,6 +48,12 @@ export const NodeRenderer = memo(({ data, id, isConnectable, onAddNotation, expa
       return <ResponseNode data={data} id={id} isConnectable={isConnectable} onAddNotation={onAddNotation} />;
     case 'requestBody':
       return <RequestBodyNode data={data} id={id} isConnectable={isConnectable} onAddNotation={onAddNotation} />;
+    case 'parameters':
+      return <ParametersNode data={data} id={id} isConnectable={isConnectable} onAddNotation={onAddNotation} />;
+    case 'tags':
+      return <MethodTagsNode data={data} id={id} isConnectable={isConnectable} />;
+    case 'security':
+      return <SecurityNode data={data} id={id} isConnectable={isConnectable} onAddNotation={onAddNotation} />;
     default:
       return <SchemaTypeNode data={data} id={id} isConnectable={isConnectable} onAddNotation={onAddNotation} expandedNotationPaths={expandedNotationPaths} />;
   }

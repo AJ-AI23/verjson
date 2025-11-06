@@ -5,7 +5,10 @@ import {
   createArrayNode,
   createPropertyNode,
   createNestedPropertyNode,
-  createArrayItemNode
+  createArrayItemNode,
+  createParametersNode,
+  createTagsNode,
+  createSecurityNode
 } from '../nodeGenerator';
 
 describe('Node Generators', () => {

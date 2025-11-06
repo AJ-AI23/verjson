@@ -15,7 +15,10 @@ import {
   createServerNode,
   createTagNode,
   createGroupedServersNode,
-  createGroupedTagsNode
+  createGroupedTagsNode,
+  createParametersNode,
+  createTagsNode,
+  createSecurityNode
 } from '../nodeGenerator';
 import { createEdge } from '../edgeGenerator';
 import { processWithGrouping, processPropertiesWithGrouping } from '../utils/propertyGroupingUtils';
@@ -569,7 +572,80 @@ function processMethodDetails(
   collapsedPaths: CollapsedState,
   methodPath: string
 ) {
-  let responseOffset = 0;
+  let yOffset = yPos + 150;
+  const leftColumnX = methodX - 250;
+  const rightColumnX = methodX + 250;
+  
+  // Process parameters if they exist
+  if (methodData.parameters && methodData.parameters.length > 0) {
+    const parametersPath = `${methodPath}.parameters`;
+    const parametersExpanded = collapsedPaths[parametersPath] === false || 
+      (collapsedPaths[parametersPath] && typeof collapsedPaths[parametersPath] === 'object');
+    
+    if (parametersExpanded) {
+      const parametersNode = createParametersNode(
+        methodData.parameters,
+        leftColumnX,
+        yOffset
+      );
+      
+      const parametersEdge = createEdge(methodNode.id, parametersNode.id, undefined, false, {}, 'default');
+      
+      result.nodes.push(parametersNode);
+      result.edges.push(parametersEdge);
+      
+      console.log(`🔥 [OPENAPI LAYOUT] Created parameters node for method`);
+      yOffset += 120;
+    }
+  }
+  
+  // Process tags if they exist
+  if (methodData.tags && methodData.tags.length > 0) {
+    const tagsPath = `${methodPath}.tags`;
+    const tagsExpanded = collapsedPaths[tagsPath] === false || 
+      (collapsedPaths[tagsPath] && typeof collapsedPaths[tagsPath] === 'object');
+    
+    if (tagsExpanded) {
+      const tagsNode = createTagsNode(
+        methodData.tags,
+        leftColumnX,
+        yOffset
+      );
+      
+      const tagsEdge = createEdge(methodNode.id, tagsNode.id, undefined, false, {}, 'default');
+      
+      result.nodes.push(tagsNode);
+      result.edges.push(tagsEdge);
+      
+      console.log(`🔥 [OPENAPI LAYOUT] Created tags node for method`);
+      yOffset += 100;
+    }
+  }
+  
+  // Process security if it exists
+  if (methodData.security && methodData.security.length > 0) {
+    const securityPath = `${methodPath}.security`;
+    const securityExpanded = collapsedPaths[securityPath] === false || 
+      (collapsedPaths[securityPath] && typeof collapsedPaths[securityPath] === 'object');
+    
+    if (securityExpanded) {
+      const securityNode = createSecurityNode(
+        methodData.security,
+        leftColumnX,
+        yOffset
+      );
+      
+      const securityEdge = createEdge(methodNode.id, securityNode.id, undefined, false, {}, 'default');
+      
+      result.nodes.push(securityNode);
+      result.edges.push(securityEdge);
+      
+      console.log(`🔥 [OPENAPI LAYOUT] Created security node for method`);
+    }
+  }
+  
+  // Reset yOffset for right column (request body and responses)
+  yOffset = yPos + 150;
   
   // Process request body if it has application/json content
   if (methodData.requestBody?.content?.['application/json']) {
@@ -580,8 +656,8 @@ function processMethodDetails(
     if (requestBodyExpanded) {
       const requestBodyNode = createRequestBodyNode(
         methodData.requestBody,
-        methodX - 200,
-        yPos + 150
+        rightColumnX,
+        yOffset
       );
       
       const requestBodyEdge = createEdge(methodNode.id, requestBodyNode.id, undefined, false, {}, 'default');
@@ -603,8 +679,8 @@ function processMethodDetails(
             'Schema',
             requestBodySchema,
             [],
-            methodX - 400,
-            yPos + 150,
+            rightColumnX + 200,
+            yOffset,
             false
           );
           
@@ -617,6 +693,8 @@ function processMethodDetails(
           handleSchemaReferences(requestBodySchema, schemaNode.id, result);
         }
       }
+      
+      yOffset += 150;
     }
   }
   
@@ -642,8 +720,8 @@ function processMethodDetails(
           const responseNode = createResponseNode(
             statusCode,
             responseData,
-            methodX + 200 + (responseIndex * 150),
-            yPos + 150 + responseOffset
+            rightColumnX + (responseIndex * 150),
+            yOffset
           );
           
           const responseEdge = createEdge(methodNode.id, responseNode.id, undefined, false, {}, 'default');
@@ -667,8 +745,8 @@ function processMethodDetails(
               'Schema',
               responseSchema,
               [],
-              methodX + 400 + (responseIndex * 150),
-              yPos + 150 + responseOffset,
+              rightColumnX + 200 + (responseIndex * 150),
+              yOffset,
               false
             );
             
@@ -683,7 +761,7 @@ function processMethodDetails(
             console.log(`🔥 [OPENAPI LAYOUT] Created schema node for response ${statusCode}`);
           }
           
-          responseOffset += 100;
+          yOffset += 150;
         });
       } else {
         // CONSOLIDATED MODE: Show single consolidated response box
@@ -691,8 +769,8 @@ function processMethodDetails(
         
         const consolidatedResponseNode = createConsolidatedResponseNode(
           methodData.responses,
-          methodX + 200,
-          yPos + 150
+          rightColumnX,
+          yOffset
         );
         
         const responseEdge = createEdge(methodNode.id, consolidatedResponseNode.id, undefined, false, {}, 'default');
