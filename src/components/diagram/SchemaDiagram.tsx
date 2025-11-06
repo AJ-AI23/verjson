@@ -2,6 +2,8 @@ import React, { memo } from 'react';
 import '@xyflow/react/dist/style.css';
 import { DiagramContainer } from './DiagramContainer';
 import { CollapsedState } from '@/lib/diagram/types';
+import { SequenceDiagramRenderer } from './sequence/SequenceDiagramRenderer';
+import { DiagramDocument, SequenceDiagramData } from '@/types/diagram';
 
 interface SchemaDiagramProps {
   schema: any;
@@ -11,6 +13,7 @@ interface SchemaDiagramProps {
   maxDepth?: number;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
   expandedNotationPaths?: Set<string>;
+  isDiagram?: boolean;
 }
 
 export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
@@ -20,8 +23,21 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   collapsedPaths,
   maxDepth,
   onAddNotation,
-  expandedNotationPaths
+  expandedNotationPaths,
+  isDiagram = false
 }) => {
+  // Check if this is a diagram document
+  const diagramDocument = isDiagram && schema ? schema as DiagramDocument : null;
+  const isSequenceDiagram = diagramDocument?.type === 'sequence';
+
+  if (isSequenceDiagram && diagramDocument) {
+    return (
+      <div className="h-full flex flex-col min-h-0">
+        <SequenceDiagramRenderer data={diagramDocument.data as SequenceDiagramData} />
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col min-h-0">
       <DiagramContainer 

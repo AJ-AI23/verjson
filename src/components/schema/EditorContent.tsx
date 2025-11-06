@@ -84,6 +84,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
         maxDepth={maxDepth}
         onAddNotation={onAddNotation}
         expandedNotationPaths={expandedNotationPaths}
+        isDiagram={currentFileType === 'diagram'}
       />
     </SplitPane>
   );

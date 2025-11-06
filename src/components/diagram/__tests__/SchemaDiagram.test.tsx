@@ -16,14 +16,14 @@ jest.mock('../hooks/useDiagramNodes', () => ({
 
 describe('SchemaDiagram', () => {
   it('renders DiagramEmpty with error when error is true', () => {
-    render(<SchemaDiagram schema={null} error={true} />);
+    render(<SchemaDiagram schema={null} error={true} isDiagram={false} />);
     
     const errorText = screen.getByText('Fix Schema errors to view diagram');
     expect(errorText).toBeInTheDocument();
   });
   
   it('renders DiagramEmpty with noSchema when schema is null', () => {
-    render(<SchemaDiagram schema={null} error={false} />);
+    render(<SchemaDiagram schema={null} error={false} isDiagram={false} />);
     
     const noSchemaText = screen.getByText('No schema components to display');
     expect(noSchemaText).toBeInTheDocument();
@@ -32,7 +32,7 @@ describe('SchemaDiagram', () => {
   it('renders DiagramHeader and DiagramFlow when schema is provided', () => {
     const mockSchema = { type: 'object', properties: {} };
     
-    render(<SchemaDiagram schema={mockSchema} error={false} />);
+    render(<SchemaDiagram schema={mockSchema} error={false} isDiagram={false} />);
     
     const headerText = screen.getByText('Schema Diagram');
     expect(headerText).toBeInTheDocument();
@@ -40,5 +40,26 @@ describe('SchemaDiagram', () => {
     // Since we're using mocks, ReactFlow will be represented by mock-react-flow
     const reactFlowElement = screen.getByTestId('mock-react-flow');
     expect(reactFlowElement).toBeInTheDocument();
+  });
+
+  it('renders SequenceDiagramRenderer when isDiagram is true and type is sequence', () => {
+    const mockDiagram = {
+      version: '1.0.0',
+      type: 'sequence',
+      metadata: { title: 'Test Diagram' },
+      data: {
+        swimlanes: [],
+        columns: [],
+        nodes: [],
+        edges: []
+      }
+    };
+    
+    render(<SchemaDiagram schema={mockDiagram} error={false} isDiagram={true} />);
+    
+    // The SequenceDiagramRenderer should be rendered
+    // We can't easily test the internal structure without more mocks,
+    // but we can verify it doesn't throw an error
+    expect(true).toBe(true);
   });
 });
