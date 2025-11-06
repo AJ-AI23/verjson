@@ -520,7 +520,7 @@ export const createConsolidatedResponseNode = (
   const notationCount = getNotationCount(responses);
   
   const statusCodes = Object.keys(responses).filter(code => 
-    code !== '$notations' && responses[code]?.content?.['application/json']
+    code !== '$notations'
   );
   
   const nodeId = `responses-consolidated-${Math.random().toString(36).substr(2, 9)}`;
@@ -534,6 +534,62 @@ export const createConsolidatedResponseNode = (
       responses,
       isConsolidated: true,
       label: `${statusCodes.length} Response${statusCodes.length !== 1 ? 's' : ''}`,
+      notations: notations,
+      notationCount: notationCount,
+      hasNotations: notationCount > 0
+    }
+  };
+};
+
+export const createContentTypeNode = (
+  contentType: string,
+  contentData: any,
+  x: number,
+  y: number,
+  hasMoreLevels: boolean = false
+): Node => {
+  const notations = extractNotations(contentData);
+  const notationCount = getNotationCount(contentData);
+  
+  const nodeId = `content-type-${contentType.replace(/\//g, '-')}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  return {
+    id: nodeId,
+    type: 'contentType',
+    position: { x, y },
+    data: {
+      contentType,
+      description: contentData?.schema?.description,
+      schema: contentData?.schema,
+      label: `Content Type: ${contentType}`,
+      notations: notations,
+      notationCount: notationCount,
+      hasNotations: notationCount > 0,
+      hasMoreLevels
+    }
+  };
+};
+
+export const createConsolidatedContentTypeNode = (
+  contentTypes: Record<string, any>,
+  x: number,
+  y: number
+): Node => {
+  const notations = extractNotations(contentTypes);
+  const notationCount = getNotationCount(contentTypes);
+  
+  const typeNames = Object.keys(contentTypes).filter(type => type !== '$notations');
+  
+  const nodeId = `content-types-consolidated-${Math.random().toString(36).substr(2, 9)}`;
+  
+  return {
+    id: nodeId,
+    type: 'contentType',
+    position: { x, y },
+    data: {
+      contentTypes: typeNames,
+      isConsolidated: true,
+      label: `${typeNames.length} Content Type${typeNames.length !== 1 ? 's' : ''}`,
       notations: notations,
       notationCount: notationCount,
       hasNotations: notationCount > 0

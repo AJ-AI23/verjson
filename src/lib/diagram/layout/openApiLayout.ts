@@ -11,6 +11,8 @@ import {
   createResponseNode,
   createRequestBodyNode,
   createConsolidatedResponseNode,
+  createContentTypeNode,
+  createConsolidatedContentTypeNode,
   createGroupedPropertiesNode,
   createServerNode,
   createTagNode,
@@ -720,12 +722,18 @@ function processMethodDetails(
           yOffset
         );
         
+        // Add dashed border when responses are expanded
+        consolidatedResponseNode.data = {
+          ...consolidatedResponseNode.data,
+          hasMoreLevels: true
+        };
+        
         const responseEdge = createEdge(methodNode.id, consolidatedResponseNode.id, undefined, false, {}, 'default');
         
         result.nodes.push(consolidatedResponseNode);
         result.edges.push(responseEdge);
         
-        console.log(`🔥 [OPENAPI LAYOUT] Created consolidated response node`);
+        console.log(`🔥 [OPENAPI LAYOUT] Created consolidated response node with dashed border`);
         
         // Now create individual response boxes as children of the consolidated box
         let individualYOffset = yOffset + 150;
@@ -750,39 +758,120 @@ function processMethodDetails(
             
             console.log(`🔥 [OPENAPI LAYOUT] Created individual response node for ${statusCode} as child of consolidated box`);
             
-            // Check if the schema property is expanded for this response
-            const schemaPath = `${individualResponsePath}.content.application/json.schema`;
-            const schemaExpanded = collapsedPaths[schemaPath] === false || 
-              (collapsedPaths[schemaPath] && typeof collapsedPaths[schemaPath] === 'object');
+            // Process content types for this response
+            const contentPath = `${individualResponsePath}.content`;
+            const contentExpanded = collapsedPaths[contentPath] === false;
             
-            // If response has a schema and schema property is expanded, create a schema node
-            const responseSchema = responseData.content['application/json'].schema;
-            if (responseSchema && schemaExpanded) {
-              const schemaNode = createPropertyNode(
-                'Schema',
-                responseSchema,
-                [],
-                rightColumnX + 200 + (responseIndex * 150),
-                individualYOffset,
-                false
-              );
+            if (responseData.content) {
+              const contentTypes = Object.keys(responseData.content);
+              const allContentTypes: Record<string, any> = {};
+              const unexpandedContentTypes: Record<string, any> = {};
               
-              const schemaEdge = createEdge(responseNode.id, schemaNode.id, undefined, false, {}, 'default');
+              contentTypes.forEach(contentType => {
+                allContentTypes[contentType] = responseData.content[contentType];
+              });
               
-              result.nodes.push(schemaNode);
-              result.edges.push(schemaEdge);
-              
-              // Handle references for response schema
-              handleSchemaReferences(responseSchema, schemaNode.id, result);
-              
-              console.log(`🔥 [OPENAPI LAYOUT] Created schema node for response ${statusCode}`);
+              if (contentExpanded) {
+                // CONTENT EXPANDED: Check which individual content types are expanded
+                console.log(`🔥 [OPENAPI LAYOUT] Content expanded for response ${statusCode} - checking for individual content type expansions`);
+                
+                contentTypes.forEach(contentType => {
+                  const contentTypePath = `${contentPath}.${contentType}`;
+                  const contentTypeExpanded = collapsedPaths[contentTypePath] === false;
+                  
+                  if (!contentTypeExpanded) {
+                    unexpandedContentTypes[contentType] = responseData.content[contentType];
+                  }
+                });
+                
+                // Create consolidated content types box
+                const contentTypesToShow = Object.keys(unexpandedContentTypes).length > 0 ? unexpandedContentTypes : allContentTypes;
+                const consolidatedContentTypeNode = createConsolidatedContentTypeNode(
+                  contentTypesToShow,
+                  rightColumnX + (responseIndex * 150),
+                  individualYOffset + 150
+                );
+                
+                const contentTypeEdge = createEdge(responseNode.id, consolidatedContentTypeNode.id, undefined, false, {}, 'default');
+                
+                result.nodes.push(consolidatedContentTypeNode);
+                result.edges.push(contentTypeEdge);
+                
+                console.log(`🔥 [OPENAPI LAYOUT] Created consolidated content type node for response ${statusCode}`);
+                
+                // Create individual content type boxes for expanded ones
+                let contentTypeYOffset = individualYOffset + 300;
+                contentTypes.forEach((contentType, ctIndex) => {
+                  const contentTypePath = `${contentPath}.${contentType}`;
+                  const contentTypeExpanded = collapsedPaths[contentTypePath] === false;
+                  
+                  if (contentTypeExpanded) {
+                    // Check if schema is expanded
+                    const schemaPath = `${contentTypePath}.schema`;
+                    const schemaExpanded = collapsedPaths[schemaPath] === false;
+                    
+                    const contentTypeNode = createContentTypeNode(
+                      contentType,
+                      responseData.content[contentType],
+                      rightColumnX + 200 + (responseIndex * 150) + (ctIndex * 100),
+                      contentTypeYOffset,
+                      schemaExpanded
+                    );
+                    
+                    const ctEdge = createEdge(consolidatedContentTypeNode.id, contentTypeNode.id, undefined, false, {}, 'default');
+                    
+                    result.nodes.push(contentTypeNode);
+                    result.edges.push(ctEdge);
+                    
+                    console.log(`🔥 [OPENAPI LAYOUT] Created individual content type node for ${contentType}`);
+                    
+                    // If schema is expanded, create schema node
+                    if (schemaExpanded && responseData.content[contentType].schema) {
+                      const schema = responseData.content[contentType].schema;
+                      const schemaNode = createPropertyNode(
+                        'Schema',
+                        schema,
+                        [],
+                        rightColumnX + 400 + (responseIndex * 150) + (ctIndex * 100),
+                        contentTypeYOffset,
+                        false
+                      );
+                      
+                      const schemaEdge = createEdge(contentTypeNode.id, schemaNode.id, undefined, false, {}, 'default');
+                      
+                      result.nodes.push(schemaNode);
+                      result.edges.push(schemaEdge);
+                      
+                      handleSchemaReferences(schema, schemaNode.id, result);
+                      
+                      console.log(`🔥 [OPENAPI LAYOUT] Created schema node for content type ${contentType}`);
+                    }
+                  }
+                });
+              } else {
+                // CONTENT NOT EXPANDED: Show single consolidated content types box
+                console.log(`🔥 [OPENAPI LAYOUT] Creating consolidated content types box for response ${statusCode}`);
+                
+                const consolidatedContentTypeNode = createConsolidatedContentTypeNode(
+                  allContentTypes,
+                  rightColumnX + (responseIndex * 150),
+                  individualYOffset + 150
+                );
+                
+                const contentTypeEdge = createEdge(responseNode.id, consolidatedContentTypeNode.id, undefined, false, {}, 'default');
+                
+                result.nodes.push(consolidatedContentTypeNode);
+                result.edges.push(contentTypeEdge);
+                
+                console.log(`🔥 [OPENAPI LAYOUT] Created consolidated content type node for response ${statusCode}`);
+              }
             }
           }
         });
         
         // For consolidated view, check if any response has references and create dotted edges
         Object.entries(responsesToShow).forEach(([statusCode, responseData]: [string, any]) => {
-          const responseSchema = responseData.content['application/json'].schema;
+          const responseSchema = responseData.content?.['application/json']?.schema;
           if (responseSchema) {
             handleSchemaReferences(responseSchema, consolidatedResponseNode.id, result);
           }

@@ -5,6 +5,7 @@ import { EndpointNode } from './EndpointNode';
 import { ComponentsNode } from './ComponentsNode';
 import { MethodNode } from './MethodNode';
 import { ResponseNode } from './ResponseNode';
+import { ContentTypeNode } from './ContentTypeNode';
 import { RequestBodyNode } from './RequestBodyNode';
 import { ParametersNode } from './ParametersNode';
 import { MethodTagsNode } from './MethodTagsNode';
@@ -29,6 +30,7 @@ export const NodeRenderer = memo(({ data, id, isConnectable, onAddNotation, expa
                    id.includes('components') && !id.includes('grouped') ? 'components' :
                    id.includes('method') ? 'method' :
                    id.includes('response') ? 'response' :
+                   id.includes('content-type') ? 'contentType' :
                    id.includes('request-body') ? 'requestBody' :
                    id.startsWith('parameters-') ? 'parameters' :
                    id.startsWith('tags-') ? 'tags' :
@@ -46,6 +48,8 @@ export const NodeRenderer = memo(({ data, id, isConnectable, onAddNotation, expa
       return <MethodNode data={data} id={id} isConnectable={isConnectable} onAddNotation={onAddNotation} />;
     case 'response':
       return <ResponseNode data={data} id={id} isConnectable={isConnectable} onAddNotation={onAddNotation} />;
+    case 'contentType':
+      return <ContentTypeNode data={data} id={id} isConnectable={isConnectable} onAddNotation={onAddNotation} />;
     case 'requestBody':
       return <RequestBodyNode data={data} id={id} isConnectable={isConnectable} onAddNotation={onAddNotation} />;
     case 'parameters':

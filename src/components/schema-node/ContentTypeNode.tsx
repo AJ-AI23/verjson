@@ -5,11 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { NodeNotations } from './NodeNotations';
 import { NotationComment } from '@/types/notations';
 
-interface ResponseNodeProps {
+interface ContentTypeNodeProps {
   data: {
-    statusCode?: string;
-    statusCodes?: string[];
-    responses?: Record<string, any>;
+    contentType?: string;
+    contentTypes?: string[];
     isConsolidated?: boolean;
     description?: string;
     schema?: any;
@@ -24,27 +23,24 @@ interface ResponseNodeProps {
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
 }
 
-export const ResponseNode = memo(({ data, isConnectable, id, onAddNotation }: ResponseNodeProps) => {
-  const { statusCode, statusCodes, responses, isConsolidated, description, notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false } = data;
+export const ContentTypeNode = memo(({ data, isConnectable, id, onAddNotation }: ContentTypeNodeProps) => {
+  const { contentType, contentTypes, isConsolidated, description, notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false } = data;
 
-  const getStatusColor = (code: string) => {
-    const statusNum = parseInt(code);
-    if (statusNum >= 200 && statusNum < 300) {
-      return 'bg-green-100 text-green-800 border-green-200';
-    } else if (statusNum >= 300 && statusNum < 400) {
-      return 'bg-blue-100 text-blue-800 border-blue-200';
-    } else if (statusNum >= 400 && statusNum < 500) {
+  const getContentTypeColor = (type: string) => {
+    if (type.includes('json')) {
+      return 'bg-purple-100 text-purple-800 border-purple-200';
+    } else if (type.includes('xml')) {
       return 'bg-orange-100 text-orange-800 border-orange-200';
-    } else if (statusNum >= 500) {
-      return 'bg-red-100 text-red-800 border-red-200';
+    } else if (type.includes('text')) {
+      return 'bg-blue-100 text-blue-800 border-blue-200';
     }
     return 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
   return (
     <div className={cn(
-      'px-3 py-2 rounded-md shadow-sm min-w-[120px] max-w-[200px]',
-      'bg-slate-50 border-slate-200',
+      'px-3 py-2 rounded-md shadow-sm min-w-[120px] max-w-[250px]',
+      'bg-indigo-50 border-indigo-200',
       hasMoreLevels ? 'border-2 border-dashed' : 'border',
       hasNotations && 'border-l-2 border-l-amber-400'
     )}>
@@ -58,33 +54,33 @@ export const ResponseNode = memo(({ data, isConnectable, id, onAddNotation }: Re
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           {isConsolidated ? (
-            // Consolidated view showing multiple response codes
+            // Consolidated view showing multiple content types
             <div className="flex flex-col gap-1">
               <div className="flex flex-wrap gap-1">
-                {statusCodes?.map((code) => (
+                {contentTypes?.map((type) => (
                   <Badge 
-                    key={code}
+                    key={type}
                     variant="outline" 
-                    className={cn('text-xs px-2', getStatusColor(code))}
+                    className={cn('text-xs px-2', getContentTypeColor(type))}
                   >
-                    {code}
+                    {type}
                   </Badge>
                 ))}
               </div>
-              <span className="text-xs font-medium text-slate-700">
-                {statusCodes?.length === 1 ? 'Response' : 'Responses'}
+              <span className="text-xs font-medium text-indigo-700">
+                {contentTypes?.length === 1 ? 'Content Type' : 'Content Types'}
               </span>
             </div>
           ) : (
-            // Individual response view
+            // Individual content type view
             <div className="flex flex-col gap-1">
               <Badge 
                 variant="outline" 
-                className={cn('text-xs px-2 w-fit', getStatusColor(statusCode!))}
+                className={cn('text-xs px-2 w-fit', getContentTypeColor(contentType!))}
               >
-                {statusCode}
+                {contentType}
               </Badge>
-              <span className="text-xs font-medium text-slate-700">Response</span>
+              <span className="text-xs font-medium text-indigo-700">Content Type</span>
             </div>
           )}
           <NodeNotations
@@ -96,7 +92,7 @@ export const ResponseNode = memo(({ data, isConnectable, id, onAddNotation }: Re
         </div>
         
         {description && (
-          <div className="text-xs text-slate-600 line-clamp-2" title={description}>
+          <div className="text-xs text-indigo-600 line-clamp-2" title={description}>
             {description}
           </div>
         )}
@@ -112,4 +108,4 @@ export const ResponseNode = memo(({ data, isConnectable, id, onAddNotation }: Re
   );
 });
 
-ResponseNode.displayName = 'ResponseNode';
+ContentTypeNode.displayName = 'ContentTypeNode';
