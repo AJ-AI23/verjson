@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import {
   ReactFlow,
   Background,
@@ -93,6 +93,11 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
 
   const [nodes, setNodes, handleNodesChange] = useNodesState(layoutNodes);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
+
+  // Update edges when layout changes (e.g., when anchors are swapped)
+  useEffect(() => {
+    setEdges(layoutEdges);
+  }, [layoutEdges, setEdges]);
 
   const onNodesChangeHandler = useCallback((changes: any) => {
     handleNodesChange(changes);
