@@ -17,7 +17,7 @@ export const DiagramSettingsDialog: React.FC<DiagramSettingsDialogProps> = ({
 
   const handleMaxIndividualPropertiesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(e.target.value);
-    if (!isNaN(value) && value >= 1 && value <= 20) {
+    if (!isNaN(value) && value >= 0 && value <= 250) {
       updateMaxIndividualProperties(value);
     }
   };
@@ -39,15 +39,15 @@ export const DiagramSettingsDialog: React.FC<DiagramSettingsDialogProps> = ({
             <Input
               id="max-individual-properties"
               type="number"
-              min="1"
-              max="20"
+              min="0"
+              max="250"
               value={settings.maxIndividualProperties}
               onChange={handleMaxIndividualPropertiesChange}
             />
             <p className="text-sm text-muted-foreground">
               Maximum number of properties to show individually before grouping them. 
               When exceeded, remaining properties are grouped into a single "More Properties" box. 
-              Range: 1-20, default: 5
+              Range: 0-250, default: 5
             </p>
           </div>
         </div>
