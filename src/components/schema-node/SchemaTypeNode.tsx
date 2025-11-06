@@ -50,6 +50,8 @@ interface SchemaTypeNodeProps {
     hasNotations?: boolean;
     path?: string; // For tracking paths in grouped nodes
     truncatedAncestors?: string[]; // List of property names that were truncated
+    isTruncatedRepresentative?: boolean; // True if this node represents truncated boxes
+    truncatedProperties?: Array<{ label: string; type?: string }>; // Properties represented by this truncated box
   };
   id: string;
   isConnectable: boolean;
@@ -82,6 +84,8 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
     hasNotations = false,
     path,
     truncatedAncestors,
+    isTruncatedRepresentative,
+    truncatedProperties,
   } = data;
 
   const [isNotationsExpanded, setIsNotationsExpanded] = useState(false);
@@ -183,6 +187,27 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
           </div>
         )}
         
+        {/* Truncated representative box - shows all properties in this truncated chain */}
+        {isTruncatedRepresentative && truncatedProperties && truncatedProperties.length > 0 && (
+          <div className="mt-2 border-t border-border pt-2">
+            <div className="text-xs font-medium text-muted-foreground mb-2">
+              Truncated Properties ({truncatedProperties.length}):
+            </div>
+            <div className="space-y-1 max-h-[200px] overflow-y-auto">
+              {truncatedProperties.map((prop, index) => (
+                <div key={index} className="flex items-center gap-2 p-1.5 bg-muted/30 rounded text-xs">
+                  <span className="font-mono text-foreground font-medium">{prop.label}</span>
+                  {prop.type && (
+                    <span className="ml-auto px-1.5 py-0.5 rounded bg-background text-muted-foreground border border-border">
+                      {prop.type}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
         {/* Property details section */}
         {propertyDetails && propertyDetails.length > 0 && (
           <PropertyDetails 
@@ -232,7 +257,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
         />
       </div>
 
-      {(type === 'object' || type === 'array' || type === 'reference' || type === 'openapi' || type === 'info' || type === 'components' || type === 'endpoint' || type === 'method') && (
+      {(type === 'object' || type === 'array' || type === 'reference' || type === 'openapi' || type === 'info' || type === 'components' || type === 'endpoint' || type === 'method' || type === 'truncated') && (
         <Handle
           type="source"
           position={Position.Bottom}

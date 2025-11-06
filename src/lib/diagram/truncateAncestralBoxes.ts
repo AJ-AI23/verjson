@@ -104,9 +104,9 @@ export const truncateAncestralBoxes = (elements: DiagramElements): DiagramElemen
   const nodesToRemove = new Set<string>();
   const edgesToRemove = new Set<string>();
   const newEdges: Edge[] = [];
-  const modifiedNodes = new Map<string, Node>();
+  const newNodes: Node[] = [];
   
-  truncationChains.forEach(chain => {
+  truncationChains.forEach((chain, chainIndex) => {
     if (chain.length === 0) return;
     
     const firstNodeId = chain[0];
@@ -128,40 +128,59 @@ export const truncateAncestralBoxes = (elements: DiagramElements): DiagramElemen
       (outgoingEdges.get(nodeId) || []).forEach(e => edgesToRemove.add(e.id));
     });
     
-    // Create new edge from parent to child
-    newEdges.push({
-      id: `${parentEdge.source}-${childEdge.target}-truncated`,
-      source: parentEdge.source,
-      target: childEdge.target,
-      type: 'default'
-    });
-    
-    // Collect truncated property names
+    // Collect truncated property names and types
     const truncatedProperties = chain
       .map(nodeId => {
         const node = nodes.find(n => n.id === nodeId);
-        return node?.data.label || nodeId;
+        return {
+          label: node?.data.label || nodeId,
+          type: node?.data.type
+        };
       })
       .filter(Boolean);
     
-    // Add truncation info to the child node
-    const childNode = nodes.find(n => n.id === childEdge.target);
-    if (childNode) {
-      const updatedChild = {
-        ...childNode,
-        data: {
-          ...childNode.data,
-          truncatedAncestors: truncatedProperties
-        }
-      };
-      modifiedNodes.set(childNode.id, updatedChild);
-    }
+    // Get the first node's position to place the representative node
+    const firstNode = nodes.find(n => n.id === firstNodeId);
+    const position = firstNode?.position || { x: 0, y: 0 };
+    
+    // Create a representative node for the truncated chain
+    const representativeNodeId = `truncated-chain-${chainIndex}`;
+    const representativeNode: Node = {
+      id: representativeNodeId,
+      type: 'schemaType',
+      position,
+      data: {
+        label: `${chain.length} properties`,
+        type: 'truncated',
+        isTruncatedRepresentative: true,
+        truncatedProperties: truncatedProperties,
+        nodeType: 'property'
+      }
+    };
+    
+    newNodes.push(representativeNode);
+    
+    // Create edges: parent -> representative -> child
+    newEdges.push({
+      id: `${parentEdge.source}-${representativeNodeId}`,
+      source: parentEdge.source,
+      target: representativeNodeId,
+      type: 'default'
+    });
+    
+    newEdges.push({
+      id: `${representativeNodeId}-${childEdge.target}`,
+      source: representativeNodeId,
+      target: childEdge.target,
+      type: 'default'
+    });
   });
   
   // Build final node and edge lists
-  const finalNodes = nodes
-    .filter(node => !nodesToRemove.has(node.id))
-    .map(node => modifiedNodes.get(node.id) || node);
+  const finalNodes = [
+    ...nodes.filter(node => !nodesToRemove.has(node.id)),
+    ...newNodes
+  ];
   
   const finalEdges = [
     ...edges.filter(edge => !edgesToRemove.has(edge.id)),
