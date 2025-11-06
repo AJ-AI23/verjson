@@ -69,6 +69,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   const nodeOrder = calculateNodeSequence(nodes, anchors);
 
   // Create anchor nodes - positioned at the same Y as their connected node
+  const NODE_HEIGHT = 60; // Standard node height for sequence nodes
   const anchorNodes: Node[] = anchors.map(anchor => {
     const xPos = lifelineXPositions.get(anchor.lifelineId) || 0;
     
@@ -76,10 +77,13 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     const connectedNode = nodes.find(n => n.id === anchor.connectedNodeId);
     const connectedNodeYPos = connectedNode?.position?.y || anchor.yPosition;
     
+    // Position anchor at the vertical center of the node
+    const anchorY = connectedNodeYPos + (NODE_HEIGHT / 2) - 8; // Center 16px anchor on node center
+    
     return {
       id: anchor.id,
       type: 'anchorNode',
-      position: { x: xPos - 8, y: connectedNodeYPos - 8 }, // Center the 16px anchor on node center
+      position: { x: xPos - 8, y: anchorY },
       data: {
         lifelineId: anchor.lifelineId,
         connectedNodeId: anchor.connectedNodeId,

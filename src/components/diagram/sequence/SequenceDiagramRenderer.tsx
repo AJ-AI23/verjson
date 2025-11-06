@@ -173,24 +173,26 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         onDataChange({ ...data, anchors: updatedAnchors, nodes: updatedDiagramNodes });
       } else {
         // Regular node position update - also update connected anchors
+        const NODE_HEIGHT = 60; // Standard node height for sequence nodes
         const updatedNodes = diagramNodes.map(n =>
           n.id === moveChange.id ? { ...n, position: moveChange.position } : n
         );
         
-        // Update anchors connected to this node to match its Y position
+        // Update anchors connected to this node to match its Y position (center of node)
+        const nodeCenterY = moveChange.position.y + (NODE_HEIGHT / 2);
         const updatedAnchors = anchors.map(a => {
           if (a.connectedNodeId === moveChange.id) {
-            return { ...a, yPosition: moveChange.position.y };
+            return { ...a, yPosition: nodeCenterY };
           }
           return a;
         });
         
-        // Immediately update anchor node positions visually
+        // Immediately update anchor node positions visually (centered on node)
         setNodes(currentNodes => 
           currentNodes.map(n => {
             const anchorData = n.data as any;
             if (n.type === 'anchorNode' && anchorData?.connectedNodeId === moveChange.id) {
-              return { ...n, position: { ...n.position, y: moveChange.position.y - 8 } };
+              return { ...n, position: { ...n.position, y: nodeCenterY - 8 } };
             }
             return n;
           })
