@@ -178,13 +178,23 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         );
         
         // Update anchors connected to this node to match its Y position
-        const nodeAnchors = anchors.filter(a => a.connectedNodeId === moveChange.id);
         const updatedAnchors = anchors.map(a => {
           if (a.connectedNodeId === moveChange.id) {
             return { ...a, yPosition: moveChange.position.y };
           }
           return a;
         });
+        
+        // Immediately update anchor node positions visually
+        setNodes(currentNodes => 
+          currentNodes.map(n => {
+            const anchorData = n.data as any;
+            if (n.type === 'anchorNode' && anchorData?.connectedNodeId === moveChange.id) {
+              return { ...n, position: { ...n.position, y: moveChange.position.y - 8 } };
+            }
+            return n;
+          })
+        );
         
         onDataChange({ ...data, nodes: updatedNodes, anchors: updatedAnchors });
       }
