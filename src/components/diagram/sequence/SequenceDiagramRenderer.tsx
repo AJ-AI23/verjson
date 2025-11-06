@@ -181,7 +181,11 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         // Constrain vertical position to be below lifeline headers
         const LIFELINE_HEADER_HEIGHT = 100;
         const MIN_Y_POSITION = LIFELINE_HEADER_HEIGHT + 20; // 20px padding below header
-        const constrainedY = Math.max(MIN_Y_POSITION, moveChange.position.y);
+        const GRID_SIZE = 10; // Snap to 10px grid
+        
+        // Snap to grid and constrain to minimum position
+        const snappedY = Math.round(moveChange.position.y / GRID_SIZE) * GRID_SIZE;
+        const constrainedY = Math.max(MIN_Y_POSITION, snappedY);
         
         // Calculate the correct horizontal position based on anchors
         const nodeAnchors = movedDiagramNode?.anchors;
