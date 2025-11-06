@@ -110,7 +110,6 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
       if (isAnchor) {
         // Update anchor position - snap to nearest lifeline
         const anchorData = movedNode?.data as any;
-        const connectedNodeId = anchorData?.connectedNodeId;
         
         // Find which lifeline this anchor should snap to based on X position
         const anchorX = moveChange.position.x + 8; // Add half width to get center
@@ -137,20 +136,31 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         const updatedDiagramNodes = diagramNodes.map(n => {
           const anchorIndex = n.anchors?.findIndex(a => a.id === moveChange.id);
           if (anchorIndex !== undefined && anchorIndex !== -1) {
+            // Get node height to determine center Y
+            const nodeConfig = getNodeTypeConfig(n.type);
+            const nodeHeight = nodeConfig?.defaultHeight || 70;
+            const currentNodeY = n.position?.y || 100;
+            
+            // Keep both anchors at the node's current center Y position
+            const nodeCenterY = currentNodeY + (nodeHeight / 2);
+            
             const updatedAnchors = [...n.anchors];
-            const otherAnchorIndex = anchorIndex === 0 ? 1 : 0;
-            const otherAnchor = updatedAnchors[otherAnchorIndex];
             
-            // Keep both anchors at the same Y position (snap to the other anchor's Y)
-            const sharedY = otherAnchor.yPosition;
-            
+            // Update the dragged anchor to new lifeline but keep Y at node center
             updatedAnchors[anchorIndex] = {
               ...updatedAnchors[anchorIndex],
-              yPosition: sharedY,
+              yPosition: nodeCenterY,
               lifelineId: closestLifelineId
             };
             
-            // Calculate node position and dimensions based on both anchors
+            // Also update the other anchor's Y to ensure they're both at node center
+            const otherAnchorIndex = anchorIndex === 0 ? 1 : 0;
+            updatedAnchors[otherAnchorIndex] = {
+              ...updatedAnchors[otherAnchorIndex],
+              yPosition: nodeCenterY
+            };
+            
+            // Calculate new node position and dimensions based on both anchors
             const sourceAnchor = updatedAnchors[0];
             const targetAnchor = updatedAnchors[1];
             
@@ -180,18 +190,11 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
                 nodeX = (leftX + rightX) / 2 - 90;
               }
               
-              // Get node height to calculate Y position
-              const movedDiagramNode = diagramNodes.find(dn => dn.id === n.id);
-              const nodeConfig = movedDiagramNode ? getNodeTypeConfig(movedDiagramNode.type) : null;
-              const nodeHeight = nodeConfig?.defaultHeight || 70;
-              
-              // Position node so its center is at the anchor Y position
-              const nodeY = sharedY - (nodeHeight / 2);
-              
+              // Keep the same Y position (don't move vertically)
               return {
                 ...n,
                 anchors: updatedAnchors as [typeof updatedAnchors[0], typeof updatedAnchors[1]],
-                position: { x: nodeX, y: nodeY }
+                position: { x: nodeX, y: currentNodeY }
               };
             }
           }
@@ -206,18 +209,20 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
           
           if (!connectedNode) return currentNodes;
           
-          const movedAnchorIndex = connectedNode.anchors.findIndex(a => a.id === moveChange.id);
-          const otherAnchor = connectedNode.anchors[movedAnchorIndex === 0 ? 1 : 0];
-          const sharedY = otherAnchor.yPosition;
+          const nodeConfig = getNodeTypeConfig(connectedNode.type);
+          const nodeHeight = nodeConfig?.defaultHeight || 70;
+          const currentNodeY = connectedNode.position?.y || 100;
+          const nodeCenterY = currentNodeY + (nodeHeight / 2);
           
           return currentNodes.map(n => {
-            // Update the dragged anchor position
-            if (n.id === moveChange.id) {
-              return { ...n, position: { x: snappedX, y: sharedY - 8 } };
+            // Update both anchor positions to be at node center
+            const anchorData = n.data as any;
+            if (n.type === 'anchorNode' && anchorData?.connectedNodeId === connectedNode.id) {
+              return { ...n, position: { ...n.position, y: nodeCenterY - 8 } };
             }
-            // Update the node position
+            // Update the node position (horizontal only)
             if (n.id === connectedNode.id) {
-              return { ...n, position: { x: connectedNode.position?.x || 0, y: connectedNode.position?.y || 0 } };
+              return { ...n, position: { x: connectedNode.position?.x || 0, y: currentNodeY } };
             }
             return n;
           });
