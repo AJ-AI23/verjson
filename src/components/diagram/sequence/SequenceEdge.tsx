@@ -1,5 +1,6 @@
 import React from 'react';
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, EdgeProps } from '@xyflow/react';
+import { DiagramStyleTheme } from '@/types/diagramStyles';
 
 export const SequenceEdge: React.FC<EdgeProps> = ({
   id,
@@ -13,6 +14,7 @@ export const SequenceEdge: React.FC<EdgeProps> = ({
   label,
   data
 }) => {
+  const styles = data?.styles as DiagramStyleTheme | undefined;
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
@@ -39,9 +41,15 @@ export const SequenceEdge: React.FC<EdgeProps> = ({
     }
   };
 
+  const edgeStyle = {
+    ...style,
+    stroke: style.stroke || styles?.colors.edgeStroke || '#64748b',
+    strokeWidth: style.strokeWidth || 2
+  };
+
   return (
     <>
-      <BaseEdge id={id} path={edgePath} style={style} />
+      <BaseEdge id={id} path={edgePath} style={edgeStyle} />
       {label && (
         <EdgeLabelRenderer>
           <div
@@ -49,6 +57,7 @@ export const SequenceEdge: React.FC<EdgeProps> = ({
               position: 'absolute',
               transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
               pointerEvents: 'all',
+              color: styles?.colors.edgeLabel || '#475569'
             }}
             className={getLabelStyle()}
           >

@@ -4,6 +4,7 @@ import { DiagramContainer } from './DiagramContainer';
 import { CollapsedState } from '@/lib/diagram/types';
 import { SequenceDiagramRenderer } from './sequence/SequenceDiagramRenderer';
 import { DiagramDocument, SequenceDiagramData } from '@/types/diagram';
+import { DiagramStyles } from '@/types/diagramStyles';
 
 interface SchemaDiagramProps {
   schema: any;
@@ -39,12 +40,26 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
       <div className="h-full flex flex-col min-h-0">
         <SequenceDiagramRenderer 
           data={diagramDocument.data as SequenceDiagramData}
+          styles={diagramDocument.styles}
           workspaceId={workspaceId}
           onDataChange={(newData) => {
             if (onSchemaChange) {
               const updatedDocument = {
                 ...diagramDocument,
                 data: newData,
+                metadata: {
+                  ...diagramDocument.metadata,
+                  modified: new Date().toISOString()
+                }
+              };
+              onSchemaChange(updatedDocument);
+            }
+          }}
+          onStylesChange={(newStyles: DiagramStyles) => {
+            if (onSchemaChange) {
+              const updatedDocument = {
+                ...diagramDocument,
+                styles: newStyles,
                 metadata: {
                   ...diagramDocument.metadata,
                   modified: new Date().toISOString()

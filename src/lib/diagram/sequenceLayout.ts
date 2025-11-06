@@ -1,5 +1,6 @@
 import { Node, Edge } from '@xyflow/react';
 import { DiagramNode, DiagramEdge, Swimlane, Column } from '@/types/diagram';
+import { DiagramStyleTheme } from '@/types/diagramStyles';
 import { getNodeTypeConfig } from './sequenceNodeTypes';
 
 interface LayoutOptions {
@@ -10,6 +11,7 @@ interface LayoutOptions {
   horizontalSpacing?: number;
   verticalSpacing?: number;
   swimlaneHeight?: number;
+  styles?: DiagramStyleTheme;
 }
 
 interface LayoutResult {
@@ -31,7 +33,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     edges,
     horizontalSpacing = 100,
     verticalSpacing = 120,
-    swimlaneHeight = 150
+    swimlaneHeight = 150,
+    styles
   } = options;
 
   // Sort swimlanes and columns by order
@@ -74,7 +77,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         position: node.position,
         data: {
           ...node,
-          config
+          config,
+          styles
         }
       };
     }
@@ -96,7 +100,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       position: { x, y },
       data: {
         ...node,
-        config
+        config,
+        styles
       }
     };
   });
@@ -114,7 +119,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       animated: edge.animated || edge.type === 'async',
       style: edge.style || edgeStyles,
       data: {
-        edgeType: edge.type || 'default'
+        edgeType: edge.type || 'default',
+        styles
       }
     };
   });

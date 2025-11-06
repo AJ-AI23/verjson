@@ -2,15 +2,19 @@ import React from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Badge } from '@/components/ui/badge';
 import { DiagramNode } from '@/types/diagram';
+import { DiagramStyleTheme } from '@/types/diagramStyles';
 import { NodeTypeConfig, getMethodColor } from '@/lib/diagram/sequenceNodeTypes';
 import { cn } from '@/lib/utils';
 
 interface SequenceNodeProps {
-  data: DiagramNode & { config: NodeTypeConfig };
+  data: DiagramNode & { 
+    config: NodeTypeConfig;
+    styles?: DiagramStyleTheme;
+  };
 }
 
 export const SequenceNode: React.FC<SequenceNodeProps> = ({ data }) => {
-  const { config, label, type, data: nodeData } = data;
+  const { config, label, type, data: nodeData, styles } = data;
 
   const renderNodeContent = () => {
     if (type === 'endpoint' && nodeData?.method && nodeData?.path) {
@@ -81,15 +85,16 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data }) => {
     <div
       className={cn(
         'px-4 py-3 border-2 shadow-md transition-all',
-        config.baseColor,
-        config.borderColor,
         getNodeShape(),
         'hover:shadow-lg cursor-pointer',
         config.shape === 'diamond' && 'w-32 h-32 flex items-center justify-center'
       )}
       style={{
         minWidth: config.shape === 'diamond' ? undefined : config.defaultWidth,
-        minHeight: config.shape === 'diamond' ? undefined : config.defaultHeight
+        minHeight: config.shape === 'diamond' ? undefined : config.defaultHeight,
+        backgroundColor: nodeData?.color || styles?.colors.nodeBackground || '#ffffff',
+        borderColor: styles?.colors.nodeBorder || '#94a3b8',
+        color: styles?.colors.nodeText || '#0f172a'
       }}
     >
       <Handle type="target" position={Position.Top} className="w-3 h-3 !bg-slate-400" />

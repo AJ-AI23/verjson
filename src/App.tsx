@@ -7,6 +7,7 @@ import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import { Toaster } from '@/components/ui/toaster';
 import Index from '@/pages/Index';
 import Auth from '@/pages/Auth';
+import { PublicDiagram } from '@/pages/PublicDiagram';
 import NotFound from '@/pages/NotFound';
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/public/diagram/:documentId" element={<PublicDiagram />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Router>

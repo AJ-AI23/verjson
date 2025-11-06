@@ -14,6 +14,7 @@ import {
   addEdge as addFlowEdge
 } from '@xyflow/react';
 import { SequenceDiagramData, DiagramNode, DiagramEdge, DiagramNodeType } from '@/types/diagram';
+import { DiagramStyles } from '@/types/diagramStyles';
 import { calculateSequenceLayout, calculateSwimlaneLayout } from '@/lib/diagram/sequenceLayout';
 import { SequenceNode } from './SequenceNode';
 import { SequenceEdge } from './SequenceEdge';
@@ -21,14 +22,17 @@ import { SwimlaneHeader } from './SwimlaneHeader';
 import { NodeEditor } from './NodeEditor';
 import { EdgeEditor } from './EdgeEditor';
 import { DiagramToolbar } from './DiagramToolbar';
+import { DiagramStylesDialog } from './DiagramStylesDialog';
 import { OpenApiImportDialog } from './OpenApiImportDialog';
 import '@xyflow/react/dist/style.css';
 
 interface SequenceDiagramRendererProps {
   data: SequenceDiagramData;
+  styles?: DiagramStyles;
   onNodesChange?: (nodes: Node[]) => void;
   onEdgesChange?: (edges: Edge[]) => void;
   onDataChange?: (data: SequenceDiagramData) => void;
+  onStylesChange?: (styles: DiagramStyles) => void;
   readOnly?: boolean;
   workspaceId?: string;
 }
@@ -43,9 +47,11 @@ const edgeTypes: EdgeTypes = {
 
 export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = ({
   data,
+  styles,
   onNodesChange,
   onEdgesChange,
   onDataChange,
+  onStylesChange,
   readOnly = false,
   workspaceId
 }) => {
@@ -55,7 +61,10 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [selectedEdge, setSelectedEdge] = useState<DiagramEdge | null>(null);
   const [isNodeEditorOpen, setIsNodeEditorOpen] = useState(false);
   const [isEdgeEditorOpen, setIsEdgeEditorOpen] = useState(false);
+  const [isStylesDialogOpen, setIsStylesDialogOpen] = useState(false);
   const [isOpenApiImportOpen, setIsOpenApiImportOpen] = useState(false);
+
+  const activeTheme = styles?.themes[styles?.activeTheme || 'light'] || styles?.themes.light;
 
   // Calculate layout
   const { nodes: layoutNodes, edges: layoutEdges } = useMemo(() => {
@@ -63,9 +72,10 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
       swimlanes,
       columns,
       nodes: diagramNodes,
-      edges: diagramEdges
+      edges: diagramEdges,
+      styles: activeTheme
     });
-  }, [swimlanes, columns, diagramNodes, diagramEdges]);
+  }, [swimlanes, columns, diagramNodes, diagramEdges, activeTheme]);
 
   const [nodes, setNodes, handleNodesChange] = useNodesState(layoutNodes);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
@@ -189,7 +199,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   }, [diagramNodes, data, onDataChange]);
 
   return (
-    <div className="w-full h-full flex flex-col">
+    <div className="w-full h-full flex flex-col" style={{ backgroundColor: activeTheme?.colors.background }}>
       {!readOnly && (
         <DiagramToolbar
           onAddNode={handleAddNode}
@@ -198,6 +208,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
             setSelectedEdge(null);
           }}
           onImportOpenApi={() => setIsOpenApiImportOpen(true)}
+          onOpenStyles={() => setIsStylesDialogOpen(true)}
           hasSelection={selectedNode !== null || selectedEdge !== null}
         />
       )}
@@ -205,11 +216,12 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
       <div className="flex-1 relative">
         {/* Swimlane headers */}
         <div className="absolute inset-0 pointer-events-none z-10">
-          {swimlaneLayout.map((swimlane, index) => (
+        {swimlaneLayout.map((swimlane, index) => (
             <SwimlaneHeader
               key={swimlane.id}
               swimlane={swimlane}
               isFirst={index === 0}
+              styles={activeTheme}
             />
           ))}
         </div>
@@ -278,6 +290,15 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         columns={columns}
         currentWorkspaceId={workspaceId}
       />
+
+      {styles && onStylesChange && (
+        <DiagramStylesDialog
+          isOpen={isStylesDialogOpen}
+          onClose={() => setIsStylesDialogOpen(false)}
+          styles={styles}
+          onStylesChange={onStylesChange}
+        />
+      )}
     </div>
   );
 };
