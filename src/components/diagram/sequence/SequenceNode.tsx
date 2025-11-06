@@ -10,11 +10,12 @@ interface SequenceNodeProps {
   data: DiagramNode & { 
     config: NodeTypeConfig;
     styles?: DiagramStyleTheme;
+    width?: number;
   };
 }
 
 export const SequenceNode: React.FC<SequenceNodeProps> = ({ data }) => {
-  const { config, label, type, data: nodeData, styles } = data;
+  const { config, label, type, data: nodeData, styles, width } = data;
 
   const getNodeColors = () => {
     const typeColors = styles?.colors.nodeTypes?.[type];
@@ -97,7 +98,8 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data }) => {
         config.shape === 'diamond' && 'w-32 h-32 flex items-center justify-center'
       )}
       style={{
-        minWidth: config.shape === 'diamond' ? undefined : config.defaultWidth,
+        width: width && width > 0 ? `${width}px` : undefined,
+        minWidth: config.shape === 'diamond' ? undefined : (width && width > 0 ? undefined : config.defaultWidth),
         minHeight: config.shape === 'diamond' ? undefined : config.defaultHeight,
         backgroundColor: nodeColors.background,
         borderColor: nodeColors.border,

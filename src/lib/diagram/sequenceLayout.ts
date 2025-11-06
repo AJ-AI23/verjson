@@ -36,26 +36,29 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Sort columns by order
   const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
 
-  // Create a map of column positions
+  // Create a map of column positions and indices
   const columnPositions = new Map<string, number>();
+  const columnXPositions = new Map<string, number>();
   sortedColumns.forEach((column, index) => {
     columnPositions.set(column.id, index);
+    const xPos = index * (COLUMN_WIDTH + horizontalSpacing) + NODE_HORIZONTAL_PADDING;
+    columnXPositions.set(column.id, xPos);
   });
 
-  // Group nodes by column
-  const nodesByColumn = new Map<string, DiagramNode[]>();
+  // Create a map of node to column
+  const nodeToColumn = new Map<string, string>();
   nodes.forEach(node => {
-    const columnId = node.columnId || '';
-    if (!nodesByColumn.has(columnId)) {
-      nodesByColumn.set(columnId, []);
+    if (node.columnId) {
+      nodeToColumn.set(node.id, node.columnId);
     }
-    nodesByColumn.get(columnId)!.push(node);
   });
 
-  // Calculate positions for each node
+  // Track vertical position for layout
+  let currentY = COLUMN_HEADER_HEIGHT + 40;
+
+  // Calculate positions for each node based on connected edges
   const layoutNodes: Node[] = nodes.map(node => {
     const config = getNodeTypeConfig(node.type);
-    const columnIndex = columnPositions.get(node.columnId || '') ?? 0;
 
     // If node has manual position, use it
     if (node.position) {
@@ -71,13 +74,33 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       };
     }
 
-    // Calculate automatic position based on column
-    const columnId = node.columnId || '';
-    const nodesInColumn = nodesByColumn.get(columnId) || [];
-    const nodeIndexInColumn = nodesInColumn.indexOf(node);
+    // Find edges connected to this node
+    const connectedEdges = edges.filter(e => e.source === node.id || e.target === node.id);
+    
+    let startColumnId = node.columnId || '';
+    let endColumnId = node.columnId || '';
+    
+    // Determine span based on connected edges
+    if (connectedEdges.length > 0) {
+      const edge = connectedEdges[0];
+      const sourceNode = nodes.find(n => n.id === edge.source);
+      const targetNode = nodes.find(n => n.id === edge.target);
+      
+      if (sourceNode?.columnId && targetNode?.columnId) {
+        startColumnId = sourceNode.columnId;
+        endColumnId = targetNode.columnId;
+      }
+    }
 
-    const x = columnIndex * (COLUMN_WIDTH + horizontalSpacing) + NODE_HORIZONTAL_PADDING;
-    const y = COLUMN_HEADER_HEIGHT + nodeIndexInColumn * NODE_VERTICAL_SPACING + 40;
+    const startX = columnXPositions.get(startColumnId) || 0;
+    const endX = columnXPositions.get(endColumnId) || startX;
+    
+    // Position node between the two columns
+    const x = Math.min(startX, endX);
+    const width = Math.abs(endX - startX);
+    
+    const y = currentY;
+    currentY += NODE_VERTICAL_SPACING;
 
     return {
       id: node.id,
@@ -86,7 +109,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       data: {
         ...node,
         config,
-        styles
+        styles,
+        width: width > 0 ? width : 180
       }
     };
   });
