@@ -783,37 +783,37 @@ function processOtherOpenApiProperties(
     
     console.log(`[OPENAPI LAYOUT] Processing other property ${propName}, path: ${propPath}, collapsed: ${isPropCollapsed}, expanded: ${isPropExpanded}`);
     
-    // Only create node if it's not collapsed
-    if (!isPropCollapsed) {
-      // Special handling for servers array when expanded
-      if (propName === 'servers' && Array.isArray(propValue) && isPropExpanded) {
-        console.log(`🔥 [OPENAPI LAYOUT] Creating server nodes with grouping for ${propValue.length} servers`);
-        
-        // Create a container node for servers
-        const serversContainerNode = createPropertyNode(
-          'servers',
-          { 
-            type: 'array', 
-            description: `API servers (${propValue.length} servers)`,
-            items: { type: 'object' }
-          },
-          [],
-          propX,
-          yPos,
-          false
-        );
-        
-        // Apply expanded styling
-        serversContainerNode.data = {
-          ...serversContainerNode.data,
-          hasMoreLevels: true,
-          isCollapsed: false
-        };
-        
-        const containerEdge = createEdge('root', serversContainerNode.id, undefined, false, {}, 'structure');
-        result.nodes.push(serversContainerNode);
-        result.edges.push(containerEdge);
-        
+    // Special handling for servers array - always show container node
+    if (propName === 'servers' && Array.isArray(propValue)) {
+      console.log(`🔥 [OPENAPI LAYOUT] Processing servers - expanded: ${isPropExpanded}, count: ${propValue.length}`);
+      
+      // Create a container node for servers
+      const serversContainerNode = createPropertyNode(
+        'servers',
+        { 
+          type: 'array', 
+          description: `API servers (${propValue.length} servers)`,
+          items: { type: 'object' }
+        },
+        [],
+        propX,
+        yPos,
+        false
+      );
+      
+      // Apply expanded/collapsed styling
+      serversContainerNode.data = {
+        ...serversContainerNode.data,
+        hasMoreLevels: true,
+        isCollapsed: !isPropExpanded
+      };
+      
+      const containerEdge = createEdge('root', serversContainerNode.id, undefined, false, {}, 'structure');
+      result.nodes.push(serversContainerNode);
+      result.edges.push(containerEdge);
+      
+      // Only show individual server items if expanded
+      if (isPropExpanded) {
         // Use grouping for server items
         processArrayItemsWithGrouping(
           propValue,
@@ -832,34 +832,37 @@ function processOtherOpenApiProperties(
         );
         
         console.log(`🔥 [OPENAPI LAYOUT] Created server nodes with grouping`);
-      } else if (propName === 'tags' && Array.isArray(propValue) && isPropExpanded) {
-        console.log(`🔥 [OPENAPI LAYOUT] Creating tag nodes with grouping for ${propValue.length} tags`);
-        
-        // Create a container node for tags
-        const tagsContainerNode = createPropertyNode(
-          'tags',
-          { 
-            type: 'array', 
-            description: `API tags (${propValue.length} tags)`,
-            items: { type: 'object' }
-          },
-          [],
-          propX,
-          yPos,
-          false
-        );
-        
-        // Apply expanded styling
-        tagsContainerNode.data = {
-          ...tagsContainerNode.data,
-          hasMoreLevels: true,
-          isCollapsed: false
-        };
-        
-        const containerEdge = createEdge('root', tagsContainerNode.id, undefined, false, {}, 'structure');
-        result.nodes.push(tagsContainerNode);
-        result.edges.push(containerEdge);
-        
+      }
+    } else if (propName === 'tags' && Array.isArray(propValue)) {
+      console.log(`🔥 [OPENAPI LAYOUT] Processing tags - expanded: ${isPropExpanded}, count: ${propValue.length}`);
+      
+      // Create a container node for tags
+      const tagsContainerNode = createPropertyNode(
+        'tags',
+        { 
+          type: 'array', 
+          description: `API tags (${propValue.length} tags)`,
+          items: { type: 'object' }
+        },
+        [],
+        propX,
+        yPos,
+        false
+      );
+      
+      // Apply expanded/collapsed styling
+      tagsContainerNode.data = {
+        ...tagsContainerNode.data,
+        hasMoreLevels: true,
+        isCollapsed: !isPropExpanded
+      };
+      
+      const containerEdge = createEdge('root', tagsContainerNode.id, undefined, false, {}, 'structure');
+      result.nodes.push(tagsContainerNode);
+      result.edges.push(containerEdge);
+      
+      // Only show individual tag items if expanded
+      if (isPropExpanded) {
         // Use grouping for tag items
         processArrayItemsWithGrouping(
           propValue,
@@ -878,35 +881,35 @@ function processOtherOpenApiProperties(
         );
         
         console.log(`🔥 [OPENAPI LAYOUT] Created tag nodes with grouping`);
-      } else {
-        // Default handling for other properties
-        const propSchema = createOpenApiPropertySchema(propName, propValue);
-        
-        const propNode = createPropertyNode(
-          propName,
-          propSchema,
-          [],
-          propX,
-          yPos,
-          false
-        );
-        
-        // Apply expanded styling if expanded
-        if (isPropExpanded) {
-          propNode.data = {
-            ...propNode.data,
-            hasMoreLevels: true,
-            isCollapsed: false
-          };
-        }
-        
-        const edge = createEdge('root', propNode.id, undefined, false, {}, 'structure');
-        
-        result.nodes.push(propNode);
-        result.edges.push(edge);
-        
-        console.log(`[OPENAPI LAYOUT] Created other property node for ${propName}`);
       }
+    } else if (!isPropCollapsed) {
+      // Default handling for other properties - only create node if not collapsed
+      const propSchema = createOpenApiPropertySchema(propName, propValue);
+      
+      const propNode = createPropertyNode(
+        propName,
+        propSchema,
+        [],
+        propX,
+        yPos,
+        false
+      );
+      
+      // Apply expanded styling if expanded
+      if (isPropExpanded) {
+        propNode.data = {
+          ...propNode.data,
+          hasMoreLevels: true,
+          isCollapsed: false
+        };
+      }
+      
+      const edge = createEdge('root', propNode.id, undefined, false, {}, 'structure');
+      
+      result.nodes.push(propNode);
+      result.edges.push(edge);
+      
+      console.log(`[OPENAPI LAYOUT] Created other property node for ${propName}`);
     }
   });
 }
