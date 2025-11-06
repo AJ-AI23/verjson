@@ -178,8 +178,42 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         const nodeConfig = movedDiagramNode ? getNodeTypeConfig(movedDiagramNode.type) : null;
         const nodeHeight = nodeConfig?.defaultHeight || 70;
         
+        // Calculate the correct horizontal position based on anchors
+        const nodeAnchors = movedDiagramNode?.anchors;
+        let snappedX = moveChange.position.x;
+        
+        if (nodeAnchors && nodeAnchors.length === 2) {
+          const MARGIN = 40; // Margin from lifeline for edges
+          const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
+          
+          // Find lifeline X positions
+          const sourceLifeline = sortedLifelines.find(l => l.id === nodeAnchors[0].lifelineId);
+          const targetLifeline = sortedLifelines.find(l => l.id === nodeAnchors[1].lifelineId);
+          
+          if (sourceLifeline && targetLifeline) {
+            const sourceIndex = sortedLifelines.indexOf(sourceLifeline);
+            const targetIndex = sortedLifelines.indexOf(targetLifeline);
+            
+            const sourceX = sourceIndex * (300 + 100) + 150; // LIFELINE_WIDTH + spacing + padding
+            const targetX = targetIndex * (300 + 100) + 150;
+            
+            const leftX = Math.min(sourceX, targetX);
+            const rightX = Math.max(sourceX, targetX);
+            
+            // Calculate node width and position with margins
+            const nodeWidth = Math.abs(rightX - leftX) - (MARGIN * 2);
+            
+            if (nodeWidth >= 180) {
+              snappedX = leftX + MARGIN;
+            } else {
+              // Center if too narrow
+              snappedX = (leftX + rightX) / 2 - 90;
+            }
+          }
+        }
+        
         const updatedNodes = diagramNodes.map(n =>
-          n.id === moveChange.id ? { ...n, position: moveChange.position } : n
+          n.id === moveChange.id ? { ...n, position: { x: snappedX, y: moveChange.position.y } } : n
         );
         
         // Update anchors connected to this node to match its Y position (center of node)
@@ -191,10 +225,13 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
           return a;
         });
         
-        // Immediately update anchor node positions visually (centered on node)
+        // Immediately update node and anchor positions visually
         setNodes(currentNodes => 
           currentNodes.map(n => {
             const anchorData = n.data as any;
+            if (n.id === moveChange.id) {
+              return { ...n, position: { x: snappedX, y: moveChange.position.y } };
+            }
             if (n.type === 'anchorNode' && anchorData?.connectedNodeId === moveChange.id) {
               return { ...n, position: { ...n.position, y: nodeCenterY - 8 } };
             }
