@@ -12,9 +12,10 @@ interface SequenceNodeProps {
     styles?: DiagramStyleTheme;
     width?: number;
   };
+  selected?: boolean;
 }
 
-export const SequenceNode: React.FC<SequenceNodeProps> = ({ data }) => {
+export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected }) => {
   const { config, label, type, data: nodeData, styles, width } = data;
 
   const getNodeColors = () => {
@@ -95,14 +96,15 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data }) => {
         'px-4 py-3 border-2 shadow-md transition-all',
         getNodeShape(),
         'hover:shadow-lg cursor-pointer',
-        config.shape === 'diamond' && 'w-32 h-32 flex items-center justify-center'
+        config.shape === 'diamond' && 'w-32 h-32 flex items-center justify-center',
+        selected && 'ring-2 ring-primary ring-offset-2 shadow-xl'
       )}
       style={{
         width: width && width > 0 ? `${width}px` : undefined,
         minWidth: config.shape === 'diamond' ? undefined : (width && width > 0 ? undefined : config.defaultWidth),
         minHeight: config.shape === 'diamond' ? undefined : config.defaultHeight,
         backgroundColor: nodeColors.background,
-        borderColor: nodeColors.border,
+        borderColor: selected ? 'hsl(var(--primary))' : nodeColors.border,
         color: nodeColors.text
       }}
     >

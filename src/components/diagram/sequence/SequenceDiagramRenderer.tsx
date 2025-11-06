@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState, useEffect } from 'react';
+import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import {
   ReactFlow,
   Background,
@@ -11,7 +11,8 @@ import {
   Node,
   Edge,
   Connection,
-  addEdge as addFlowEdge
+  addEdge as addFlowEdge,
+  useReactFlow
 } from '@xyflow/react';
 import { SequenceDiagramData, DiagramNode, DiagramEdge, DiagramNodeType } from '@/types/diagram';
 import { DiagramStyles } from '@/types/diagramStyles';
@@ -23,6 +24,7 @@ import { ColumnLifelineNode } from './ColumnLifelineNode';
 import { AnchorNode } from './AnchorNode';
 import { NodeEditor } from './NodeEditor';
 import { EdgeEditor } from './EdgeEditor';
+import { NodeToolbar } from './NodeToolbar';
 import { DiagramToolbar } from './DiagramToolbar';
 import { DiagramStylesDialog } from './DiagramStylesDialog';
 import { OpenApiImportDialog } from './OpenApiImportDialog';
@@ -78,6 +80,9 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [selectedEdge, setSelectedEdge] = useState<DiagramEdge | null>(null);
   const [isNodeEditorOpen, setIsNodeEditorOpen] = useState(false);
   const [isEdgeEditorOpen, setIsEdgeEditorOpen] = useState(false);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [toolbarPosition, setToolbarPosition] = useState<{ x: number; y: number } | null>(null);
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   const activeTheme = styles?.themes[styles?.activeTheme || 'light'] || styles?.themes.light;
 
@@ -99,10 +104,14 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
     setEdges(layoutEdges);
   }, [layoutEdges, setEdges]);
 
-  // Update nodes when layout changes (e.g., when node width needs to adjust)
+  // Update nodes when layout changes and apply selection state
   useEffect(() => {
-    setNodes(layoutNodes);
-  }, [layoutNodes, setNodes]);
+    const nodesWithSelection = layoutNodes.map(node => ({
+      ...node,
+      selected: node.id === selectedNodeId
+    }));
+    setNodes(nodesWithSelection);
+  }, [layoutNodes, selectedNodeId, setNodes]);
 
   const onNodesChangeHandler = useCallback((changes: any) => {
     // Constrain sequence node movement to vertical only during drag
@@ -549,12 +558,66 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
 
   const onNodeClick = useCallback((_: any, node: Node) => {
     if (readOnly) return;
+    
+    // Only show toolbar for sequence nodes
+    if (node.type !== 'sequenceNode') return;
+    
     const diagramNode = diagramNodes.find(n => n.id === node.id);
     if (diagramNode) {
-      setSelectedNode(diagramNode);
-      setIsNodeEditorOpen(true);
+      // Toggle selection
+      if (selectedNodeId === node.id) {
+        setSelectedNodeId(null);
+        setToolbarPosition(null);
+      } else {
+        setSelectedNodeId(node.id);
+        // Calculate toolbar position
+        const nodeConfig = getNodeTypeConfig(diagramNode.type);
+        const nodeHeight = nodeConfig?.defaultHeight || 70;
+        const nodeWidth = (node.data?.width as number) || 180;
+        
+        setToolbarPosition({
+          x: node.position.x + nodeWidth / 2,
+          y: node.position.y
+        });
+      }
     }
-  }, [diagramNodes, readOnly]);
+  }, [diagramNodes, readOnly, selectedNodeId]);
+  
+  const handleEditNode = useCallback(() => {
+    if (selectedNodeId) {
+      const diagramNode = diagramNodes.find(n => n.id === selectedNodeId);
+      if (diagramNode) {
+        setSelectedNode(diagramNode);
+        setIsNodeEditorOpen(true);
+        setSelectedNodeId(null);
+        setToolbarPosition(null);
+      }
+    }
+  }, [selectedNodeId, diagramNodes]);
+  
+  const handleDeleteNode = useCallback(() => {
+    if (selectedNodeId && onDataChange) {
+      const updatedNodes = diagramNodes.filter(n => n.id !== selectedNodeId);
+      const updatedEdges = diagramEdges.filter(e => 
+        e.source !== selectedNodeId && e.target !== selectedNodeId
+      );
+      
+      onDataChange({
+        ...data,
+        nodes: updatedNodes,
+        edges: updatedEdges
+      });
+      
+      setSelectedNodeId(null);
+      setToolbarPosition(null);
+    }
+  }, [selectedNodeId, diagramNodes, diagramEdges, data, onDataChange]);
+  
+  // Close toolbar when clicking outside
+  const onPaneClick = useCallback(() => {
+    setSelectedNodeId(null);
+    setToolbarPosition(null);
+  }, []);
 
   const onEdgeClick = useCallback((_: any, edge: Edge) => {
     if (readOnly) return;
@@ -673,6 +736,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
           onNodeClick={onNodeClick}
           onEdgeClick={onEdgeClick}
           onConnect={onConnect}
+          onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           fitView
@@ -691,6 +755,15 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
             nodeColor={() => '#f1f5f9'}
             className="bg-white border border-slate-200"
           />
+          
+          {/* Node selection toolbar */}
+          {selectedNodeId && toolbarPosition && (
+            <NodeToolbar
+              position={toolbarPosition}
+              onEdit={handleEditNode}
+              onDelete={handleDeleteNode}
+            />
+          )}
         </ReactFlow>
       </div>
 
