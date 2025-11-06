@@ -75,6 +75,14 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Mobile sidebar overlay */
+  @media (max-width: 768px) {
+    [data-sidebar="sidebar"] {
+      position: fixed;
+      z-index: 40;
+    }
+  }
 }
 
 /* JSON Schema Editor specific styles */

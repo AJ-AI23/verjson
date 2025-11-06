@@ -137,32 +137,32 @@ const Index = () => {
 
   return (
     <SidebarProvider 
-      defaultOpen={true} 
+      defaultOpen={false}
       style={{ 
-        '--sidebar-width': '24rem',
-        '--sidebar-width-mobile': '100%' 
+        '--sidebar-width': '20rem',
+        '--sidebar-width-mobile': '18rem' 
       } as React.CSSProperties}
     >
-      <div className="min-h-screen bg-background flex w-full">
+      <div className="min-h-screen bg-background flex w-full relative">
         <WorkspaceSidebar 
           onDocumentSelect={handleDocumentSelect}
           onDocumentDeleted={handleDocumentDeleted}
           selectedDocument={selectedDocument}
         />
         
-        <div className="flex flex-col flex-1 min-w-0">
-          <header className="bg-card border-b py-2 px-3 md:py-3 md:px-6 shadow-sm">
+        <div className="flex flex-col flex-1 min-w-0 w-full">
+          <header className="bg-card border-b py-2 px-3 md:py-3 md:px-6 shadow-sm sticky top-0 z-10">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 md:gap-4">
-                <SidebarTrigger className="animate-fade-in" />
+                <SidebarTrigger className="animate-fade-in shrink-0" />
                 <img 
                   src="/lovable-uploads/7294f82f-d904-40c7-afc7-fdf654d21170.png" 
                   alt="VerJSON" 
-                  className="h-6 md:h-8"
+                  className="h-6 md:h-8 shrink-0"
                 />
               </div>
               <div className="flex items-center gap-2 md:gap-4">
-                <div className="hidden lg:block text-sm text-muted-foreground">
+                <div className="hidden lg:block text-sm text-muted-foreground whitespace-nowrap">
                   Version, edit and render all your JSON files in collaboration!
                 </div>
                 <NotificationsButton />

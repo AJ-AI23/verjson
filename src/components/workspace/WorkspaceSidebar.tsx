@@ -14,18 +14,27 @@ interface WorkspaceSidebarProps {
 }
 
 export function WorkspaceSidebar({ onDocumentSelect, onDocumentDeleted, selectedDocument }: WorkspaceSidebarProps) {
-  const { state } = useSidebar();
+  const { state, isMobile, setOpen } = useSidebar();
   const isCollapsed = state === 'collapsed';
+
+  // On mobile, close sidebar when document is selected
+  const handleDocumentSelect = (document: any) => {
+    onDocumentSelect(document);
+    if (isMobile) {
+      setOpen(false);
+    }
+  };
 
   return (
     <Sidebar
-      className="transition-all duration-300"
-      collapsible="icon"
+      className="transition-all duration-300 border-r"
+      collapsible="offcanvas"
+      side="left"
     >
-      <SidebarContent className="flex flex-col h-full">
+      <SidebarContent className="flex flex-col h-full bg-card">
         <div className={`transition-all duration-300 ${isCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'} flex-1`}>
           <WorkspacePanel 
-            onDocumentSelect={onDocumentSelect}
+            onDocumentSelect={handleDocumentSelect}
             onDocumentDeleted={onDocumentDeleted}
             selectedDocument={selectedDocument}
             isCollapsed={isCollapsed}

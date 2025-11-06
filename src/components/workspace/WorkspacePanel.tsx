@@ -487,11 +487,11 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   }
 
   return (
-    <div className="h-full p-4 space-y-4">
+    <div className="h-full p-2 md:p-4 space-y-3 md:space-y-4">
       <Card className="flex-1 flex flex-col border-0 shadow-none">
-        <CardHeader className="pb-3">
-          <div className="flex flex-col gap-3">
-            <CardTitle className="text-lg">Workspaces</CardTitle>
+        <CardHeader className="pb-2 md:pb-3 px-3 md:px-6">
+          <div className="flex flex-col gap-2 md:gap-3">
+            <CardTitle className="text-base md:text-lg">Workspaces</CardTitle>
             
             <Dialog open={showWorkspaceDialog} onOpenChange={setShowWorkspaceDialog}>
               <DialogTrigger asChild>
@@ -535,10 +535,10 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
           </div>
         </CardHeader>
       
-      <CardContent className="flex-1 flex flex-col gap-4">
+      <CardContent className="flex-1 flex flex-col gap-3 md:gap-4 px-3 md:px-6">
         {/* Workspace Selection */}
-        <div className="space-y-2">
-          <Label>Select Workspace</Label>
+        <div className="space-y-1 md:space-y-2">
+          <Label className="text-xs md:text-sm">Select Workspace</Label>
           <Select value={selectedWorkspace} onValueChange={(value) => {
             console.log('[WorkspacePanel] Workspace selection changed from', selectedWorkspace, 'to', value);
             setSelectedWorkspace(value);
@@ -596,9 +596,10 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
             <div className="flex flex-col gap-2">
               <Dialog open={showDocumentDialog} onOpenChange={setShowDocumentDialog}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="w-full animate-scale-in">
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Document
+                  <Button size="sm" className="w-full animate-scale-in text-xs md:text-sm h-8 md:h-9">
+                    <Plus className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                    <span className="hidden sm:inline">New Document</span>
+                    <span className="sm:hidden">New</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -654,10 +655,11 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                       setShowWorkspaceEditDialog(true);
                     }
                   }}
-                  className="flex-1"
+                  className="flex-1 text-xs md:text-sm h-8 md:h-9"
                 >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit Workspace
+                  <Edit className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                  <span className="hidden sm:inline">Edit Workspace</span>
+                  <span className="sm:hidden">Edit</span>
                 </Button>
                 <Button
                   size="sm"
@@ -669,9 +671,9 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                       setWorkspaceDeleteDialogOpen(true);
                     }
                   }}
-                  className="hover:bg-destructive hover:text-destructive-foreground"
+                  className="hover:bg-destructive hover:text-destructive-foreground h-8 md:h-9 px-2 md:px-3"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3 w-3 md:h-4 md:w-4" />
                 </Button>
               </div>
             )}
@@ -679,12 +681,12 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
             {/* Document List */}
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
-                <Label className="text-sm font-medium">Documents</Label>
-                <div className="flex gap-1">
+                <Label className="text-xs md:text-sm font-medium">Documents</Label>
+                <div className="flex gap-0.5 md:gap-1">
                   <Button 
                     size="sm" 
                     variant="ghost" 
-                    className="h-7 w-7 p-0"
+                    className="h-6 w-6 md:h-7 md:w-7 p-0"
                     onClick={() => setShowBulkInviteDialog(true)}
                     disabled={documents.length === 0}
                     title="Bulk Invite to Documents"
@@ -694,7 +696,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                   <Button 
                     size="sm" 
                     variant="ghost" 
-                    className="h-7 w-7 p-0" 
+                    className="h-6 w-6 md:h-7 md:w-7 p-0" 
                     onClick={() => setShowImportDialog(true)}
                     title="Import Files"
                   >
@@ -703,7 +705,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                   <Button 
                     size="sm" 
                     variant="ghost" 
-                    className="h-7 w-7 p-0"
+                    className="h-6 w-6 md:h-7 md:w-7 p-0"
                     onClick={() => setShowBulkExportDialog(true)}
                     disabled={documents.length === 0}
                     title="Export Multiple"
@@ -713,7 +715,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                   <Button 
                     size="sm" 
                     variant="ghost" 
-                    className="h-7 w-7 p-0"
+                    className="h-6 w-6 md:h-7 md:w-7 p-0"
                     onClick={() => setShowMergeDialog(true)}
                     disabled={documents.length < 2}
                     title="Merge Documents"
@@ -723,51 +725,51 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                 </div>
               </div>
               <ScrollArea className="h-64 border rounded-md">
-                 <div className="p-2 space-y-1">
+                 <div className="p-1.5 md:p-2 space-y-1">
                    {documents.map((doc) => (
                      <div
                        key={doc.id}
-                       className={`flex items-center justify-between p-2 rounded-md hover:bg-accent cursor-pointer transition-all duration-200 hover-scale ${
+                       className={`flex items-center justify-between p-1.5 md:p-2 rounded-md hover:bg-accent cursor-pointer transition-all duration-200 hover-scale ${
                          selectedDocument?.id === doc.id ? 'bg-accent animate-fade-in' : ''
                        }`}
                        onClick={() => onDocumentSelect(doc)}
                      >
                        <div className="flex items-center flex-1 min-w-0">
-                         <File className="h-4 w-4 mr-2 flex-shrink-0" />
+                         <File className="h-3 w-3 md:h-4 md:w-4 mr-1.5 md:mr-2 flex-shrink-0" />
                          <div className="flex-1 min-w-0">
-                           <div className="text-sm font-medium truncate">
+                           <div className="text-xs md:text-sm font-medium truncate">
                              {doc.name}
                            </div>
                            {/* Show workspace context for shared documents */}
                            {(doc as any).is_shared && (doc as any).workspace_name && (
-                             <div className="text-xs text-muted-foreground truncate">
+                             <div className="text-[10px] md:text-xs text-muted-foreground truncate">
                                from {(doc as any).workspace_name}
                              </div>
                            )}
-                            <div className="flex items-center gap-1">
-                              <Badge variant="secondary" className="text-xs">
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <Badge variant="secondary" className="text-[10px] md:text-xs h-4 md:h-auto">
                                 {doc.file_type}
                               </Badge>
                               {/* Show shared role badge for shared documents */}
                               {(doc as any).is_shared && (
-                                <Badge variant="outline" className="text-xs">
+                                <Badge variant="outline" className="text-[10px] md:text-xs h-4 md:h-auto">
                                   {(doc as any).shared_role}
                                 </Badge>
                               )}
                               {doc.user_id === user?.id ? (
                                 documentPermissions[doc.id]?.length > 1 && (
-                                  <Badge variant="secondary" className="text-xs">
+                                  <Badge variant="secondary" className="text-[10px] md:text-xs h-4 md:h-auto">
                                     Shared
                                   </Badge>
                                 )
                               ) : (
-                                <Badge variant="secondary" className="text-xs">
+                                <Badge variant="secondary" className="text-[10px] md:text-xs h-4 md:h-auto">
                                   Invited
                                 </Badge>
                               )}
                               {documentPinStatus[doc.id] && (
                                 <div title="PIN Protected">
-                                  <Shield className="h-3 w-3 text-amber-600" />
+                                  <Shield className="h-2.5 w-2.5 md:h-3 md:w-3 text-amber-600" />
                                 </div>
                               )}
                             </div>
@@ -782,10 +784,10 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                                debugToast('🔽 Export button clicked for document', doc.name);
                                handleDocumentExport(doc);
                              }}
-                            className="h-6 w-6 p-0 hover:bg-accent-foreground/10 hover:text-accent-foreground transition-colors"
+                            className="h-5 w-5 md:h-6 md:w-6 p-0 hover:bg-accent-foreground/10 hover:text-accent-foreground transition-colors"
                             title="Export"
                           >
-                            <Download className="h-3 w-3" />
+                            <Download className="h-2.5 w-2.5 md:h-3 md:w-3" />
                           </Button>
                           {/* Hide PIN setup for shared documents */}
                           {!isVirtualSharedWorkspace && isDocumentOwner && selectedDocument?.id === doc.id && (
@@ -796,10 +798,10 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                                 e.stopPropagation();
                                 handlePinSetup(doc);
                               }}
-                              className="h-6 w-6 p-0 hover:bg-accent-foreground/10 hover:text-accent-foreground transition-colors"
+                              className="h-5 w-5 md:h-6 md:w-6 p-0 hover:bg-accent-foreground/10 hover:text-accent-foreground transition-colors"
                               title="Security Settings"
                             >
-                              <Shield className="h-3 w-3" />
+                              <Shield className="h-2.5 w-2.5 md:h-3 md:w-3" />
                             </Button>
                           )}
                           {/* Hide delete action for shared documents in virtual workspace */}
@@ -812,22 +814,22 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                                 setDocumentToDelete(doc);
                                 setDeleteDialogOpen(true);
                               }}
-                              className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                              className="h-5 w-5 md:h-6 md:w-6 p-0 hover:bg-destructive/10 hover:text-destructive transition-colors"
                               title="Delete"
                             >
-                              <Trash2 className="h-3 w-3" />
+                              <Trash2 className="h-2.5 w-2.5 md:h-3 md:w-3" />
                             </Button>
                           )}
                         </div>
                     </div>
                   ))}
                    {documents.length === 0 && (
-                     <div className="text-center py-8 text-muted-foreground">
-                       <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                       <p className="text-sm">
+                     <div className="text-center py-6 md:py-8 text-muted-foreground">
+                       <FileText className="h-6 w-6 md:h-8 md:w-8 mx-auto mb-2 opacity-50" />
+                       <p className="text-xs md:text-sm">
                          {isVirtualSharedWorkspace ? "No documents have been shared with you" : "No documents yet"}
                        </p>
-                       <p className="text-xs">
+                       <p className="text-[10px] md:text-xs">
                          {isVirtualSharedWorkspace ? "" : "Create or import your first document"}
                        </p>
                      </div>
