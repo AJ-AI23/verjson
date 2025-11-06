@@ -49,17 +49,7 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>Edit Node</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleDelete}
-              className="text-destructive hover:text-destructive"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </DialogTitle>
+          <DialogTitle>Edit Node</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
