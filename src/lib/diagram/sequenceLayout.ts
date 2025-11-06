@@ -33,16 +33,14 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Sort lifelines by order
   const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
 
-  // Create a map of lifeline positions and indices
-  const lifelinePositions = new Map<string, number>();
+  // Create a map of lifeline positions
   const lifelineXPositions = new Map<string, number>();
   sortedLifelines.forEach((lifeline, index) => {
-    lifelinePositions.set(lifeline.id, index);
     const xPos = index * (LIFELINE_WIDTH + horizontalSpacing) + NODE_HORIZONTAL_PADDING;
     lifelineXPositions.set(lifeline.id, xPos);
   });
 
-  // Create lifeline nodes for each lifeline
+  // Create lifeline nodes
   const lifelineNodes: Node[] = sortedLifelines.map((lifeline, index) => {
     const xPos = index * (LIFELINE_WIDTH + horizontalSpacing) + NODE_HORIZONTAL_PADDING;
     return {
@@ -50,7 +48,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       type: 'columnLifeline',
       position: { x: xPos, y: 0 },
       data: {
-        column: lifeline, // Keep as 'column' for ColumnLifelineNode component compatibility
+        column: lifeline,
         styles
       },
       draggable: false,
@@ -59,13 +57,13 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     };
   });
 
-  // Track vertical position for layout
-  let currentY = LIFELINE_HEADER_HEIGHT + 40;
+  // Build a dependency graph to determine node order
+  const nodeOrder = calculateNodeSequence(nodes, edges);
 
-  // Calculate positions for each node based on connected edges
-  const layoutNodes: Node[] = nodes.map(node => {
+  // Calculate positions for each node
+  const layoutNodes: Node[] = nodes.map((node, index) => {
     const config = getNodeTypeConfig(node.type);
-
+    
     // If node has manual position, use it
     if (node.position) {
       return {
@@ -80,48 +78,61 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       };
     }
 
-    // Find edges connected to this node
-    const connectedEdges = edges.filter(e => e.source === node.id || e.target === node.id);
+    // Find the sequence order of this node
+    const sequenceIndex = nodeOrder.indexOf(node.id);
+    const yPos = LIFELINE_HEADER_HEIGHT + 40 + sequenceIndex * NODE_VERTICAL_SPACING;
+
+    // Determine horizontal positioning based on connected edges
+    const incomingEdge = edges.find(e => e.target === node.id);
+    const outgoingEdge = edges.find(e => e.source === node.id);
     
-    let startLifelineId = node.lifelineId || '';
-    let endLifelineId = node.lifelineId || '';
-    
-    // Determine span based on connected edges
-    if (connectedEdges.length > 0) {
-      const edge = connectedEdges[0];
-      const sourceNode = nodes.find(n => n.id === edge.source);
-      const targetNode = nodes.find(n => n.id === edge.target);
+    let startX = 0;
+    let endX = 0;
+    let width = 180; // Default width
+
+    if (incomingEdge && outgoingEdge) {
+      // Node connects two lifelines - span between them
+      const sourceNode = nodes.find(n => n.id === incomingEdge.source);
+      const targetNode = nodes.find(n => n.id === outgoingEdge.target);
       
-      if (sourceNode?.lifelineId && targetNode?.lifelineId) {
-        startLifelineId = sourceNode.lifelineId;
-        endLifelineId = targetNode.lifelineId;
-      }
+      const sourceX = lifelineXPositions.get(sourceNode?.lifelineId || '') || 0;
+      const targetX = lifelineXPositions.get(targetNode?.lifelineId || '') || 0;
+      
+      startX = Math.min(sourceX, targetX);
+      endX = Math.max(sourceX, targetX);
+      width = Math.abs(endX - startX);
+    } else if (incomingEdge) {
+      // Only incoming edge - position at source lifeline
+      const sourceNode = nodes.find(n => n.id === incomingEdge.source);
+      startX = lifelineXPositions.get(sourceNode?.lifelineId || '') || 0;
+    } else if (outgoingEdge) {
+      // Only outgoing edge - position at source lifeline
+      const targetNode = nodes.find(n => n.id === outgoingEdge.target);
+      startX = lifelineXPositions.get(targetNode?.lifelineId || '') || 0;
+    } else if (node.lifelineId) {
+      // No edges - position at assigned lifeline
+      startX = lifelineXPositions.get(node.lifelineId) || 0;
     }
 
-    const startX = lifelineXPositions.get(startLifelineId) || 0;
-    const endX = lifelineXPositions.get(endLifelineId) || startX;
-    
-    // Position node between the two columns
-    const x = Math.min(startX, endX);
-    const width = Math.abs(endX - startX);
-    
-    const y = currentY;
-    currentY += NODE_VERTICAL_SPACING;
+    // Center the node if it doesn't span lifelines
+    if (width === 180) {
+      startX -= width / 2;
+    }
 
     return {
       id: node.id,
       type: 'sequenceNode',
-      position: { x, y },
+      position: { x: startX, y: yPos },
       data: {
         ...node,
         config,
         styles,
-        width: width > 0 ? width : 180
+        width: width > 180 ? width : undefined
       }
     };
   });
 
-  // Convert edges
+  // Convert edges with proper styling
   const layoutEdges: Edge[] = edges.map(edge => {
     const edgeStyles = getEdgeStyle(edge.type || 'default');
     
@@ -145,6 +156,62 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     edges: layoutEdges
   };
 };
+
+// Calculate the vertical order of nodes based on edge dependencies
+function calculateNodeSequence(nodes: DiagramNode[], edges: DiagramEdge[]): string[] {
+  const nodeIds = nodes.map(n => n.id);
+  const ordered: string[] = [];
+  const visited = new Set<string>();
+  
+  // Build adjacency map
+  const outgoing = new Map<string, string[]>();
+  const incoming = new Map<string, number>();
+  
+  nodeIds.forEach(id => {
+    outgoing.set(id, []);
+    incoming.set(id, 0);
+  });
+  
+  edges.forEach(edge => {
+    if (nodeIds.includes(edge.source) && nodeIds.includes(edge.target)) {
+      outgoing.get(edge.source)?.push(edge.target);
+      incoming.set(edge.target, (incoming.get(edge.target) || 0) + 1);
+    }
+  });
+  
+  // Topological sort using Kahn's algorithm
+  const queue: string[] = [];
+  nodeIds.forEach(id => {
+    if (incoming.get(id) === 0) {
+      queue.push(id);
+    }
+  });
+  
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    ordered.push(current);
+    visited.add(current);
+    
+    const neighbors = outgoing.get(current) || [];
+    neighbors.forEach(neighbor => {
+      const inCount = incoming.get(neighbor) || 0;
+      incoming.set(neighbor, inCount - 1);
+      
+      if (incoming.get(neighbor) === 0) {
+        queue.push(neighbor);
+      }
+    });
+  }
+  
+  // Add any remaining nodes that weren't in the dependency graph
+  nodeIds.forEach(id => {
+    if (!visited.has(id)) {
+      ordered.push(id);
+    }
+  });
+  
+  return ordered;
+}
 
 export const getEdgeStyle = (type: string) => {
   const baseStyle = {
