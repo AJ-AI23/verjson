@@ -313,6 +313,14 @@ function processComponentsSchemas(
     // Check if this schema is expanded
     const isSchemaExpanded = collapsedPaths[schemaPath] === false;
     
+    // Apply expanded styling (dashed borders) when schema itself is expanded
+    if (isSchemaExpanded) {
+      schemaNode.data = {
+        ...schemaNode.data,
+        hasMoreLevels: true, // Show dashed border to indicate expanded state
+      };
+    }
+    
     if (isSchemaExpanded && schemaData?.properties) {
       console.log(`🔥 [OPENAPI LAYOUT] Schema "${schemaName}" is expanded, checking properties expansion`);
       
@@ -360,13 +368,12 @@ function processComponentsSchemas(
             };
           });
           
-          // Update the schema node to include property details with expanded styling
+          // Update the schema node to include property details
           schemaNode.data = {
             ...schemaNode.data,
             propertyDetails,
             hasCollapsibleContent: true,
             isCollapsed: false,
-            hasMoreLevels: true, // Show dashed border to indicate expanded state
           };
         }
         
