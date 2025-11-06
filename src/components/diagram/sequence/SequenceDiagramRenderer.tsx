@@ -24,7 +24,7 @@ import { ColumnLifelineNode } from './ColumnLifelineNode';
 import { AnchorNode } from './AnchorNode';
 import { NodeEditor } from './NodeEditor';
 import { EdgeEditor } from './EdgeEditor';
-import { NodeToolbar } from './NodeToolbar';
+import { NodeToolbarWrapper } from './NodeToolbarWrapper';
 import { DiagramToolbar } from './DiagramToolbar';
 import { DiagramStylesDialog } from './DiagramStylesDialog';
 import { OpenApiImportDialog } from './OpenApiImportDialog';
@@ -885,8 +885,8 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
           
           {/* Node selection toolbar */}
           {selectedNodeIds.length > 0 && toolbarPosition && (
-            <NodeToolbar
-              position={toolbarPosition}
+            <NodeToolbarWrapper
+              diagramPosition={toolbarPosition}
               selectedCount={selectedNodeIds.length}
               onEdit={handleEditNode}
               onDelete={handleDeleteNode}
