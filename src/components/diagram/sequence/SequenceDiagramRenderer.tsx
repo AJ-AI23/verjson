@@ -15,10 +15,10 @@ import {
 } from '@xyflow/react';
 import { SequenceDiagramData, DiagramNode, DiagramEdge, DiagramNodeType } from '@/types/diagram';
 import { DiagramStyles } from '@/types/diagramStyles';
-import { calculateSequenceLayout, calculateColumnLayout } from '@/lib/diagram/sequenceLayout';
+import { calculateSequenceLayout } from '@/lib/diagram/sequenceLayout';
 import { SequenceNode } from './SequenceNode';
 import { SequenceEdge } from './SequenceEdge';
-import { ColumnLifeline } from './ColumnLifeline';
+import { ColumnLifelineNode } from './ColumnLifelineNode';
 import { NodeEditor } from './NodeEditor';
 import { EdgeEditor } from './EdgeEditor';
 import { DiagramToolbar } from './DiagramToolbar';
@@ -46,6 +46,7 @@ interface SequenceDiagramRendererProps {
 
 const nodeTypes: NodeTypes = {
   sequenceNode: SequenceNode,
+  columnLifeline: ColumnLifelineNode,
 };
 
 const edgeTypes: EdgeTypes = {
@@ -90,11 +91,6 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
 
   const [nodes, setNodes, handleNodesChange] = useNodesState(layoutNodes);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
-
-  // Calculate column layout for lifelines
-  const columnLayout = useMemo(() => {
-    return calculateColumnLayout(columns, 100);
-  }, [columns]);
 
   const onNodesChangeHandler = useCallback((changes: any) => {
     handleNodesChange(changes);
@@ -228,48 +224,33 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
       )}
 
       <div className="flex-1 relative">
-        {/* Column lifelines */}
-        <div className="absolute inset-0 pointer-events-none z-10">
-          {columnLayout.map((column) => (
-            <ColumnLifeline
-              key={column.id}
-              column={column}
-              height={800}
-              styles={activeTheme}
-            />
-          ))}
-        </div>
-
-        {/* React Flow diagram */}
-        <div className="w-full h-full">
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChangeHandler}
-            onEdgesChange={onEdgesChangeHandler}
-            onNodeClick={onNodeClick}
-            onEdgeClick={onEdgeClick}
-            onConnect={onConnect}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            fitView
-            minZoom={0.1}
-            maxZoom={2}
-            nodesDraggable={!readOnly}
-            nodesConnectable={!readOnly}
-            elementsSelectable={!readOnly}
-            defaultEdgeOptions={{
-              type: 'smoothstep',
-            }}
-          >
-            <Background />
-            <Controls />
-            <MiniMap
-              nodeColor={() => '#f1f5f9'}
-              className="bg-white border border-slate-200"
-            />
-          </ReactFlow>
-        </div>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChangeHandler}
+          onEdgesChange={onEdgesChangeHandler}
+          onNodeClick={onNodeClick}
+          onEdgeClick={onEdgeClick}
+          onConnect={onConnect}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          fitView
+          minZoom={0.1}
+          maxZoom={2}
+          nodesDraggable={!readOnly}
+          nodesConnectable={!readOnly}
+          elementsSelectable={!readOnly}
+          defaultEdgeOptions={{
+            type: 'smoothstep',
+          }}
+        >
+          <Background />
+          <Controls />
+          <MiniMap
+            nodeColor={() => '#f1f5f9'}
+            className="bg-white border border-slate-200"
+          />
+        </ReactFlow>
       </div>
 
       <NodeEditor

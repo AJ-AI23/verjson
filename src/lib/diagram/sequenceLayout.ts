@@ -45,6 +45,23 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     columnXPositions.set(column.id, xPos);
   });
 
+  // Create lifeline nodes for each column
+  const lifelineNodes: Node[] = sortedColumns.map((column, index) => {
+    const xPos = index * (COLUMN_WIDTH + horizontalSpacing) + NODE_HORIZONTAL_PADDING;
+    return {
+      id: `lifeline-${column.id}`,
+      type: 'columnLifeline',
+      position: { x: xPos, y: 0 },
+      data: {
+        column,
+        styles
+      },
+      draggable: false,
+      selectable: false,
+      focusable: false
+    };
+  });
+
   // Create a map of node to column
   const nodeToColumn = new Map<string, string>();
   nodes.forEach(node => {
@@ -135,7 +152,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   });
 
   return {
-    nodes: layoutNodes,
+    nodes: [...lifelineNodes, ...layoutNodes],
     edges: layoutEdges
   };
 };
