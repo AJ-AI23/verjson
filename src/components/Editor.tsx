@@ -22,6 +22,7 @@ interface EditorProps {
 
 export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, onClearRequest, onClose, onDocumentUpdate }: EditorProps) => {
   const { user } = useAuth();
+  const [isStylesDialogOpen, setIsStylesDialogOpen] = React.useState(false);
   
   // Convert initialSchema to string if it's an object to prevent crashes in versioning hooks
   const schemaAsString = React.useMemo(() => {
@@ -133,6 +134,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         onClose={onClose}
         onDocumentUpdate={onDocumentUpdate}
         onSave={onSave}
+        onOpenStyles={() => setIsStylesDialogOpen(true)}
       />
       
       <EditorContent
@@ -156,6 +158,8 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         currentFileType={selectedDocument?.file_type}
         suggestedVersion={suggestedVersion}
         workspaceId={selectedDocument?.workspace_id}
+        isStylesDialogOpen={isStylesDialogOpen}
+        onStylesDialogClose={() => setIsStylesDialogOpen(false)}
       />
       
       {/* Version History Dialog */}

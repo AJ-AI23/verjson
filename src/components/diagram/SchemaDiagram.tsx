@@ -17,6 +17,8 @@ interface SchemaDiagramProps {
   isDiagram?: boolean;
   onSchemaChange?: (schema: any) => void;
   workspaceId?: string;
+  isStylesDialogOpen?: boolean;
+  onStylesDialogClose?: () => void;
 }
 
 export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
@@ -29,7 +31,9 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   expandedNotationPaths,
   isDiagram = false,
   onSchemaChange,
-  workspaceId
+  workspaceId,
+  isStylesDialogOpen,
+  onStylesDialogClose
 }) => {
   // Check if this is a diagram document
   const diagramDocument = isDiagram && schema ? schema as DiagramDocument : null;
@@ -42,6 +46,8 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
           data={diagramDocument.data as SequenceDiagramData}
           styles={diagramDocument.styles}
           workspaceId={workspaceId}
+          isStylesDialogOpen={isStylesDialogOpen}
+          onStylesDialogClose={onStylesDialogClose}
           onDataChange={(newData) => {
             if (onSchemaChange) {
               const updatedDocument = {

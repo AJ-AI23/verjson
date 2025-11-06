@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Save, MessageCircle, FileText, Calendar, Clock, Copy, X, Share, Download, RefreshCw } from 'lucide-react';
+import { Save, MessageCircle, FileText, Calendar, Clock, Copy, X, Share, Download, RefreshCw, Palette } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -40,6 +40,7 @@ interface EditorToolbarProps {
   onClose?: () => void;
   onDocumentUpdate?: (updates: { name?: string; is_public?: boolean }) => void;
   onSave?: (content: any) => void;
+  onOpenStyles?: () => void;
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
@@ -58,6 +59,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onClose,
   onDocumentUpdate,
   onSave,
+  onOpenStyles,
 }) => {
   const { debugToast } = useDebug();
   const { updateMaxDepth } = useEditorSettings();
@@ -216,8 +218,11 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   };
 
   const getFileTypeLabel = (fileType: string) => {
+    if (fileType === 'diagram') return 'Diagram';
     return fileType === 'openapi' ? 'OpenAPI' : 'JSON Schema';
   };
+
+  const isDiagram = selectedDocument?.file_type === 'diagram';
 
   return (
     <TooltipProvider>
@@ -357,13 +362,28 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                   )}
                 </Button>
 
-                <QADialog 
-                  schema={schema}
-                  documentName={selectedDocument?.name}
-                  disabled={!selectedDocument}
-                  selectedDocument={selectedDocument}
-                />
+                {!isDiagram && (
+                  <QADialog 
+                    schema={schema}
+                    documentName={selectedDocument?.name}
+                    disabled={!selectedDocument}
+                    selectedDocument={selectedDocument}
+                  />
+                )}
 
+                {/* Diagram-specific buttons */}
+                {isDiagram && onOpenStyles && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={onOpenStyles}
+                    className="gap-2 h-8"
+                    disabled={!selectedDocument}
+                  >
+                    <Palette className="h-4 w-4" />
+                    <span>Styles</span>
+                  </Button>
+                )}
 
                 {/* OpenAPI-specific buttons */}
                 {schemaType === 'openapi' && (

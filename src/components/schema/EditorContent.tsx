@@ -29,6 +29,8 @@ interface EditorContentProps {
   currentFileType?: string;
   suggestedVersion?: Version | null;
   workspaceId?: string;
+  isStylesDialogOpen?: boolean;
+  onStylesDialogClose?: () => void;
 }
 
 export const EditorContent: React.FC<EditorContentProps> = ({
@@ -52,6 +54,8 @@ export const EditorContent: React.FC<EditorContentProps> = ({
   currentFileType,
   suggestedVersion,
   workspaceId,
+  isStylesDialogOpen,
+  onStylesDialogClose,
 }) => {
   return (
     <SplitPane>
@@ -88,6 +92,8 @@ export const EditorContent: React.FC<EditorContentProps> = ({
         expandedNotationPaths={expandedNotationPaths}
         isDiagram={currentFileType === 'diagram'}
         workspaceId={workspaceId}
+        isStylesDialogOpen={isStylesDialogOpen}
+        onStylesDialogClose={onStylesDialogClose}
         onSchemaChange={(updatedSchema) => {
           // When diagram is edited, update the JSON editor
           onEditorChange(JSON.stringify(updatedSchema, null, 2));
