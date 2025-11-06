@@ -203,6 +203,33 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
 
     handleNodesChange(constrainedChanges);
     
+    // Update anchors during drag
+    const dragChange = constrainedChanges.find((c: any) => c.type === 'position' && c.dragging);
+    if (dragChange) {
+      const draggedNode = nodes.find(n => n.id === dragChange.id);
+      if (draggedNode?.type === 'sequenceNode') {
+        // Only update anchors for single node (multi-select handles it above)
+        if (!(selectedNodeIds.includes(dragChange.id) && selectedNodeIds.length > 1)) {
+          const diagramNode = diagramNodes.find(n => n.id === dragChange.id);
+          const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
+          const nodeHeight = nodeConfig?.defaultHeight || 70;
+          const newY = dragChange.position.y;
+          const nodeCenterY = newY + (nodeHeight / 2);
+          
+          // Update anchor positions for the dragged node
+          setNodes(currentNodes =>
+            currentNodes.map(n => {
+              const anchorData = n.data as any;
+              if (n.type === 'anchorNode' && anchorData?.connectedNodeId === dragChange.id) {
+                return { ...n, position: { x: n.position.x, y: nodeCenterY - 8 } };
+              }
+              return n;
+            })
+          );
+        }
+      }
+    }
+    
     if (onNodesChange) {
       onNodesChange(nodes);
     }
