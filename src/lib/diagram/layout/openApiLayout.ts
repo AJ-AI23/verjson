@@ -360,12 +360,13 @@ function processComponentsSchemas(
             };
           });
           
-          // Update the schema node to include property details
+          // Update the schema node to include property details with expanded styling
           schemaNode.data = {
             ...schemaNode.data,
             propertyDetails,
             hasCollapsibleContent: true,
-            isCollapsed: false
+            isCollapsed: false,
+            hasMoreLevels: true, // Show dashed border to indicate expanded state
           };
         }
         
