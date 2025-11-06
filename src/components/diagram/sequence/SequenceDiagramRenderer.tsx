@@ -130,41 +130,98 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
           }
         });
         
-        // Snap anchor to lifeline X position and update Y
+        // Snap anchor to lifeline X position
         const snappedX = closestLifelineX - 8; // Center the 16px anchor
-        const newY = moveChange.position.y + 8; // Offset for anchor center
         
         // Update the node that contains this anchor
         const updatedDiagramNodes = diagramNodes.map(n => {
           const anchorIndex = n.anchors?.findIndex(a => a.id === moveChange.id);
           if (anchorIndex !== undefined && anchorIndex !== -1) {
             const updatedAnchors = [...n.anchors];
+            const otherAnchorIndex = anchorIndex === 0 ? 1 : 0;
+            const otherAnchor = updatedAnchors[otherAnchorIndex];
+            
+            // Keep both anchors at the same Y position (snap to the other anchor's Y)
+            const sharedY = otherAnchor.yPosition;
+            
             updatedAnchors[anchorIndex] = {
               ...updatedAnchors[anchorIndex],
-              yPosition: newY,
+              yPosition: sharedY,
               lifelineId: closestLifelineId
             };
             
-            // Update node position to average of anchor Y positions
-            const avgY = (updatedAnchors[0].yPosition + updatedAnchors[1].yPosition) / 2;
+            // Calculate node position and dimensions based on both anchors
+            const sourceAnchor = updatedAnchors[0];
+            const targetAnchor = updatedAnchors[1];
             
-            return {
-              ...n,
-              anchors: updatedAnchors as [typeof updatedAnchors[0], typeof updatedAnchors[1]],
-              position: { x: n.position?.x || 0, y: avgY }
-            };
+            // Find lifeline X positions for both anchors
+            const sourceLifeline = sortedLifelines.find(l => l.id === sourceAnchor.lifelineId);
+            const targetLifeline = sortedLifelines.find(l => l.id === targetAnchor.lifelineId);
+            
+            if (sourceLifeline && targetLifeline) {
+              const sourceIndex = sortedLifelines.indexOf(sourceLifeline);
+              const targetIndex = sortedLifelines.indexOf(targetLifeline);
+              
+              const sourceX = sourceIndex * (300 + 100) + 150;
+              const targetX = targetIndex * (300 + 100) + 150;
+              
+              const MARGIN = 40;
+              const leftX = Math.min(sourceX, targetX);
+              const rightX = Math.max(sourceX, targetX);
+              
+              // Calculate node width and position with margins
+              const nodeWidth = Math.abs(rightX - leftX) - (MARGIN * 2);
+              let nodeX: number;
+              
+              if (nodeWidth >= 180) {
+                nodeX = leftX + MARGIN;
+              } else {
+                // Center if too narrow
+                nodeX = (leftX + rightX) / 2 - 90;
+              }
+              
+              // Get node height to calculate Y position
+              const movedDiagramNode = diagramNodes.find(dn => dn.id === n.id);
+              const nodeConfig = movedDiagramNode ? getNodeTypeConfig(movedDiagramNode.type) : null;
+              const nodeHeight = nodeConfig?.defaultHeight || 70;
+              
+              // Position node so its center is at the anchor Y position
+              const nodeY = sharedY - (nodeHeight / 2);
+              
+              return {
+                ...n,
+                anchors: updatedAnchors as [typeof updatedAnchors[0], typeof updatedAnchors[1]],
+                position: { x: nodeX, y: nodeY }
+              };
+            }
           }
           return n;
         });
         
-        // Apply the snap by updating the node position immediately
-        setNodes(currentNodes => 
-          currentNodes.map(n => 
-            n.id === moveChange.id 
-              ? { ...n, position: { x: snappedX, y: moveChange.position.y } }
-              : n
-          )
-        );
+        // Apply the snap by updating anchor and node positions immediately
+        setNodes(currentNodes => {
+          const connectedNode = updatedDiagramNodes.find(n => 
+            n.anchors?.some(a => a.id === moveChange.id)
+          );
+          
+          if (!connectedNode) return currentNodes;
+          
+          const movedAnchorIndex = connectedNode.anchors.findIndex(a => a.id === moveChange.id);
+          const otherAnchor = connectedNode.anchors[movedAnchorIndex === 0 ? 1 : 0];
+          const sharedY = otherAnchor.yPosition;
+          
+          return currentNodes.map(n => {
+            // Update the dragged anchor position
+            if (n.id === moveChange.id) {
+              return { ...n, position: { x: snappedX, y: sharedY - 8 } };
+            }
+            // Update the node position
+            if (n.id === connectedNode.id) {
+              return { ...n, position: { x: connectedNode.position?.x || 0, y: connectedNode.position?.y || 0 } };
+            }
+            return n;
+          });
+        });
         
         onDataChange({ ...data, nodes: updatedDiagramNodes });
       } else {
