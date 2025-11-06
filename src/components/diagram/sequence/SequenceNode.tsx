@@ -16,6 +16,17 @@ interface SequenceNodeProps {
 export const SequenceNode: React.FC<SequenceNodeProps> = ({ data }) => {
   const { config, label, type, data: nodeData, styles } = data;
 
+  const getNodeColors = () => {
+    const typeColors = styles?.colors.nodeTypes?.[type];
+    return {
+      background: nodeData?.color || typeColors?.background || styles?.colors.nodeBackground || '#ffffff',
+      border: typeColors?.border || styles?.colors.nodeBorder || '#94a3b8',
+      text: typeColors?.text || styles?.colors.nodeText || '#0f172a'
+    };
+  };
+
+  const nodeColors = getNodeColors();
+
   const renderNodeContent = () => {
     if (type === 'endpoint' && nodeData?.method && nodeData?.path) {
       return (
@@ -24,15 +35,15 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data }) => {
             <Badge className={cn('text-xs font-semibold', getMethodColor(nodeData.method))}>
               {nodeData.method}
             </Badge>
-            <span className="text-xs font-mono text-slate-600 truncate">
+            <span className="text-xs font-mono truncate" style={{ color: nodeColors.text }}>
               {nodeData.path}
             </span>
           </div>
-          <div className={cn('text-sm font-medium', config.textColor)}>
+          <div className="text-sm font-medium" style={{ color: nodeColors.text }}>
             {label}
           </div>
           {nodeData.description && (
-            <div className="text-xs text-slate-500 line-clamp-2">
+            <div className="text-xs opacity-70 line-clamp-2" style={{ color: nodeColors.text }}>
               {nodeData.description}
             </div>
           )}
@@ -43,8 +54,7 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data }) => {
     if (type === 'decision') {
       return (
         <div className="flex flex-col items-center justify-center h-full text-center">
-          <span className="text-lg mb-1">{config.icon}</span>
-          <span className={cn('text-sm font-medium', config.textColor)}>
+          <span className="text-sm font-medium" style={{ color: nodeColors.text }}>
             {label}
           </span>
         </div>
@@ -53,14 +63,11 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data }) => {
 
     return (
       <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <span className="text-base">{config.icon}</span>
-          <span className={cn('text-sm font-medium', config.textColor)}>
-            {label}
-          </span>
+        <div className="text-sm font-medium" style={{ color: nodeColors.text }}>
+          {label}
         </div>
         {nodeData?.description && (
-          <div className="text-xs text-slate-500 line-clamp-2">
+          <div className="text-xs opacity-70 line-clamp-2" style={{ color: nodeColors.text }}>
             {nodeData.description}
           </div>
         )}
@@ -92,9 +99,9 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data }) => {
       style={{
         minWidth: config.shape === 'diamond' ? undefined : config.defaultWidth,
         minHeight: config.shape === 'diamond' ? undefined : config.defaultHeight,
-        backgroundColor: nodeData?.color || styles?.colors.nodeBackground || '#ffffff',
-        borderColor: styles?.colors.nodeBorder || '#94a3b8',
-        color: styles?.colors.nodeText || '#0f172a'
+        backgroundColor: nodeColors.background,
+        borderColor: nodeColors.border,
+        color: nodeColors.text
       }}
     >
       <Handle type="target" position={Position.Top} className="w-3 h-3 !bg-slate-400" />
