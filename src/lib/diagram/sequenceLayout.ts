@@ -1,4 +1,4 @@
-import { Node, Edge } from '@xyflow/react';
+import { Node, Edge, MarkerType } from '@xyflow/react';
 import { DiagramNode, DiagramEdge, Lifeline, AnchorNode } from '@/types/diagram';
 import { DiagramStyleTheme } from '@/types/diagramStyles';
 import { getNodeTypeConfig } from './sequenceNodeTypes';
@@ -190,7 +190,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     const isLeftAnchor = anchor.id === (sourceX < targetX ? sourceAnchor?.id : targetAnchor?.id);
     
     if (anchor.anchorType === 'source') {
-      // Edge from anchor to node
+      // Edge from anchor to node - arrow points away from source anchor towards node
       // Left anchor connects from right side to node's left side
       // Right anchor connects from left side to node's right side
       layoutEdges.push({
@@ -202,10 +202,11 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         type: 'sequenceEdge',
         animated: false,
         style: edgeStyles,
+        markerEnd: { type: MarkerType.ArrowClosed },
         data: { edgeType: 'default', styles }
       });
     } else {
-      // Edge from node to anchor
+      // Edge from node to anchor - arrow points towards target anchor
       // Left anchor connects from node's left side to anchor's right side
       // Right anchor connects from node's right side to anchor's left side
       layoutEdges.push({
@@ -217,6 +218,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         type: 'sequenceEdge',
         animated: false,
         style: edgeStyles,
+        markerEnd: { type: MarkerType.ArrowClosed },
         data: { edgeType: 'default', styles }
       });
     }
