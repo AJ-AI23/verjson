@@ -125,7 +125,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
 
     handleNodesChange(constrainedChanges);
     
-    // Update anchors during drag
+    // Update anchors and handle node swapping during drag
     const dragChange = constrainedChanges.find((c: any) => c.type === 'position' && c.dragging);
     if (dragChange) {
       const draggedNode = nodes.find(n => n.id === dragChange.id);
@@ -136,16 +136,114 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         const newY = dragChange.position.y;
         const nodeCenterY = newY + (nodeHeight / 2);
         
-        // Update anchor positions during drag
-        setNodes(currentNodes =>
-          currentNodes.map(n => {
-            const anchorData = n.data as any;
-            if (n.type === 'anchorNode' && anchorData?.connectedNodeId === dragChange.id) {
-              return { ...n, position: { x: n.position.x, y: nodeCenterY - 8 } };
-            }
-            return n;
-          })
+        // Check for collisions and potential swaps
+        const MIN_VERTICAL_MARGIN = 60; // Minimum space between nodes
+        const otherSequenceNodes = nodes.filter(n => 
+          n.type === 'sequenceNode' && n.id !== dragChange.id
         );
+        
+        // Find if dragged node should swap with another node
+        let shouldSwapWith: Node | null = null;
+        for (const otherNode of otherSequenceNodes) {
+          const otherDiagramNode = diagramNodes.find(n => n.id === otherNode.id);
+          const otherNodeConfig = otherDiagramNode ? getNodeTypeConfig(otherDiagramNode.type) : null;
+          const otherNodeHeight = otherNodeConfig?.defaultHeight || 70;
+          const otherNodeCenterY = otherNode.position.y + (otherNodeHeight / 2);
+          
+          // Check if dragged node's center has crossed the other node's center
+          const draggedNodeOriginal = diagramNodes.find(n => n.id === dragChange.id);
+          const originalY = draggedNodeOriginal?.position?.y || 0;
+          const originalCenterY = originalY + (nodeHeight / 2);
+          
+          // Swap if centers have crossed
+          if (originalCenterY < otherNodeCenterY && nodeCenterY > otherNodeCenterY) {
+            // Dragging down and crossed center
+            shouldSwapWith = otherNode;
+            break;
+          } else if (originalCenterY > otherNodeCenterY && nodeCenterY < otherNodeCenterY) {
+            // Dragging up and crossed center
+            shouldSwapWith = otherNode;
+            break;
+          }
+        }
+        
+        if (shouldSwapWith) {
+          // Perform swap - exchange Y positions
+          const draggedDiagramNode = diagramNodes.find(n => n.id === dragChange.id);
+          const swapDiagramNode = diagramNodes.find(n => n.id === shouldSwapWith.id);
+          
+          if (draggedDiagramNode && swapDiagramNode) {
+            const draggedOriginalY = draggedDiagramNode.position?.y || 0;
+            const swapOriginalY = swapDiagramNode.position?.y || 0;
+            
+            // Update diagram data with swapped positions
+            const updatedDiagramNodes = diagramNodes.map(n => {
+              if (n.id === dragChange.id) {
+                const nodeCenterY = swapOriginalY + (nodeHeight / 2);
+                return {
+                  ...n,
+                  position: { ...n.position, y: swapOriginalY },
+                  anchors: n.anchors?.map(a => ({ ...a, yPosition: nodeCenterY })) as any
+                };
+              }
+              if (n.id === shouldSwapWith.id) {
+                const otherNodeConfig = getNodeTypeConfig(n.type);
+                const otherNodeHeight = otherNodeConfig?.defaultHeight || 70;
+                const nodeCenterY = draggedOriginalY + (otherNodeHeight / 2);
+                return {
+                  ...n,
+                  position: { ...n.position, y: draggedOriginalY },
+                  anchors: n.anchors?.map(a => ({ ...a, yPosition: nodeCenterY })) as any
+                };
+              }
+              return n;
+            });
+            
+            // Update visual positions
+            setNodes(currentNodes =>
+              currentNodes.map(n => {
+                if (n.id === dragChange.id) {
+                  const swapCenterY = swapOriginalY + (nodeHeight / 2);
+                  return { ...n, position: { x: n.position.x, y: swapOriginalY } };
+                }
+                if (n.id === shouldSwapWith.id) {
+                  const otherNodeConfig = swapDiagramNode ? getNodeTypeConfig(swapDiagramNode.type) : null;
+                  const otherNodeHeight = otherNodeConfig?.defaultHeight || 70;
+                  return { ...n, position: { x: n.position.x, y: draggedOriginalY } };
+                }
+                
+                // Update anchors for swapped nodes
+                const anchorData = n.data as any;
+                if (n.type === 'anchorNode') {
+                  if (anchorData?.connectedNodeId === dragChange.id) {
+                    const swapCenterY = swapOriginalY + (nodeHeight / 2);
+                    return { ...n, position: { x: n.position.x, y: swapCenterY - 8 } };
+                  }
+                  if (anchorData?.connectedNodeId === shouldSwapWith.id) {
+                    const otherNodeConfig = swapDiagramNode ? getNodeTypeConfig(swapDiagramNode.type) : null;
+                    const otherNodeHeight = otherNodeConfig?.defaultHeight || 70;
+                    const draggedCenterY = draggedOriginalY + (otherNodeHeight / 2);
+                    return { ...n, position: { x: n.position.x, y: draggedCenterY - 8 } };
+                  }
+                }
+                return n;
+              })
+            );
+            
+            onDataChange({ ...data, nodes: updatedDiagramNodes });
+          }
+        } else {
+          // No swap - just update anchor positions during drag
+          setNodes(currentNodes =>
+            currentNodes.map(n => {
+              const anchorData = n.data as any;
+              if (n.type === 'anchorNode' && anchorData?.connectedNodeId === dragChange.id) {
+                return { ...n, position: { x: n.position.x, y: nodeCenterY - 8 } };
+              }
+              return n;
+            })
+          );
+        }
       }
     }
     
