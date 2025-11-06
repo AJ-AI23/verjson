@@ -15,10 +15,10 @@ import {
 } from '@xyflow/react';
 import { SequenceDiagramData, DiagramNode, DiagramEdge, DiagramNodeType } from '@/types/diagram';
 import { DiagramStyles } from '@/types/diagramStyles';
-import { calculateSequenceLayout, calculateSwimlaneLayout } from '@/lib/diagram/sequenceLayout';
+import { calculateSequenceLayout, calculateColumnLayout } from '@/lib/diagram/sequenceLayout';
 import { SequenceNode } from './SequenceNode';
 import { SequenceEdge } from './SequenceEdge';
-import { SwimlaneHeader } from './SwimlaneHeader';
+import { ColumnLifeline } from './ColumnLifeline';
 import { NodeEditor } from './NodeEditor';
 import { EdgeEditor } from './EdgeEditor';
 import { DiagramToolbar } from './DiagramToolbar';
@@ -91,10 +91,10 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [nodes, setNodes, handleNodesChange] = useNodesState(layoutNodes);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
 
-  // Calculate swimlane layout for background
-  const swimlaneLayout = useMemo(() => {
-    return calculateSwimlaneLayout(swimlanes, 800);
-  }, [swimlanes]);
+  // Calculate column layout for lifelines
+  const columnLayout = useMemo(() => {
+    return calculateColumnLayout(columns, 100);
+  }, [columns]);
 
   const onNodesChangeHandler = useCallback((changes: any) => {
     handleNodesChange(changes);
@@ -228,20 +228,20 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
       )}
 
       <div className="flex-1 relative">
-        {/* Swimlane headers */}
+        {/* Column lifelines */}
         <div className="absolute inset-0 pointer-events-none z-10">
-        {swimlaneLayout.map((swimlane, index) => (
-            <SwimlaneHeader
-              key={swimlane.id}
-              swimlane={swimlane}
-              isFirst={index === 0}
+          {columnLayout.map((column) => (
+            <ColumnLifeline
+              key={column.id}
+              column={column}
+              height={800}
               styles={activeTheme}
             />
           ))}
         </div>
 
         {/* React Flow diagram */}
-        <div className="w-full h-full" style={{ paddingLeft: '192px' }}>
+        <div className="w-full h-full">
           <ReactFlow
             nodes={nodes}
             edges={edges}

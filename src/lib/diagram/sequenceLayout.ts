@@ -19,33 +19,22 @@ interface LayoutResult {
   edges: Edge[];
 }
 
-const SWIMLANE_WIDTH = 200;
 const COLUMN_WIDTH = 300;
-const SWIMLANE_HEADER_HEIGHT = 60;
+const COLUMN_HEADER_HEIGHT = 100;
 const NODE_VERTICAL_SPACING = 120;
-const NODE_HORIZONTAL_PADDING = 40;
+const NODE_HORIZONTAL_PADDING = 150;
 
 export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult => {
   const {
-    swimlanes,
     columns,
     nodes,
     edges,
     horizontalSpacing = 100,
-    verticalSpacing = 120,
-    swimlaneHeight = 150,
     styles
   } = options;
 
-  // Sort swimlanes and columns by order
-  const sortedSwimlanes = [...swimlanes].sort((a, b) => a.order - b.order);
+  // Sort columns by order
   const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
-
-  // Create a map of swimlane positions
-  const swimlanePositions = new Map<string, number>();
-  sortedSwimlanes.forEach((swimlane, index) => {
-    swimlanePositions.set(swimlane.id, index);
-  });
 
   // Create a map of column positions
   const columnPositions = new Map<string, number>();
@@ -53,20 +42,19 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     columnPositions.set(column.id, index);
   });
 
-  // Group nodes by swimlane and column
-  const nodesByPosition = new Map<string, DiagramNode[]>();
+  // Group nodes by column
+  const nodesByColumn = new Map<string, DiagramNode[]>();
   nodes.forEach(node => {
-    const key = `${node.swimlaneId}-${node.columnId}`;
-    if (!nodesByPosition.has(key)) {
-      nodesByPosition.set(key, []);
+    const columnId = node.columnId || '';
+    if (!nodesByColumn.has(columnId)) {
+      nodesByColumn.set(columnId, []);
     }
-    nodesByPosition.get(key)!.push(node);
+    nodesByColumn.get(columnId)!.push(node);
   });
 
   // Calculate positions for each node
   const layoutNodes: Node[] = nodes.map(node => {
     const config = getNodeTypeConfig(node.type);
-    const swimlaneIndex = swimlanePositions.get(node.swimlaneId || '') ?? 0;
     const columnIndex = columnPositions.get(node.columnId || '') ?? 0;
 
     // If node has manual position, use it
@@ -83,16 +71,13 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       };
     }
 
-    // Calculate automatic position
-    const key = `${node.swimlaneId}-${node.columnId}`;
-    const nodesInCell = nodesByPosition.get(key) || [];
-    const nodeIndexInCell = nodesInCell.indexOf(node);
+    // Calculate automatic position based on column
+    const columnId = node.columnId || '';
+    const nodesInColumn = nodesByColumn.get(columnId) || [];
+    const nodeIndexInColumn = nodesInColumn.indexOf(node);
 
     const x = columnIndex * (COLUMN_WIDTH + horizontalSpacing) + NODE_HORIZONTAL_PADDING;
-    const y = SWIMLANE_HEADER_HEIGHT + 
-              swimlaneIndex * (swimlaneHeight + verticalSpacing) + 
-              nodeIndexInCell * NODE_VERTICAL_SPACING +
-              20;
+    const y = COLUMN_HEADER_HEIGHT + nodeIndexInColumn * NODE_VERTICAL_SPACING + 40;
 
     return {
       id: node.id,
@@ -162,13 +147,11 @@ export const getEdgeStyle = (type: string) => {
   }
 };
 
-export const calculateSwimlaneLayout = (swimlanes: Swimlane[], height: number = 600) => {
-  const sortedSwimlanes = [...swimlanes].sort((a, b) => a.order - b.order);
-  const swimlaneHeight = height / swimlanes.length;
+export const calculateColumnLayout = (columns: Column[], horizontalSpacing: number = 100) => {
+  const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
 
-  return sortedSwimlanes.map((swimlane, index) => ({
-    ...swimlane,
-    y: index * swimlaneHeight,
-    height: swimlaneHeight
+  return sortedColumns.map((column, index) => ({
+    ...column,
+    x: index * (COLUMN_WIDTH + horizontalSpacing) + NODE_HORIZONTAL_PADDING
   }));
 };
