@@ -16,6 +16,7 @@ import {
 import { SequenceDiagramData, DiagramNode, DiagramEdge, DiagramNodeType } from '@/types/diagram';
 import { DiagramStyles } from '@/types/diagramStyles';
 import { calculateSequenceLayout } from '@/lib/diagram/sequenceLayout';
+import { getNodeTypeConfig } from '@/lib/diagram/sequenceNodeTypes';
 import { SequenceNode } from './SequenceNode';
 import { SequenceEdge } from './SequenceEdge';
 import { ColumnLifelineNode } from './ColumnLifelineNode';
@@ -173,13 +174,16 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         onDataChange({ ...data, anchors: updatedAnchors, nodes: updatedDiagramNodes });
       } else {
         // Regular node position update - also update connected anchors
-        const NODE_HEIGHT = 60; // Standard node height for sequence nodes
+        const movedDiagramNode = diagramNodes.find(n => n.id === moveChange.id);
+        const nodeConfig = movedDiagramNode ? getNodeTypeConfig(movedDiagramNode.type) : null;
+        const nodeHeight = nodeConfig?.defaultHeight || 70;
+        
         const updatedNodes = diagramNodes.map(n =>
           n.id === moveChange.id ? { ...n, position: moveChange.position } : n
         );
         
         // Update anchors connected to this node to match its Y position (center of node)
-        const nodeCenterY = moveChange.position.y + (NODE_HEIGHT / 2);
+        const nodeCenterY = moveChange.position.y + (nodeHeight / 2);
         const updatedAnchors = anchors.map(a => {
           if (a.connectedNodeId === moveChange.id) {
             return { ...a, yPosition: nodeCenterY };

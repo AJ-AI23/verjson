@@ -1,5 +1,5 @@
 import React from 'react';
-import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, EdgeProps } from '@xyflow/react';
+import { BaseEdge, EdgeLabelRenderer, getStraightPath, EdgeProps } from '@xyflow/react';
 import { DiagramStyleTheme } from '@/types/diagramStyles';
 
 export const SequenceEdge: React.FC<EdgeProps> = ({
@@ -15,13 +15,11 @@ export const SequenceEdge: React.FC<EdgeProps> = ({
   data
 }) => {
   const styles = data?.styles as DiagramStyleTheme | undefined;
-  const [edgePath, labelX, labelY] = getSmoothStepPath({
+  const [edgePath, labelX, labelY] = getStraightPath({
     sourceX,
     sourceY,
-    sourcePosition,
     targetX,
     targetY,
-    targetPosition,
   });
 
   const edgeType = data?.edgeType || 'default';

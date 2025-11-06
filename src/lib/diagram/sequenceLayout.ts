@@ -68,17 +68,20 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Build a dependency graph to determine node order
   const nodeOrder = calculateNodeSequence(nodes, anchors);
 
-  // Create anchor nodes - positioned at the same Y as their connected node
-  const NODE_HEIGHT = 60; // Standard node height for sequence nodes
+  // Create anchor nodes - positioned at the same Y as their connected node's center
   const anchorNodes: Node[] = anchors.map(anchor => {
     const xPos = lifelineXPositions.get(anchor.lifelineId) || 0;
     
-    // Find the connected node to get its Y position
+    // Find the connected node to get its Y position and height
     const connectedNode = nodes.find(n => n.id === anchor.connectedNodeId);
     const connectedNodeYPos = connectedNode?.position?.y || anchor.yPosition;
     
+    // Get node height from config
+    const nodeConfig = connectedNode ? getNodeTypeConfig(connectedNode.type) : null;
+    const nodeHeight = nodeConfig?.defaultHeight || 70;
+    
     // Position anchor at the vertical center of the node
-    const anchorY = connectedNodeYPos + (NODE_HEIGHT / 2) - 8; // Center 16px anchor on node center
+    const anchorY = connectedNodeYPos + (nodeHeight / 2) - 8; // Center 16px anchor on node center
     
     return {
       id: anchor.id,
