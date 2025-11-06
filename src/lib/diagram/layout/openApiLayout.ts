@@ -680,8 +680,9 @@ function processMethodDetails(
   // Process responses that have application/json content
   if (methodData.responses && methodExpanded) {
     const responsesPath = `${methodPath}.responses`;
+    const responsesExpanded = collapsedPaths[responsesPath] === false;
     
-    console.log(`🔥 [OPENAPI LAYOUT] Responses path: ${responsesPath}, method expanded: ${methodExpanded}`);
+    console.log(`🔥 [OPENAPI LAYOUT] Responses path: ${responsesPath}, responses expanded: ${responsesExpanded}`);
     
     const responseEntries = Object.entries(methodData.responses)
       .filter(([_, responseData]: [string, any]) => 
@@ -689,56 +690,125 @@ function processMethodDetails(
       );
     
     if (responseEntries.length > 0) {
-      // EXPANDED MODE: Show individual response boxes
-      console.log(`🔥 [OPENAPI LAYOUT] Creating individual response boxes`);
-      
-      responseEntries.forEach(([statusCode, responseData]: [string, any], responseIndex) => {
-          const responseNode = createResponseNode(
-            statusCode,
-            responseData,
-            rightColumnX + (responseIndex * 150),
-            yOffset
-          );
+      if (responsesExpanded) {
+        // RESPONSES EXPANDED: Show individual boxes for each response AND consolidated box for unexpanded ones
+        console.log(`🔥 [OPENAPI LAYOUT] Responses expanded - checking for individual expansions`);
+        
+        const unexpandedResponses: Record<string, any> = {};
+        let hasExpandedResponses = false;
+        
+        responseEntries.forEach(([statusCode, responseData]: [string, any], responseIndex) => {
+          const individualResponsePath = `${responsesPath}.${statusCode}`;
+          const responseExpanded = collapsedPaths[individualResponsePath] === false;
           
-          const responseEdge = createEdge(methodNode.id, responseNode.id, undefined, false, {}, 'default');
-          
-          result.nodes.push(responseNode);
-          result.edges.push(responseEdge);
-          
-          console.log(`🔥 [OPENAPI LAYOUT] Created individual response node for ${statusCode}`);
-          
-          // Check if the schema property is expanded for this response
-          const schemaPath = `${methodPath}.responses.${statusCode}.content.application/json.schema`;
-          const schemaExpanded = collapsedPaths[schemaPath] === false || 
-            (collapsedPaths[schemaPath] && typeof collapsedPaths[schemaPath] === 'object');
-          
-          console.log(`🔥 [OPENAPI LAYOUT] Schema path: ${schemaPath}, expanded: ${schemaExpanded}`);
-          
-          // If response has a schema and schema property is expanded, create a schema node
-          const responseSchema = responseData.content['application/json'].schema;
-          if (responseSchema && schemaExpanded) {
-            const schemaNode = createPropertyNode(
-              'Schema',
-              responseSchema,
-              [],
-              rightColumnX + 200 + (responseIndex * 150),
-              yOffset,
-              false
+          if (responseExpanded) {
+            // Create individual response box
+            hasExpandedResponses = true;
+            const responseNode = createResponseNode(
+              statusCode,
+              responseData,
+              rightColumnX + (responseIndex * 150),
+              yOffset
             );
             
-            const schemaEdge = createEdge(responseNode.id, schemaNode.id, undefined, false, {}, 'default');
+            const responseEdge = createEdge(methodNode.id, responseNode.id, undefined, false, {}, 'default');
             
-            result.nodes.push(schemaNode);
-            result.edges.push(schemaEdge);
+            result.nodes.push(responseNode);
+            result.edges.push(responseEdge);
             
-            // Handle references for response schema
-            handleSchemaReferences(responseSchema, schemaNode.id, result);
+            console.log(`🔥 [OPENAPI LAYOUT] Created individual response node for ${statusCode}`);
             
-            console.log(`🔥 [OPENAPI LAYOUT] Created schema node for response ${statusCode}`);
+            // Check if the schema property is expanded for this response
+            const schemaPath = `${individualResponsePath}.content.application/json.schema`;
+            const schemaExpanded = collapsedPaths[schemaPath] === false || 
+              (collapsedPaths[schemaPath] && typeof collapsedPaths[schemaPath] === 'object');
+            
+            // If response has a schema and schema property is expanded, create a schema node
+            const responseSchema = responseData.content['application/json'].schema;
+            if (responseSchema && schemaExpanded) {
+              const schemaNode = createPropertyNode(
+                'Schema',
+                responseSchema,
+                [],
+                rightColumnX + 200 + (responseIndex * 150),
+                yOffset,
+                false
+              );
+              
+              const schemaEdge = createEdge(responseNode.id, schemaNode.id, undefined, false, {}, 'default');
+              
+              result.nodes.push(schemaNode);
+              result.edges.push(schemaEdge);
+              
+              // Handle references for response schema
+              handleSchemaReferences(responseSchema, schemaNode.id, result);
+              
+              console.log(`🔥 [OPENAPI LAYOUT] Created schema node for response ${statusCode}`);
+            }
+          } else {
+            // Add to unexpanded responses
+            unexpandedResponses[statusCode] = responseData;
           }
+        });
+        
+        // Create consolidated box for unexpanded responses if any exist
+        if (Object.keys(unexpandedResponses).length > 0) {
+          const consolidatedYOffset = hasExpandedResponses ? yOffset + 150 : yOffset;
+          const consolidatedResponseNode = createConsolidatedResponseNode(
+            unexpandedResponses,
+            rightColumnX,
+            consolidatedYOffset
+          );
           
+          const responseEdge = createEdge(methodNode.id, consolidatedResponseNode.id, undefined, false, {}, 'default');
+          
+          result.nodes.push(consolidatedResponseNode);
+          result.edges.push(responseEdge);
+          
+          console.log(`🔥 [OPENAPI LAYOUT] Created consolidated response node for ${Object.keys(unexpandedResponses).length} unexpanded responses`);
+          
+          // For consolidated view, check if any response has references and create dotted edges
+          Object.entries(unexpandedResponses).forEach(([statusCode, responseData]: [string, any]) => {
+            const responseSchema = responseData.content['application/json'].schema;
+            if (responseSchema) {
+              handleSchemaReferences(responseSchema, consolidatedResponseNode.id, result);
+            }
+          });
+        }
+        
         yOffset += 150;
-      });
+      } else {
+        // RESPONSES COLLAPSED: Show single consolidated box for all responses
+        console.log(`🔥 [OPENAPI LAYOUT] Creating consolidated response box for all responses`);
+        
+        const allResponses: Record<string, any> = {};
+        responseEntries.forEach(([statusCode, responseData]) => {
+          allResponses[statusCode] = responseData;
+        });
+        
+        const consolidatedResponseNode = createConsolidatedResponseNode(
+          allResponses,
+          rightColumnX,
+          yOffset
+        );
+        
+        const responseEdge = createEdge(methodNode.id, consolidatedResponseNode.id, undefined, false, {}, 'default');
+        
+        result.nodes.push(consolidatedResponseNode);
+        result.edges.push(responseEdge);
+        
+        console.log(`🔥 [OPENAPI LAYOUT] Created consolidated response node`);
+        
+        // For consolidated view, check if any response has references and create dotted edges
+        responseEntries.forEach(([statusCode, responseData]: [string, any]) => {
+          const responseSchema = responseData.content['application/json'].schema;
+          if (responseSchema) {
+            handleSchemaReferences(responseSchema, consolidatedResponseNode.id, result);
+          }
+        });
+        
+        yOffset += 150;
+      }
     }
   }
 }
