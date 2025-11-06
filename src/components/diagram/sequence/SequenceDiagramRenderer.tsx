@@ -108,33 +108,39 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
       const isAnchor = movedNode?.type === 'anchorNode';
       
       if (isAnchor) {
-        // Update anchor position (Y only, constrain to lifeline)
+        // Update anchor position - snap to nearest lifeline
         const anchorData = movedNode?.data as any;
         const connectedNodeId = anchorData?.connectedNodeId;
         
-        // Find which lifeline this anchor is on based on X position
+        // Find which lifeline this anchor should snap to based on X position
         const anchorX = moveChange.position.x + 8; // Add half width to get center
         let closestLifelineId = anchorData?.lifelineId;
+        let closestLifelineX = 0;
         let minDistance = Infinity;
         
-        // Calculate lifeline positions
+        // Calculate lifeline positions and find closest
         const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
         sortedLifelines.forEach((lifeline, index) => {
           const lifelineX = index * (300 + 100) + 150; // LIFELINE_WIDTH + horizontalSpacing + padding
           const distance = Math.abs(anchorX - lifelineX);
-          if (distance < minDistance && distance < 100) { // Within 100px snap range
+          if (distance < minDistance) {
             minDistance = distance;
             closestLifelineId = lifeline.id;
+            closestLifelineX = lifelineX;
           }
         });
         
+        // Snap anchor to lifeline X position and update Y
+        const snappedX = closestLifelineX - 8; // Center the 16px anchor
+        const newY = moveChange.position.y + 8; // Offset for anchor center
+        
         const updatedAnchors = anchors.map(a =>
           a.id === moveChange.id 
-            ? { ...a, yPosition: moveChange.position.y + 8, lifelineId: closestLifelineId } 
+            ? { ...a, yPosition: newY, lifelineId: closestLifelineId } 
             : a
         );
         
-        // Update the source node's anchors in diagramNodes
+        // Update the connected node's anchors and position
         let updatedDiagramNodes = diagramNodes;
         const sourceAnchor = updatedAnchors.find(a => a.connectedNodeId === connectedNodeId && a.anchorType === 'source');
         const targetAnchor = updatedAnchors.find(a => a.connectedNodeId === connectedNodeId && a.anchorType === 'target');
@@ -155,6 +161,15 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
           );
         }
         
+        // Apply the snap by updating the node position immediately
+        setNodes(currentNodes => 
+          currentNodes.map(n => 
+            n.id === moveChange.id 
+              ? { ...n, position: { x: snappedX, y: moveChange.position.y } }
+              : n
+          )
+        );
+        
         onDataChange({ ...data, anchors: updatedAnchors, nodes: updatedDiagramNodes });
       } else {
         // Regular node position update
@@ -164,7 +179,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         onDataChange({ ...data, nodes: updatedNodes });
       }
     }
-  }, [handleNodesChange, onNodesChange, nodes, diagramNodes, anchors, data, onDataChange, lifelines]);
+  }, [handleNodesChange, onNodesChange, nodes, diagramNodes, anchors, data, onDataChange, lifelines, setNodes]);
 
   const onEdgesChangeHandler = useCallback((changes: any) => {
     handleEdgesChange(changes);

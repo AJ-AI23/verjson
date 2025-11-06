@@ -114,26 +114,30 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     }
 
     // Determine horizontal positioning based on connected anchors
+    const MARGIN = 40; // Margin from lifeline for edges
     let startX = 0;
-    let endX = 0;
     let width = 180; // Default width
 
     if (sourceAnchor && targetAnchor) {
-      // Node connects two lifelines via anchors - span between them
+      // Node connects two lifelines via anchors - span between them with margins
       const sourceX = lifelineXPositions.get(sourceAnchor.lifelineId) || 0;
       const targetX = lifelineXPositions.get(targetAnchor.lifelineId) || 0;
       
-      startX = Math.min(sourceX, targetX);
-      endX = Math.max(sourceX, targetX);
-      width = Math.abs(endX - startX);
+      const leftX = Math.min(sourceX, targetX);
+      const rightX = Math.max(sourceX, targetX);
+      
+      // Add margins to accommodate edges
+      startX = leftX + MARGIN;
+      width = Math.abs(rightX - leftX) - (MARGIN * 2);
+      
+      // Ensure minimum width
+      if (width < 180) {
+        width = 180;
+        startX = (leftX + rightX) / 2 - 90; // Center if too narrow
+      }
     } else if (sourceAnchorInfo) {
-      // Position at source anchor lifeline
-      startX = lifelineXPositions.get(sourceAnchorInfo.lifelineId) || 0;
-    }
-
-    // Center the node if it doesn't span lifelines
-    if (width === 180) {
-      startX -= width / 2;
+      // Position at source anchor lifeline (centered)
+      startX = (lifelineXPositions.get(sourceAnchorInfo.lifelineId) || 0) - width / 2;
     }
 
     return {
