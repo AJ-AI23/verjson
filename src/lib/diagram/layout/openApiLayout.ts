@@ -116,7 +116,7 @@ export const generateOpenApiLayout = (
       console.log(`🔥 [OPENAPI LAYOUT] Components path: ${componentsPath}, explicitly expanded: ${componentsExplicitlyExpanded}`);
       
       // Always create components box when showing OpenAPI structure
-      const componentsNode = createComponentsNode(schema.components.schemas, 0, yOffset);
+      const componentsNode = createComponentsNode(schema.components.schemas, 0, yOffset, componentsExplicitlyExpanded);
       const componentsEdge = createEdge('root', componentsNode.id, undefined, false, {}, 'default');
       result.nodes.push(componentsNode);
       result.edges.push(componentsEdge);

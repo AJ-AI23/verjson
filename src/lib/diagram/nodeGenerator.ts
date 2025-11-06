@@ -405,7 +405,8 @@ export const createGroupedTagsNode = (
 export const createComponentsNode = (
   schemasData: Record<string, any>,
   xPos: number,
-  yOffset: number
+  yOffset: number,
+  isExpanded: boolean = false
 ): Node => {
   // Extract notations from the components section itself (if any)
   const notations = extractNotations(schemasData);
@@ -429,7 +430,8 @@ export const createComponentsNode = (
       schemas,
       notations: notations,
       notationCount: notationCount,
-      hasNotations: notationCount > 0
+      hasNotations: notationCount > 0,
+      hasMoreLevels: isExpanded
     }
   };
 };

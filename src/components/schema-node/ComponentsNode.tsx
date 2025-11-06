@@ -18,6 +18,7 @@ interface ComponentsNodeProps {
     notations?: NotationComment[];
     notationCount?: number;
     hasNotations?: boolean;
+    hasMoreLevels?: boolean;
   };
   id: string;
   isConnectable: boolean;
@@ -25,12 +26,13 @@ interface ComponentsNodeProps {
 }
 
 export const ComponentsNode = memo(({ data, isConnectable, id, onAddNotation }: ComponentsNodeProps) => {
-  const { schemasCount, schemas = [], notations = [], notationCount = 0, hasNotations = false } = data;
+  const { schemasCount, schemas = [], notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false } = data;
 
   return (
     <div className={cn(
       'px-3 py-2 rounded-md shadow-sm border min-w-[200px] max-w-[280px]',
       'bg-emerald-50 border-emerald-200',
+      hasMoreLevels && 'border-2 border-dashed',
       hasNotations && 'border-l-2 border-l-amber-400'
     )}>
       <Handle
