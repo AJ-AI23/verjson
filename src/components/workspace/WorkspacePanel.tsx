@@ -46,6 +46,7 @@ import { toast } from 'sonner';
 import JSZip from 'jszip';
 import { defaultSchema } from '@/lib/defaultSchema';
 import { defaultOasSchema } from '@/lib/defaultOasSchema';
+import { defaultDiagramSchema } from '@/lib/defaultDiagramSchema';
 
 interface WorkspacePanelProps {
   onDocumentSelect: (document: any) => void;
@@ -113,7 +114,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   const [workspaceDeleteDialogOpen, setWorkspaceDeleteDialogOpen] = useState(false);
   const [workspaceToDelete, setWorkspaceToDelete] = useState<any>(null);
   const [newDocumentName, setNewDocumentName] = useState('');
-  const [newDocumentType, setNewDocumentType] = useState<'json-schema' | 'openapi'>('json-schema');
+  const [newDocumentType, setNewDocumentType] = useState<'json-schema' | 'openapi' | 'diagram'>('json-schema');
   const [showWorkspaceDialog, setShowWorkspaceDialog] = useState(false);
   const [showDocumentDialog, setShowDocumentDialog] = useState(false);
   const [showCreateDocumentDialog, setShowCreateDocumentDialog] = useState(false);
@@ -177,9 +178,14 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   const handleCreateDocument = async () => {
     if (!newDocumentName.trim() || !selectedWorkspace) return;
     
-    const defaultContent = newDocumentType === 'openapi' 
-      ? JSON.parse(defaultOasSchema)
-      : JSON.parse(defaultSchema);
+    let defaultContent;
+    if (newDocumentType === 'openapi') {
+      defaultContent = JSON.parse(defaultOasSchema);
+    } else if (newDocumentType === 'diagram') {
+      defaultContent = defaultDiagramSchema;
+    } else {
+      defaultContent = JSON.parse(defaultSchema);
+    }
 
     const document = await createDocument({
       workspace_id: selectedWorkspace,
@@ -917,13 +923,14 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
             </div>
             <div>
               <Label htmlFor="document-type">Type</Label>
-              <Select value={newDocumentType} onValueChange={(value: 'json-schema' | 'openapi') => setNewDocumentType(value)}>
+              <Select value={newDocumentType} onValueChange={(value: 'json-schema' | 'openapi' | 'diagram') => setNewDocumentType(value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-popover z-50">
                   <SelectItem value="json-schema">JSON Schema</SelectItem>
                   <SelectItem value="openapi">OpenAPI</SelectItem>
+                  <SelectItem value="diagram">Diagram</SelectItem>
                 </SelectContent>
               </Select>
             </div>

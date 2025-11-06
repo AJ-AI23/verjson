@@ -23,7 +23,7 @@ interface FileToImport {
   id: string;
   name: string;
   content: any;
-  fileType: 'json-schema' | 'openapi';
+  fileType: 'json-schema' | 'openapi' | 'diagram';
   source: 'file' | 'url';
   size: number;
   valid: boolean;
@@ -55,8 +55,9 @@ export function ImportDialog({
   const [editingFileId, setEditingFileId] = useState<string | null>(null);
   const [editingFileName, setEditingFileName] = useState<string>('');
 
-  const detectFileType = (content: any): 'json-schema' | 'openapi' => {
+  const detectFileType = (content: any): 'json-schema' | 'openapi' | 'diagram' => {
     if (content.openapi || content.swagger) return 'openapi';
+    if (content.$schema?.includes('diagram') || content.type === 'diagram' || content.diagramType) return 'diagram';
     return 'json-schema';
   };
 
