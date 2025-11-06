@@ -99,6 +99,11 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
     setEdges(layoutEdges);
   }, [layoutEdges, setEdges]);
 
+  // Update nodes when layout changes (e.g., when node width needs to adjust)
+  useEffect(() => {
+    setNodes(layoutNodes);
+  }, [layoutNodes, setNodes]);
+
   const onNodesChangeHandler = useCallback((changes: any) => {
     handleNodesChange(changes);
     if (onNodesChange) {
