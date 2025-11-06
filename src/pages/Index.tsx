@@ -137,7 +137,7 @@ const Index = () => {
 
   return (
     <SidebarProvider 
-      defaultOpen={false}
+      defaultOpen={true}
       style={{ 
         '--sidebar-width': '20rem',
         '--sidebar-width-mobile': '18rem' 

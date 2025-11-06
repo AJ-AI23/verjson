@@ -481,11 +481,6 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
     fetchDocumentPermissions();
   }, [documents]);
 
-  // Don't render content if collapsed
-  if (isCollapsed) {
-    return null;
-  }
-
   return (
     <div className="h-full p-2 md:p-4 space-y-3 md:space-y-4">
       <Card className="flex-1 flex flex-col border-0 shadow-none">
