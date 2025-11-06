@@ -1,10 +1,11 @@
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import '@xyflow/react/dist/style.css';
 import { DiagramContainer } from './DiagramContainer';
 import { CollapsedState } from '@/lib/diagram/types';
 import { SequenceDiagramRenderer } from './sequence/SequenceDiagramRenderer';
 import { DiagramDocument, SequenceDiagramData } from '@/types/diagram';
 import { DiagramStyles, defaultLightTheme, defaultDarkTheme } from '@/types/diagramStyles';
+import { migrateDiagramDocument } from '@/lib/diagramMigration';
 
 interface SchemaDiagramProps {
   schema: any;
@@ -43,8 +44,12 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   isFullscreen,
   onToggleFullscreen
 }) => {
-  // Check if this is a diagram document
-  const diagramDocument = isDiagram && schema ? schema as DiagramDocument : null;
+  // Check if this is a diagram document and migrate if needed
+  const diagramDocument = useMemo(() => {
+    if (!isDiagram || !schema) return null;
+    return migrateDiagramDocument(schema as DiagramDocument);
+  }, [isDiagram, schema]);
+  
   const isSequenceDiagram = diagramDocument?.type === 'sequence';
 
   // Ensure styles are initialized

@@ -23,12 +23,18 @@ const NODE_HORIZONTAL_PADDING = 150;
 
 export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult => {
   const {
-    lifelines,
-    nodes,
-    edges,
+    lifelines = [],
+    nodes = [],
+    edges = [],
     horizontalSpacing = 100,
     styles
   } = options;
+
+  // Guard against undefined lifelines
+  if (!lifelines || lifelines.length === 0) {
+    console.warn('⚠️ No lifelines provided to calculateSequenceLayout');
+    return { nodes: [], edges: [] };
+  }
 
   // Sort lifelines by order
   const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
