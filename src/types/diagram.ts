@@ -1,3 +1,5 @@
+import { DiagramStyles } from './diagramStyles';
+
 export interface DiagramDocument {
   version: string;
   type: 'sequence' | 'flowchart';
@@ -9,6 +11,7 @@ export interface DiagramDocument {
     modified?: string;
   };
   data: SequenceDiagramData | FlowchartData;
+  styles?: DiagramStyles;
 }
 
 export interface SequenceDiagramData {

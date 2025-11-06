@@ -1,4 +1,5 @@
 import { DiagramDocument } from '@/types/diagram';
+import { defaultLightTheme, defaultDarkTheme } from '@/types/diagramStyles';
 
 export const defaultDiagramSchema: DiagramDocument = {
   version: '1.0.0',
@@ -162,6 +163,13 @@ export const defaultDiagramSchema: DiagramDocument = {
         type: 'return'
       }
     ]
+  },
+  styles: {
+    activeTheme: 'light',
+    themes: {
+      light: defaultLightTheme,
+      dark: defaultDarkTheme
+    }
   }
 };
 
@@ -256,5 +264,12 @@ export const defaultFlowchartSchema: DiagramDocument = {
         type: 'default'
       }
     ]
+  },
+  styles: {
+    activeTheme: 'light',
+    themes: {
+      light: defaultLightTheme,
+      dark: defaultDarkTheme
+    }
   }
 };
