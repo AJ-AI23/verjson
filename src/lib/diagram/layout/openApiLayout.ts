@@ -23,7 +23,8 @@ const OPENAPI_OPTIONAL_PROPERTIES = ['servers', 'components', 'security', 'tags'
 export const generateOpenApiLayout = (
   schema: any, 
   maxDepth: number,
-  collapsedPaths: CollapsedState = {}
+  collapsedPaths: CollapsedState = {},
+  maxIndividualProperties: number = 5
 ): DiagramElements => {
   console.log(`🔥 [OPENAPI LAYOUT] Starting with maxDepth: ${maxDepth}`);
   console.log(`🔥 [OPENAPI LAYOUT] CollapsedPaths:`, collapsedPaths);
@@ -309,7 +310,8 @@ function processJsonSchemaProperties(
   maxDepth: number,
   collapsedPaths: CollapsedState,
   parentPath: string,
-  allSchemas?: Record<string, any> // Pass all schemas to detect references
+  allSchemas?: Record<string, any>, // Pass all schemas to detect references
+  maxIndividualProperties: number = 5
 ) {
   // Use property grouping utility instead of processing individually
   const groupingResult = processPropertiesWithGrouping(
@@ -317,7 +319,7 @@ function processJsonSchemaProperties(
     required,
     result,
     {
-      maxIndividualProperties: 6, // Allow more individual properties for schema properties
+      maxIndividualProperties: maxIndividualProperties + 1, // Allow more individual properties for schema properties
       xSpacing,
       parentNodeId,
       parentPath: `${parentPath}.properties`,

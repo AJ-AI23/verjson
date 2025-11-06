@@ -6,6 +6,7 @@ import { DiagramFlow } from './DiagramFlow';
 import { useDiagramNodes } from './hooks/useDiagramNodes';
 import { toast } from 'sonner';
 import { CollapsedState } from '@/lib/diagram/types';
+import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 
 interface DiagramContainerProps {
   schema: any;
@@ -26,6 +27,7 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   onAddNotation,
   expandedNotationPaths
 }) => {
+  const { settings } = useEditorSettings();
   const [localMaxDepth, setLocalMaxDepth] = useState(maxDepth);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -76,7 +78,9 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     memoizedSchema, 
     error, 
     groupProperties, 
-    memoizedCollapsedPaths
+    memoizedCollapsedPaths,
+    localMaxDepth,
+    settings.maxIndividualProperties
   );
 
   // Show diagram based on nodes count and error state

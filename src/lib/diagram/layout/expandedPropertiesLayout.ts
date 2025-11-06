@@ -12,7 +12,8 @@ import { processPropertiesWithGrouping } from '../utils/propertyGroupingUtils';
 export const generateExpandedLayout = (
   schema: any, 
   maxDepth: number,
-  collapsedPaths: CollapsedState = {}
+  collapsedPaths: CollapsedState = {},
+  maxIndividualProperties: number = 5
 ): DiagramElements => {
   const result: DiagramElements = {
     nodes: [],
@@ -64,7 +65,7 @@ export const generateExpandedLayout = (
           collapsedPaths, 
           'root',
           0, // Start with 0 expandedNodeDepth from root
-          5 // Maximum properties limit before grouping
+          maxIndividualProperties // Use the passed maxIndividualProperties
         );
   }
   

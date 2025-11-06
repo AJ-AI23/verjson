@@ -6,6 +6,7 @@ interface EditorSettings {
   groupProperties: boolean;
   undoRedoStrategy: 'local-with-notifications' | 'server-based';
   showVersionMismatchWarning: boolean;
+  maxIndividualProperties: number;
 }
 
 interface EditorSettingsContextType {
@@ -14,6 +15,7 @@ interface EditorSettingsContextType {
   updateGroupProperties: (groupProperties: boolean) => void;
   updateUndoRedoStrategy: (strategy: 'local-with-notifications' | 'server-based') => void;
   updateShowVersionMismatchWarning: (show: boolean) => void;
+  updateMaxIndividualProperties: (maxIndividualProperties: number) => void;
 }
 
 const EditorSettingsContext = createContext<EditorSettingsContextType | undefined>(undefined);
@@ -28,7 +30,8 @@ export const EditorSettingsProvider: React.FC<EditorSettingsProviderProps> = ({ 
     maxDepth: 1,
     groupProperties: false,
     undoRedoStrategy: 'local-with-notifications',
-    showVersionMismatchWarning: true
+    showVersionMismatchWarning: true,
+    maxIndividualProperties: 5
   });
 
   const updateMaxDepth = (depth: number) => {
@@ -48,12 +51,17 @@ export const EditorSettingsProvider: React.FC<EditorSettingsProviderProps> = ({ 
     setSettings(prev => ({ ...prev, showVersionMismatchWarning: show }));
   };
 
+  const updateMaxIndividualProperties = (maxIndividualProperties: number) => {
+    setSettings(prev => ({ ...prev, maxIndividualProperties }));
+  };
+
   const value = {
     settings,
     updateMaxDepth,
     updateGroupProperties,
     updateUndoRedoStrategy,
-    updateShowVersionMismatchWarning
+    updateShowVersionMismatchWarning,
+    updateMaxIndividualProperties
   };
 
   return (

@@ -9,7 +9,9 @@ export const useDiagramNodes = (
   schema: any, 
   error: boolean, 
   groupProperties: boolean,
-  collapsedPaths: CollapsedState = {}
+  collapsedPaths: CollapsedState = {},
+  maxDepth: number = 1,
+  maxIndividualProperties: number = 5
 ) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -124,7 +126,8 @@ export const useDiagramNodes = (
         schema, 
         groupProperties, 
         999, // Very high limit - effectively unlimited for practical schemas
-        collapsedPaths
+        collapsedPaths,
+        maxIndividualProperties
       );
       
       // Apply saved positions to new nodes where possible
@@ -154,7 +157,8 @@ export const useDiagramNodes = (
     setNodes, 
     setEdges, 
     applyStoredPositions,
-    prevGroupSetting
+    prevGroupSetting,
+    maxIndividualProperties
   ]);
 
   return {

@@ -10,7 +10,8 @@ export const generateNodesAndEdges = (
   schema: any, 
   groupProperties: boolean = false, 
   maxDepth: number,
-  collapsedPaths: CollapsedState = {}
+  collapsedPaths: CollapsedState = {},
+  maxIndividualProperties: number = 5
 ): DiagramElements => {
   const result: DiagramElements = {
     nodes: [],
@@ -82,7 +83,7 @@ export const generateNodesAndEdges = (
       console.log('🚀 Detected OpenAPI schema, using OpenAPI layout');
       console.log('🚀 About to call generateOpenApiLayout with schema keys:', Object.keys(schema));
       console.log('🚀 CollapsedPaths passed to layout:', Object.keys(collapsedPaths).length, 'paths');
-      const openApiLayout = generateOpenApiLayout(schema, maxDepth, collapsedPaths);
+      const openApiLayout = generateOpenApiLayout(schema, maxDepth, collapsedPaths, maxIndividualProperties);
       console.log(`🚀 OpenAPI layout generated ${openApiLayout.nodes.length} nodes and ${openApiLayout.edges.length} edges`);
       result.nodes.push(...openApiLayout.nodes);
       result.edges.push(...openApiLayout.edges);
@@ -101,7 +102,7 @@ export const generateNodesAndEdges = (
       } else {
         // Expanded properties mode
         console.log('Using expanded layout mode');
-        const expandedLayout = generateExpandedLayout(schema, maxDepth, collapsedPaths);
+        const expandedLayout = generateExpandedLayout(schema, maxDepth, collapsedPaths, maxIndividualProperties);
         console.log(`Expanded layout generated ${expandedLayout.nodes.length} nodes and ${expandedLayout.edges.length} edges`);
         result.nodes.push(...expandedLayout.nodes);
         result.edges.push(...expandedLayout.edges);
