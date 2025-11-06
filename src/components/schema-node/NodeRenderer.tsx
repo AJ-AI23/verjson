@@ -30,9 +30,9 @@ export const NodeRenderer = memo(({ data, id, isConnectable, onAddNotation, expa
                    id.includes('method') ? 'method' :
                    id.includes('response') ? 'response' :
                    id.includes('request-body') ? 'requestBody' :
-                   id.includes('parameters') ? 'parameters' :
-                   id.includes('tags') ? 'tags' :
-                   id.includes('security') ? 'security' :
+                   id.startsWith('parameters-') ? 'parameters' :
+                   id.startsWith('tags-') ? 'tags' :
+                   id.startsWith('security-') ? 'security' :
                    'schemaType');
 
   switch (nodeType) {
