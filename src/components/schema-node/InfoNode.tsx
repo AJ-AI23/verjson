@@ -19,6 +19,7 @@ interface InfoNodeProps {
     notations?: NotationComment[];
     notationCount?: number;
     hasNotations?: boolean;
+    hasMoreLevels?: boolean;
   };
   id: string;
   isConnectable: boolean;
@@ -26,7 +27,7 @@ interface InfoNodeProps {
 }
 
 export const InfoNode = memo(({ data, isConnectable, id, onAddNotation }: InfoNodeProps) => {
-  const { title, version, description, properties = [], notations = [], notationCount = 0, hasNotations = false } = data;
+  const { title, version, description, properties = [], notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false } = data;
 
   // Add safety check for properties array
   const safeProperties = Array.isArray(properties) ? properties : [];
@@ -35,6 +36,7 @@ export const InfoNode = memo(({ data, isConnectable, id, onAddNotation }: InfoNo
     <div className={cn(
       'px-3 py-2 rounded-md shadow-sm border min-w-[200px] max-w-[280px]',
       'bg-blue-50 border-blue-200',
+      hasMoreLevels && 'border-2 border-dashed',
       hasNotations && 'border-l-2 border-l-amber-400'
     )}>
       <Handle
