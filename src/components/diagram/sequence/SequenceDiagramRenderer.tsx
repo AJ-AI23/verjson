@@ -147,31 +147,38 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
             const updatedAnchors = [...n.anchors];
             const otherAnchorIndex = anchorIndex === 0 ? 1 : 0;
             const otherAnchor = updatedAnchors[otherAnchorIndex];
+            const draggedAnchor = updatedAnchors[anchorIndex];
             
             // Check if trying to move to the same lifeline as the other anchor
             if (closestLifelineId === otherAnchor.lifelineId) {
-              // Swap the lifelines instead
+              // Swap the lifelines AND the anchor types (source/target)
+              const draggedOriginalLifeline = draggedAnchor.lifelineId;
+              const draggedOriginalType = draggedAnchor.anchorType;
+              const otherOriginalType = otherAnchor.anchorType;
+              
               updatedAnchors[anchorIndex] = {
-                ...updatedAnchors[anchorIndex],
+                ...draggedAnchor,
                 yPosition: nodeCenterY,
-                lifelineId: otherAnchor.lifelineId
+                lifelineId: otherAnchor.lifelineId,
+                anchorType: otherOriginalType
               };
               updatedAnchors[otherAnchorIndex] = {
-                ...updatedAnchors[otherAnchorIndex],
+                ...otherAnchor,
                 yPosition: nodeCenterY,
-                lifelineId: updatedAnchors[anchorIndex].lifelineId
+                lifelineId: draggedOriginalLifeline,
+                anchorType: draggedOriginalType
               };
             } else {
               // Update the dragged anchor to new lifeline but keep Y at node center
               updatedAnchors[anchorIndex] = {
-                ...updatedAnchors[anchorIndex],
+                ...draggedAnchor,
                 yPosition: nodeCenterY,
                 lifelineId: closestLifelineId
               };
               
               // Also update the other anchor's Y to ensure they're both at node center
               updatedAnchors[otherAnchorIndex] = {
-                ...updatedAnchors[otherAnchorIndex],
+                ...otherAnchor,
                 yPosition: nodeCenterY
               };
             }
@@ -234,6 +241,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
           const draggedAnchorIndex = connectedNode.anchors.findIndex(a => a.id === moveChange.id);
           const otherAnchorIndex = draggedAnchorIndex === 0 ? 1 : 0;
           const otherAnchor = connectedNode.anchors[otherAnchorIndex];
+          const draggedAnchor = connectedNode.anchors[draggedAnchorIndex];
           const isSwapping = closestLifelineId === otherAnchor.lifelineId;
           
           // Helper to get lifeline X position
@@ -252,15 +260,15 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
               const isTheDraggedAnchor = n.id === moveChange.id;
               
               if (isSwapping) {
-                // If swapping, move dragged anchor to other's position and vice versa
+                // If swapping, both anchors move to each other's lifelines
                 if (isTheDraggedAnchor) {
-                  const otherAnchorX = getLifelineX(otherAnchor.lifelineId);
-                  return { ...n, position: { x: otherAnchorX, y: nodeCenterY - 8 } };
+                  // Dragged anchor moves to other anchor's lifeline
+                  const newX = getLifelineX(otherAnchor.lifelineId);
+                  return { ...n, position: { x: newX, y: nodeCenterY - 8 } };
                 } else {
-                  // This is the other anchor - move it to where dragged anchor came from
-                  const draggedAnchorOriginalLifeline = connectedNode.anchors[draggedAnchorIndex].lifelineId;
-                  const draggedAnchorOriginalX = getLifelineX(draggedAnchorOriginalLifeline);
-                  return { ...n, position: { x: draggedAnchorOriginalX, y: nodeCenterY - 8 } };
+                  // Other anchor moves to dragged anchor's original lifeline
+                  const newX = getLifelineX(draggedAnchor.lifelineId);
+                  return { ...n, position: { x: newX, y: nodeCenterY - 8 } };
                 }
               } else {
                 // Normal drag - only update dragged anchor position
