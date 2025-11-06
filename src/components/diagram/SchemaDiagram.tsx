@@ -65,11 +65,20 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   }, [diagramDocument, onSchemaChange]);
 
   if (isSequenceDiagram && diagramDocument) {
+    // Ensure styles are always defined with defaults
+    const documentStyles = diagramDocument.styles || {
+      activeTheme: 'light',
+      themes: {
+        light: defaultLightTheme,
+        dark: defaultDarkTheme
+      }
+    };
+
     return (
       <div className={`h-full flex flex-col min-h-0 ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
         <SequenceDiagramRenderer 
           data={diagramDocument.data as SequenceDiagramData}
-          styles={diagramDocument.styles}
+          styles={documentStyles}
           workspaceId={workspaceId}
           isStylesDialogOpen={isStylesDialogOpen}
           onStylesDialogClose={onStylesDialogClose}
