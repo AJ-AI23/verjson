@@ -178,6 +178,11 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         const nodeConfig = movedDiagramNode ? getNodeTypeConfig(movedDiagramNode.type) : null;
         const nodeHeight = nodeConfig?.defaultHeight || 70;
         
+        // Constrain vertical position to be below lifeline headers
+        const LIFELINE_HEADER_HEIGHT = 100;
+        const MIN_Y_POSITION = LIFELINE_HEADER_HEIGHT + 20; // 20px padding below header
+        const constrainedY = Math.max(MIN_Y_POSITION, moveChange.position.y);
+        
         // Calculate the correct horizontal position based on anchors
         const nodeAnchors = movedDiagramNode?.anchors;
         let snappedX = moveChange.position.x;
@@ -213,11 +218,11 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         }
         
         const updatedNodes = diagramNodes.map(n =>
-          n.id === moveChange.id ? { ...n, position: { x: snappedX, y: moveChange.position.y } } : n
+          n.id === moveChange.id ? { ...n, position: { x: snappedX, y: constrainedY } } : n
         );
         
         // Update anchors connected to this node to match its Y position (center of node)
-        const nodeCenterY = moveChange.position.y + (nodeHeight / 2);
+        const nodeCenterY = constrainedY + (nodeHeight / 2);
         const updatedAnchors = anchors.map(a => {
           if (a.connectedNodeId === moveChange.id) {
             return { ...a, yPosition: nodeCenterY };
@@ -230,7 +235,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
           currentNodes.map(n => {
             const anchorData = n.data as any;
             if (n.id === moveChange.id) {
-              return { ...n, position: { x: snappedX, y: moveChange.position.y } };
+              return { ...n, position: { x: snappedX, y: constrainedY } };
             }
             if (n.type === 'anchorNode' && anchorData?.connectedNodeId === moveChange.id) {
               return { ...n, position: { ...n.position, y: nodeCenterY - 8 } };
