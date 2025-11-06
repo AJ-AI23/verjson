@@ -172,11 +172,21 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         
         onDataChange({ ...data, anchors: updatedAnchors, nodes: updatedDiagramNodes });
       } else {
-        // Regular node position update
+        // Regular node position update - also update connected anchors
         const updatedNodes = diagramNodes.map(n =>
           n.id === moveChange.id ? { ...n, position: moveChange.position } : n
         );
-        onDataChange({ ...data, nodes: updatedNodes });
+        
+        // Update anchors connected to this node to match its Y position
+        const nodeAnchors = anchors.filter(a => a.connectedNodeId === moveChange.id);
+        const updatedAnchors = anchors.map(a => {
+          if (a.connectedNodeId === moveChange.id) {
+            return { ...a, yPosition: moveChange.position.y };
+          }
+          return a;
+        });
+        
+        onDataChange({ ...data, nodes: updatedNodes, anchors: updatedAnchors });
       }
     }
   }, [handleNodesChange, onNodesChange, nodes, diagramNodes, anchors, data, onDataChange, lifelines, setNodes]);

@@ -68,15 +68,18 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Build a dependency graph to determine node order
   const nodeOrder = calculateNodeSequence(nodes, anchors);
 
-  // Create anchor nodes
+  // Create anchor nodes - positioned at the same Y as their connected node
   const anchorNodes: Node[] = anchors.map(anchor => {
     const xPos = lifelineXPositions.get(anchor.lifelineId) || 0;
-    const yPos = anchor.yPosition;
+    
+    // Find the connected node to get its Y position
+    const connectedNode = nodes.find(n => n.id === anchor.connectedNodeId);
+    const connectedNodeYPos = connectedNode?.position?.y || anchor.yPosition;
     
     return {
       id: anchor.id,
       type: 'anchorNode',
-      position: { x: xPos - 8, y: yPos }, // Center the 16px anchor
+      position: { x: xPos - 8, y: connectedNodeYPos - 8 }, // Center the 16px anchor on node center
       data: {
         lifelineId: anchor.lifelineId,
         connectedNodeId: anchor.connectedNodeId,
@@ -103,14 +106,17 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     // Find the sequence order of this node
     const sequenceIndex = nodeOrder.indexOf(node.id);
     
-    // Use anchor positions for Y coordinate (average of both anchors)
-    let yPos = LIFELINE_HEADER_HEIGHT + 40 + sequenceIndex * NODE_VERTICAL_SPACING;
-    if (sourceAnchor && targetAnchor) {
-      yPos = (sourceAnchor.yPosition + targetAnchor.yPosition) / 2;
-    } else if (sourceAnchor) {
-      yPos = sourceAnchor.yPosition;
-    } else if (targetAnchor) {
-      yPos = targetAnchor.yPosition;
+    // Use node's stored position if available, otherwise calculate from anchors or sequence
+    let yPos = node.position?.y || (LIFELINE_HEADER_HEIGHT + 40 + sequenceIndex * NODE_VERTICAL_SPACING);
+    if (!node.position?.y) {
+      // Only use anchor positions if node doesn't have a stored position
+      if (sourceAnchor && targetAnchor) {
+        yPos = (sourceAnchor.yPosition + targetAnchor.yPosition) / 2;
+      } else if (sourceAnchor) {
+        yPos = sourceAnchor.yPosition;
+      } else if (targetAnchor) {
+        yPos = targetAnchor.yPosition;
+      }
     }
 
     // Determine horizontal positioning based on connected anchors
