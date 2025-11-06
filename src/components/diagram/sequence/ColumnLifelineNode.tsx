@@ -1,16 +1,16 @@
 import React from 'react';
-import { Column } from '@/types/diagram';
+import { Lifeline } from '@/types/diagram';
 import { DiagramStyleTheme } from '@/types/diagramStyles';
 
 interface ColumnLifelineNodeProps {
   data: {
-    column: Column;
+    column: Lifeline; // Using 'column' property name for backward compatibility
     styles?: DiagramStyleTheme;
   };
 }
 
 export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) => {
-  const { column, styles } = data;
+  const { column: lifeline, styles } = data;
 
   return (
     <div
@@ -31,14 +31,14 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
         }}
       >
         <div className="font-semibold text-sm">
-          {column.name}
+          {lifeline.name}
         </div>
-        {column.description && (
+        {lifeline.description && (
           <div 
             className="text-xs mt-1 line-clamp-1"
             style={{ color: styles?.colors.edgeLabel || '#475569' }}
           >
-            {column.description}
+            {lifeline.description}
           </div>
         )}
       </div>

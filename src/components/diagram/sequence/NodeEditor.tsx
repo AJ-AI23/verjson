@@ -11,8 +11,7 @@ import { X } from 'lucide-react';
 
 interface NodeEditorProps {
   node: DiagramNode | null;
-  swimlanes: Array<{ id: string; name: string }>;
-  columns: Array<{ id: string; name: string }>;
+  lifelines: Array<{ id: string; name: string }>;
   isOpen: boolean;
   onClose: () => void;
   onUpdate: (nodeId: string, updates: Partial<DiagramNode>) => void;
@@ -21,8 +20,7 @@ interface NodeEditorProps {
 
 export const NodeEditor: React.FC<NodeEditorProps> = ({
   node,
-  swimlanes,
-  columns,
+  lifelines,
   isOpen,
   onClose,
   onUpdate,
@@ -141,37 +139,18 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="node-swimlane">Swimlane</Label>
+            <Label htmlFor="node-lifeline">Lifeline</Label>
             <Select
-              value={node.swimlaneId || ''}
-              onValueChange={(value) => handleUpdate('swimlaneId', value)}
+              value={node.lifelineId || ''}
+              onValueChange={(value) => handleUpdate('lifelineId', value)}
             >
-              <SelectTrigger id="node-swimlane">
-                <SelectValue placeholder="Select swimlane" />
+              <SelectTrigger id="node-lifeline">
+                <SelectValue placeholder="Select lifeline" />
               </SelectTrigger>
               <SelectContent>
-                {swimlanes.map((swimlane) => (
-                  <SelectItem key={swimlane.id} value={swimlane.id}>
-                    {swimlane.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="node-column">Column</Label>
-            <Select
-              value={node.columnId || ''}
-              onValueChange={(value) => handleUpdate('columnId', value)}
-            >
-              <SelectTrigger id="node-column">
-                <SelectValue placeholder="Select column" />
-              </SelectTrigger>
-              <SelectContent>
-                {columns.map((column) => (
-                  <SelectItem key={column.id} value={column.id}>
-                    {column.name}
+                {lifelines.map((lifeline) => (
+                  <SelectItem key={lifeline.id} value={lifeline.id}>
+                    {lifeline.name}
                   </SelectItem>
                 ))}
               </SelectContent>

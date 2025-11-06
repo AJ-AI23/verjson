@@ -1,16 +1,13 @@
 import { Node, Edge } from '@xyflow/react';
-import { DiagramNode, DiagramEdge, Swimlane, Column } from '@/types/diagram';
+import { DiagramNode, DiagramEdge, Lifeline } from '@/types/diagram';
 import { DiagramStyleTheme } from '@/types/diagramStyles';
 import { getNodeTypeConfig } from './sequenceNodeTypes';
 
 interface LayoutOptions {
-  swimlanes: Swimlane[];
-  columns: Column[];
+  lifelines: Lifeline[];
   nodes: DiagramNode[];
   edges: DiagramEdge[];
   horizontalSpacing?: number;
-  verticalSpacing?: number;
-  swimlaneHeight?: number;
   styles?: DiagramStyleTheme;
 }
 
@@ -19,41 +16,41 @@ interface LayoutResult {
   edges: Edge[];
 }
 
-const COLUMN_WIDTH = 300;
-const COLUMN_HEADER_HEIGHT = 100;
+const LIFELINE_WIDTH = 300;
+const LIFELINE_HEADER_HEIGHT = 100;
 const NODE_VERTICAL_SPACING = 120;
 const NODE_HORIZONTAL_PADDING = 150;
 
 export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult => {
   const {
-    columns,
+    lifelines,
     nodes,
     edges,
     horizontalSpacing = 100,
     styles
   } = options;
 
-  // Sort columns by order
-  const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
+  // Sort lifelines by order
+  const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
 
-  // Create a map of column positions and indices
-  const columnPositions = new Map<string, number>();
-  const columnXPositions = new Map<string, number>();
-  sortedColumns.forEach((column, index) => {
-    columnPositions.set(column.id, index);
-    const xPos = index * (COLUMN_WIDTH + horizontalSpacing) + NODE_HORIZONTAL_PADDING;
-    columnXPositions.set(column.id, xPos);
+  // Create a map of lifeline positions and indices
+  const lifelinePositions = new Map<string, number>();
+  const lifelineXPositions = new Map<string, number>();
+  sortedLifelines.forEach((lifeline, index) => {
+    lifelinePositions.set(lifeline.id, index);
+    const xPos = index * (LIFELINE_WIDTH + horizontalSpacing) + NODE_HORIZONTAL_PADDING;
+    lifelineXPositions.set(lifeline.id, xPos);
   });
 
-  // Create lifeline nodes for each column
-  const lifelineNodes: Node[] = sortedColumns.map((column, index) => {
-    const xPos = index * (COLUMN_WIDTH + horizontalSpacing) + NODE_HORIZONTAL_PADDING;
+  // Create lifeline nodes for each lifeline
+  const lifelineNodes: Node[] = sortedLifelines.map((lifeline, index) => {
+    const xPos = index * (LIFELINE_WIDTH + horizontalSpacing) + NODE_HORIZONTAL_PADDING;
     return {
-      id: `lifeline-${column.id}`,
+      id: `lifeline-${lifeline.id}`,
       type: 'columnLifeline',
       position: { x: xPos, y: 0 },
       data: {
-        column,
+        column: lifeline, // Keep as 'column' for ColumnLifelineNode component compatibility
         styles
       },
       draggable: false,
@@ -62,16 +59,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     };
   });
 
-  // Create a map of node to column
-  const nodeToColumn = new Map<string, string>();
-  nodes.forEach(node => {
-    if (node.columnId) {
-      nodeToColumn.set(node.id, node.columnId);
-    }
-  });
-
   // Track vertical position for layout
-  let currentY = COLUMN_HEADER_HEIGHT + 40;
+  let currentY = LIFELINE_HEADER_HEIGHT + 40;
 
   // Calculate positions for each node based on connected edges
   const layoutNodes: Node[] = nodes.map(node => {
@@ -94,8 +83,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     // Find edges connected to this node
     const connectedEdges = edges.filter(e => e.source === node.id || e.target === node.id);
     
-    let startColumnId = node.columnId || '';
-    let endColumnId = node.columnId || '';
+    let startLifelineId = node.lifelineId || '';
+    let endLifelineId = node.lifelineId || '';
     
     // Determine span based on connected edges
     if (connectedEdges.length > 0) {
@@ -103,14 +92,14 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const sourceNode = nodes.find(n => n.id === edge.source);
       const targetNode = nodes.find(n => n.id === edge.target);
       
-      if (sourceNode?.columnId && targetNode?.columnId) {
-        startColumnId = sourceNode.columnId;
-        endColumnId = targetNode.columnId;
+      if (sourceNode?.lifelineId && targetNode?.lifelineId) {
+        startLifelineId = sourceNode.lifelineId;
+        endLifelineId = targetNode.lifelineId;
       }
     }
 
-    const startX = columnXPositions.get(startColumnId) || 0;
-    const endX = columnXPositions.get(endColumnId) || startX;
+    const startX = lifelineXPositions.get(startLifelineId) || 0;
+    const endX = lifelineXPositions.get(endLifelineId) || startX;
     
     // Position node between the two columns
     const x = Math.min(startX, endX);
@@ -188,11 +177,11 @@ export const getEdgeStyle = (type: string) => {
   }
 };
 
-export const calculateColumnLayout = (columns: Column[], horizontalSpacing: number = 100) => {
-  const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
+export const calculateLifelineLayout = (lifelines: Lifeline[], horizontalSpacing: number = 100) => {
+  const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
 
-  return sortedColumns.map((column, index) => ({
-    ...column,
-    x: index * (COLUMN_WIDTH + horizontalSpacing) + NODE_HORIZONTAL_PADDING
+  return sortedLifelines.map((lifeline, index) => ({
+    ...lifeline,
+    x: index * (LIFELINE_WIDTH + horizontalSpacing) + NODE_HORIZONTAL_PADDING
   }));
 };

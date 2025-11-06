@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useDocuments } from '@/hooks/useDocuments';
-import { DiagramNode, Swimlane, Column } from '@/types/diagram';
+import { DiagramNode, Lifeline } from '@/types/diagram';
 import { getMethodColor } from '@/lib/diagram/sequenceNodeTypes';
 import { FileJson, Search, Upload } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -16,8 +16,7 @@ interface OpenApiImportDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onImport: (nodes: DiagramNode[]) => void;
-  swimlanes: Swimlane[];
-  columns: Column[];
+  lifelines: Lifeline[];
   currentWorkspaceId?: string;
 }
 
@@ -34,15 +33,13 @@ export const OpenApiImportDialog: React.FC<OpenApiImportDialogProps> = ({
   isOpen,
   onClose,
   onImport,
-  swimlanes,
-  columns,
+  lifelines,
   currentWorkspaceId
 }) => {
   const { documents } = useDocuments(currentWorkspaceId);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string>('');
   const [selectedEndpoints, setSelectedEndpoints] = useState<Set<string>>(new Set());
-  const [targetSwimlaneId, setTargetSwimlaneId] = useState<string>(swimlanes[0]?.id || '');
-  const [targetColumnId, setTargetColumnId] = useState<string>(columns[0]?.id || '');
+  const [targetLifelineId, setTargetLifelineId] = useState<string>(lifelines[0]?.id || '');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filter OpenAPI documents
@@ -117,7 +114,7 @@ export const OpenApiImportDialog: React.FC<OpenApiImportDialogProps> = ({
   };
 
   const handleImport = () => {
-    if (selectedEndpoints.size === 0 || !targetSwimlaneId || !targetColumnId) return;
+    if (selectedEndpoints.size === 0 || !targetLifelineId) return;
 
     const nodesToImport: DiagramNode[] = [];
     
@@ -128,8 +125,7 @@ export const OpenApiImportDialog: React.FC<OpenApiImportDialogProps> = ({
           id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           type: 'endpoint',
           label: endpoint.summary || `${endpoint.method} ${endpoint.path}`,
-          swimlaneId: targetSwimlaneId,
-          columnId: targetColumnId,
+          lifelineId: targetLifelineId,
           data: {
             method: endpoint.method,
             path: endpoint.path,
@@ -192,38 +188,20 @@ export const OpenApiImportDialog: React.FC<OpenApiImportDialogProps> = ({
           {selectedDocumentId && (
             <>
               {/* Target Position */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Target Swimlane</Label>
-                  <Select value={targetSwimlaneId} onValueChange={setTargetSwimlaneId}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {swimlanes.map(swimlane => (
-                        <SelectItem key={swimlane.id} value={swimlane.id}>
-                          {swimlane.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Target Column</Label>
-                  <Select value={targetColumnId} onValueChange={setTargetColumnId}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {columns.map(column => (
-                        <SelectItem key={column.id} value={column.id}>
-                          {column.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2">
+                <Label>Target Lifeline</Label>
+                <Select value={targetLifelineId} onValueChange={setTargetLifelineId}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {lifelines.map(lifeline => (
+                      <SelectItem key={lifeline.id} value={lifeline.id}>
+                        {lifeline.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Search */}
@@ -315,7 +293,7 @@ export const OpenApiImportDialog: React.FC<OpenApiImportDialogProps> = ({
             </Button>
             <Button
               onClick={handleImport}
-              disabled={selectedEndpoints.size === 0 || !targetSwimlaneId || !targetColumnId}
+              disabled={selectedEndpoints.size === 0 || !targetLifelineId}
             >
               Import {selectedEndpoints.size > 0 && `(${selectedEndpoints.size})`}
             </Button>

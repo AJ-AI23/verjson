@@ -69,7 +69,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   isFullscreen = false,
   onToggleFullscreen
 }) => {
-  const { swimlanes, columns, nodes: diagramNodes, edges: diagramEdges } = data;
+  const { lifelines, nodes: diagramNodes, edges: diagramEdges } = data;
   
   const [selectedNode, setSelectedNode] = useState<DiagramNode | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<DiagramEdge | null>(null);
@@ -81,13 +81,12 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   // Calculate layout
   const { nodes: layoutNodes, edges: layoutEdges } = useMemo(() => {
     return calculateSequenceLayout({
-      swimlanes,
-      columns,
+      lifelines,
       nodes: diagramNodes,
       edges: diagramEdges,
       styles: activeTheme
     });
-  }, [swimlanes, columns, diagramNodes, diagramEdges, activeTheme]);
+  }, [lifelines, diagramNodes, diagramEdges, activeTheme]);
 
   const [nodes, setNodes, handleNodesChange] = useNodesState(layoutNodes);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
@@ -183,20 +182,19 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   }, [diagramEdges, data, onDataChange]);
 
   const handleAddNode = useCallback((type: DiagramNodeType) => {
-    if (!onDataChange || swimlanes.length === 0 || columns.length === 0) return;
+    if (!onDataChange || lifelines.length === 0) return;
     
     const newNode: DiagramNode = {
       id: `node-${Date.now()}`,
       type,
       label: `New ${type}`,
-      swimlaneId: swimlanes[0].id,
-      columnId: columns[0].id,
+      lifelineId: lifelines[0].id,
       position: { x: 100, y: 100 }
     };
     
     const updatedNodes = [...diagramNodes, newNode];
     onDataChange({ ...data, nodes: updatedNodes });
-  }, [diagramNodes, swimlanes, columns, data, onDataChange]);
+  }, [diagramNodes, lifelines, data, onDataChange]);
 
   const handleImportFromOpenApi = useCallback((nodes: DiagramNode[]) => {
     if (!onDataChange) return;
@@ -255,8 +253,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
 
       <NodeEditor
         node={selectedNode}
-        swimlanes={swimlanes}
-        columns={columns}
+        lifelines={lifelines}
         isOpen={isNodeEditorOpen}
         onClose={() => {
           setIsNodeEditorOpen(false);
@@ -281,8 +278,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         isOpen={isOpenApiImportOpen}
         onClose={onOpenApiImportClose || (() => {})}
         onImport={handleImportFromOpenApi}
-        swimlanes={swimlanes}
-        columns={columns}
+        lifelines={lifelines}
         currentWorkspaceId={workspaceId}
       />
 

@@ -11,119 +11,95 @@ export const defaultDiagramSchema: DiagramDocument = {
     modified: new Date().toISOString()
   },
   data: {
-    swimlanes: [
+    lifelines: [
       {
-        id: 'swimlane-1',
-        name: 'Client',
-        color: '#3b82f6',
+        id: 'lifeline-1',
+        name: 'User',
         order: 0,
-        description: 'Client application or user interface'
+        description: 'Client application or user interface',
+        color: '#3b82f6'
       },
       {
-        id: 'swimlane-2',
-        name: 'API Gateway',
-        color: '#10b981',
+        id: 'lifeline-2',
+        name: 'Web Application',
         order: 1,
-        description: 'API Gateway layer'
+        description: 'Frontend web application',
+        color: '#10b981'
       },
       {
-        id: 'swimlane-3',
-        name: 'Backend Service',
-        color: '#8b5cf6',
+        id: 'lifeline-3',
+        name: 'Authorization Server',
         order: 2,
-        description: 'Backend business logic'
-      }
-    ],
-    columns: [
-      {
-        id: 'column-1',
-        name: 'Request Phase',
-        order: 0,
-        width: 300,
-        description: 'Initial request handling'
+        description: 'OAuth2 authorization service',
+        color: '#8b5cf6'
       },
       {
-        id: 'column-2',
-        name: 'Processing Phase',
-        order: 1,
-        width: 300,
-        description: 'Data processing and business logic'
-      },
-      {
-        id: 'column-3',
-        name: 'Response Phase',
-        order: 2,
-        width: 300,
-        description: 'Response generation and delivery'
+        id: 'lifeline-4',
+        name: 'Resource Server',
+        order: 3,
+        description: 'Backend API service',
+        color: '#f59e0b'
       }
     ],
     nodes: [
       {
         id: 'node-1',
         type: 'process',
-        label: 'User Login Request',
-        swimlaneId: 'swimlane-1',
-        columnId: 'column-1',
-        position: { x: 100, y: 100 },
+        label: 'Click login link',
+        lifelineId: 'lifeline-1',
+        position: { x: 100, y: 140 },
         data: {
-          description: 'User initiates login with credentials'
+          description: 'User initiates login'
         }
       },
       {
         id: 'node-2',
-        type: 'endpoint',
-        label: 'POST /auth/login',
-        swimlaneId: 'swimlane-2',
-        columnId: 'column-1',
-        position: { x: 100, y: 200 },
+        type: 'process',
+        label: 'Authorization Code Request to /authorize',
+        lifelineId: 'lifeline-2',
+        position: { x: 100, y: 280 },
         data: {
-          method: 'POST',
-          path: '/auth/login',
-          description: 'Authentication endpoint'
+          description: 'Request authorization code'
         }
       },
       {
         id: 'node-3',
         type: 'process',
-        label: 'Validate Credentials',
-        swimlaneId: 'swimlane-3',
-        columnId: 'column-2',
-        position: { x: 100, y: 300 },
+        label: 'Redirect to login/authorization prompt',
+        lifelineId: 'lifeline-3',
+        position: { x: 100, y: 420 },
         data: {
-          description: 'Check username and password against database'
+          description: 'Show login screen'
         }
       },
       {
         id: 'node-4',
-        type: 'decision',
-        label: 'Valid Credentials?',
-        swimlaneId: 'swimlane-3',
-        columnId: 'column-2',
-        position: { x: 100, y: 400 },
+        type: 'process',
+        label: 'Authenticate and consent',
+        lifelineId: 'lifeline-1',
+        position: { x: 100, y: 560 },
         data: {
-          description: 'Decision point for authentication'
+          description: 'User provides credentials'
         }
       },
       {
         id: 'node-5',
         type: 'process',
-        label: 'Generate Token',
-        swimlaneId: 'swimlane-3',
-        columnId: 'column-3',
-        position: { x: 100, y: 500 },
+        label: 'Authorization Code',
+        lifelineId: 'lifeline-2',
+        position: { x: 100, y: 700 },
         data: {
-          description: 'Create JWT token for authenticated session'
+          description: 'Return authorization code'
         }
       },
       {
         id: 'node-6',
         type: 'process',
-        label: 'Return Success',
-        swimlaneId: 'swimlane-1',
-        columnId: 'column-3',
-        position: { x: 100, y: 600 },
+        label: 'Authorization Code + Client ID + Client Secret to /oauth/token endpoint',
+        lifelineId: 'lifeline-3',
+        position: { x: 100, y: 840 },
         data: {
-          description: 'Return authentication token to client'
+          description: 'Exchange code for token'
         }
       }
     ],
@@ -132,35 +108,31 @@ export const defaultDiagramSchema: DiagramDocument = {
         id: 'edge-1',
         source: 'node-1',
         target: 'node-2',
-        label: 'Submit credentials',
         type: 'sync'
       },
       {
         id: 'edge-2',
         source: 'node-2',
         target: 'node-3',
-        label: 'Forward request',
         type: 'sync'
       },
       {
         id: 'edge-3',
         source: 'node-3',
         target: 'node-4',
-        type: 'default'
+        type: 'return'
       },
       {
         id: 'edge-4',
         source: 'node-4',
         target: 'node-5',
-        label: 'Yes',
-        type: 'default'
+        type: 'sync'
       },
       {
         id: 'edge-5',
         source: 'node-5',
         target: 'node-6',
-        label: 'Token + 200 OK',
-        type: 'return'
+        type: 'sync'
       }
     ]
   },

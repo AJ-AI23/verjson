@@ -15,8 +15,7 @@ export interface DiagramDocument {
 }
 
 export interface SequenceDiagramData {
-  swimlanes: Swimlane[];
-  columns: Column[];
+  lifelines: Lifeline[];
   nodes: DiagramNode[];
   edges: DiagramEdge[];
 }
@@ -26,28 +25,20 @@ export interface FlowchartData {
   edges: DiagramEdge[];
 }
 
-export interface Swimlane {
-  id: string;
-  name: string;
-  color?: string;
-  order: number;
-  description?: string;
-}
-
-export interface Column {
+export interface Lifeline {
   id: string;
   name: string;
   order: number;
   width?: number;
   description?: string;
+  color?: string;
 }
 
 export interface DiagramNode {
   id: string;
   type: 'endpoint' | 'process' | 'decision' | 'data' | 'custom';
   label: string;
-  swimlaneId?: string;
-  columnId?: string;
+  lifelineId?: string;
   position?: { x: number; y: number };
   data?: {
     method?: string;
