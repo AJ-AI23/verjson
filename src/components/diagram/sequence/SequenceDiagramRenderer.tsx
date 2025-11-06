@@ -218,7 +218,15 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
             // Update both anchor positions to be at node center
             const anchorData = n.data as any;
             if (n.type === 'anchorNode' && anchorData?.connectedNodeId === connectedNode.id) {
-              return { ...n, position: { ...n.position, y: nodeCenterY - 8 } };
+              // For the dragged anchor, use snappedX; for the other anchor, keep its X position
+              const isTheDraggedAnchor = n.id === moveChange.id;
+              return { 
+                ...n, 
+                position: { 
+                  x: isTheDraggedAnchor ? snappedX : n.position.x, 
+                  y: nodeCenterY - 8 
+                } 
+              };
             }
             // Update the node position (horizontal only)
             if (n.id === connectedNode.id) {
