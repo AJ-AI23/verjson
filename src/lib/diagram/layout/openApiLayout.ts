@@ -690,33 +690,65 @@ function processMethodDetails(
       );
     
     if (responseEntries.length > 0) {
+      // Always create a consolidated responses box first
+      const allResponses: Record<string, any> = {};
+      const unexpandedResponses: Record<string, any> = {};
+      
+      responseEntries.forEach(([statusCode, responseData]) => {
+        allResponses[statusCode] = responseData;
+      });
+      
       if (responsesExpanded) {
-        // RESPONSES EXPANDED: Show individual boxes for each response AND consolidated box for unexpanded ones
+        // RESPONSES EXPANDED: Check which individual responses are expanded
         console.log(`🔥 [OPENAPI LAYOUT] Responses expanded - checking for individual expansions`);
         
-        const unexpandedResponses: Record<string, any> = {};
-        let hasExpandedResponses = false;
+        responseEntries.forEach(([statusCode, responseData]) => {
+          const individualResponsePath = `${responsesPath}.${statusCode}`;
+          const responseExpanded = collapsedPaths[individualResponsePath] === false;
+          
+          if (!responseExpanded) {
+            // Add to unexpanded responses
+            unexpandedResponses[statusCode] = responseData;
+          }
+        });
         
+        // Create consolidated box showing only unexpanded responses (or all if none expanded)
+        const responsesToShow = Object.keys(unexpandedResponses).length > 0 ? unexpandedResponses : allResponses;
+        const consolidatedResponseNode = createConsolidatedResponseNode(
+          responsesToShow,
+          rightColumnX,
+          yOffset
+        );
+        
+        const responseEdge = createEdge(methodNode.id, consolidatedResponseNode.id, undefined, false, {}, 'default');
+        
+        result.nodes.push(consolidatedResponseNode);
+        result.edges.push(responseEdge);
+        
+        console.log(`🔥 [OPENAPI LAYOUT] Created consolidated response node`);
+        
+        // Now create individual response boxes as children of the consolidated box
+        let individualYOffset = yOffset + 150;
         responseEntries.forEach(([statusCode, responseData]: [string, any], responseIndex) => {
           const individualResponsePath = `${responsesPath}.${statusCode}`;
           const responseExpanded = collapsedPaths[individualResponsePath] === false;
           
           if (responseExpanded) {
-            // Create individual response box
-            hasExpandedResponses = true;
+            // Create individual response box connected to consolidated box
             const responseNode = createResponseNode(
               statusCode,
               responseData,
               rightColumnX + (responseIndex * 150),
-              yOffset
+              individualYOffset
             );
             
-            const responseEdge = createEdge(methodNode.id, responseNode.id, undefined, false, {}, 'default');
+            // Connect to consolidated responses box, not method node
+            const responseEdge = createEdge(consolidatedResponseNode.id, responseNode.id, undefined, false, {}, 'default');
             
             result.nodes.push(responseNode);
             result.edges.push(responseEdge);
             
-            console.log(`🔥 [OPENAPI LAYOUT] Created individual response node for ${statusCode}`);
+            console.log(`🔥 [OPENAPI LAYOUT] Created individual response node for ${statusCode} as child of consolidated box`);
             
             // Check if the schema property is expanded for this response
             const schemaPath = `${individualResponsePath}.content.application/json.schema`;
@@ -731,7 +763,7 @@ function processMethodDetails(
                 responseSchema,
                 [],
                 rightColumnX + 200 + (responseIndex * 150),
-                yOffset,
+                individualYOffset,
                 false
               );
               
@@ -745,46 +777,21 @@ function processMethodDetails(
               
               console.log(`🔥 [OPENAPI LAYOUT] Created schema node for response ${statusCode}`);
             }
-          } else {
-            // Add to unexpanded responses
-            unexpandedResponses[statusCode] = responseData;
           }
         });
         
-        // Create consolidated box for unexpanded responses if any exist
-        if (Object.keys(unexpandedResponses).length > 0) {
-          const consolidatedYOffset = hasExpandedResponses ? yOffset + 150 : yOffset;
-          const consolidatedResponseNode = createConsolidatedResponseNode(
-            unexpandedResponses,
-            rightColumnX,
-            consolidatedYOffset
-          );
-          
-          const responseEdge = createEdge(methodNode.id, consolidatedResponseNode.id, undefined, false, {}, 'default');
-          
-          result.nodes.push(consolidatedResponseNode);
-          result.edges.push(responseEdge);
-          
-          console.log(`🔥 [OPENAPI LAYOUT] Created consolidated response node for ${Object.keys(unexpandedResponses).length} unexpanded responses`);
-          
-          // For consolidated view, check if any response has references and create dotted edges
-          Object.entries(unexpandedResponses).forEach(([statusCode, responseData]: [string, any]) => {
-            const responseSchema = responseData.content['application/json'].schema;
-            if (responseSchema) {
-              handleSchemaReferences(responseSchema, consolidatedResponseNode.id, result);
-            }
-          });
-        }
+        // For consolidated view, check if any response has references and create dotted edges
+        Object.entries(responsesToShow).forEach(([statusCode, responseData]: [string, any]) => {
+          const responseSchema = responseData.content['application/json'].schema;
+          if (responseSchema) {
+            handleSchemaReferences(responseSchema, consolidatedResponseNode.id, result);
+          }
+        });
         
         yOffset += 150;
       } else {
         // RESPONSES COLLAPSED: Show single consolidated box for all responses
         console.log(`🔥 [OPENAPI LAYOUT] Creating consolidated response box for all responses`);
-        
-        const allResponses: Record<string, any> = {};
-        responseEntries.forEach(([statusCode, responseData]) => {
-          allResponses[statusCode] = responseData;
-        });
         
         const consolidatedResponseNode = createConsolidatedResponseNode(
           allResponses,
