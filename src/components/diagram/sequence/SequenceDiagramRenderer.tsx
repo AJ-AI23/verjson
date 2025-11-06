@@ -105,13 +105,56 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   }, [layoutNodes, setNodes]);
 
   const onNodesChangeHandler = useCallback((changes: any) => {
-    handleNodesChange(changes);
+    // Constrain sequence node movement to vertical only during drag
+    const constrainedChanges = changes.map((change: any) => {
+      if (change.type === 'position' && change.dragging) {
+        const node = nodes.find(n => n.id === change.id);
+        if (node?.type === 'sequenceNode') {
+          // Keep original X position, only allow Y to change
+          return {
+            ...change,
+            position: {
+              x: node.position.x,
+              y: change.position?.y || node.position.y
+            }
+          };
+        }
+      }
+      return change;
+    });
+
+    handleNodesChange(constrainedChanges);
+    
+    // Update anchors during drag
+    const dragChange = constrainedChanges.find((c: any) => c.type === 'position' && c.dragging);
+    if (dragChange) {
+      const draggedNode = nodes.find(n => n.id === dragChange.id);
+      if (draggedNode?.type === 'sequenceNode') {
+        const diagramNode = diagramNodes.find(n => n.id === dragChange.id);
+        const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
+        const nodeHeight = nodeConfig?.defaultHeight || 70;
+        const newY = dragChange.position.y;
+        const nodeCenterY = newY + (nodeHeight / 2);
+        
+        // Update anchor positions during drag
+        setNodes(currentNodes =>
+          currentNodes.map(n => {
+            const anchorData = n.data as any;
+            if (n.type === 'anchorNode' && anchorData?.connectedNodeId === dragChange.id) {
+              return { ...n, position: { x: n.position.x, y: nodeCenterY - 8 } };
+            }
+            return n;
+          })
+        );
+      }
+    }
+    
     if (onNodesChange) {
       onNodesChange(nodes);
     }
     
     // Sync position changes back to data
-    const moveChange = changes.find((c: any) => c.type === 'position' && c.position && !c.dragging);
+    const moveChange = constrainedChanges.find((c: any) => c.type === 'position' && c.position && !c.dragging);
     if (moveChange && onDataChange) {
       // Check if this is an anchor node
       const movedNode = nodes.find(n => n.id === moveChange.id);
@@ -327,9 +370,9 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         const snappedY = Math.round(moveChange.position.y / GRID_SIZE) * GRID_SIZE;
         const constrainedY = Math.max(MIN_Y_POSITION, snappedY);
         
-        // Calculate the correct horizontal position based on anchors
+        // Calculate the correct horizontal position based on anchors (keep original X)
         const nodeAnchors = movedDiagramNode?.anchors;
-        let snappedX = moveChange.position.x;
+        let originalX = movedDiagramNode?.position?.x || moveChange.position.x;
         
         if (nodeAnchors && nodeAnchors.length === 2) {
           const MARGIN = 40; // Margin from lifeline for edges
@@ -353,10 +396,10 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
             const nodeWidth = Math.abs(rightX - leftX) - (MARGIN * 2);
             
             if (nodeWidth >= 180) {
-              snappedX = leftX + MARGIN;
+              originalX = leftX + MARGIN;
             } else {
               // Center if too narrow
-              snappedX = (leftX + rightX) / 2 - 90;
+              originalX = (leftX + rightX) / 2 - 90;
             }
           }
         }
@@ -373,7 +416,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
             
             return { 
               ...n, 
-              position: { x: snappedX, y: constrainedY },
+              position: { x: originalX, y: constrainedY },
               anchors: updatedAnchors as [typeof updatedAnchors[0], typeof updatedAnchors[1]]
             };
           }
@@ -385,7 +428,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
           currentNodes.map(n => {
             const anchorData = n.data as any;
             if (n.id === moveChange.id) {
-              return { ...n, position: { x: snappedX, y: constrainedY } };
+              return { ...n, position: { x: originalX, y: constrainedY } };
             }
             if (n.type === 'anchorNode' && anchorData?.connectedNodeId === moveChange.id) {
               return { ...n, position: { ...n.position, y: nodeCenterY - 8 } };
