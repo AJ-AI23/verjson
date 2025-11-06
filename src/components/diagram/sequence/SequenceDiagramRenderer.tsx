@@ -111,7 +111,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
     }
     
     // Sync position changes back to data
-    const moveChange = changes.find((c: any) => c.type === 'position' && c.position);
+    const moveChange = changes.find((c: any) => c.type === 'position' && c.position && !c.dragging);
     if (moveChange && onDataChange) {
       // Check if this is an anchor node
       const movedNode = nodes.find(n => n.id === moveChange.id);
