@@ -14,12 +14,19 @@ export const DiagramSettingsDialog: React.FC<DiagramSettingsDialogProps> = ({
   open,
   onOpenChange
 }) => {
-  const { settings, updateMaxIndividualProperties, updateTruncateAncestralBoxes } = useEditorSettings();
+  const { settings, updateMaxIndividualProperties, updateMaxIndividualArrayItems, updateTruncateAncestralBoxes } = useEditorSettings();
 
   const handleMaxIndividualPropertiesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(e.target.value);
     if (!isNaN(value) && value >= 0 && value <= 250) {
       updateMaxIndividualProperties(value);
+    }
+  };
+
+  const handleMaxIndividualArrayItemsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value);
+    if (!isNaN(value) && value >= 0 && value <= 250) {
+      updateMaxIndividualArrayItems(value);
     }
   };
 
@@ -49,6 +56,25 @@ export const DiagramSettingsDialog: React.FC<DiagramSettingsDialogProps> = ({
               Maximum number of properties to show individually before grouping them. 
               When exceeded, remaining properties are grouped into a single "More Properties" box. 
               Range: 0-250, default: 5
+            </p>
+          </div>
+          
+          <div className="grid gap-2">
+            <Label htmlFor="max-individual-array-items">
+              Max Individual Array Items
+            </Label>
+            <Input
+              id="max-individual-array-items"
+              type="number"
+              min="0"
+              max="250"
+              value={settings.maxIndividualArrayItems}
+              onChange={handleMaxIndividualArrayItemsChange}
+            />
+            <p className="text-sm text-muted-foreground">
+              Maximum number of array items to show individually before grouping them. 
+              When exceeded, remaining items are grouped into a single "More Items" box. 
+              Range: 0-250, default: 4
             </p>
           </div>
           

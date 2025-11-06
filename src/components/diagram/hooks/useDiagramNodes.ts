@@ -12,12 +12,14 @@ export const useDiagramNodes = (
   collapsedPaths: CollapsedState = {},
   maxDepth: number = 1,
   maxIndividualProperties: number = 5,
+  maxIndividualArrayItems: number = 4,
   truncateAncestral: boolean = false
 ) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [prevGroupSetting, setPrevGroupSetting] = useState(groupProperties);
   const [prevMaxIndividualProperties, setPrevMaxIndividualProperties] = useState(maxIndividualProperties);
+  const [prevMaxIndividualArrayItems, setPrevMaxIndividualArrayItems] = useState(maxIndividualArrayItems);
   const [prevTruncateAncestral, setPrevTruncateAncestral] = useState(truncateAncestral);
   const [schemaKey, setSchemaKey] = useState(0);
   const { nodePositionsRef, applyStoredPositions } = useNodePositions(nodes);
@@ -104,12 +106,13 @@ export const useDiagramNodes = (
     const groupSettingChanged = prevGroupSetting !== groupProperties;
     const collapsedPathsChanged = collapsedPathsString !== JSON.stringify(collapsedPathsRef.current);
     const maxIndividualPropertiesChanged = prevMaxIndividualProperties !== maxIndividualProperties;
+    const maxIndividualArrayItemsChanged = prevMaxIndividualArrayItems !== maxIndividualArrayItems;
     const truncateAncestralChanged = prevTruncateAncestral !== truncateAncestral;
     
     // Force update on initial render to make sure root node is always shown
     const forceUpdate = isInitialRender;
     
-    if (schemaChanged || groupSettingChanged || collapsedPathsChanged || maxIndividualPropertiesChanged || truncateAncestralChanged || forceUpdate) {
+    if (schemaChanged || groupSettingChanged || collapsedPathsChanged || maxIndividualPropertiesChanged || maxIndividualArrayItemsChanged || truncateAncestralChanged || forceUpdate) {
       // Update refs with current values
       schemaStringRef.current = schemaString;
       collapsedPathsRef.current = {...collapsedPaths};
@@ -133,6 +136,7 @@ export const useDiagramNodes = (
         999, // Very high limit - effectively unlimited for practical schemas
         collapsedPaths,
         maxIndividualProperties,
+        maxIndividualArrayItems,
         truncateAncestral
       );
       
@@ -158,6 +162,11 @@ export const useDiagramNodes = (
       setPrevMaxIndividualProperties(maxIndividualProperties);
     }
     
+    // Update maxIndividualArrayItems setting when it changes
+    if (prevMaxIndividualArrayItems !== maxIndividualArrayItems) {
+      setPrevMaxIndividualArrayItems(maxIndividualArrayItems);
+    }
+    
     // Update truncateAncestral setting when it changes
     if (prevTruncateAncestral !== truncateAncestral) {
       setPrevTruncateAncestral(truncateAncestral);
@@ -175,6 +184,7 @@ export const useDiagramNodes = (
     applyStoredPositions,
     prevGroupSetting,
     maxIndividualProperties,
+    maxIndividualArrayItems,
     truncateAncestral
   ]);
 

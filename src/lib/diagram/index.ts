@@ -13,6 +13,7 @@ export const generateNodesAndEdges = (
   maxDepth: number,
   collapsedPaths: CollapsedState = {},
   maxIndividualProperties: number = 5,
+  maxIndividualArrayItems: number = 4,
   truncateAncestral: boolean = false
 ): DiagramElements => {
   const result: DiagramElements = {
@@ -85,7 +86,7 @@ export const generateNodesAndEdges = (
       console.log('🚀 Detected OpenAPI schema, using OpenAPI layout');
       console.log('🚀 About to call generateOpenApiLayout with schema keys:', Object.keys(schema));
       console.log('🚀 CollapsedPaths passed to layout:', Object.keys(collapsedPaths).length, 'paths');
-      const openApiLayout = generateOpenApiLayout(schema, maxDepth, collapsedPaths, maxIndividualProperties);
+      const openApiLayout = generateOpenApiLayout(schema, maxDepth, collapsedPaths, maxIndividualProperties, maxIndividualArrayItems);
       console.log(`🚀 OpenAPI layout generated ${openApiLayout.nodes.length} nodes and ${openApiLayout.edges.length} edges`);
       result.nodes.push(...openApiLayout.nodes);
       result.edges.push(...openApiLayout.edges);

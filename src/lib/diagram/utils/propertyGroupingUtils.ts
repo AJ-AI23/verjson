@@ -1,6 +1,7 @@
 import { DiagramElements } from '../types';
-import { createPropertyNode, createGroupedPropertiesNode } from '../nodeGenerator';
+import { createPropertyNode, createGroupedPropertiesNode, createServerNode, createTagNode } from '../nodeGenerator';
 import { createEdge } from '../edgeGenerator';
+import { Node } from '@xyflow/react';
 
 export interface PropertyGroupingOptions {
   maxIndividualProperties: number;

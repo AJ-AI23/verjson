@@ -340,6 +340,62 @@ export const createTagNode = (
   };
 };
 
+export const createGroupedServersNode = (
+  groupedServers: any[],
+  xPos: number,
+  yOffset: number,
+  parentNodeId: string
+): Node => {
+  const serverCount = groupedServers.length;
+  
+  return {
+    id: `${parentNodeId}-grouped-servers`,
+    type: 'schemaType',
+    position: { x: xPos, y: yOffset },
+    data: {
+      label: `${serverCount} More Servers`,
+      type: 'object',
+      isGroupedItems: true,
+      itemDetails: groupedServers.map((server, idx) => ({
+        url: server.url || 'No URL',
+        description: server.description || '',
+        variables: server.variables ? Object.keys(server.variables).length : 0
+      })),
+      hasCollapsibleContent: true,
+      isCollapsed: false,
+      description: `View details of ${serverCount} grouped servers`
+    }
+  };
+};
+
+export const createGroupedTagsNode = (
+  groupedTags: any[],
+  xPos: number,
+  yOffset: number,
+  parentNodeId: string
+): Node => {
+  const tagCount = groupedTags.length;
+  
+  return {
+    id: `${parentNodeId}-grouped-tags`,
+    type: 'schemaType',
+    position: { x: xPos, y: yOffset },
+    data: {
+      label: `${tagCount} More Tags`,
+      type: 'object',
+      isGroupedItems: true,
+      itemDetails: groupedTags.map((tag) => ({
+        name: tag.name || 'Unnamed',
+        description: tag.description || '',
+        hasExternalDocs: !!tag.externalDocs
+      })),
+      hasCollapsibleContent: true,
+      isCollapsed: false,
+      description: `View details of ${tagCount} grouped tags`
+    }
+  };
+};
+
 export const createComponentsNode = (
   schemasData: Record<string, any>,
   xPos: number,

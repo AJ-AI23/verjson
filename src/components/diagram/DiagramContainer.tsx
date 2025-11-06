@@ -81,6 +81,7 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     memoizedCollapsedPaths,
     localMaxDepth,
     settings.maxIndividualProperties,
+    settings.maxIndividualArrayItems,
     settings.truncateAncestralBoxes
   );
 

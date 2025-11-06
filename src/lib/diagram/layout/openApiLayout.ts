@@ -13,10 +13,13 @@ import {
   createConsolidatedResponseNode,
   createGroupedPropertiesNode,
   createServerNode,
-  createTagNode
+  createTagNode,
+  createGroupedServersNode,
+  createGroupedTagsNode
 } from '../nodeGenerator';
 import { createEdge } from '../edgeGenerator';
 import { processWithGrouping, processPropertiesWithGrouping } from '../utils/propertyGroupingUtils';
+import { processArrayItemsWithGrouping } from '../utils/arrayItemGroupingUtils';
 
 // OpenAPI 3.1 required structure properties
 const OPENAPI_REQUIRED_PROPERTIES = ['openapi', 'info', 'paths'];
@@ -26,7 +29,8 @@ export const generateOpenApiLayout = (
   schema: any, 
   maxDepth: number,
   collapsedPaths: CollapsedState = {},
-  maxIndividualProperties: number = 5
+  maxIndividualProperties: number = 5,
+  maxIndividualArrayItems: number = 4
 ): DiagramElements => {
   console.log(`🔥 [OPENAPI LAYOUT] Starting with maxDepth: ${maxDepth}, maxIndividualProperties: ${maxIndividualProperties}`);
   console.log(`🔥 [OPENAPI LAYOUT] CollapsedPaths:`, collapsedPaths);
@@ -202,7 +206,8 @@ export const generateOpenApiLayout = (
         200,
         result,
         maxDepth,
-        collapsedPaths
+        collapsedPaths,
+        maxIndividualArrayItems
       );
     }
   } else {
@@ -763,7 +768,8 @@ function processOtherOpenApiProperties(
   xSpacing: number,
   result: DiagramElements,
   maxDepth: number,
-  collapsedPaths: CollapsedState
+  collapsedPaths: CollapsedState,
+  maxIndividualArrayItems: number = 4
 ) {
   const startX = xPos - (otherProps.length * xSpacing) / 2 + xSpacing / 2;
   
@@ -781,7 +787,7 @@ function processOtherOpenApiProperties(
     if (!isPropCollapsed) {
       // Special handling for servers array when expanded
       if (propName === 'servers' && Array.isArray(propValue) && isPropExpanded) {
-        console.log(`🔥 [OPENAPI LAYOUT] Creating individual server nodes for ${propValue.length} servers`);
+        console.log(`🔥 [OPENAPI LAYOUT] Creating server nodes with grouping for ${propValue.length} servers`);
         
         // Create a container node for servers
         const serversContainerNode = createPropertyNode(
@@ -808,31 +814,26 @@ function processOtherOpenApiProperties(
         result.nodes.push(serversContainerNode);
         result.edges.push(containerEdge);
         
-        // Create individual server nodes
-        propValue.forEach((serverData: any, serverIndex: number) => {
-          const serverNode = createServerNode(
-            serverData,
-            serverIndex,
-            propX + (serverIndex - (propValue.length - 1) / 2) * 300,
-            yPos + 200
-          );
-          
-          const serverEdge = createEdge(
-            serversContainerNode.id,
-            serverNode.id,
-            undefined,
-            false,
-            {},
-            'default'
-          );
-          
-          result.nodes.push(serverNode);
-          result.edges.push(serverEdge);
-        });
+        // Use grouping for server items
+        processArrayItemsWithGrouping(
+          propValue,
+          result,
+          {
+            maxIndividualArrayItems,
+            xSpacing: 300,
+            parentNodeId: serversContainerNode.id,
+            parentPath: propPath,
+            yPosition: yPos + 200,
+            startXPosition: propX,
+            collapsedPaths
+          },
+          createServerNode,
+          createGroupedServersNode
+        );
         
-        console.log(`🔥 [OPENAPI LAYOUT] Created ${propValue.length} individual server nodes`);
+        console.log(`🔥 [OPENAPI LAYOUT] Created server nodes with grouping`);
       } else if (propName === 'tags' && Array.isArray(propValue) && isPropExpanded) {
-        console.log(`🔥 [OPENAPI LAYOUT] Creating individual tag nodes for ${propValue.length} tags`);
+        console.log(`🔥 [OPENAPI LAYOUT] Creating tag nodes with grouping for ${propValue.length} tags`);
         
         // Create a container node for tags
         const tagsContainerNode = createPropertyNode(
@@ -859,29 +860,24 @@ function processOtherOpenApiProperties(
         result.nodes.push(tagsContainerNode);
         result.edges.push(containerEdge);
         
-        // Create individual tag nodes
-        propValue.forEach((tagData: any, tagIndex: number) => {
-          const tagNode = createTagNode(
-            tagData,
-            tagIndex,
-            propX + (tagIndex - (propValue.length - 1) / 2) * 300,
-            yPos + 200
-          );
-          
-          const tagEdge = createEdge(
-            tagsContainerNode.id,
-            tagNode.id,
-            undefined,
-            false,
-            {},
-            'default'
-          );
-          
-          result.nodes.push(tagNode);
-          result.edges.push(tagEdge);
-        });
+        // Use grouping for tag items
+        processArrayItemsWithGrouping(
+          propValue,
+          result,
+          {
+            maxIndividualArrayItems,
+            xSpacing: 300,
+            parentNodeId: tagsContainerNode.id,
+            parentPath: propPath,
+            yPosition: yPos + 200,
+            startXPosition: propX,
+            collapsedPaths
+          },
+          createTagNode,
+          createGroupedTagsNode
+        );
         
-        console.log(`🔥 [OPENAPI LAYOUT] Created ${propValue.length} individual tag nodes`);
+        console.log(`🔥 [OPENAPI LAYOUT] Created tag nodes with grouping`);
       } else {
         // Default handling for other properties
         const propSchema = createOpenApiPropertySchema(propName, propValue);
