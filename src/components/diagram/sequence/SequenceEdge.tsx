@@ -12,6 +12,7 @@ export const SequenceEdge: React.FC<EdgeProps> = ({
   targetPosition,
   style = {},
   label,
+  markerEnd,
   data
 }) => {
   const styles = data?.styles as DiagramStyleTheme | undefined;
@@ -47,7 +48,7 @@ export const SequenceEdge: React.FC<EdgeProps> = ({
 
   return (
     <>
-      <BaseEdge id={id} path={edgePath} style={edgeStyle} />
+      <BaseEdge id={id} path={edgePath} style={edgeStyle} markerEnd={markerEnd} />
       {label && (
         <EdgeLabelRenderer>
           <div
