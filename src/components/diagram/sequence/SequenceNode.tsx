@@ -26,7 +26,8 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected }) =>
 
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        const height = entry.contentRect.height;
+        // Use offsetHeight to include borders and padding in the measurement
+        const height = entry.target instanceof HTMLElement ? entry.target.offsetHeight : entry.contentRect.height;
         onHeightChange(id, height);
       }
     });
