@@ -184,6 +184,7 @@ const FitViewHelper: React.FC<{
     if (!onDataChange || lifelines.length === 0) return;
     
     console.log('[AddNode] Called with:', { sourceLifelineId, yPosition });
+    console.log('[AddNode] Current nodes:', diagramNodes.map(n => ({ id: n.id, anchors: n.anchors?.length })));
     
     const nodeId = `node-${Date.now()}`;
     const sourceAnchorId = `anchor-${nodeId}-source`;
@@ -248,9 +249,15 @@ const FitViewHelper: React.FC<{
       position: { x: 0, y: nodeY }
     };
     
-    console.log('[AddNode] Created node:', newNode);
+    console.log('[AddNode] Created node:', { 
+      id: newNode.id, 
+      type: newNode.type,
+      anchors: newNode.anchors?.map(a => ({ id: a.id, type: a.anchorType, lifelineId: a.lifelineId }))
+    });
     
     const finalNodes = [...updatedNodes, newNode];
+    console.log('[AddNode] Final nodes count:', finalNodes.length);
+    console.log('[AddNode] Calling onDataChange with new node');
     onDataChange({ ...data, lifelines: updatedLifelines, nodes: finalNodes });
   }, [diagramNodes, lifelines, data, onDataChange]);
 
