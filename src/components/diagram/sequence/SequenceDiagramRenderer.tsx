@@ -1123,6 +1123,7 @@ const FitViewHelper: React.FC<{
 
       <div className="flex-1 relative">
         <ReactFlow
+          key={`sequence-diagram-${settings.sequenceDiagramHeight}`}
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChangeHandler}
