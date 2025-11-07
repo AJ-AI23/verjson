@@ -482,18 +482,19 @@ const FitViewHelper: React.FC<{
         const droppedY = dragEndChange.position.y;
         const droppedCenterY = droppedY + (nodeHeight / 2);
         
-        // Find which node position this dropped into
-        const sortedNodes = [...diagramNodes]
-          .filter(n => n.id !== dragEndChange.id)
-          .sort((a, b) => (a.position?.y || 0) - (b.position?.y || 0));
+        // Find which node position this dropped into using current visual positions
+        const otherSequenceNodes = nodes
+          .filter(n => n.type === 'sequenceNode' && n.id !== dragEndChange.id)
+          .sort((a, b) => a.position.y - b.position.y);
         
-        let targetIndex = sortedNodes.length; // Default: last position
-        for (let i = 0; i < sortedNodes.length; i++) {
-          const node = sortedNodes[i];
+        let targetIndex = otherSequenceNodes.length; // Default: last position
+        for (let i = 0; i < otherSequenceNodes.length; i++) {
+          const node = otherSequenceNodes[i];
           const nodeActualHeight = nodeHeights.get(node.id);
-          const nodeConfig = getNodeTypeConfig(node.type);
+          const nodeDiagramData = diagramNodes.find(n => n.id === node.id);
+          const nodeConfig = nodeDiagramData ? getNodeTypeConfig(nodeDiagramData.type) : null;
           const height = nodeActualHeight || nodeConfig?.defaultHeight || 70;
-          const nodeCenterY = (node.position?.y || 0) + (height / 2);
+          const nodeCenterY = node.position.y + (height / 2);
           
           if (droppedCenterY < nodeCenterY) {
             targetIndex = i;
@@ -501,7 +502,7 @@ const FitViewHelper: React.FC<{
           }
         }
         
-        // Rebuild node list with new order
+        // Rebuild node list with new order based on diagram data
         const originalIndex = diagramNodes.findIndex(n => n.id === dragEndChange.id);
         if (originalIndex !== -1) {
           const reorderedNodes = [...diagramNodes];
@@ -526,7 +527,13 @@ const FitViewHelper: React.FC<{
             };
           });
           
-          console.log('📝 [DROP] Applying position update after drop');
+          console.log('📝 [DROP] Applying position update after drop', {
+            droppedNodeId: dragEndChange.id,
+            droppedCenterY,
+            targetIndex,
+            adjustedTargetIndex,
+            originalIndex
+          });
           onDataChange({ ...data, nodes: updatedNodes });
         }
       }
