@@ -8,6 +8,7 @@ interface LayoutOptions {
   nodes: DiagramNode[];
   horizontalSpacing?: number;
   styles?: DiagramStyleTheme;
+  nodeHeights?: Map<string, number>;
 }
 
 interface LayoutResult {
@@ -25,7 +26,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     lifelines = [],
     nodes = [],
     horizontalSpacing = 100,
-    styles
+    styles,
+    nodeHeights
   } = options;
 
   // Extract all anchors from nodes
@@ -79,9 +81,10 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     );
     const connectedNodeYPos = connectedNode?.position?.y || anchor.yPosition;
     
-    // Get node height from config
+    // Get node height - use measured height if available, otherwise use default from config
+    const measuredHeight = connectedNode && nodeHeights ? nodeHeights.get(connectedNode.id) : undefined;
     const nodeConfig = connectedNode ? getNodeTypeConfig(connectedNode.type) : null;
-    const nodeHeight = nodeConfig?.defaultHeight || 70;
+    const nodeHeight = measuredHeight || nodeConfig?.defaultHeight || 70;
     
     // Position anchor at the vertical center of the node
     const anchorY = connectedNodeYPos + (nodeHeight / 2) - 8; // Center 16px anchor on node center

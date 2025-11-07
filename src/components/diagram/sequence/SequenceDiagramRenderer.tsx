@@ -258,7 +258,8 @@ const FitViewHelper: React.FC<{
     const layout = calculateSequenceLayout({
       lifelines,
       nodes: diagramNodes,
-      styles: activeTheme
+      styles: activeTheme,
+      nodeHeights
     });
     
     console.log('[SequenceRenderer] Layout calculated', {
@@ -269,7 +270,7 @@ const FitViewHelper: React.FC<{
     });
     
     return layout;
-  }, [lifelines, diagramNodes, activeTheme, isRenderMode]);
+  }, [lifelines, diagramNodes, activeTheme, isRenderMode, nodeHeights]);
 
   // Handle node height changes
   const handleNodeHeightChange = useCallback((nodeId: string, height: number) => {
