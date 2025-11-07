@@ -858,10 +858,12 @@ const FitViewHelper: React.FC<{ isRenderMode: boolean; onReady?: () => void; nod
 
   return (
     <div className="w-full h-full flex flex-col" style={{ backgroundColor: activeTheme?.colors.background }}>
-      <DiagramHeader 
-        isFullscreen={isFullscreen}
-        onToggleFullscreen={onToggleFullscreen}
-      />
+      {!isRenderMode && (
+        <DiagramHeader 
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={onToggleFullscreen}
+        />
+      )}
 
       <div className="flex-1 relative">
         <ReactFlow
@@ -886,11 +888,15 @@ const FitViewHelper: React.FC<{ isRenderMode: boolean; onReady?: () => void; nod
           }}
         >
           <Background />
-          <Controls />
-          <MiniMap
-            nodeColor={() => '#f1f5f9'}
-            className="bg-white border border-slate-200"
-          />
+          {!isRenderMode && (
+            <>
+              <Controls />
+              <MiniMap
+                nodeColor={() => '#f1f5f9'}
+                className="bg-white border border-slate-200"
+              />
+            </>
+          )}
           
           {/* Render mode helper */}
           <FitViewHelper 
@@ -901,7 +907,7 @@ const FitViewHelper: React.FC<{ isRenderMode: boolean; onReady?: () => void; nod
           />
           
           {/* Node selection toolbar */}
-          {selectedNodeIds.length > 0 && toolbarPosition && (
+          {!isRenderMode && selectedNodeIds.length > 0 && toolbarPosition && (
             <NodeToolbarWrapper
               diagramPosition={toolbarPosition}
               selectedCount={selectedNodeIds.length}
@@ -912,44 +918,48 @@ const FitViewHelper: React.FC<{ isRenderMode: boolean; onReady?: () => void; nod
         </ReactFlow>
       </div>
 
-      <NodeEditor
-        node={selectedNode}
-        lifelines={lifelines}
-        isOpen={isNodeEditorOpen}
-        onClose={() => {
-          setIsNodeEditorOpen(false);
-          setSelectedNode(null);
-        }}
-        onUpdate={handleNodeUpdate}
-        onDelete={handleNodeDelete}
-      />
+      {!isRenderMode && (
+        <>
+          <NodeEditor
+            node={selectedNode}
+            lifelines={lifelines}
+            isOpen={isNodeEditorOpen}
+            onClose={() => {
+              setIsNodeEditorOpen(false);
+              setSelectedNode(null);
+            }}
+            onUpdate={handleNodeUpdate}
+            onDelete={handleNodeDelete}
+          />
 
-      <EdgeEditor
-        edge={selectedEdge}
-        isOpen={isEdgeEditorOpen}
-        onClose={() => {
-          setIsEdgeEditorOpen(false);
-          setSelectedEdge(null);
-        }}
-        onUpdate={handleEdgeUpdate}
-        onDelete={handleEdgeDelete}
-      />
+          <EdgeEditor
+            edge={selectedEdge}
+            isOpen={isEdgeEditorOpen}
+            onClose={() => {
+              setIsEdgeEditorOpen(false);
+              setSelectedEdge(null);
+            }}
+            onUpdate={handleEdgeUpdate}
+            onDelete={handleEdgeDelete}
+          />
 
-      <OpenApiImportDialog
-        isOpen={isOpenApiImportOpen}
-        onClose={onOpenApiImportClose || (() => {})}
-        onImport={handleImportFromOpenApi}
-        lifelines={lifelines}
-        currentWorkspaceId={workspaceId}
-      />
+          <OpenApiImportDialog
+            isOpen={isOpenApiImportOpen}
+            onClose={onOpenApiImportClose || (() => {})}
+            onImport={handleImportFromOpenApi}
+            lifelines={lifelines}
+            currentWorkspaceId={workspaceId}
+          />
 
-      {styles && onStylesChange && (
-        <DiagramStylesDialog
-          isOpen={isStylesDialogOpen}
-          onClose={onStylesDialogClose || (() => {})}
-          styles={styles}
-          onStylesChange={onStylesChange}
-        />
+          {styles && onStylesChange && (
+            <DiagramStylesDialog
+              isOpen={isStylesDialogOpen}
+              onClose={onStylesDialogClose || (() => {})}
+              styles={styles}
+              onStylesChange={onStylesChange}
+            />
+          )}
+        </>
       )}
     </div>
   );
