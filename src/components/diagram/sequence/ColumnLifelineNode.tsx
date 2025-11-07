@@ -18,6 +18,7 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
   const { column: lifeline, styles, customLifelineColors, onAddNode, readOnly } = data;
   const [hoverPosition, setHoverPosition] = useState<number | null>(null);
   const lifelineRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
 
   const handleAddNode = (yPosition: number) => {
     if (onAddNode && !readOnly) {
@@ -28,16 +29,26 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!lifelineRef.current || readOnly || !onAddNode) return;
     
-    // Use offsetY which gives position relative to the element itself
-    const relativeY = e.nativeEvent.offsetY;
-    
-    // Only show button if mouse is over the lifeline area
-    if (relativeY >= 0) {
-      setHoverPosition(relativeY);
+    // Cancel any pending animation frame
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
     }
+    
+    // Use requestAnimationFrame to throttle updates
+    rafRef.current = requestAnimationFrame(() => {
+      const relativeY = e.nativeEvent.offsetY;
+      
+      // Only show button if mouse is over the lifeline area
+      if (relativeY >= 0) {
+        setHoverPosition(relativeY);
+      }
+    });
   };
 
   const handleMouseLeave = () => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+    }
     setHoverPosition(null);
   };
 
