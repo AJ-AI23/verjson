@@ -92,8 +92,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Build a dependency graph to determine node order
   const nodeOrder = calculateNodeSequence(nodes);
 
-  // Auto-align all nodes with even vertical spacing
-  const alignedNodePositions = calculateEvenSpacing(nodes, nodeOrder);
+  // Auto-align all nodes with even vertical spacing based on actual heights
+  const alignedNodePositions = calculateEvenSpacing(nodes, nodeOrder, nodeHeights);
 
   // Create anchor nodes - positioned at the same Y as their connected node's center
   const anchorNodes: Node[] = anchors.map(anchor => {
@@ -305,9 +305,9 @@ function calculateNodeSequence(nodes: DiagramNode[]): string[] {
   return nodesWithPosition.map(n => n.id);
 }
 
-// Calculate even spacing for nodes based on their sequence order
+// Calculate even spacing for nodes based on their sequence order and actual heights
 // Always recalculates positions for all nodes to maintain even spacing
-function calculateEvenSpacing(nodes: DiagramNode[], nodeOrder: string[]): Map<string, number> {
+function calculateEvenSpacing(nodes: DiagramNode[], nodeOrder: string[], nodeHeights?: Map<string, number>): Map<string, number> {
   const positions = new Map<string, number>();
   
   if (nodes.length === 0) {
@@ -315,11 +315,22 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeOrder: string[]): Map<st
   }
   
   const startY = LIFELINE_HEADER_HEIGHT + 40;
+  const SPACING_BETWEEN_NODES = 50; // Additional spacing between nodes
   
-  // Assign evenly spaced Y positions to all nodes based on sequence order
-  nodeOrder.forEach((nodeId, index) => {
-    const yPos = startY + (index * NODE_VERTICAL_SPACING);
-    positions.set(nodeId, yPos);
+  let currentY = startY;
+  
+  // Assign Y positions based on actual node heights
+  nodeOrder.forEach((nodeId) => {
+    positions.set(nodeId, currentY);
+    
+    // Get the actual height of this node
+    const node = nodes.find(n => n.id === nodeId);
+    const nodeConfig = node ? getNodeTypeConfig(node.type) : null;
+    const measuredHeight = nodeHeights?.get(nodeId);
+    const nodeHeight = measuredHeight || nodeConfig?.defaultHeight || 70;
+    
+    // Move to next position: current position + node height + spacing
+    currentY += nodeHeight + SPACING_BETWEEN_NODES;
   });
   
   return positions;
