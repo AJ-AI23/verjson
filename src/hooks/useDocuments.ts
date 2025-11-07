@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemoSession } from '@/contexts/DemoSessionContext';
 import { Document, CreateDocumentData } from '@/types/workspace';
 import { toast } from 'sonner';
 import { enhanceDocumentsWithEffectiveContent } from '@/lib/documentUtils';
 import { useSharedDocuments } from './useSharedDocuments';
+import { checkDemoSessionExpired } from '@/lib/supabaseErrorHandler';
 
 const VIRTUAL_SHARED_WORKSPACE_ID = '__shared_with_me__';
 
 export function useDocuments(workspaceId?: string) {
   const { user } = useAuth();
+  const { handleDemoExpiration } = useDemoSession();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +45,11 @@ export function useDocuments(workspaceId?: string) {
 
       if (error) {
         console.error('[useDocuments] Fetch error:', error);
+        const { isDemoExpired } = checkDemoSessionExpired(error);
+        if (isDemoExpired) {
+          handleDemoExpiration();
+          return;
+        }
         throw error;
       }
       
@@ -73,7 +81,14 @@ export function useDocuments(workspaceId?: string) {
         body: { action: 'createDocument', ...data }
       });
 
-      if (error) throw error;
+      if (error) {
+        const { isDemoExpired } = checkDemoSessionExpired(error);
+        if (isDemoExpired) {
+          handleDemoExpiration();
+          return null;
+        }
+        throw error;
+      }
       
       console.log('[useDocuments] Document created:', result.document);
       
@@ -96,7 +111,14 @@ export function useDocuments(workspaceId?: string) {
         body: { action: 'updateDocument', id, ...updates }
       });
 
-      if (error) throw error;
+      if (error) {
+        const { isDemoExpired } = checkDemoSessionExpired(error);
+        if (isDemoExpired) {
+          handleDemoExpiration();
+          return null;
+        }
+        throw error;
+      }
       
       console.log('[useDocuments] Document updated');
       await fetchDocuments(); // Refresh the list
@@ -117,7 +139,14 @@ export function useDocuments(workspaceId?: string) {
         body: { action: 'deleteDocument', id }
       });
 
-      if (error) throw error;
+      if (error) {
+        const { isDemoExpired } = checkDemoSessionExpired(error);
+        if (isDemoExpired) {
+          handleDemoExpiration();
+          return;
+        }
+        throw error;
+      }
       
       console.log('[useDocuments] Document deleted');
       await fetchDocuments(); // Refresh the list
