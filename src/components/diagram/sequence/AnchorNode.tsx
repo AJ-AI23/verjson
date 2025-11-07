@@ -20,12 +20,20 @@ export const AnchorNode: React.FC<AnchorNodeProps> = ({ data }) => {
         height: '16px',
       }}
     >
+      {/* Left handles - both source and target */}
       <Handle 
         type="target" 
         position={Position.Left}
         id="left"
         className="!opacity-0 !pointer-events-none" 
       />
+      <Handle 
+        type="source" 
+        position={Position.Left}
+        id="left"
+        className="!opacity-0 !pointer-events-none" 
+      />
+      
       <div
         className="w-full h-full rounded-full border-2 shadow-md cursor-move transition-all hover:scale-125 hover:shadow-lg"
         style={{
@@ -33,8 +41,16 @@ export const AnchorNode: React.FC<AnchorNodeProps> = ({ data }) => {
           borderColor: '#1e40af',
         }}
       />
+      
+      {/* Right handles - both source and target */}
       <Handle 
         type="source" 
+        position={Position.Right}
+        id="right"
+        className="!opacity-0 !pointer-events-none" 
+      />
+      <Handle 
+        type="target" 
         position={Position.Right}
         id="right"
         className="!opacity-0 !pointer-events-none" 
