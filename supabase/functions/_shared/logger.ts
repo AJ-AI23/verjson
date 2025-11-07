@@ -118,3 +118,30 @@ export class EdgeFunctionLogger {
     this.error(message, errorData);
   }
 }
+
+// Utility function to check if a demo session has expired
+export async function checkDemoSessionExpiration(supabaseClient: any, userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabaseClient
+      .from('demo_sessions')
+      .select('expires_at')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error checking demo session:', error);
+      return false;
+    }
+
+    // If there's a demo session record and it's expired, return true
+    if (data && new Date(data.expires_at) < new Date()) {
+      console.log(`Demo session expired for user ${userId}`);
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error('Error in checkDemoSessionExpiration:', error);
+    return false;
+  }
+}

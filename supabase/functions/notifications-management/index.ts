@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
-import { EdgeFunctionLogger } from '../_shared/logger.ts';
+import { EdgeFunctionLogger, checkDemoSessionExpiration } from '../_shared/logger.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -48,6 +48,16 @@ const handler = async (req: Request): Promise<Response> => {
     if (userError || !user) {
       logger.error('Authentication failed', userError);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Check if demo session has expired
+    const isExpired = await checkDemoSessionExpiration(supabaseClient, user.id);
+    if (isExpired) {
+      logger.warn('Demo session expired, denying access');
+      return new Response(JSON.stringify({ error: 'Demo session expired' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
