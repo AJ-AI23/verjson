@@ -4,26 +4,36 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { DiagramStyles, DiagramStyleTheme } from '@/types/diagramStyles';
-import { Palette, Sun, Moon } from 'lucide-react';
+import { DiagramNode, Lifeline } from '@/types/diagram';
+import { Palette, Sun, Moon, Box, Columns } from 'lucide-react';
 
 interface DiagramStylesDialogProps {
   isOpen: boolean;
   onClose: () => void;
   styles: DiagramStyles;
   onStylesChange: (styles: DiagramStyles) => void;
+  nodes?: DiagramNode[];
+  lifelines?: Lifeline[];
 }
 
 export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
   isOpen,
   onClose,
   styles,
-  onStylesChange
+  onStylesChange,
+  nodes = [],
+  lifelines = []
 }) => {
   console.log('🎨 DiagramStylesDialog render - isOpen:', isOpen);
   
   const [activeTab, setActiveTab] = useState<string>('light');
   const currentTheme = styles.themes[activeTab] || styles.themes.light;
+
+  // Get unique node types from the diagram
+  const nodeTypes = Array.from(new Set(nodes.map(n => n.type)));
 
   const handleColorChange = (key: keyof DiagramStyleTheme['colors'], value: string) => {
     const updatedTheme = {
@@ -43,13 +53,79 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
     });
   };
 
+  const handleNodeTypeColorChange = (
+    nodeType: string,
+    colorKey: 'background' | 'border' | 'text',
+    value: string
+  ) => {
+    const updatedTheme = {
+      ...currentTheme,
+      colors: {
+        ...currentTheme.colors,
+        nodeTypes: {
+          ...currentTheme.colors.nodeTypes,
+          [nodeType]: {
+            ...currentTheme.colors.nodeTypes[nodeType as keyof typeof currentTheme.colors.nodeTypes],
+            [colorKey]: value
+          }
+        }
+      }
+    };
+
+    onStylesChange({
+      ...styles,
+      themes: {
+        ...styles.themes,
+        [activeTab]: updatedTheme
+      }
+    });
+  };
+
+  const handleLifelineColorChange = (lifelineId: string, value: string) => {
+    const updatedLifeline = lifelines.find(l => l.id === lifelineId);
+    if (!updatedLifeline) return;
+
+    // Color is stored directly on the lifeline object, not in styles
+    // We need to trigger an update through the parent component
+    // For now, we'll use customNodeStyles as a workaround
+    onStylesChange({
+      ...styles,
+      customNodeStyles: {
+        ...styles.customNodeStyles,
+        [`lifeline-${lifelineId}`]: {
+          backgroundColor: value
+        }
+      }
+    });
+  };
+
   const handleSetActiveTab = (themeId: string) => {
     setActiveTab(themeId);
   };
 
+  const ColorInput = ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) => (
+    <div className="space-y-2">
+      <Label className="text-sm">{label}</Label>
+      <div className="flex gap-2">
+        <Input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-16 h-10 p-1 cursor-pointer"
+        />
+        <Input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="flex-1 font-mono text-xs"
+        />
+      </div>
+    </div>
+  );
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Palette className="h-5 w-5" />
@@ -57,7 +133,8 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <ScrollArea className="h-full max-h-[calc(85vh-120px)]">
+          <div className="space-y-4 pr-4">
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-2">
@@ -72,123 +149,126 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
             </TabsList>
 
             <TabsContent value={activeTab} className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Background Color</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="color"
-                      value={currentTheme.colors.background}
-                      onChange={(e) => handleColorChange('background', e.target.value)}
-                      className="w-16 h-10 p-1"
-                    />
-                    <Input
-                      type="text"
-                      value={currentTheme.colors.background}
-                      onChange={(e) => handleColorChange('background', e.target.value)}
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
+              <Accordion type="multiple" className="w-full">
+                {/* General Colors */}
+                <AccordionItem value="general">
+                  <AccordionTrigger className="text-sm font-semibold">
+                    General Colors
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-2 gap-4 p-2">
+                      <ColorInput
+                        label="Background"
+                        value={currentTheme.colors.background}
+                        onChange={(v) => handleColorChange('background', v)}
+                      />
+                      <ColorInput
+                        label="Swimlane Background"
+                        value={currentTheme.colors.swimlaneBackground}
+                        onChange={(v) => handleColorChange('swimlaneBackground', v)}
+                      />
+                      <ColorInput
+                        label="Default Node Background"
+                        value={currentTheme.colors.nodeBackground}
+                        onChange={(v) => handleColorChange('nodeBackground', v)}
+                      />
+                      <ColorInput
+                        label="Default Node Border"
+                        value={currentTheme.colors.nodeBorder}
+                        onChange={(v) => handleColorChange('nodeBorder', v)}
+                      />
+                      <ColorInput
+                        label="Default Node Text"
+                        value={currentTheme.colors.nodeText}
+                        onChange={(v) => handleColorChange('nodeText', v)}
+                      />
+                      <ColorInput
+                        label="Edge Stroke"
+                        value={currentTheme.colors.edgeStroke}
+                        onChange={(v) => handleColorChange('edgeStroke', v)}
+                      />
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
 
-                <div className="space-y-2">
-                  <Label>Swimlane Background</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="color"
-                      value={currentTheme.colors.swimlaneBackground}
-                      onChange={(e) => handleColorChange('swimlaneBackground', e.target.value)}
-                      className="w-16 h-10 p-1"
-                    />
-                    <Input
-                      type="text"
-                      value={currentTheme.colors.swimlaneBackground}
-                      onChange={(e) => handleColorChange('swimlaneBackground', e.target.value)}
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
+                {/* Node Type Colors */}
+                {nodeTypes.length > 0 && (
+                  <AccordionItem value="node-types">
+                    <AccordionTrigger className="text-sm font-semibold">
+                      <div className="flex items-center gap-2">
+                        <Box className="h-4 w-4" />
+                        Node Type Colors ({nodeTypes.length})
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-4 p-2">
+                        {nodeTypes.map((nodeType) => {
+                          const typeColors = currentTheme.colors.nodeTypes[nodeType as keyof typeof currentTheme.colors.nodeTypes];
+                          return (
+                            <div key={nodeType} className="space-y-3 pb-4 border-b last:border-b-0">
+                              <div className="font-medium text-sm capitalize">{nodeType}</div>
+                              <div className="grid grid-cols-3 gap-3">
+                                <ColorInput
+                                  label="Background"
+                                  value={typeColors?.background || currentTheme.colors.nodeBackground}
+                                  onChange={(v) => handleNodeTypeColorChange(nodeType, 'background', v)}
+                                />
+                                <ColorInput
+                                  label="Border"
+                                  value={typeColors?.border || currentTheme.colors.nodeBorder}
+                                  onChange={(v) => handleNodeTypeColorChange(nodeType, 'border', v)}
+                                />
+                                <ColorInput
+                                  label="Text"
+                                  value={typeColors?.text || currentTheme.colors.nodeText}
+                                  onChange={(v) => handleNodeTypeColorChange(nodeType, 'text', v)}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
 
-                <div className="space-y-2">
-                  <Label>Node Background</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="color"
-                      value={currentTheme.colors.nodeBackground}
-                      onChange={(e) => handleColorChange('nodeBackground', e.target.value)}
-                      className="w-16 h-10 p-1"
-                    />
-                    <Input
-                      type="text"
-                      value={currentTheme.colors.nodeBackground}
-                      onChange={(e) => handleColorChange('nodeBackground', e.target.value)}
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Node Border</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="color"
-                      value={currentTheme.colors.nodeBorder}
-                      onChange={(e) => handleColorChange('nodeBorder', e.target.value)}
-                      className="w-16 h-10 p-1"
-                    />
-                    <Input
-                      type="text"
-                      value={currentTheme.colors.nodeBorder}
-                      onChange={(e) => handleColorChange('nodeBorder', e.target.value)}
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Node Text</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="color"
-                      value={currentTheme.colors.nodeText}
-                      onChange={(e) => handleColorChange('nodeText', e.target.value)}
-                      className="w-16 h-10 p-1"
-                    />
-                    <Input
-                      type="text"
-                      value={currentTheme.colors.nodeText}
-                      onChange={(e) => handleColorChange('nodeText', e.target.value)}
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Edge Stroke</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="color"
-                      value={currentTheme.colors.edgeStroke}
-                      onChange={(e) => handleColorChange('edgeStroke', e.target.value)}
-                      className="w-16 h-10 p-1"
-                    />
-                    <Input
-                      type="text"
-                      value={currentTheme.colors.edgeStroke}
-                      onChange={(e) => handleColorChange('edgeStroke', e.target.value)}
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-              </div>
+                {/* Lifeline Colors */}
+                {lifelines.length > 0 && (
+                  <AccordionItem value="lifelines">
+                    <AccordionTrigger className="text-sm font-semibold">
+                      <div className="flex items-center gap-2">
+                        <Columns className="h-4 w-4" />
+                        Lifeline Colors ({lifelines.length})
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-3 p-2">
+                        {lifelines.map((lifeline) => {
+                          const customColor = styles.customNodeStyles?.[`lifeline-${lifeline.id}`]?.backgroundColor;
+                          return (
+                            <ColorInput
+                              key={lifeline.id}
+                              label={lifeline.name}
+                              value={customColor || lifeline.color || currentTheme.colors.swimlaneBackground}
+                              onChange={(v) => handleLifelineColorChange(lifeline.id, v)}
+                            />
+                          );
+                        })}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+              </Accordion>
             </TabsContent>
           </Tabs>
 
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={onClose}>
-              Close
-            </Button>
-          </div>
+        </div>
+        </ScrollArea>
+
+        <div className="flex justify-end gap-2 pt-4 border-t">
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

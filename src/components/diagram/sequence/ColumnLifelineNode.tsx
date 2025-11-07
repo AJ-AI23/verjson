@@ -8,13 +8,14 @@ interface ColumnLifelineNodeProps {
   data: {
     column: Lifeline; // Using 'column' property name for backward compatibility
     styles?: DiagramStyleTheme;
+    customLifelineColors?: Record<string, string>;
     onAddNode?: (lifelineId: string, yPosition: number) => void;
     readOnly?: boolean;
   };
 }
 
 export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) => {
-  const { column: lifeline, styles, onAddNode, readOnly } = data;
+  const { column: lifeline, styles, customLifelineColors, onAddNode, readOnly } = data;
   const [hoveredAnchor, setHoveredAnchor] = useState<number | null>(null);
 
   const handleAddNode = (yPosition: number) => {
@@ -22,6 +23,9 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
       onAddNode(lifeline.id, yPosition);
     }
   };
+
+  // Get custom color for this lifeline, fallback to lifeline.color, then to default
+  const lifelineColor = customLifelineColors?.[`lifeline-${lifeline.id}`] || lifeline.color || styles?.colors.swimlaneBackground || '#f8fafc';
 
   // Create anchor points every 150px along the lifeline
   const anchorPoints = Array.from({ length: 13 }, (_, i) => i * 150 + 75);
@@ -38,7 +42,7 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
       <div
         className="rounded-lg shadow-sm px-4 py-3 mb-4 text-center w-full pointer-events-auto"
         style={{
-          backgroundColor: styles?.colors.nodeBackground || '#ffffff',
+          backgroundColor: lifelineColor,
           borderWidth: '2px',
           borderColor: styles?.colors.nodeBorder || '#64748b',
           color: styles?.colors.nodeText || '#0f172a'

@@ -283,12 +283,23 @@ const FitViewHelper: React.FC<{
 
   // Attach handlers to nodes
   const nodesWithHandlers = useMemo(() => {
+    // Extract custom lifeline colors from styles
+    const customLifelineColors: Record<string, string> = {};
+    if (styles?.customNodeStyles) {
+      Object.entries(styles.customNodeStyles).forEach(([key, value]) => {
+        if (key.startsWith('lifeline-') && value.backgroundColor) {
+          customLifelineColors[key] = value.backgroundColor;
+        }
+      });
+    }
+
     return layoutNodes.map(node => {
       if (node.type === 'columnLifeline') {
         return {
           ...node,
           data: {
             ...node.data,
+            customLifelineColors,
             onAddNode: handleAddNodeOnLifeline,
             readOnly
           }
@@ -305,7 +316,7 @@ const FitViewHelper: React.FC<{
       }
       return node;
     });
-  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly]);
+  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, styles?.customNodeStyles]);
 
   const [nodes, setNodes, handleNodesChange] = useNodesState(nodesWithHandlers);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
@@ -1098,6 +1109,8 @@ const FitViewHelper: React.FC<{
               onClose={onStylesDialogClose || (() => {})}
               styles={styles}
               onStylesChange={onStylesChange}
+              nodes={diagramNodes}
+              lifelines={lifelines}
             />
           )}
         </>
