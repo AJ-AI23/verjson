@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,16 +32,43 @@ const Auth = () => {
     }
   }, []);
 
-  // Redirect if already logged in - but only after loading completes
-  // and we're certain there's a valid session
+  // Redirect if already logged in - but check session validity first
   useEffect(() => {
-    if (!loading && user) {
-      // Add a small delay to ensure auth state is fully settled
-      const timer = setTimeout(() => {
-        window.location.href = '/';
-      }, 100);
-      return () => clearTimeout(timer);
-    }
+    const checkSessionAndRedirect = async () => {
+      if (!loading && user) {
+        // Check if this is a demo session and if it has expired
+        try {
+          const { data, error } = await supabase
+            .from('demo_sessions')
+            .select('expires_at')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          if (error) {
+            console.error('[Auth] Error checking demo session:', error);
+          }
+
+          // If it's a demo session that has expired, don't redirect
+          if (data && new Date(data.expires_at) < new Date()) {
+            console.log('[Auth] Demo session expired, not redirecting');
+            // Force sign out to clear the expired session
+            await supabase.auth.signOut();
+            return;
+          }
+
+          // Session is valid, proceed with redirect
+          console.log('[Auth] Valid session found, redirecting to home');
+          const timer = setTimeout(() => {
+            window.location.href = '/';
+          }, 100);
+          return () => clearTimeout(timer);
+        } catch (error) {
+          console.error('[Auth] Error in session check:', error);
+        }
+      }
+    };
+
+    checkSessionAndRedirect();
   }, [user, loading]);
 
   const handleSignIn = async (e: React.FormEvent) => {
