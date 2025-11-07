@@ -67,7 +67,7 @@ const edgeTypes: EdgeTypes = {
 export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = ({
   data,
   styles,
-  theme = 'light',
+  theme: initialTheme = 'light',
   onNodesChange,
   onEdgesChange,
   onDataChange,
@@ -89,6 +89,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
 }) => {
   const { lifelines = [], nodes: diagramNodes } = data;
   
+  const [currentTheme, setCurrentTheme] = useState(initialTheme);
   const [selectedNode, setSelectedNode] = useState<DiagramNode | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<DiagramEdge | null>(null);
   const [isNodeEditorOpen, setIsNodeEditorOpen] = useState(false);
@@ -99,7 +100,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [nodeHeights, setNodeHeights] = useState<Map<string, number>>(new Map());
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
-  const activeTheme = styles?.themes?.[theme] || styles?.themes?.light || defaultLightTheme;
+  const activeTheme = styles?.themes?.[currentTheme] || styles?.themes?.light || defaultLightTheme;
 
 // Helper component to handle fitView in render mode
 const FitViewHelper: React.FC<{ 
@@ -1084,6 +1085,11 @@ const FitViewHelper: React.FC<{
         <DiagramHeader 
           isFullscreen={isFullscreen}
           onToggleFullscreen={onToggleFullscreen}
+          diagramType="sequence"
+          styles={styles}
+          onStylesChange={onStylesChange}
+          currentTheme={currentTheme}
+          onThemeChange={setCurrentTheme}
         />
       )}
 

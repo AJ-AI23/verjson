@@ -119,6 +119,7 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
       <DiagramHeader 
         isFullscreen={isFullscreen}
         onToggleFullscreen={toggleFullscreen}
+        diagramType="schema"
       />
       <DiagramFlow
         nodes={nodes || []}

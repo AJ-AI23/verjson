@@ -3,15 +3,26 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Maximize, Minimize, Settings } from 'lucide-react';
 import { DiagramSettingsDialog } from './DiagramSettingsDialog';
+import { DiagramStyles } from '@/types/diagramStyles';
 
 interface DiagramHeaderProps {
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
+  diagramType?: 'schema' | 'sequence';
+  styles?: DiagramStyles;
+  onStylesChange?: (styles: DiagramStyles) => void;
+  currentTheme?: string;
+  onThemeChange?: (theme: string) => void;
 }
 
 export const DiagramHeader: React.FC<DiagramHeaderProps> = ({ 
   isFullscreen = false,
-  onToggleFullscreen
+  onToggleFullscreen,
+  diagramType = 'schema',
+  styles,
+  onStylesChange,
+  currentTheme,
+  onThemeChange
 }) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -63,6 +74,11 @@ export const DiagramHeader: React.FC<DiagramHeaderProps> = ({
       <DiagramSettingsDialog 
         open={settingsOpen} 
         onOpenChange={setSettingsOpen}
+        diagramType={diagramType}
+        styles={styles}
+        onStylesChange={onStylesChange}
+        currentTheme={currentTheme}
+        onThemeChange={onThemeChange}
       />
     </div>
   );

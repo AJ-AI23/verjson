@@ -3,18 +3,31 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
+import { DiagramStyles } from '@/types/diagramStyles';
 
 interface DiagramSettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  diagramType?: 'schema' | 'sequence';
+  styles?: DiagramStyles;
+  onStylesChange?: (styles: DiagramStyles) => void;
+  currentTheme?: string;
+  onThemeChange?: (theme: string) => void;
 }
 
 export const DiagramSettingsDialog: React.FC<DiagramSettingsDialogProps> = ({
   open,
-  onOpenChange
+  onOpenChange,
+  diagramType = 'schema',
+  styles,
+  currentTheme = 'light',
+  onThemeChange
 }) => {
   const { settings, updateMaxIndividualProperties, updateMaxIndividualArrayItems, updateTruncateAncestralBoxes } = useEditorSettings();
+  
+  const availableThemes = styles ? Object.keys(styles.themes).filter(key => styles.themes[key]) : ['light', 'dark'];
 
   const handleMaxIndividualPropertiesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(e.target.value);
@@ -36,10 +49,36 @@ export const DiagramSettingsDialog: React.FC<DiagramSettingsDialogProps> = ({
         <DialogHeader>
           <DialogTitle>Diagram Settings</DialogTitle>
           <DialogDescription>
-            Configure how properties are displayed in the diagram
+            {diagramType === 'sequence' 
+              ? 'Configure sequence diagram appearance'
+              : 'Configure how properties are displayed in the diagram'
+            }
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          {diagramType === 'sequence' ? (
+            // Settings for sequence diagrams
+            <div className="grid gap-2">
+              <Label htmlFor="theme-select">Theme</Label>
+              <Select value={currentTheme} onValueChange={onThemeChange}>
+                <SelectTrigger id="theme-select">
+                  <SelectValue placeholder="Select theme" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableThemes.map((themeKey) => (
+                    <SelectItem key={themeKey} value={themeKey}>
+                      {styles?.themes[themeKey]?.name || themeKey}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                Select the color theme for the diagram
+              </p>
+            </div>
+          ) : (
+            // Settings for schema diagrams
+            <>
           <div className="grid gap-2">
             <Label htmlFor="max-individual-properties">
               Max Individual Properties
@@ -78,20 +117,22 @@ export const DiagramSettingsDialog: React.FC<DiagramSettingsDialogProps> = ({
             </p>
           </div>
           
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="truncate-ancestral-boxes">Truncate Ancestral Boxes</Label>
-              <Switch
-                id="truncate-ancestral-boxes"
-                checked={settings.truncateAncestralBoxes}
-                onCheckedChange={updateTruncateAncestralBoxes}
-              />
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="truncate-ancestral-boxes">Truncate Ancestral Boxes</Label>
+                <Switch
+                  id="truncate-ancestral-boxes"
+                  checked={settings.truncateAncestralBoxes}
+                  onCheckedChange={updateTruncateAncestralBoxes}
+                />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Simplify diagrams by removing intermediate boxes that only connect one parent to one child. 
+                The truncated properties will be listed in a consolidated box.
+              </p>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Simplify diagrams by removing intermediate boxes that only connect one parent to one child. 
-              The truncated properties will be listed in a consolidated box.
-            </p>
-          </div>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>
