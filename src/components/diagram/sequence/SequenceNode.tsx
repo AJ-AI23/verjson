@@ -22,10 +22,11 @@ interface SequenceNodeProps {
 export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected, positionAbsoluteY }) => {
   const { config, label, type, data: nodeData, styles, width, onHeightChange, id, calculatedHeight } = data;
   const nodeRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
-  // Track node height changes and notify parent
+  // Track node content height changes (excluding debug display) and notify parent
   useEffect(() => {
-    if (!nodeRef.current || !onHeightChange) return;
+    if (!contentRef.current || !onHeightChange) return;
 
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -35,7 +36,7 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected, posi
       }
     });
 
-    resizeObserver.observe(nodeRef.current);
+    resizeObserver.observe(contentRef.current);
 
     return () => {
       resizeObserver.disconnect();
@@ -124,9 +125,12 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected, posi
       <Handle type="target" position={Position.Left} id="target-left" className="w-3 h-3 !bg-slate-400" />
       <Handle type="source" position={Position.Left} id="source-left" className="w-3 h-3 !bg-slate-400" />
       
-      {renderNodeContent()}
+      {/* Measured content (excludes debug display) */}
+      <div ref={contentRef}>
+        {renderNodeContent()}
+      </div>
       
-      {/* Debug coordinates */}
+      {/* Debug coordinates (not included in height measurement) */}
       <div className="mt-2 pt-2 border-t text-xs opacity-50" style={{ color: nodeColors.text }}>
         y: {positionAbsoluteY.toFixed(0)} | h: {calculatedHeight?.toFixed(0) || config.defaultHeight}
       </div>
