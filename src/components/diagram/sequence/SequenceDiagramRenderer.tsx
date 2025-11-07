@@ -267,13 +267,14 @@ const FitViewHelper: React.FC<{
   const { nodes: layoutNodes, edges: layoutEdges } = useMemo(() => {
     // Skip recalculation during active drag operations - use ref for synchronous check
     if (isDraggingRef.current) {
-      console.log('[SequenceDiagramRenderer] Skipping layout recalculation during drag (ref check)');
+      console.log('🚫 [SequenceDiagramRenderer] BLOCKED layout recalculation during active drag');
       return previousLayoutRef.current;
     }
     
-    console.log('[SequenceDiagramRenderer] Calculating layout...', { 
+    console.log('✅ [SequenceDiagramRenderer] Calculating layout...', { 
       diagramNodesCount: diagramNodes.length,
-      lifelinesCount: lifelines.length 
+      lifelinesCount: lifelines.length,
+      isDragging: isDraggingRef.current
     });
     
     const layout = calculateSequenceLayout({
@@ -451,7 +452,7 @@ const FitViewHelper: React.FC<{
     // Store initial positions when drag starts
     const dragStartChange = changes.find((c: any) => c.type === 'position' && c.dragging === true);
     if (dragStartChange) {
-      console.log('[SequenceDiagramRenderer] Drag started - setting global flag');
+      console.log('🟢 [DRAG START] Setting isDraggingRef.current = true');
       isDraggingRef.current = true;
       setIsDragging(true);
       const startPositions = new Map<string, { x: number; y: number }>();
@@ -466,7 +467,7 @@ const FitViewHelper: React.FC<{
     // Detect drag end
     const dragEndChange = changes.find((c: any) => c.type === 'position' && c.dragging === false && c.position);
     if (dragEndChange) {
-      console.log('[SequenceDiagramRenderer] Drag ended - clearing global flag');
+      console.log('🔴 [DRAG END] Setting isDraggingRef.current = false');
       isDraggingRef.current = false;
       setIsDragging(false);
     }
