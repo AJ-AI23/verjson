@@ -22,14 +22,6 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
   const rafRef = useRef<number | null>(null);
   const viewport = useViewport();
 
-  const handleAddNode = (yPosition: number) => {
-    if (onAddNode && !readOnly) {
-      console.log('[ColumnLifeline] handleAddNode called:', { yPosition, zoom: viewport.zoom });
-      // yPosition is already in diagram coordinates
-      onAddNode(lifeline.id, yPosition);
-    }
-  };
-
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!lifelineRef.current || readOnly || !onAddNode) return;
     
@@ -42,18 +34,14 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
     rafRef.current = requestAnimationFrame(() => {
       if (!lifelineRef.current) return;
       
-      // Calculate position relative to the lifeline div consistently
+      // Calculate position relative to the lifeline div
       const rect = lifelineRef.current.getBoundingClientRect();
       const screenY = e.clientY - rect.top;
       
-      // Store screen position for button display
-      // Convert to diagram space for node creation
-      const diagramY = screenY / viewport.zoom;
-      
       // Only show button if mouse is over the lifeline area
       if (screenY >= 0 && screenY <= rect.height) {
-        // Store both screen and diagram positions
-        setHoverPosition(diagramY);
+        // Store screen position for CSS positioning
+        setHoverPosition(screenY);
       }
     });
   };
@@ -139,7 +127,11 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                handleAddNode(hoverPosition);
+                // Convert screen position to diagram coordinates
+                const diagramY = hoverPosition / viewport.zoom;
+                if (onAddNode && !readOnly) {
+                  onAddNode(lifeline.id, diagramY);
+                }
               }}
               onMouseDown={(e) => {
                 e.stopPropagation();
