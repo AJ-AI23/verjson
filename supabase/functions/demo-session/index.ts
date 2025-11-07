@@ -26,6 +26,15 @@ serve(async (req) => {
     const { action } = await req.json()
 
     if (action === 'createDemoSession') {
+      // First, cleanup expired demo sessions
+      console.log('Cleaning up expired demo sessions before creating new one')
+      const { error: cleanupError } = await supabaseAdmin.rpc('cleanup_expired_demo_sessions')
+      
+      if (cleanupError) {
+        console.error('Error during cleanup:', cleanupError)
+        // Don't fail if cleanup fails, just log it
+      }
+
       // Generate random credentials for demo user
       const timestamp = Date.now()
       const randomSuffix = Math.random().toString(36).substring(2, 8)

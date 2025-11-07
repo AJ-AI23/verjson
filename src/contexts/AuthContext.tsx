@@ -48,10 +48,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
 
+  // Check if demo session has expired
+  const checkDemoSessionExpiration = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('demo_sessions')
+        .select('expires_at')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking demo session:', error);
+        return false;
+      }
+
+      if (data && new Date(data.expires_at) < new Date()) {
+        console.log('Demo session expired, logging out');
+        await signOut();
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Error in checkDemoSessionExpiration:', error);
+      return false;
+    }
+  };
+
   // Fetch user profile
   const fetchProfile = async (userId: string) => {
     setProfileLoading(true);
     try {
+      // First check if demo session has expired
+      const isExpired = await checkDemoSessionExpiration(userId);
+      if (isExpired) {
+        setProfileLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('user-profile', {
         body: { action: 'getUserProfile' }
       });
