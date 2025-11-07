@@ -51,80 +51,67 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected }) =>
   const nodeColors = getNodeColors();
 
   const renderNodeContent = () => {
+    const NodeIcon = config.icon;
+    
     if (type === 'endpoint' && nodeData?.method && nodeData?.path) {
       return (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Badge className={cn('text-xs font-semibold', getMethodColor(nodeData.method))}>
-              {nodeData.method}
-            </Badge>
-            <span className="text-xs font-mono truncate" style={{ color: nodeColors.text }}>
-              {nodeData.path}
-            </span>
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 mt-0.5">
+            <NodeIcon className="h-5 w-5 opacity-60" style={{ color: nodeColors.text }} />
           </div>
-          <div className="text-sm font-medium" style={{ color: nodeColors.text }}>
-            {label}
-          </div>
-          {nodeData.description && (
-            <div className="text-xs opacity-70 line-clamp-2" style={{ color: nodeColors.text }}>
-              {nodeData.description}
+          <div className="flex-1 space-y-2 min-w-0">
+            <div className="flex items-center gap-2">
+              <Badge className={cn('text-xs font-semibold', getMethodColor(nodeData.method))}>
+                {nodeData.method}
+              </Badge>
+              <span className="text-xs font-mono truncate" style={{ color: nodeColors.text }}>
+                {nodeData.path}
+              </span>
             </div>
-          )}
-        </div>
-      );
-    }
-
-    if (type === 'decision') {
-      return (
-        <div className="flex flex-col items-center justify-center h-full text-center">
-          <span className="text-sm font-medium" style={{ color: nodeColors.text }}>
-            {label}
-          </span>
+            <div className="text-sm font-medium" style={{ color: nodeColors.text }}>
+              {label}
+            </div>
+            {nodeData.description && (
+              <div className="text-xs opacity-70 line-clamp-2" style={{ color: nodeColors.text }}>
+                {nodeData.description}
+              </div>
+            )}
+          </div>
         </div>
       );
     }
 
     return (
-      <div className="space-y-1">
-        <div className="text-sm font-medium" style={{ color: nodeColors.text }}>
-          {label}
+      <div className="flex items-start gap-3">
+        <div className="flex-shrink-0 mt-0.5">
+          <NodeIcon className="h-5 w-5 opacity-60" style={{ color: nodeColors.text }} />
         </div>
-        {nodeData?.description && (
-          <div className="text-xs opacity-70 line-clamp-2" style={{ color: nodeColors.text }}>
-            {nodeData.description}
+        <div className="flex-1 space-y-1 min-w-0">
+          <div className="text-sm font-medium" style={{ color: nodeColors.text }}>
+            {label}
           </div>
-        )}
+          {nodeData?.description && (
+            <div className="text-xs opacity-70 line-clamp-2" style={{ color: nodeColors.text }}>
+              {nodeData.description}
+            </div>
+          )}
+        </div>
       </div>
     );
-  };
-
-  const getNodeShape = () => {
-    switch (config.shape) {
-      case 'diamond':
-        return 'clip-path-diamond';
-      case 'cylinder':
-        return 'rounded-full';
-      case 'rounded':
-        return 'rounded-lg';
-      default:
-        return 'rounded-md';
-    }
   };
 
   return (
     <div
       ref={nodeRef}
       className={cn(
-        'px-4 py-3 border-2 shadow-md transition-all',
-        getNodeShape(),
+        'px-4 py-3 border-2 shadow-md transition-all rounded-lg',
         'hover:shadow-lg cursor-pointer',
-        config.shape === 'diamond' && 'w-32 h-32 flex items-center justify-center',
         selected && 'ring-2 ring-primary ring-offset-2 shadow-xl'
       )}
       style={{
         width: width && width > 0 ? `${width}px` : undefined,
-        minWidth: config.shape === 'diamond' ? undefined : (width && width > 0 ? undefined : config.defaultWidth),
-        minHeight: config.shape === 'diamond' ? undefined : config.defaultHeight,
+        minWidth: width && width > 0 ? undefined : config.defaultWidth,
+        minHeight: config.defaultHeight,
         backgroundColor: nodeColors.background,
         borderColor: selected ? 'hsl(var(--primary))' : nodeColors.border,
         color: nodeColors.text

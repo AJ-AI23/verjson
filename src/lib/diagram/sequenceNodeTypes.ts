@@ -1,9 +1,10 @@
 import { DiagramNodeType } from '@/types/diagram';
+import { LucideIcon, Globe, Settings, GitBranch, Database, Box } from 'lucide-react';
 
 export interface NodeTypeConfig {
   type: DiagramNodeType;
   label: string;
-  shape: 'rectangle' | 'rounded' | 'diamond' | 'cylinder';
+  icon: LucideIcon;
   defaultWidth: number;
   defaultHeight: number;
 }
@@ -12,35 +13,35 @@ export const nodeTypeConfigs: Record<DiagramNodeType, NodeTypeConfig> = {
   endpoint: {
     type: 'endpoint',
     label: 'API Endpoint',
-    shape: 'rectangle',
+    icon: Globe,
     defaultWidth: 200,
     defaultHeight: 80
   },
   process: {
     type: 'process',
     label: 'Process',
-    shape: 'rounded',
+    icon: Settings,
     defaultWidth: 180,
     defaultHeight: 70
   },
   decision: {
     type: 'decision',
     label: 'Decision',
-    shape: 'diamond',
+    icon: GitBranch,
     defaultWidth: 160,
-    defaultHeight: 90
+    defaultHeight: 70
   },
   data: {
     type: 'data',
     label: 'Data Store',
-    shape: 'cylinder',
+    icon: Database,
     defaultWidth: 140,
-    defaultHeight: 80
+    defaultHeight: 70
   },
   custom: {
     type: 'custom',
     label: 'Custom',
-    shape: 'rounded',
+    icon: Box,
     defaultWidth: 160,
     defaultHeight: 70
   }
