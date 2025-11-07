@@ -108,9 +108,15 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected }) =>
         color: nodeColors.text
       }}
     >
+      {/* Left side handles - both source and target for bidirectional flow */}
       <Handle type="target" position={Position.Left} id="left" className="w-3 h-3 !bg-slate-400" />
+      <Handle type="source" position={Position.Left} id="left" className="w-3 h-3 !bg-slate-400" />
+      
       {renderNodeContent()}
+      
+      {/* Right side handles - both source and target for bidirectional flow */}
       <Handle type="source" position={Position.Right} id="right" className="w-3 h-3 !bg-slate-400" />
+      <Handle type="target" position={Position.Right} id="right" className="w-3 h-3 !bg-slate-400" />
     </div>
   );
 };
