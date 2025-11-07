@@ -15,9 +15,7 @@ interface ColumnLifelineNodeProps {
 
 export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) => {
   const { column: lifeline, styles, onAddNode, readOnly } = data;
-  const [isHovered, setIsHovered] = useState(false);
-  const [mouseY, setMouseY] = useState(0);
-  const lifelineRef = useRef<HTMLDivElement>(null);
+  const [hoveredAnchor, setHoveredAnchor] = useState<number | null>(null);
 
   const handleAddNode = () => {
     if (onAddNode && !readOnly) {
@@ -25,13 +23,8 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (lifelineRef.current) {
-      const rect = lifelineRef.current.getBoundingClientRect();
-      const relativeY = e.clientY - rect.top;
-      setMouseY(relativeY);
-    }
-  };
+  // Create anchor points every 150px along the lifeline
+  const anchorPoints = Array.from({ length: 13 }, (_, i) => i * 150 + 75);
 
   return (
     <div
@@ -40,9 +33,6 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
         width: '200px',
         transform: 'translateX(-50%)'
       }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onMouseMove={handleMouseMove}
     >
       {/* Column Header */}
       <div
@@ -67,10 +57,9 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
         )}
       </div>
 
-      {/* Vertical Lifeline with Add Node Button */}
+      {/* Vertical Lifeline with Anchor Points */}
       <div
-        ref={lifelineRef}
-        className="relative pointer-events-auto"
+        className="relative"
         style={{
           width: '2px',
           height: '2000px',
@@ -83,27 +72,48 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
           )`
         }}
       >
-        {isHovered && !readOnly && onAddNode && (
-          <div 
-            className="absolute left-1/2 -translate-x-1/2"
-            style={{ 
-              pointerEvents: 'auto',
-              top: `${mouseY}px`,
-              transform: 'translateX(-50%) translateY(-50%)'
-            }}
+        {!readOnly && onAddNode && anchorPoints.map((yPos, index) => (
+          <div
+            key={index}
+            className="absolute left-1/2 -translate-x-1/2 pointer-events-auto group"
+            style={{ top: `${yPos}px` }}
+            onMouseEnter={() => setHoveredAnchor(index)}
+            onMouseLeave={() => setHoveredAnchor(null)}
           >
-            <Button
-              size="sm"
-              variant="secondary"
+            {/* Anchor Button */}
+            <button
               onClick={handleAddNode}
-              className="gap-1 shadow-lg h-7 text-xs"
-              title="Add node on this lifeline"
+              className="w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100"
+              style={{
+                backgroundColor: styles?.colors.nodeBackground || '#ffffff',
+                border: `2px solid ${styles?.colors.nodeBorder || '#64748b'}`,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+              }}
+              title="Add node here"
             >
-              <Plus className="h-3 w-3" />
-              Add Node
-            </Button>
+              <Plus className="h-3 w-3" style={{ color: styles?.colors.nodeText || '#0f172a' }} />
+            </button>
+            
+            {/* Tooltip */}
+            {hoveredAnchor === index && (
+              <div 
+                className="absolute left-8 top-1/2 -translate-y-1/2 whitespace-nowrap animate-fade-in"
+                style={{ pointerEvents: 'none' }}
+              >
+                <div
+                  className="px-2 py-1 rounded text-xs shadow-lg"
+                  style={{
+                    backgroundColor: styles?.colors.nodeBackground || '#ffffff',
+                    border: `1px solid ${styles?.colors.nodeBorder || '#cbd5e1'}`,
+                    color: styles?.colors.nodeText || '#0f172a'
+                  }}
+                >
+                  Add Node
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        ))}
       </div>
     </div>
   );
