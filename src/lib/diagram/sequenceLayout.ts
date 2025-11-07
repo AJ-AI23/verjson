@@ -104,10 +104,10 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       n.anchors?.some(a => a.id === anchor.id)
     );
     
-    // Use the newly calculated aligned position instead of stored position
+    // Use the calculated aligned position for layout
     const connectedNodeYPos = connectedNode 
       ? (alignedNodePositions.get(connectedNode.id) || (LIFELINE_HEADER_HEIGHT + 40))
-      : anchor.yPosition;
+      : (LIFELINE_HEADER_HEIGHT + 40);
     
     // Get node height - use measured height if available, otherwise use default from config
     const measuredHeight = connectedNode && nodeHeights ? nodeHeights.get(connectedNode.id) : undefined;
@@ -116,6 +116,9 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     
     // Position anchor at the vertical center of the node
     const anchorY = connectedNodeYPos + (nodeHeight / 2) - 8; // Center 16px anchor on node center
+    
+    // Update the anchor's yPosition in the document to match calculated position
+    anchor.yPosition = connectedNodeYPos + (nodeHeight / 2);
     
     return {
       id: anchor.id,
@@ -280,23 +283,30 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   };
 };
 
-// Calculate the vertical order of nodes based on anchor positions
+// Calculate the vertical order of nodes based on array order and stored yPosition
 function calculateNodeSequence(nodes: DiagramNode[]): string[] {
-  // Sort nodes by their average anchor Y position
-  const nodesWithPosition = nodes.map(node => {
-    const sourceAnchor = node.anchors?.[0];
-    const targetAnchor = node.anchors?.[1];
+  // If nodes have yPosition, use those for sorting, otherwise use array order
+  const nodesWithPosition = nodes.map((node, index) => {
+    let yPos = node.yPosition;
     
-    let avgY = 0;
-    if (sourceAnchor && targetAnchor) {
-      avgY = (sourceAnchor.yPosition + targetAnchor.yPosition) / 2;
-    } else if (sourceAnchor) {
-      avgY = sourceAnchor.yPosition;
-    } else if (targetAnchor) {
-      avgY = targetAnchor.yPosition;
+    // Fallback to anchor positions if yPosition not set
+    if (yPos === undefined) {
+      const sourceAnchor = node.anchors?.[0];
+      const targetAnchor = node.anchors?.[1];
+      
+      if (sourceAnchor && targetAnchor) {
+        yPos = (sourceAnchor.yPosition + targetAnchor.yPosition) / 2;
+      } else if (sourceAnchor) {
+        yPos = sourceAnchor.yPosition;
+      } else if (targetAnchor) {
+        yPos = targetAnchor.yPosition;
+      } else {
+        // Ultimate fallback: use array position
+        yPos = index * 120;
+      }
     }
     
-    return { id: node.id, yPosition: avgY };
+    return { id: node.id, yPosition: yPos };
   });
   
   // Sort by Y position

@@ -38,7 +38,7 @@ export interface DiagramNode {
   type: 'endpoint' | 'process' | 'decision' | 'data' | 'custom';
   label: string;
   anchors: [AnchorNode, AnchorNode];
-  position?: { x: number; y: number };
+  yPosition?: number;
   data?: {
     method?: string;
     path?: string;

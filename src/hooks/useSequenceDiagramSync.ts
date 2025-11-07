@@ -42,8 +42,8 @@ export const useSequenceDiagramSync = ({
     // Edges are auto-generated, no manual updates supported
   }, []);
 
-  const updateNodePosition = useCallback((nodeId: string, position: { x: number; y: number }) => {
-    updateNode(nodeId, { position });
+  const updateNodePosition = useCallback((nodeId: string, yPosition: number) => {
+    updateNode(nodeId, { yPosition });
   }, [updateNode]);
 
   const addNode = useCallback((node: DiagramNode) => {
@@ -79,7 +79,8 @@ export const useSequenceDiagramSync = ({
     const updatedNodes = data.nodes.map(node => {
       const flowNode = flowNodes.find(fn => fn.id === node.id);
       if (flowNode && flowNode.position) {
-        return { ...node, position: flowNode.position };
+        // Only update yPosition, ignore x since it's calculated from lifelines
+        return { ...node, yPosition: flowNode.position.y };
       }
       return node;
     });

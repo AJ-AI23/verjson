@@ -271,14 +271,14 @@ const MousePositionTracker: React.FC<{
     const newNodeBottom = constrainedNodeY + nodeHeight;
     
     const updatedNodes = diagramNodes.map(node => {
-      const existingNodeY = node.position?.y || 0;
+      const existingNodeY = node.yPosition || 0;
       // If existing node overlaps with new node position, move it down
       if (existingNodeY >= constrainedNodeY - minSpacing && existingNodeY < newNodeBottom + minSpacing) {
         const newY = Math.min(newNodeBottom + minSpacing, maxNodeY);
         const nodeCenterY = newY + nodeHeight / 2;
         return {
           ...node,
-          position: { ...node.position, y: newY },
+          yPosition: newY,
           anchors: node.anchors?.map(a => ({ ...a, yPosition: nodeCenterY })) as any
         };
       }
@@ -295,7 +295,7 @@ const MousePositionTracker: React.FC<{
         { id: sourceAnchorId, lifelineId: sourceLifelineId, yPosition: nodeCenterY, anchorType: 'source' },
         { id: targetAnchorId, lifelineId: targetLifelineId, yPosition: nodeCenterY, anchorType: 'target' }
       ],
-      position: { x: 0, y: constrainedNodeY }
+      yPosition: constrainedNodeY
     };
     
     const finalNodes = [...updatedNodes, newNode];
@@ -347,7 +347,7 @@ const MousePositionTracker: React.FC<{
               
               const nodeConfig = getNodeTypeConfig(node.type);
               const nodeHeight = nodeConfig?.defaultHeight || 70;
-              const nodeY = node.position?.y || 100;
+              const nodeY = node.yPosition || 100;
               const nodeCenterY = nodeY + (nodeHeight / 2);
               
               const newAnchors: [AnchorNodeType, AnchorNodeType] = [
@@ -540,7 +540,7 @@ const MousePositionTracker: React.FC<{
           
           return {
             ...node,
-            position: { ...node.position, y: nodeY },
+            yPosition: nodeY,
             anchors: node.anchors.map(anchor => ({
               ...anchor,
               yPosition: centerY
@@ -676,7 +676,7 @@ const MousePositionTracker: React.FC<{
             // Get node height to determine center Y
             const nodeConfig = getNodeTypeConfig(n.type);
             const nodeHeight = nodeConfig?.defaultHeight || 70;
-            const currentNodeY = n.position?.y || 100;
+            const currentNodeY = n.yPosition || 100;
             
             // Keep both anchors at the node's current center Y position
             const nodeCenterY = currentNodeY + (nodeHeight / 2);
@@ -753,7 +753,7 @@ const MousePositionTracker: React.FC<{
               return {
                 ...n,
                 anchors: updatedAnchors as [typeof updatedAnchors[0], typeof updatedAnchors[1]],
-                position: { x: nodeX, y: currentNodeY }
+                yPosition: currentNodeY
               };
             }
           }
@@ -770,7 +770,7 @@ const MousePositionTracker: React.FC<{
           
           const nodeConfig = getNodeTypeConfig(connectedNode.type);
           const nodeHeight = nodeConfig?.defaultHeight || 70;
-          const currentNodeY = connectedNode.position?.y || 100;
+          const currentNodeY = connectedNode.yPosition || 100;
           const nodeCenterY = currentNodeY + (nodeHeight / 2);
           
           // Helper to get lifeline X position
@@ -814,10 +814,8 @@ const MousePositionTracker: React.FC<{
                 };
               }
             }
-            // Update the node position (horizontal only)
-            if (n.id === connectedNode.id) {
-              return { ...n, position: { x: connectedNode.position?.x || 0, y: currentNodeY } };
-            }
+            // No need to update the diagram node position since it's calculated from lifelines
+            // The node's Y position is stored in connectedNode.yPosition
             return n;
           });
         });
@@ -841,7 +839,7 @@ const MousePositionTracker: React.FC<{
         
         // If multi-select, update all selected nodes
         if (selectedNodeIds.includes(moveChange.id) && selectedNodeIds.length > 1) {
-          const originalY = movedDiagramNode?.position?.y || 0;
+          const originalY = movedDiagramNode?.yPosition || 0;
           const deltaY = constrainedY - originalY;
           
           const MAX_Y_POSITION_FOR_MULTI = LIFELINE_HEADER_HEIGHT + settings.sequenceDiagramHeight;
@@ -851,7 +849,7 @@ const MousePositionTracker: React.FC<{
             if (selectedNodeIds.includes(n.id)) {
               const nConfig = getNodeTypeConfig(n.type);
               const nHeight = nConfig?.defaultHeight || 70;
-              const currentY = n.position?.y || 0;
+              const currentY = n.yPosition || 0;
               const newY = n.id === moveChange.id ? constrainedY : currentY + deltaY;
               const snappedNewY = Math.round(newY / GRID_SIZE) * GRID_SIZE;
               const maxYForNode = MAX_Y_POSITION_FOR_MULTI - nHeight;
@@ -865,7 +863,7 @@ const MousePositionTracker: React.FC<{
               
               return {
                 ...n,
-                position: { ...n.position, y: constrainedNewY },
+                yPosition: constrainedNewY,
                 anchors: updatedAnchors as [typeof updatedAnchors[0], typeof updatedAnchors[1]]
               };
             }
@@ -874,7 +872,7 @@ const MousePositionTracker: React.FC<{
           
           // Reorder nodes by Y position to maintain correct array order
           const sortedUpdatedNodes = [...updatedNodes].sort((a, b) => 
-            (a.position?.y || 0) - (b.position?.y || 0)
+            (a.yPosition || 0) - (b.yPosition || 0)
           );
           
           // Recalculate positions with proper vertical spacing
@@ -886,7 +884,6 @@ const MousePositionTracker: React.FC<{
             const measuredHeight = nodeHeights.get(node.id);
             const height = measuredHeight || nodeConfig?.defaultHeight || 70;
             
-            const newPosition = { ...node.position, y: currentY };
             const nodeCenterY = currentY + (height / 2);
             
             // Update anchor positions
@@ -899,7 +896,7 @@ const MousePositionTracker: React.FC<{
             
             return {
               ...node,
-              position: newPosition,
+              yPosition: currentY - height - verticalSpacing, // Use the position we calculated
               anchors: updatedAnchors as [typeof updatedAnchors[0], typeof updatedAnchors[1]]
             };
           });
@@ -907,39 +904,8 @@ const MousePositionTracker: React.FC<{
           onDataChange({ ...data, nodes: recalculatedNodes });
         } else {
           // Single node update
-          // Calculate the correct horizontal position based on anchors (keep original X)
+          // X position is always calculated from anchors/lifelines, so we don't need to store it
           const nodeAnchors = movedDiagramNode?.anchors;
-          let originalX = movedDiagramNode?.position?.x || moveChange.position.x;
-          
-          if (nodeAnchors && nodeAnchors.length === 2) {
-            const MARGIN = 40; // Margin from lifeline for edges
-            const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
-            
-            // Find lifeline X positions
-            const sourceLifeline = sortedLifelines.find(l => l.id === nodeAnchors[0].lifelineId);
-            const targetLifeline = sortedLifelines.find(l => l.id === nodeAnchors[1].lifelineId);
-            
-            if (sourceLifeline && targetLifeline) {
-              const sourceIndex = sortedLifelines.indexOf(sourceLifeline);
-              const targetIndex = sortedLifelines.indexOf(targetLifeline);
-              
-              const sourceX = sourceIndex * (300 + 100) + 150; // LIFELINE_WIDTH + spacing + padding
-              const targetX = targetIndex * (300 + 100) + 150;
-              
-              const leftX = Math.min(sourceX, targetX);
-              const rightX = Math.max(sourceX, targetX);
-              
-              // Calculate node width and position with margins
-              const nodeWidth = Math.abs(rightX - leftX) - (MARGIN * 2);
-              
-              if (nodeWidth >= 180) {
-                originalX = leftX + MARGIN;
-              } else {
-                // Center if too narrow
-                originalX = (leftX + rightX) / 2 - 90;
-              }
-            }
-          }
           
           // Update node and its anchors
           const nodeCenterY = constrainedY + (nodeHeight / 2);
@@ -953,7 +919,7 @@ const MousePositionTracker: React.FC<{
               
               return { 
                 ...n, 
-                position: { x: originalX, y: constrainedY },
+                yPosition: constrainedY,
                 anchors: updatedAnchors as [typeof updatedAnchors[0], typeof updatedAnchors[1]]
               };
             }
@@ -962,7 +928,7 @@ const MousePositionTracker: React.FC<{
           
           // Reorder nodes by Y position to maintain correct array order
           const sortedUpdatedNodes = [...updatedNodes].sort((a, b) => 
-            (a.position?.y || 0) - (b.position?.y || 0)
+            (a.yPosition || 0) - (b.yPosition || 0)
           );
           
           // Recalculate positions with proper vertical spacing
@@ -974,7 +940,6 @@ const MousePositionTracker: React.FC<{
             const measuredHeight = nodeHeights.get(node.id);
             const height = measuredHeight || nodeConfig?.defaultHeight || 70;
             
-            const newPosition = { ...node.position, y: currentY };
             const nodeCenterY = currentY + (height / 2);
             
             // Update anchor positions
@@ -983,28 +948,29 @@ const MousePositionTracker: React.FC<{
               yPosition: nodeCenterY
             }));
             
+            const nodeY = currentY;
             currentY += height + verticalSpacing;
             
             return {
               ...node,
-              position: newPosition,
+              yPosition: nodeY,
               anchors: updatedAnchors as [typeof updatedAnchors[0], typeof updatedAnchors[1]]
             };
           });
           
           // Immediately update node and anchor positions visually
           setNodes(currentNodes => {
-            const nodePositionMap = new Map(recalculatedNodes.map(n => [n.id, n.position!]));
+            const nodePositionMap = new Map(recalculatedNodes.map(n => [n.id, n.yPosition!]));
             const anchorPositionMap = new Map<string, number>();
             recalculatedNodes.forEach(n => {
-              const centerY = n.position!.y + ((nodeHeights.get(n.id) || 70) / 2);
+              const centerY = n.yPosition! + ((nodeHeights.get(n.id) || 70) / 2);
               n.anchors?.forEach(a => anchorPositionMap.set(a.id, centerY));
             });
             
             return currentNodes.map(n => {
               const anchorData = n.data as any;
               if (n.type === 'sequenceNode' && nodePositionMap.has(n.id)) {
-                return { ...n, position: nodePositionMap.get(n.id)! };
+                return { ...n, position: { ...n.position, y: nodePositionMap.get(n.id)! } };
               }
               if (n.type === 'anchorNode' && anchorData?.connectedNodeId && anchorPositionMap.has(n.id)) {
                 return { ...n, position: { ...n.position, y: anchorPositionMap.get(n.id)! - 8 } };
