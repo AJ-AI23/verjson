@@ -22,11 +22,10 @@ interface SequenceNodeProps {
 export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected, positionAbsoluteY }) => {
   const { config, label, type, data: nodeData, styles, width, onHeightChange, id, calculatedHeight } = data;
   const nodeRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
 
-  // Track node content height changes (excluding debug display) and notify parent
+  // Track full node height changes (including debug display) and notify parent
   useEffect(() => {
-    if (!contentRef.current || !onHeightChange) return;
+    if (!nodeRef.current || !onHeightChange) return;
 
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -36,7 +35,7 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected, posi
       }
     });
 
-    resizeObserver.observe(contentRef.current);
+    resizeObserver.observe(nodeRef.current);
 
     return () => {
       resizeObserver.disconnect();
@@ -125,14 +124,11 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected, posi
       <Handle type="target" position={Position.Left} id="target-left" className="w-3 h-3 !bg-slate-400" />
       <Handle type="source" position={Position.Left} id="source-left" className="w-3 h-3 !bg-slate-400" />
       
-      {/* Measured content (excludes debug display) */}
-      <div ref={contentRef}>
-        {renderNodeContent()}
-      </div>
+      {renderNodeContent()}
       
-      {/* Debug coordinates (not included in height measurement) */}
+      {/* Debug coordinates - always rendered with placeholder to ensure consistent height measurement */}
       <div className="mt-2 pt-2 border-t text-xs opacity-50" style={{ color: nodeColors.text }}>
-        y: {positionAbsoluteY.toFixed(0)} | h: {calculatedHeight?.toFixed(0) || config.defaultHeight}
+        y: {positionAbsoluteY?.toFixed(0) || '---'} | h: {calculatedHeight?.toFixed(0) || '---'}
       </div>
       
       {/* Right side handles - both source and target for bidirectional flow */}
