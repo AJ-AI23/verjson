@@ -9,6 +9,7 @@ interface EditorSettings {
   maxIndividualProperties: number;
   maxIndividualArrayItems: number;
   truncateAncestralBoxes: boolean;
+  sequenceDiagramHeight: number;
 }
 
 interface EditorSettingsContextType {
@@ -20,6 +21,7 @@ interface EditorSettingsContextType {
   updateMaxIndividualProperties: (maxIndividualProperties: number) => void;
   updateMaxIndividualArrayItems: (maxIndividualArrayItems: number) => void;
   updateTruncateAncestralBoxes: (truncate: boolean) => void;
+  updateSequenceDiagramHeight: (height: number) => void;
 }
 
 const EditorSettingsContext = createContext<EditorSettingsContextType | undefined>(undefined);
@@ -37,7 +39,8 @@ export const EditorSettingsProvider: React.FC<EditorSettingsProviderProps> = ({ 
     showVersionMismatchWarning: true,
     maxIndividualProperties: 5,
     maxIndividualArrayItems: 4,
-    truncateAncestralBoxes: false
+    truncateAncestralBoxes: false,
+    sequenceDiagramHeight: 2000
   });
 
   const updateMaxDepth = (depth: number) => {
@@ -69,6 +72,10 @@ export const EditorSettingsProvider: React.FC<EditorSettingsProviderProps> = ({ 
     setSettings(prev => ({ ...prev, truncateAncestralBoxes: truncate }));
   };
 
+  const updateSequenceDiagramHeight = (height: number) => {
+    setSettings(prev => ({ ...prev, sequenceDiagramHeight: height }));
+  };
+
   const value = {
     settings,
     updateMaxDepth,
@@ -77,7 +84,8 @@ export const EditorSettingsProvider: React.FC<EditorSettingsProviderProps> = ({ 
     updateShowVersionMismatchWarning,
     updateMaxIndividualProperties,
     updateMaxIndividualArrayItems,
-    updateTruncateAncestralBoxes
+    updateTruncateAncestralBoxes,
+    updateSequenceDiagramHeight
   };
 
   return (

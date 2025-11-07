@@ -12,11 +12,12 @@ interface ColumnLifelineNodeProps {
     customLifelineColors?: Record<string, string>;
     onAddNode?: (lifelineId: string, yPosition: number) => void;
     readOnly?: boolean;
+    lifelineHeight?: number;
   };
 }
 
 export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) => {
-  const { column: lifeline, styles, customLifelineColors, onAddNode, readOnly } = data;
+  const { column: lifeline, styles, customLifelineColors, onAddNode, readOnly, lifelineHeight = 2000 } = data;
   const [hoverPosition, setHoverPosition] = useState<number | null>(null);
   const lifelineRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
@@ -95,7 +96,7 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
         className="relative pointer-events-auto"
         style={{
           width: '60px',
-          height: '2000px',
+          height: `${lifelineHeight}px`,
           marginLeft: '-30px',
           marginRight: '-30px'
         }}

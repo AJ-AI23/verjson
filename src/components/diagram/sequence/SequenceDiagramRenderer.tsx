@@ -28,6 +28,7 @@ import { NodeToolbarWrapper } from './NodeToolbarWrapper';
 import { DiagramStylesDialog } from './DiagramStylesDialog';
 import { OpenApiImportDialog } from './OpenApiImportDialog';
 import { DiagramHeader } from '../DiagramHeader';
+import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 import '@xyflow/react/dist/style.css';
 
 interface SequenceDiagramRendererProps {
@@ -88,6 +89,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   hasUserInteractedWithViewport = false
 }) => {
   const { lifelines = [], nodes: diagramNodes } = data;
+  const { settings } = useEditorSettings();
   
   const [currentTheme, setCurrentTheme] = useState(initialTheme);
   const [selectedNode, setSelectedNode] = useState<DiagramNode | null>(null);
@@ -181,7 +183,7 @@ const FitViewHelper: React.FC<{
 };
 
   // Add node on lifeline callback
-  const handleAddNodeOnLifeline = useCallback((sourceLifelineId: string, yPosition: number) => {
+  const handleAddNodeOnLifeline = useCallback((sourceLifelineId: string, yPosition: number, lifelineHeight: number) => {
     if (!onDataChange || lifelines.length === 0) return;
     
     const nodeId = `node-${Date.now()}`;
@@ -215,15 +217,22 @@ const FitViewHelper: React.FC<{
     const nodeHeight = 70;
     const anchorHeight = 16;
     const minSpacing = 50;
+    const LIFELINE_HEADER_HEIGHT = 100;
+    
     // Position node starting at click position + half node height + half anchor height offset
     const nodeY = yPosition + (nodeHeight / 2) + (anchorHeight / 2);
-    const newNodeBottom = nodeY + nodeHeight;
+    
+    // Enforce bottom limit - node bottom should not exceed lifeline height
+    const maxNodeY = LIFELINE_HEADER_HEIGHT + lifelineHeight - nodeHeight;
+    const constrainedNodeY = Math.min(nodeY, maxNodeY);
+    
+    const newNodeBottom = constrainedNodeY + nodeHeight;
     
     const updatedNodes = diagramNodes.map(node => {
       const existingNodeY = node.position?.y || 0;
       // If existing node overlaps with new node position, move it down
-      if (existingNodeY >= nodeY - minSpacing && existingNodeY < newNodeBottom + minSpacing) {
-        const newY = newNodeBottom + minSpacing;
+      if (existingNodeY >= constrainedNodeY - minSpacing && existingNodeY < newNodeBottom + minSpacing) {
+        const newY = Math.min(newNodeBottom + minSpacing, maxNodeY);
         const nodeCenterY = newY + nodeHeight / 2;
         return {
           ...node,
@@ -235,7 +244,7 @@ const FitViewHelper: React.FC<{
     });
     
     // Calculate center Y for anchors based on the node's top position
-    const nodeCenterY = nodeY + nodeHeight / 2;
+    const nodeCenterY = constrainedNodeY + nodeHeight / 2;
     const newNode: DiagramNode = {
       id: nodeId,
       type: 'endpoint',
@@ -244,7 +253,7 @@ const FitViewHelper: React.FC<{
         { id: sourceAnchorId, lifelineId: sourceLifelineId, yPosition: nodeCenterY, anchorType: 'source' },
         { id: targetAnchorId, lifelineId: targetLifelineId, yPosition: nodeCenterY, anchorType: 'target' }
       ],
-      position: { x: 0, y: nodeY }
+      position: { x: 0, y: constrainedNodeY }
     };
     
     const finalNodes = [...updatedNodes, newNode];
@@ -360,8 +369,9 @@ const FitViewHelper: React.FC<{
           data: {
             ...node.data,
             customLifelineColors,
-            onAddNode: handleAddNodeOnLifeline,
-            readOnly
+            onAddNode: (lifelineId: string, yPosition: number) => handleAddNodeOnLifeline(lifelineId, yPosition, settings.sequenceDiagramHeight),
+            readOnly,
+            lifelineHeight: settings.sequenceDiagramHeight
           }
         };
       }
@@ -446,12 +456,26 @@ const FitViewHelper: React.FC<{
         if (node?.type === 'sequenceNode') {
           // Multi-node drag disabled - only single node swapping is supported
           
-          // Keep original X position, only allow Y to change
+          // Get node height to calculate constraints
+          const actualHeight = nodeHeights.get(node.id);
+          const diagramNode = diagramNodes.find(n => n.id === node.id);
+          const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
+          const nodeHeight = actualHeight || nodeConfig?.defaultHeight || 70;
+          
+          // Constrain Y position to keep node within lifeline bounds
+          const LIFELINE_HEADER_HEIGHT = 100;
+          const minY = LIFELINE_HEADER_HEIGHT + 40; // Top constraint
+          const maxY = LIFELINE_HEADER_HEIGHT + settings.sequenceDiagramHeight - nodeHeight; // Bottom constraint
+          
+          const newY = change.position?.y || node.position.y;
+          const constrainedY = Math.max(minY, Math.min(newY, maxY));
+          
+          // Keep original X position, only allow Y to change within constraints
           return {
             ...change,
             position: {
               x: node.position.x,
-              y: change.position?.y || node.position.y
+              y: constrainedY
             }
           };
         }
@@ -801,19 +825,22 @@ const FitViewHelper: React.FC<{
         const nodeConfig = movedDiagramNode ? getNodeTypeConfig(movedDiagramNode.type) : null;
         const nodeHeight = nodeConfig?.defaultHeight || 70;
         
-        // Constrain vertical position to be below lifeline headers
+        // Constrain vertical position to be below lifeline headers and above lifeline bottom
         const LIFELINE_HEADER_HEIGHT = 100;
         const MIN_Y_POSITION = LIFELINE_HEADER_HEIGHT + 20; // 20px padding below header
+        const MAX_Y_POSITION = LIFELINE_HEADER_HEIGHT + settings.sequenceDiagramHeight - nodeHeight; // Bottom constraint
         const GRID_SIZE = 10; // Snap to 10px grid
         
-        // Snap to grid and constrain to minimum position
+        // Snap to grid and constrain to minimum and maximum position
         const snappedY = Math.round(moveChange.position.y / GRID_SIZE) * GRID_SIZE;
-        const constrainedY = Math.max(MIN_Y_POSITION, snappedY);
+        const constrainedY = Math.max(MIN_Y_POSITION, Math.min(snappedY, MAX_Y_POSITION));
         
         // If multi-select, update all selected nodes
         if (selectedNodeIds.includes(moveChange.id) && selectedNodeIds.length > 1) {
           const originalY = movedDiagramNode?.position?.y || 0;
           const deltaY = constrainedY - originalY;
+          
+          const MAX_Y_POSITION_FOR_MULTI = LIFELINE_HEADER_HEIGHT + settings.sequenceDiagramHeight;
           
           // Update all selected nodes with the same delta
           const updatedNodes = diagramNodes.map(n => {
@@ -823,7 +850,8 @@ const FitViewHelper: React.FC<{
               const currentY = n.position?.y || 0;
               const newY = n.id === moveChange.id ? constrainedY : currentY + deltaY;
               const snappedNewY = Math.round(newY / GRID_SIZE) * GRID_SIZE;
-              const constrainedNewY = Math.max(MIN_Y_POSITION, snappedNewY);
+              const maxYForNode = MAX_Y_POSITION_FOR_MULTI - nHeight;
+              const constrainedNewY = Math.max(MIN_Y_POSITION, Math.min(snappedNewY, maxYForNode));
               const centerY = constrainedNewY + (nHeight / 2);
               
               const updatedAnchors = n.anchors?.map(anchor => ({
@@ -914,7 +942,7 @@ const FitViewHelper: React.FC<{
         }
       }
     }
-  }, [handleNodesChange, onNodesChange, nodes, diagramNodes, data, onDataChange, lifelines, setNodes, selectedNodeIds, dragStartPositions]);
+  }, [handleNodesChange, onNodesChange, nodes, diagramNodes, data, onDataChange, lifelines, setNodes, selectedNodeIds, dragStartPositions, settings, nodeHeights]);
 
   const onEdgesChangeHandler = useCallback((changes: any) => {
     handleEdgesChange(changes);
