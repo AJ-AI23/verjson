@@ -35,6 +35,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const [selectedTheme, setSelectedTheme] = useState(styles?.activeTheme || 'light');
   const [isRendering, setIsRendering] = useState(false);
   const [previewViewport, setPreviewViewport] = useState<{ x: number; y: number; zoom: number } | null>(null);
+  const previewContainerRef = React.useRef<HTMLDivElement>(null);
 
   // Default themes if none provided
   const defaultThemes = {
@@ -50,117 +51,38 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       return;
     }
 
+    if (!previewContainerRef.current) {
+      toast.error('Preview container not found');
+      return;
+    }
+
     setIsRendering(true);
     console.log('[Render] Starting diagram render process with viewport:', previewViewport);
 
     try {
-      // Ensure we have valid styles with themes
-      const renderStyles: DiagramStyles = {
-        themes: styles?.themes || defaultThemes,
-        activeTheme: selectedTheme
-      };
-
-      console.log('[Render] Using styles:', { 
-        hasThemes: !!renderStyles.themes, 
-        activeTheme: renderStyles.activeTheme,
-        themeKeys: Object.keys(renderStyles.themes || {})
-      });
+      const selectedThemeData = styles?.themes?.[selectedTheme] || defaultThemes[selectedTheme as 'light' | 'dark'];
       
-      console.log('[Render] Diagram data:', {
-        hasData: !!data,
-        hasLifelines: !!data?.lifelines,
-        lifelinesCount: data?.lifelines?.length || 0,
-        hasNodes: !!data?.nodes,
-        nodesCount: data?.nodes?.length || 0,
-        lifelines: data?.lifelines,
-        nodes: data?.nodes
-      });
-
-      // Create a hidden rendering container
-      const renderContainer = document.createElement('div');
-      renderContainer.id = 'diagram-render-container';
-      renderContainer.style.position = 'fixed';
-      renderContainer.style.top = '-9999px';
-      renderContainer.style.left = '-9999px';
-      renderContainer.style.width = `${width}px`;
-      renderContainer.style.height = `${height}px`;
-      renderContainer.style.overflow = 'hidden';
+      console.log('[Render] Capturing preview container directly');
       
-      // Apply theme background
-      const selectedThemeData = renderStyles.themes[selectedTheme];
-      if (selectedThemeData?.colors?.background) {
-        renderContainer.style.backgroundColor = selectedThemeData.colors.background;
+      // Find the React Flow viewport element within the preview
+      const reactFlowViewport = previewContainerRef.current.querySelector('.react-flow__viewport');
+      if (!reactFlowViewport) {
+        throw new Error('React Flow viewport not found in preview');
       }
       
-      document.body.appendChild(renderContainer);
-      console.log('[Render] Container created and added to DOM');
-
-      // Create a wrapper for the React Flow instance
-      const flowWrapper = document.createElement('div');
-      flowWrapper.style.width = '100%';
-      flowWrapper.style.height = '100%';
-      renderContainer.appendChild(flowWrapper);
-
-      // Import ReactDOM dynamically to render the diagram
-      const ReactDOM = await import('react-dom/client');
-      const root = ReactDOM.createRoot(flowWrapper);
-      console.log('[Render] React root created');
-
-      // Create a promise that resolves when the diagram is ready
-      let resolveReady: () => void;
-      let rejectReady: (error: Error) => void;
-      const readyPromise = new Promise<void>((resolve, reject) => {
-        resolveReady = resolve;
-        rejectReady = reject;
-      });
-
-      // Set a timeout for the rendering process (10 seconds)
-      const renderTimeout = setTimeout(() => {
-        rejectReady(new Error('Diagram rendering timed out after 10 seconds'));
-      }, 10000);
-
-      console.log('[Render] Starting diagram component render');
-
-      // Render the diagram with render mode enabled and fixed viewport
-      root.render(
-        <ReactFlowProvider>
-          <SequenceDiagramRenderer
-            data={data}
-            styles={renderStyles}
-            readOnly={true}
-            isRenderMode={true}
-            initialViewport={previewViewport}
-            onRenderReady={() => {
-              console.log('[Render] Diagram ready callback triggered');
-              clearTimeout(renderTimeout);
-              resolveReady();
-            }}
-          />
-        </ReactFlowProvider>
-      );
+      console.log('[Render] Found React Flow viewport, capturing as PNG...');
       
-      console.log('[Render] Waiting for diagram to be ready...');
-      // Wait for the diagram to be fully rendered and fitted
-      await readyPromise;
-      
-      console.log('[Render] Diagram ready, waiting for layout stabilization...');
-      // Additional wait for any animations or layout adjustments
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      console.log('[Render] Capturing diagram as PNG...');
-      // Capture the rendered diagram
-      const dataUrl = await toPng(renderContainer, {
+      // Capture the preview container as PNG
+      const dataUrl = await toPng(previewContainerRef.current, {
         quality: 1.0,
         pixelRatio: 2,
         width,
         height,
-        backgroundColor: selectedThemeData?.colors?.background
+        backgroundColor: selectedThemeData?.colors?.background,
+        cacheBust: true
       });
 
-      console.log('[Render] PNG captured, cleaning up...');
-      // Clean up
-      root.unmount();
-      document.body.removeChild(renderContainer);
+      console.log('[Render] PNG captured successfully');
 
       console.log('[Render] Uploading to server...');
       // Upload to server
@@ -184,16 +106,6 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
     } catch (error) {
       console.error('[Render] Error occurred:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to render diagram');
-      
-      // Clean up on error
-      try {
-        const container = document.getElementById('diagram-render-container');
-        if (container) {
-          document.body.removeChild(container);
-        }
-      } catch (cleanupError) {
-        console.error('[Render] Cleanup error:', cleanupError);
-      }
     } finally {
       setIsRendering(false);
       console.log('[Render] Render process complete');
@@ -292,10 +204,12 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
               </div>
               <div className="flex-1 p-4 overflow-auto">
                 <div 
+                  ref={previewContainerRef}
                   className="mx-auto border shadow-lg"
                   style={{ 
-                    width: '100%',
-                    aspectRatio: `${width} / ${height}`,
+                    width: `${width}px`,
+                    height: `${height}px`,
+                    maxWidth: '100%',
                     maxHeight: '100%'
                   }}
                 >
