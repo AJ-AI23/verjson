@@ -4,16 +4,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DiagramStyles } from '@/types/diagramStyles';
+import { DiagramStyles, DiagramStyleTheme } from '@/types/diagramStyles';
+import { SequenceDiagramData } from '@/types/diagram';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { toPng } from 'html-to-image';
 import { Loader2 } from 'lucide-react';
+import { ReactFlowProvider } from '@xyflow/react';
+import { SequenceDiagramRenderer } from './sequence/SequenceDiagramRenderer';
 
 interface DiagramRenderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   documentId: string;
+  data: SequenceDiagramData;
   styles?: DiagramStyles;
   diagramRef: React.RefObject<HTMLDivElement>;
 }
@@ -22,6 +26,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   open,
   onOpenChange,
   documentId,
+  data,
   styles,
   diagramRef
 }) => {
@@ -33,39 +38,74 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const availableThemes = styles?.themes ? Object.keys(styles.themes) : ['light', 'dark'];
 
   const handleRender = async () => {
-    if (!diagramRef.current) {
-      toast.error('Diagram not ready for rendering');
-      return;
-    }
-
     setIsRendering(true);
 
     try {
-      // Apply temporary dimensions for rendering
-      const element = diagramRef.current;
-      const originalWidth = element.style.width;
-      const originalHeight = element.style.height;
+      // Create a hidden rendering container
+      const renderContainer = document.createElement('div');
+      renderContainer.id = 'diagram-render-container';
+      renderContainer.style.position = 'fixed';
+      renderContainer.style.top = '-9999px';
+      renderContainer.style.left = '-9999px';
+      renderContainer.style.width = `${width}px`;
+      renderContainer.style.height = `${height}px`;
+      renderContainer.style.overflow = 'hidden';
       
-      element.style.width = `${width}px`;
-      element.style.height = `${height}px`;
+      // Apply theme background
+      const selectedThemeData = styles?.themes[selectedTheme];
+      if (selectedThemeData?.colors?.background) {
+        renderContainer.style.backgroundColor = selectedThemeData.colors.background;
+      }
+      
+      document.body.appendChild(renderContainer);
 
-      // Wait a bit for layout to settle
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Create a wrapper for the React Flow instance
+      const flowWrapper = document.createElement('div');
+      flowWrapper.style.width = '100%';
+      flowWrapper.style.height = '100%';
+      renderContainer.appendChild(flowWrapper);
 
-      // Generate PNG
-      const dataUrl = await toPng(element, {
+      // Import ReactDOM dynamically to render the diagram
+      const ReactDOM = await import('react-dom/client');
+      const root = ReactDOM.createRoot(flowWrapper);
+
+      // Create the styles with the selected theme
+      const renderStyles: DiagramStyles = {
+        ...styles,
+        activeTheme: selectedTheme
+      };
+
+      // Render the diagram with fit view enabled
+      await new Promise<void>((resolve) => {
+        root.render(
+          <ReactFlowProvider>
+            <SequenceDiagramRenderer
+              data={data}
+              styles={renderStyles}
+              readOnly={true}
+            />
+          </ReactFlowProvider>
+        );
+        
+        // Wait for the diagram to render and fit
+        setTimeout(resolve, 1500);
+      });
+
+      // Capture the rendered diagram
+      const dataUrl = await toPng(renderContainer, {
         quality: 1.0,
         pixelRatio: 2,
         width,
-        height
+        height,
+        backgroundColor: selectedThemeData?.colors?.background
       });
 
-      // Restore original dimensions
-      element.style.width = originalWidth;
-      element.style.height = originalHeight;
+      // Clean up
+      root.unmount();
+      document.body.removeChild(renderContainer);
 
       // Upload to server
-      const { data, error } = await supabase.functions.invoke('diagram-render', {
+      const { data: uploadData, error } = await supabase.functions.invoke('diagram-render', {
         body: {
           documentId,
           styleTheme: selectedTheme,
@@ -78,7 +118,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       if (error) throw error;
 
       toast.success('Diagram rendered successfully!');
-      console.log('Render public URL:', data.publicUrl);
+      console.log('Render public URL:', uploadData.publicUrl);
       
       onOpenChange(false);
 

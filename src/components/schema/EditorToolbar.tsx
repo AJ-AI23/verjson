@@ -531,6 +531,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             open={isRenderDialogOpen}
             onOpenChange={setIsRenderDialogOpen}
             documentId={selectedDocument.id}
+            data={selectedDocument.content?.data || { lifelines: [], nodes: [] }}
             styles={selectedDocument.content?.styles}
             diagramRef={diagramRef}
           />
