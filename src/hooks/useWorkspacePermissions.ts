@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemoSession } from '@/contexts/DemoSessionContext';
 import { toast } from 'sonner';
 import { triggerWorkspaceRefresh } from '@/lib/workspaceRefreshUtils';
+import { checkDemoSessionExpired } from '@/lib/supabaseErrorHandler';
 
 const VIRTUAL_SHARED_WORKSPACE_ID = '__shared_with_me__';
 
@@ -22,6 +24,7 @@ export interface WorkspacePermission {
 
 export function useWorkspacePermissions(workspaceId?: string) {
   const { user } = useAuth();
+  const { handleDemoExpiration } = useDemoSession();
   const [permissions, setPermissions] = useState<WorkspacePermission[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +50,14 @@ export function useWorkspacePermissions(workspaceId?: string) {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        const { isDemoExpired } = checkDemoSessionExpired(error);
+        if (isDemoExpired) {
+          handleDemoExpiration();
+          return;
+        }
+        throw error;
+      }
 
       console.log('Workspace permissions from edge function:', data.permissions);
       
@@ -76,7 +86,14 @@ export function useWorkspacePermissions(workspaceId?: string) {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        const { isDemoExpired } = checkDemoSessionExpired(error);
+        if (isDemoExpired) {
+          handleDemoExpiration();
+          return null;
+        }
+        throw error;
+      }
 
       toast.success(data.message || 'Workspace invitation sent successfully');
       await fetchPermissions(); // Refresh permissions
@@ -104,7 +121,14 @@ export function useWorkspacePermissions(workspaceId?: string) {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        const { isDemoExpired } = checkDemoSessionExpired(error);
+        if (isDemoExpired) {
+          handleDemoExpiration();
+          return;
+        }
+        throw error;
+      }
 
       toast.success(data.message || 'Bulk document invitation sent successfully');
       triggerWorkspaceRefresh(); // Refresh workspace dropdown for shared docs
@@ -128,7 +152,14 @@ export function useWorkspacePermissions(workspaceId?: string) {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        const { isDemoExpired } = checkDemoSessionExpired(error);
+        if (isDemoExpired) {
+          handleDemoExpiration();
+          return;
+        }
+        throw error;
+      }
 
       setPermissions(prev => prev.map(p => 
         p.id === permissionId ? { ...p, role } : p
@@ -170,7 +201,14 @@ export function useWorkspacePermissions(workspaceId?: string) {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        const { isDemoExpired } = checkDemoSessionExpired(error);
+        if (isDemoExpired) {
+          handleDemoExpiration();
+          return;
+        }
+        throw error;
+      }
 
       setPermissions(prev => prev.filter(p => p.id !== permissionId));
       toast.success(data.message || 'Permission removed successfully');

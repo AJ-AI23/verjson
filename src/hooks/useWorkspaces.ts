@@ -2,15 +2,18 @@ import { useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemoSession } from '@/contexts/DemoSessionContext';
 import { registerWorkspaceUpdateHandler } from './useNotifications';
 import { Workspace, CreateWorkspaceData } from '@/types/workspace';
 import { toast } from 'sonner';
 import { registerWorkspaceRefreshHandler } from '@/lib/workspaceRefreshUtils';
+import { checkDemoSessionExpired } from '@/lib/supabaseErrorHandler';
 
 const WORKSPACE_QUERY_KEY = 'workspaces';
 
 export function useWorkspaces() {
   const { user } = useAuth();
+  const { handleDemoExpiration } = useDemoSession();
   const queryClient = useQueryClient();
 
   const { data: workspaces = [], isLoading: loading, error: queryError } = useQuery({
@@ -24,7 +27,14 @@ export function useWorkspaces() {
         body: { action: 'listUserWorkspaces' }
       });
       
-      if (error) throw error;
+      if (error) {
+        const { isDemoExpired } = checkDemoSessionExpired(error);
+        if (isDemoExpired) {
+          handleDemoExpiration();
+          throw new Error('Demo session expired');
+        }
+        throw error;
+      }
 
       console.log('[useWorkspaces] ✅ Fetched workspaces:', data.workspaces?.length || 0);
       return data.workspaces || [];
@@ -46,7 +56,14 @@ export function useWorkspaces() {
         body: { action: 'createWorkspace', ...data }
       });
 
-      if (error) throw error;
+      if (error) {
+        const { isDemoExpired } = checkDemoSessionExpired(error);
+        if (isDemoExpired) {
+          handleDemoExpiration();
+          return null;
+        }
+        throw error;
+      }
       
       refetch();
       toast.success('Workspace created successfully');
@@ -64,7 +81,14 @@ export function useWorkspaces() {
         body: { action: 'updateWorkspace', id, ...updates }
       });
 
-      if (error) throw error;
+      if (error) {
+        const { isDemoExpired } = checkDemoSessionExpired(error);
+        if (isDemoExpired) {
+          handleDemoExpiration();
+          return null;
+        }
+        throw error;
+      }
       
       refetch();
       toast.success('Workspace updated successfully');
@@ -82,7 +106,14 @@ export function useWorkspaces() {
         body: { action: 'deleteWorkspace', id }
       });
 
-      if (error) throw error;
+      if (error) {
+        const { isDemoExpired } = checkDemoSessionExpired(error);
+        if (isDemoExpired) {
+          handleDemoExpiration();
+          return;
+        }
+        throw error;
+      }
       
       refetch();
       toast.success('Workspace deleted successfully');
