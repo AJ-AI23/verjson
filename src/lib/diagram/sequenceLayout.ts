@@ -144,6 +144,9 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     
     // Use auto-aligned position for consistent spacing
     const yPos = alignedNodePositions.get(node.id) || (LIFELINE_HEADER_HEIGHT + 40);
+    
+    // Update the node's yPosition to match the calculated position
+    node.yPosition = yPos;
 
     // Determine horizontal positioning based on connected anchors
     const MARGIN = 40; // Margin from lifeline for edges
