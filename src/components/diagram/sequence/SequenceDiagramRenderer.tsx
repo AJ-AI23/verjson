@@ -321,31 +321,41 @@ const MousePositionTracker: React.FC<{
       nodeHeights
     });
     
-    // Save updated yPosition values back to the document
-    // The layout calculation updates yPosition on the nodes, but we need to persist it
-    const hasPositionChanges = diagramNodes.some(node => {
-      const layoutNode = layout.nodes.find(n => n.id === node.id && n.type === 'sequenceNode');
-      if (!layoutNode) return false;
-      const nodeData = layoutNode.data as any; // Contains the full DiagramNode
-      return nodeData.yPosition !== node.yPosition;
+    // Log the calculated yPosition values for debugging
+    console.log('📍 [SequenceDiagramRenderer] Calculated yPosition values:', 
+      layout.nodes
+        .filter(n => n.type === 'sequenceNode')
+        .slice(0, 3)
+        .map(n => ({
+          id: n.id,
+          yPosition: (n.data as any).yPosition,
+          displayY: n.position.y,
+          displayHeight: nodeHeights.get(n.id) || 70
+        }))
+    );
+    
+    // Extract updated nodes with their new yPosition values from the layout
+    // The layout function has already updated the yPosition on the node objects
+    const updatedNodes = layout.nodes
+      .filter(n => n.type === 'sequenceNode')
+      .map(n => {
+        const nodeData = n.data as any;
+        return diagramNodes.find(dn => dn.id === n.id);
+      })
+      .filter((n): n is DiagramNode => n !== undefined);
+    
+    // Check if we need to persist these changes
+    // Since the layout function mutates the nodes, they should already have the updated yPosition
+    const needsPersist = updatedNodes.some(node => {
+      const original = diagramNodes.find(n => n.id === node.id);
+      return original && original.yPosition !== node.yPosition;
     });
     
-    if (hasPositionChanges && onDataChange && !isDraggingRef.current) {
-      console.log('💾 [SequenceDiagramRenderer] Saving updated yPosition values to document');
-      // Extract updated nodes from layout
-      const updatedNodes = diagramNodes.map(node => {
-        const layoutNode = layout.nodes.find(n => n.id === node.id && n.type === 'sequenceNode');
-        if (layoutNode) {
-          const nodeData = layoutNode.data as any; // Contains the full DiagramNode
-          return { ...node, yPosition: nodeData.yPosition };
-        }
-        return node;
-      });
-      
-      // Defer the update to avoid updating during render
+    if (needsPersist && onDataChange && !isDraggingRef.current) {
+      console.log('💾 [SequenceDiagramRenderer] Persisting yPosition changes to document');
       setTimeout(() => {
         onDataChange({ ...data, nodes: updatedNodes });
-      }, 0);
+      }, 100);
     }
     
     // Validate edge creation and attempt recovery if needed
