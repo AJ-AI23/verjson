@@ -104,7 +104,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const isDraggingRef = useRef(false);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const previousLayoutRef = useRef<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
-  const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
+  const [mousePosition, setMousePosition] = useState<{ viewport: { x: number; y: number }; flow: { x: number; y: number } } | null>(null);
 
   const activeTheme = styles?.themes?.[currentTheme] || styles?.themes?.light || defaultLightTheme;
 
@@ -186,17 +186,25 @@ const FitViewHelper: React.FC<{
   return null;
 };
 
-// Helper component to track mouse position in flow coordinates
+// Helper component to track mouse position in both viewport and flow coordinates
 const MousePositionTracker: React.FC<{
-  onMouseMove: (pos: { x: number; y: number }) => void;
+  onMouseMove: (pos: { viewport: { x: number; y: number }; flow: { x: number; y: number } }) => void;
   onMouseLeave: () => void;
 }> = ({ onMouseMove, onMouseLeave }) => {
   const { screenToFlowPosition } = useReactFlow();
   
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
-      const flowPos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-      onMouseMove({ x: flowPos.x, y: flowPos.y });
+      const container = document.querySelector('.react-flow');
+      if (container) {
+        const bounds = container.getBoundingClientRect();
+        const viewportPos = {
+          x: event.clientX - bounds.left,
+          y: event.clientY - bounds.top
+        };
+        const flowPos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+        onMouseMove({ viewport: viewportPos, flow: flowPos });
+      }
     };
     
     const container = document.querySelector('.react-flow');
@@ -1184,12 +1192,12 @@ const MousePositionTracker: React.FC<{
             <div 
               className="absolute pointer-events-none bg-background/90 border border-border px-2 py-1 rounded text-xs"
               style={{
-                left: mousePosition.x + 15,
-                top: mousePosition.y + 15,
+                left: mousePosition.viewport.x + 15,
+                top: mousePosition.viewport.y + 15,
                 zIndex: 1000
               }}
             >
-              x: {mousePosition.x.toFixed(0)}, y: {mousePosition.y.toFixed(0)}
+              x: {mousePosition.flow.x.toFixed(0)}, y: {mousePosition.flow.y.toFixed(0)}
             </div>
           )}
         </ReactFlow>
