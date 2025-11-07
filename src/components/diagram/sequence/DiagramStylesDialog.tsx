@@ -32,8 +32,14 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
   const [activeTab, setActiveTab] = useState<string>('light');
   const currentTheme = styles.themes[activeTab] || styles.themes.light;
 
-  // Get unique node types from the diagram
-  const nodeTypes = Array.from(new Set(nodes.map(n => n.type)));
+  // All available node types
+  const allNodeTypes: Array<keyof typeof currentTheme.colors.nodeTypes> = [
+    'endpoint',
+    'process',
+    'decision',
+    'data',
+    'custom'
+  ];
 
   const handleColorChange = (key: keyof DiagramStyleTheme['colors'], value: string) => {
     const updatedTheme = {
@@ -192,17 +198,16 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
                 </AccordionItem>
 
                 {/* Node Type Colors */}
-                {nodeTypes.length > 0 && (
-                  <AccordionItem value="node-types">
-                    <AccordionTrigger className="text-sm font-semibold">
-                      <div className="flex items-center gap-2">
-                        <Box className="h-4 w-4" />
-                        Node Type Colors ({nodeTypes.length})
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-4 p-2">
-                        {nodeTypes.map((nodeType) => {
+                <AccordionItem value="node-types">
+                  <AccordionTrigger className="text-sm font-semibold">
+                    <div className="flex items-center gap-2">
+                      <Box className="h-4 w-4" />
+                      Node Type Colors
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-4 p-2">
+                      {allNodeTypes.map((nodeType) => {
                           const typeColors = currentTheme.colors.nodeTypes[nodeType as keyof typeof currentTheme.colors.nodeTypes];
                           return (
                             <div key={nodeType} className="space-y-3 pb-4 border-b last:border-b-0">
@@ -226,11 +231,10 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
                               </div>
                             </div>
                           );
-                        })}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                )}
+                      })}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
 
                 {/* Lifeline Colors */}
                 {lifelines.length > 0 && (
