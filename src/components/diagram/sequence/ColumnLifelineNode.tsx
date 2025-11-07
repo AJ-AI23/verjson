@@ -136,10 +136,18 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
           >
             {/* Large Clickable Area */}
             <button
-              onClick={() => handleAddNode(hoverPosition)}
-              className="w-12 h-12 rounded-full flex items-center justify-center relative pointer-events-auto"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                handleAddNode(hoverPosition);
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+              }}
+              className="w-12 h-12 rounded-full flex items-center justify-center relative pointer-events-auto cursor-pointer"
               style={{
-                backgroundColor: 'transparent'
+                backgroundColor: 'transparent',
+                zIndex: 10000
               }}
               title="Add node here"
             >
