@@ -283,7 +283,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
                       data={data}
                       styles={previewStyles}
                       readOnly={true}
-                      isRenderMode={false}
+                      isRenderMode={true}
                     />
                   </ReactFlowProvider>
                 </div>
