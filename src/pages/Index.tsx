@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Editor } from '@/components/Editor';
 import { AuthButton } from '@/components/AuthButton';
 import { NotificationsButton } from '@/components/NotificationsButton';
+import { DemoSessionRibbon } from '@/components/DemoSessionRibbon';
 import { WorkspaceSidebar } from '@/components/workspace/WorkspaceSidebar';
 import { DocumentPinEntryDialog } from '@/components/workspace/DocumentPinEntryDialog';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
@@ -143,6 +144,7 @@ const Index = () => {
         '--sidebar-width-mobile': '18rem' 
       } as React.CSSProperties}
     >
+      <DemoSessionRibbon />
       <div className="min-h-screen bg-background flex w-full relative">
         <WorkspaceSidebar 
           onDocumentSelect={handleDocumentSelect}
@@ -151,7 +153,7 @@ const Index = () => {
         />
         
         <div className="flex flex-col flex-1 min-w-0 w-full">
-          <header className="bg-card border-b py-2 px-3 md:py-3 md:px-6 shadow-sm sticky top-0 z-10">
+          <header className="bg-card border-b py-2 px-3 md:py-3 md:px-6 shadow-sm sticky z-10" style={{ top: 0 }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 md:gap-4">
                 <SidebarTrigger className="animate-fade-in shrink-0" />
