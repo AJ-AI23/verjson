@@ -38,6 +38,8 @@ export interface DiagramNode {
   type: 'endpoint' | 'process' | 'decision' | 'data' | 'custom';
   label: string;
   anchors: [AnchorNode, AnchorNode];
+  // DEPRECATED: position is now calculated dynamically based on array order
+  // Kept optional for backward compatibility during migration
   position?: { x: number; y: number };
   data?: {
     method?: string;
@@ -57,7 +59,9 @@ export interface DiagramNode {
 export interface AnchorNode {
   id: string;
   lifelineId: string;
-  yPosition: number;
+  // DEPRECATED: yPosition is now calculated dynamically based on node's array position
+  // Kept optional for backward compatibility during migration
+  yPosition?: number;
   anchorType: 'source' | 'target';
 }
 

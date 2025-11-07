@@ -224,7 +224,7 @@ const MousePositionTracker: React.FC<{
   return null;
 };
 
-  // Add node on lifeline callback
+  // Add node on lifeline callback - simplified to just append to array
   const handleAddNodeOnLifeline = useCallback((sourceLifelineId: string, yPosition: number, lifelineHeight: number) => {
     if (!onDataChange || lifelines.length === 0) return;
     
@@ -255,50 +255,19 @@ const MousePositionTracker: React.FC<{
       targetLifelineId = newLifelineId;
     }
     
-    // Find nodes that need to be moved down
-    const nodeHeight = 70;
-    const anchorHeight = 16;
-    const minSpacing = 50;
-    const LIFELINE_HEADER_HEIGHT = 100;
-    
-    // Position node starting at click position + half node height + half anchor height offset
-    const nodeY = yPosition + (nodeHeight / 2) + (anchorHeight / 2);
-    
-    // Enforce bottom limit - node bottom should not exceed lifeline height
-    const maxNodeY = LIFELINE_HEADER_HEIGHT + lifelineHeight - nodeHeight;
-    const constrainedNodeY = Math.min(nodeY, maxNodeY);
-    
-    const newNodeBottom = constrainedNodeY + nodeHeight;
-    
-    const updatedNodes = diagramNodes.map(node => {
-      const existingNodeY = node.position?.y || 0;
-      // If existing node overlaps with new node position, move it down
-      if (existingNodeY >= constrainedNodeY - minSpacing && existingNodeY < newNodeBottom + minSpacing) {
-        const newY = Math.min(newNodeBottom + minSpacing, maxNodeY);
-        const nodeCenterY = newY + nodeHeight / 2;
-        return {
-          ...node,
-          position: { ...node.position, y: newY },
-          anchors: node.anchors?.map(a => ({ ...a, yPosition: nodeCenterY })) as any
-        };
-      }
-      return node;
-    });
-    
-    // Calculate center Y for anchors based on the node's top position
-    const nodeCenterY = constrainedNodeY + nodeHeight / 2;
+    // Create new node - position will be calculated dynamically based on array order
     const newNode: DiagramNode = {
       id: nodeId,
       type: 'endpoint',
       label: 'New Endpoint',
       anchors: [
-        { id: sourceAnchorId, lifelineId: sourceLifelineId, yPosition: nodeCenterY, anchorType: 'source' },
-        { id: targetAnchorId, lifelineId: targetLifelineId, yPosition: nodeCenterY, anchorType: 'target' }
-      ],
-      position: { x: 0, y: constrainedNodeY }
+        { id: sourceAnchorId, lifelineId: sourceLifelineId, anchorType: 'source' },
+        { id: targetAnchorId, lifelineId: targetLifelineId, anchorType: 'target' }
+      ]
     };
     
-    const finalNodes = [...updatedNodes, newNode];
+    // Simply append to the end of the nodes array
+    const finalNodes = [...diagramNodes, newNode];
     onDataChange({ ...data, lifelines: updatedLifelines, nodes: finalNodes });
   }, [diagramNodes, lifelines, data, onDataChange]);
 

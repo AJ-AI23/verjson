@@ -42,9 +42,10 @@ export const useSequenceDiagramSync = ({
     // Edges are auto-generated, no manual updates supported
   }, []);
 
-  const updateNodePosition = useCallback((nodeId: string, position: { x: number; y: number }) => {
-    updateNode(nodeId, { position });
-  }, [updateNode]);
+  const updateNodePosition = useCallback((nodeId: string, order: number) => {
+    // Node positioning is now determined by array order, not stored position
+    // Reordering is handled by the diagram renderer
+  }, []);
 
   const addNode = useCallback((node: DiagramNode) => {
     const data = document.data as SequenceDiagramData;
@@ -75,22 +76,8 @@ export const useSequenceDiagramSync = ({
   }, []);
 
   const syncNodesFromFlow = useCallback((flowNodes: Node[]) => {
-    const data = document.data as SequenceDiagramData;
-    const updatedNodes = data.nodes.map(node => {
-      const flowNode = flowNodes.find(fn => fn.id === node.id);
-      if (flowNode && flowNode.position) {
-        return { ...node, position: flowNode.position };
-      }
-      return node;
-    });
-    
-    if (JSON.stringify(updatedNodes) !== JSON.stringify(data.nodes)) {
-      debouncedUpdate(() => ({
-        ...document,
-        data: { ...data, nodes: updatedNodes }
-      }));
-    }
-  }, [document, debouncedUpdate]);
+    // Positions are calculated dynamically, no sync needed
+  }, []);
 
   return {
     updateNode,

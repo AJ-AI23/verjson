@@ -104,10 +104,10 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       n.anchors?.some(a => a.id === anchor.id)
     );
     
-    // Use the newly calculated aligned position instead of stored position
+    // Use the newly calculated aligned position
     const connectedNodeYPos = connectedNode 
       ? (alignedNodePositions.get(connectedNode.id) || (LIFELINE_HEADER_HEIGHT + 40))
-      : anchor.yPosition;
+      : (LIFELINE_HEADER_HEIGHT + 40);
     
     // Get node height - use measured height if available, otherwise use default from config
     const measuredHeight = connectedNode && nodeHeights ? nodeHeights.get(connectedNode.id) : undefined;
@@ -280,29 +280,10 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   };
 };
 
-// Calculate the vertical order of nodes based on anchor positions
+// Calculate the vertical order of nodes based on their array order
+// The nodes array order in the JSON is the single source of truth for vertical sequence
 function calculateNodeSequence(nodes: DiagramNode[]): string[] {
-  // Sort nodes by their average anchor Y position
-  const nodesWithPosition = nodes.map(node => {
-    const sourceAnchor = node.anchors?.[0];
-    const targetAnchor = node.anchors?.[1];
-    
-    let avgY = 0;
-    if (sourceAnchor && targetAnchor) {
-      avgY = (sourceAnchor.yPosition + targetAnchor.yPosition) / 2;
-    } else if (sourceAnchor) {
-      avgY = sourceAnchor.yPosition;
-    } else if (targetAnchor) {
-      avgY = targetAnchor.yPosition;
-    }
-    
-    return { id: node.id, yPosition: avgY };
-  });
-  
-  // Sort by Y position
-  nodesWithPosition.sort((a, b) => a.yPosition - b.yPosition);
-  
-  return nodesWithPosition.map(n => n.id);
+  return nodes.map(node => node.id);
 }
 
 // Calculate even spacing for nodes based on their sequence order and actual heights
