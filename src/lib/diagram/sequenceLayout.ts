@@ -92,6 +92,9 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Build a dependency graph to determine node order
   const nodeOrder = calculateNodeSequence(nodes);
 
+  // Auto-align nodes with even vertical spacing
+  const alignedNodePositions = calculateEvenSpacing(nodes, nodeOrder);
+
   // Create anchor nodes - positioned at the same Y as their connected node's center
   const anchorNodes: Node[] = anchors.map(anchor => {
     const xPos = lifelineXPositions.get(anchor.lifelineId) || 0;
@@ -135,21 +138,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     const sourceAnchor = node.anchors?.[0];
     const targetAnchor = node.anchors?.[1];
     
-    // Find the sequence order of this node
-    const sequenceIndex = nodeOrder.indexOf(node.id);
-    
-    // Use node's stored position if available, otherwise calculate from anchors or sequence
-    let yPos = node.position?.y || (LIFELINE_HEADER_HEIGHT + 40 + sequenceIndex * NODE_VERTICAL_SPACING);
-    if (!node.position?.y) {
-      // Only use anchor positions if node doesn't have a stored position
-      if (sourceAnchor && targetAnchor) {
-        yPos = (sourceAnchor.yPosition + targetAnchor.yPosition) / 2;
-      } else if (sourceAnchor) {
-        yPos = sourceAnchor.yPosition;
-      } else if (targetAnchor) {
-        yPos = targetAnchor.yPosition;
-      }
-    }
+    // Use the auto-aligned position
+    const yPos = alignedNodePositions.get(node.id) || (LIFELINE_HEADER_HEIGHT + 40);
 
     // Determine horizontal positioning based on connected anchors
     const MARGIN = 40; // Margin from lifeline for edges
@@ -309,6 +299,25 @@ function calculateNodeSequence(nodes: DiagramNode[]): string[] {
   nodesWithPosition.sort((a, b) => a.yPosition - b.yPosition);
   
   return nodesWithPosition.map(n => n.id);
+}
+
+// Calculate even spacing for nodes based on their sequence order
+function calculateEvenSpacing(nodes: DiagramNode[], nodeOrder: string[]): Map<string, number> {
+  const positions = new Map<string, number>();
+  
+  if (nodes.length === 0) {
+    return positions;
+  }
+  
+  const startY = LIFELINE_HEADER_HEIGHT + 40;
+  
+  // Assign evenly spaced Y positions based on sequence order
+  nodeOrder.forEach((nodeId, index) => {
+    const yPos = startY + (index * NODE_VERTICAL_SPACING);
+    positions.set(nodeId, yPos);
+  });
+  
+  return positions;
 }
 
 export const getEdgeStyle = (type: string) => {
