@@ -476,6 +476,36 @@ const FitViewHelper: React.FC<{
           diagramNodes
         );
         
+        // Check if the adjustment is valid
+        if (adjustedPositions === null) {
+          // Invalid drag - would cause overlaps, revert to start position
+          const startPos = dragStartPositions.get(moveChange.id);
+          if (startPos) {
+            setNodes(currentNodes => 
+              currentNodes.map(n => {
+                if (n.id === moveChange.id) {
+                  return { ...n, position: startPos };
+                }
+                // Also revert anchor positions
+                const anchorData = n.data as any;
+                if (n.type === 'anchorNode' && anchorData?.connectedNodeId === moveChange.id) {
+                  const diagramNode = diagramNodes.find(dn => dn.id === moveChange.id);
+                  if (diagramNode) {
+                    const nodeHeight = getNodeHeight(diagramNode);
+                    const nodeCenterY = startPos.y + (nodeHeight / 2);
+                    return { ...n, position: { x: n.position.x, y: nodeCenterY - 8 } };
+                  }
+                }
+                return n;
+              })
+            );
+          }
+          // Clear drag start positions
+          setDragStartPositions(new Map());
+          handleNodesChange(constrainedChanges);
+          return;
+        }
+        
         // Apply adjusted positions to visual nodes
         setNodes(currentNodes => {
           const updatedNodes = applyAdjustedPositions(currentNodes, adjustedPositions);
@@ -517,6 +547,9 @@ const FitViewHelper: React.FC<{
           diagramNodes,
           adjustedPositions
         );
+        
+        // Clear drag start positions after successful adjustment
+        setDragStartPositions(new Map());
         
         onDataChange({ ...data, nodes: updatedDiagramNodes });
         

@@ -57,13 +57,13 @@ export function hasInsufficientMargin(
 
 /**
  * Calculate adjusted positions for all nodes to maintain minimum vertical margins
- * Returns a map of node IDs to their new Y positions
+ * Returns a map of node IDs to their new Y positions, or null if the drag would cause invalid overlaps
  */
 export function calculateAdjustedPositions(
   draggedNodeId: string,
   draggedNodeNewY: number,
   allDiagramNodes: DiagramNode[]
-): Map<string, number> {
+): Map<string, number> | null {
   const adjustedPositions = new Map<string, number>();
   
   // Get all nodes with their heights and current positions, sorted by Y position
@@ -95,6 +95,7 @@ export function calculateAdjustedPositions(
   const newDraggedIndex = nodesWithHeights.findIndex(n => n.id === draggedNodeId);
   
   // Adjust nodes above the dragged node (moving up from dragged node)
+  let hitUpperLimit = false;
   for (let i = newDraggedIndex - 1; i >= 0; i--) {
     const currentNode = nodesWithHeights[i];
     const nodeBelow = nodesWithHeights[i + 1];
@@ -109,12 +110,26 @@ export function calculateAdjustedPositions(
       
       // Check if this would push the node above the upper limit
       if (newY < MIN_NODE_Y_POSITION) {
-        // Stop adjusting nodes above - can't push them higher
+        hitUpperLimit = true;
         break;
       }
       
       nodesWithHeights[i] = { ...currentNode, y: newY };
       adjustedPositions.set(currentNode.id, newY);
+    }
+  }
+  
+  // If we hit the upper limit, check if there are still overlaps
+  if (hitUpperLimit) {
+    for (let i = 0; i < nodesWithHeights.length - 1; i++) {
+      const current = nodesWithHeights[i];
+      const next = nodesWithHeights[i + 1];
+      const gap = next.y - (current.y + current.height);
+      
+      if (gap < MIN_VERTICAL_MARGIN) {
+        // Invalid drag - would cause overlaps
+        return null;
+      }
     }
   }
   
