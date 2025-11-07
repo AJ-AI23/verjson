@@ -72,12 +72,24 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       
       console.log('[Render] Found React Flow viewport, capturing as PNG...');
       
-      // Capture the preview container as PNG
+      // Get the actual dimensions of the preview container
+      const previewRect = previewContainerRef.current.getBoundingClientRect();
+      const scale = width / previewRect.width;
+      
+      console.log('[Render] Capture settings:', { 
+        targetWidth: width, 
+        targetHeight: height, 
+        previewWidth: previewRect.width,
+        previewHeight: previewRect.height,
+        scale 
+      });
+      
+      // Capture the preview container as PNG at the target resolution
       const dataUrl = await toPng(previewContainerRef.current, {
         quality: 1.0,
-        pixelRatio: 2,
-        width,
-        height,
+        pixelRatio: scale * 2, // Scale up to target resolution
+        width: previewRect.width,
+        height: previewRect.height,
         backgroundColor: selectedThemeData?.colors?.background,
         cacheBust: true
       });
@@ -207,9 +219,8 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
                   ref={previewContainerRef}
                   className="mx-auto border shadow-lg"
                   style={{ 
-                    width: `${width}px`,
-                    height: `${height}px`,
-                    maxWidth: '100%',
+                    width: '100%',
+                    aspectRatio: `${width} / ${height}`,
                     maxHeight: '100%'
                   }}
                 >
