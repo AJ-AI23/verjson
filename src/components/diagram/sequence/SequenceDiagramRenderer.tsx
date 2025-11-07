@@ -47,6 +47,7 @@ interface SequenceDiagramRendererProps {
   onToggleFullscreen?: () => void;
   isRenderMode?: boolean;
   onRenderReady?: () => void;
+  onFitViewReady?: (fitView: () => void) => void;
 }
 
 const nodeTypes: NodeTypes = {
@@ -75,7 +76,8 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   isFullscreen = false,
   onToggleFullscreen,
   isRenderMode = false,
-  onRenderReady
+  onRenderReady,
+  onFitViewReady
 }) => {
   const { lifelines = [], nodes: diagramNodes } = data;
   
@@ -91,14 +93,31 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const activeTheme = styles?.themes?.[styles?.activeTheme || 'light'] || styles?.themes?.light || defaultLightTheme;
 
 // Helper component to handle fitView in render mode
-const FitViewHelper: React.FC<{ isRenderMode: boolean; onReady?: () => void; nodesCount: number; edgesCount: number }> = ({ 
+const FitViewHelper: React.FC<{ 
+  isRenderMode: boolean; 
+  onReady?: () => void; 
+  onFitViewReady?: (fitView: () => void) => void;
+  nodesCount: number; 
+  edgesCount: number 
+}> = ({ 
   isRenderMode, 
   onReady,
+  onFitViewReady,
   nodesCount,
   edgesCount 
 }) => {
   const { fitView } = useReactFlow();
   
+  // Expose fitView function to parent for preview
+  useEffect(() => {
+    if (onFitViewReady && nodesCount > 0 && edgesCount > 0) {
+      onFitViewReady(() => {
+        fitView({ padding: 0.1, duration: 200 });
+      });
+    }
+  }, [onFitViewReady, fitView, nodesCount, edgesCount]);
+  
+  // Auto-fit in render mode
   useEffect(() => {
     if (isRenderMode && nodesCount > 0 && edgesCount > 0) {
       console.log('[FitViewHelper] Nodes and edges ready, fitting view...', { nodesCount, edgesCount });
@@ -904,7 +923,7 @@ const FitViewHelper: React.FC<{ isRenderMode: boolean; onReady?: () => void; nod
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
-          fitView
+          fitView={!isRenderMode}
           minZoom={0.1}
           maxZoom={2}
           nodesDraggable={!readOnly}
@@ -929,6 +948,7 @@ const FitViewHelper: React.FC<{ isRenderMode: boolean; onReady?: () => void; nod
           <FitViewHelper 
             isRenderMode={isRenderMode}
             onReady={onRenderReady}
+            onFitViewReady={onFitViewReady}
             nodesCount={nodes.length}
             edgesCount={edges.length}
           />

@@ -199,6 +199,15 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
     activeTheme: selectedTheme
   };
 
+  // Reference for fit view control in preview
+  const previewFitViewRef = React.useRef<(() => void) | null>(null);
+
+  const handleFitView = () => {
+    if (previewFitViewRef.current) {
+      previewFitViewRef.current();
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl h-[80vh]">
@@ -265,9 +274,14 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
             <div className="h-full flex flex-col">
               <div className="bg-muted px-3 py-2 border-b flex items-center justify-between">
                 <span className="text-sm font-medium">Preview</span>
-                <span className="text-xs text-muted-foreground">
-                  Scaled to fit
-                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleFitView}
+                  className="h-7 text-xs"
+                >
+                  Fit to View
+                </Button>
               </div>
               <div className="flex-1 p-4 overflow-auto">
                 <div 
@@ -284,6 +298,11 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
                       styles={previewStyles}
                       readOnly={true}
                       isRenderMode={true}
+                      onFitViewReady={(fitView) => {
+                        previewFitViewRef.current = fitView;
+                        // Auto-fit on first load
+                        setTimeout(() => fitView(), 100);
+                      }}
                     />
                   </ReactFlowProvider>
                 </div>
