@@ -25,6 +25,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
   const [isStylesDialogOpen, setIsStylesDialogOpen] = React.useState(false);
   const [isOpenApiImportOpen, setIsOpenApiImportOpen] = React.useState(false);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const diagramRef = React.useRef<HTMLDivElement>(null);
   
   // Convert initialSchema to string if it's an object to prevent crashes in versioning hooks
   const schemaAsString = React.useMemo(() => {
@@ -138,6 +139,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         onSave={onSave}
         onOpenStyles={() => setIsStylesDialogOpen(true)}
         onImportOpenApi={() => setIsOpenApiImportOpen(true)}
+        diagramRef={diagramRef}
       />
       
       <EditorContent
@@ -167,6 +169,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         onOpenApiImportClose={() => setIsOpenApiImportOpen(false)}
         isFullscreen={isFullscreen}
         onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
+        diagramRef={diagramRef}
       />
       
       {/* Version History Dialog */}

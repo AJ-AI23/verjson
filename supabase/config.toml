@@ -33,3 +33,6 @@ verify_jwt = true
 
 [functions.yjs-sync]
 verify_jwt = false
+
+[functions.diagram-render]
+verify_jwt = true

@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Save, MessageCircle, FileText, Calendar, Clock, Copy, X, Share, Download, RefreshCw, Palette, Upload } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Save, MessageCircle, FileText, Calendar, Clock, Copy, X, Share, Download, RefreshCw, Palette, Upload, Image } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -17,6 +17,7 @@ import { QADialog } from '@/components/QADialog';
 import { OpenAPISplitDialog } from '@/components/OpenAPISplitDialog';
 import { DocumentConfigDialog } from '@/components/DocumentConfigDialog';
 import { UrlAuthDialog } from '@/components/workspace/UrlAuthDialog';
+import { DiagramRenderDialog } from '@/components/diagram/DiagramRenderDialog';
 import { supabase } from '@/integrations/supabase/client';
 
 import { SchemaType } from '@/lib/schemaUtils';
@@ -42,6 +43,7 @@ interface EditorToolbarProps {
   onSave?: (content: any) => void;
   onOpenStyles?: () => void;
   onImportOpenApi?: () => void;
+  diagramRef?: React.RefObject<HTMLDivElement>;
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
@@ -62,13 +64,17 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onSave,
   onOpenStyles,
   onImportOpenApi,
+  diagramRef: propDiagramRef,
 }) => {
+  const internalDiagramRef = useRef<HTMLDivElement>(null);
+  const diagramRef = propDiagramRef || internalDiagramRef;
   const { debugToast } = useDebug();
   const { updateMaxDepth } = useEditorSettings();
   const [isNotationsPanelOpen, setIsNotationsPanelOpen] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [pendingUrl, setPendingUrl] = useState<string>('');
+  const [isRenderDialogOpen, setIsRenderDialogOpen] = useState(false);
   
   const { groupedNotations, activeNotationCount } = useNotationsManager(schema);
   
@@ -99,6 +105,20 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       toast.success('Public URL copied to clipboard');
     } catch (err) {
       toast.error('Failed to copy public URL');
+    }
+  };
+
+  const handleCopyPngUrl = async () => {
+    if (!selectedDocument?.id) return;
+    
+    const currentTheme = selectedDocument.content?.styles?.activeTheme || 'light';
+    const pngUrl = `https://swghcmyqracwifpdfyap.supabase.co/functions/v1/public-diagram?id=${selectedDocument.id}&format=png&style_theme=${currentTheme}`;
+    
+    try {
+      await navigator.clipboard.writeText(pngUrl);
+      toast.success('PNG URL copied to clipboard');
+    } catch (error) {
+      toast.error('Failed to copy URL');
     }
   };
 
@@ -399,6 +419,28 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                         <span className="hidden sm:inline">Styles</span>
                       </Button>
                     )}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setIsRenderDialogOpen(true)}
+                      className="gap-1 md:gap-2 h-8 text-xs md:text-sm"
+                      disabled={!selectedDocument}
+                      title="Render diagram as PNG"
+                    >
+                      <Image className="h-4 w-4" />
+                      <span className="hidden sm:inline">Render</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleCopyPngUrl}
+                      className="gap-1 md:gap-2 h-8 text-xs md:text-sm"
+                      disabled={!selectedDocument}
+                      title="Copy PNG URL"
+                    >
+                      <Image className="h-4 w-4" />
+                      <span className="hidden sm:inline">PNG URL</span>
+                    </Button>
                   </>
                 )}
 
@@ -476,6 +518,18 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           onAuthenticate={handleAuthenticate}
           url={pendingUrl}
         />
+
+        {selectedDocument?.file_type === 'diagram' && (
+          <DiagramRenderDialog
+            open={isRenderDialogOpen}
+            onOpenChange={setIsRenderDialogOpen}
+            documentId={selectedDocument.id}
+            styles={selectedDocument.content?.styles}
+            diagramRef={diagramRef}
+          />
+        )}
+
+        <DebugToggle />
       </div>
     </TooltipProvider>
   );

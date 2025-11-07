@@ -56,7 +56,59 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Apply theme if specified
+    // Check if PNG format is requested
+    const format = url.searchParams.get('format');
+    const styleTheme = url.searchParams.get('style_theme') || 'light';
+
+    if (format === 'png') {
+      // Fetch rendered PNG from storage
+      const { data: renderData, error: renderError } = await supabase
+        .from('diagram_renders')
+        .select('storage_path')
+        .eq('document_id', documentId)
+        .eq('style_theme', styleTheme)
+        .single();
+
+      if (renderError || !renderData) {
+        return new Response(
+          JSON.stringify({ error: 'PNG render not found. Please render the diagram first.' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Get the image from storage
+      const { data: imageData, error: imageError } = await supabase.storage
+        .from('diagram-renders')
+        .download(renderData.storage_path);
+
+      if (imageError || !imageData) {
+        return new Response(
+          JSON.stringify({ error: 'Failed to retrieve image' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Log the access
+      await supabase
+        .from('document_access_logs')
+        .insert({
+          document_id: documentId,
+          access_type: 'public_png_view',
+          user_agent: req.headers.get('user-agent'),
+          referrer: req.headers.get('referer')
+        });
+
+      return new Response(imageData, {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'image/png',
+          'Cache-Control': 'public, max-age=3600'
+        }
+      });
+    }
+
+    // Apply theme if specified for JSON response
     let content = document.content;
     if (content.styles && theme) {
       content = {
@@ -90,7 +142,7 @@ Deno.serve(async (req) => {
         headers: { 
           ...corsHeaders, 
           'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=300' // Cache for 5 minutes
+          'Cache-Control': 'public, max-age=300'
         } 
       }
     );

@@ -83,6 +83,47 @@ export type Database = {
         }
         Relationships: []
       }
+      diagram_renders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          document_id: string
+          height: number
+          id: string
+          storage_path: string
+          style_theme: string
+          width: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          document_id: string
+          height: number
+          id?: string
+          storage_path: string
+          style_theme?: string
+          width: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          document_id?: string
+          height?: number
+          id?: string
+          storage_path?: string
+          style_theme?: string
+          width?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diagram_renders_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_access_logs: {
         Row: {
           access_type: string

@@ -35,6 +35,7 @@ interface EditorContentProps {
   onOpenApiImportClose?: () => void;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
+  diagramRef?: React.RefObject<HTMLDivElement>;
 }
 
 export const EditorContent: React.FC<EditorContentProps> = ({
@@ -64,6 +65,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
   onOpenApiImportClose,
   isFullscreen,
   onToggleFullscreen,
+  diagramRef,
 }) => {
   return (
     <SplitPane>
@@ -106,6 +108,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
         onOpenApiImportClose={onOpenApiImportClose}
         isFullscreen={isFullscreen}
         onToggleFullscreen={onToggleFullscreen}
+        diagramRef={diagramRef}
         onSchemaChange={(updatedSchema) => {
           // When diagram is edited, update the JSON editor
           onEditorChange(JSON.stringify(updatedSchema, null, 2));

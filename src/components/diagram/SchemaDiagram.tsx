@@ -24,6 +24,7 @@ interface SchemaDiagramProps {
   onOpenApiImportClose?: () => void;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
+  diagramRef?: React.RefObject<HTMLDivElement>;
 }
 
 export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
@@ -42,7 +43,8 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   isOpenApiImportOpen,
   onOpenApiImportClose,
   isFullscreen,
-  onToggleFullscreen
+  onToggleFullscreen,
+  diagramRef
 }) => {
   // Check if this is a diagram document and migrate if needed
   const diagramDocument = useMemo(() => {
@@ -83,8 +85,8 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
     console.log('🎨 Rendering SequenceDiagram - isStylesDialogOpen:', isStylesDialogOpen, 'has styles:', !!documentStyles);
 
     return (
-      <div className={`h-full flex flex-col min-h-0 ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
-        <SequenceDiagramRenderer 
+      <div ref={diagramRef} className={`h-full flex flex-col min-h-0 ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
+        <SequenceDiagramRenderer
           data={diagramDocument.data as SequenceDiagramData}
           styles={documentStyles}
           workspaceId={workspaceId}
