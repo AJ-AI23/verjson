@@ -78,7 +78,6 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   onRenderReady
 }) => {
   const { lifelines = [], nodes: diagramNodes } = data;
-  const { fitView } = useReactFlow();
   
   const [selectedNode, setSelectedNode] = useState<DiagramNode | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<DiagramEdge | null>(null);
@@ -90,6 +89,31 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   const activeTheme = styles?.themes[styles?.activeTheme || 'light'] || styles?.themes.light;
+
+// Helper component to handle fitView in render mode
+const FitViewHelper: React.FC<{ isRenderMode: boolean; onReady?: () => void; nodesCount: number; edgesCount: number }> = ({ 
+  isRenderMode, 
+  onReady,
+  nodesCount,
+  edgesCount 
+}) => {
+  const { fitView } = useReactFlow();
+  
+  useEffect(() => {
+    if (isRenderMode && nodesCount > 0 && edgesCount > 0) {
+      setTimeout(() => {
+        fitView({ padding: 0.1, duration: 0 });
+        setTimeout(() => {
+          if (onReady) {
+            onReady();
+          }
+        }, 300);
+      }, 100);
+    }
+  }, [isRenderMode, nodesCount, edgesCount, fitView, onReady]);
+  
+  return null;
+};
 
   // Add node on lifeline callback
   const handleAddNodeOnLifeline = useCallback((sourceLifelineId: string, yPosition: number) => {
@@ -191,22 +215,6 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   useEffect(() => {
     setNodes(nodesWithHandlers);
   }, [nodesWithHandlers, setNodes]);
-
-  // Handle render mode - fit view and notify when ready
-  useEffect(() => {
-    if (isRenderMode && nodes.length > 0 && edges.length > 0) {
-      // Wait a bit for nodes to be positioned
-      setTimeout(() => {
-        fitView({ padding: 0.1, duration: 0 });
-        // Wait for fitView to complete, then notify ready
-        setTimeout(() => {
-          if (onRenderReady) {
-            onRenderReady();
-          }
-        }, 300);
-      }, 100);
-    }
-  }, [isRenderMode, nodes.length, edges.length, fitView, onRenderReady]);
 
   const onNodesChangeHandler = useCallback((changes: any) => {
     // Store initial positions when drag starts
@@ -869,6 +877,14 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
           <MiniMap
             nodeColor={() => '#f1f5f9'}
             className="bg-white border border-slate-200"
+          />
+          
+          {/* Render mode helper */}
+          <FitViewHelper 
+            isRenderMode={isRenderMode}
+            onReady={onRenderReady}
+            nodesCount={nodes.length}
+            edgesCount={edges.length}
           />
           
           {/* Node selection toolbar */}
