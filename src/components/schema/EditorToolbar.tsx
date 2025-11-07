@@ -526,16 +526,24 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           url={pendingUrl}
         />
 
-        {selectedDocument?.file_type === 'diagram' && (
-          <DiagramRenderDialog
-            open={isRenderDialogOpen}
-            onOpenChange={setIsRenderDialogOpen}
-            documentId={selectedDocument.id}
-            data={selectedDocument.content?.data || { lifelines: [], nodes: [] }}
-            styles={selectedDocument.content?.styles}
-            diagramRef={diagramRef}
-          />
-        )}
+        {selectedDocument?.file_type === 'diagram' && (() => {
+          try {
+            const parsedSchema = JSON.parse(schema);
+            return (
+              <DiagramRenderDialog
+                open={isRenderDialogOpen}
+                onOpenChange={setIsRenderDialogOpen}
+                documentId={selectedDocument.id}
+                data={parsedSchema?.data || { lifelines: [], nodes: [] }}
+                styles={parsedSchema?.styles}
+                diagramRef={diagramRef}
+              />
+            );
+          } catch (e) {
+            console.error('Failed to parse diagram schema:', e);
+            return null;
+          }
+        })()}
       </div>
     </TooltipProvider>
   );
