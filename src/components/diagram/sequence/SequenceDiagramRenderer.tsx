@@ -275,25 +275,23 @@ const MousePositionTracker: React.FC<{
       // If existing node overlaps with new node position, move it down
       if (existingNodeY >= constrainedNodeY - minSpacing && existingNodeY < newNodeBottom + minSpacing) {
         const newY = Math.min(newNodeBottom + minSpacing, maxNodeY);
-        const nodeCenterY = newY + nodeHeight / 2;
         return {
           ...node,
           yPosition: newY,
-          anchors: node.anchors?.map(a => ({ ...a, yPosition: nodeCenterY })) as any
+          anchors: node.anchors // Anchors don't need yPosition - calculated from node position
         };
       }
       return node;
     });
     
-    // Calculate center Y for anchors based on the node's top position
-    const nodeCenterY = constrainedNodeY + nodeHeight / 2;
+    // Create new node
     const newNode: DiagramNode = {
       id: nodeId,
       type: 'endpoint',
       label: 'New Endpoint',
       anchors: [
-        { id: sourceAnchorId, lifelineId: sourceLifelineId, yPosition: nodeCenterY, anchorType: 'source' },
-        { id: targetAnchorId, lifelineId: targetLifelineId, yPosition: nodeCenterY, anchorType: 'target' }
+        { id: sourceAnchorId, lifelineId: sourceLifelineId, anchorType: 'source' },
+        { id: targetAnchorId, lifelineId: targetLifelineId, anchorType: 'target' }
       ],
       yPosition: constrainedNodeY
     };
@@ -353,14 +351,12 @@ const MousePositionTracker: React.FC<{
               const newAnchors: [AnchorNodeType, AnchorNodeType] = [
                 { 
                   id: `anchor-${node.id}-source`, 
-                  lifelineId: sourceLifeline.id, 
-                  yPosition: nodeCenterY, 
+                  lifelineId: sourceLifeline.id,
                   anchorType: 'source'
                 },
                 { 
                   id: `anchor-${node.id}-target`, 
-                  lifelineId: targetLifeline.id, 
-                  yPosition: nodeCenterY, 
+                  lifelineId: targetLifeline.id,
                   anchorType: 'target'
                 }
               ];
@@ -541,10 +537,7 @@ const MousePositionTracker: React.FC<{
           return {
             ...node,
             yPosition: nodeY,
-            anchors: node.anchors.map(anchor => ({
-              ...anchor,
-              yPosition: centerY
-            })) as [AnchorNodeType, AnchorNodeType]
+            anchors: node.anchors // Anchors don't need yPosition - calculated from node
           };
         });
         
@@ -694,28 +687,24 @@ const MousePositionTracker: React.FC<{
               
               updatedAnchors[anchorIndex] = {
                 ...draggedAnchor,
-                yPosition: nodeCenterY,
                 lifelineId: otherOriginalLifeline,
                 anchorType: otherOriginalType
               };
               updatedAnchors[otherAnchorIndex] = {
                 ...otherAnchor,
-                yPosition: nodeCenterY,
                 lifelineId: draggedOriginalLifeline,
                 anchorType: draggedOriginalType
               };
             } else {
-              // Update the dragged anchor to new lifeline but keep Y at node center
+              // Update the dragged anchor to new lifeline
               updatedAnchors[anchorIndex] = {
                 ...draggedAnchor,
-                yPosition: nodeCenterY,
                 lifelineId: closestLifelineId
               };
               
-              // Also update the other anchor's Y to ensure they're both at node center
+              // Other anchor stays the same
               updatedAnchors[otherAnchorIndex] = {
-                ...otherAnchor,
-                yPosition: nodeCenterY
+                ...otherAnchor
               };
             }
             
@@ -856,15 +845,12 @@ const MousePositionTracker: React.FC<{
               const constrainedNewY = Math.max(MIN_Y_POSITION, Math.min(snappedNewY, maxYForNode));
               const centerY = constrainedNewY + (nHeight / 2);
               
-              const updatedAnchors = n.anchors?.map(anchor => ({
-                ...anchor,
-                yPosition: centerY
-              }));
+              // Anchors don't need explicit yPosition - calculated from node position
               
               return {
                 ...n,
                 yPosition: constrainedNewY,
-                anchors: updatedAnchors as [typeof updatedAnchors[0], typeof updatedAnchors[1]]
+                anchors: n.anchors // Keep anchors as is
               };
             }
             return n;
@@ -886,18 +872,14 @@ const MousePositionTracker: React.FC<{
             
             const nodeCenterY = currentY + (height / 2);
             
-            // Update anchor positions
-            const updatedAnchors = node.anchors?.map(anchor => ({
-              ...anchor,
-              yPosition: nodeCenterY
-            }));
+            // Anchors don't need explicit yPosition - calculated from node position
             
             currentY += height + verticalSpacing;
             
             return {
               ...node,
               yPosition: currentY - height - verticalSpacing, // Use the position we calculated
-              anchors: updatedAnchors as [typeof updatedAnchors[0], typeof updatedAnchors[1]]
+              anchors: node.anchors // Keep anchors as is
             };
           });
           
@@ -911,16 +893,11 @@ const MousePositionTracker: React.FC<{
           const nodeCenterY = constrainedY + (nodeHeight / 2);
           const updatedNodes = diagramNodes.map(n => {
             if (n.id === moveChange.id) {
-              // Update node position and anchor Y positions
-              const updatedAnchors = n.anchors?.map(anchor => ({
-                ...anchor,
-                yPosition: nodeCenterY
-              }));
-              
+              // Update node position - anchors don't need yPosition
               return { 
                 ...n, 
                 yPosition: constrainedY,
-                anchors: updatedAnchors as [typeof updatedAnchors[0], typeof updatedAnchors[1]]
+                anchors: n.anchors // Keep anchors as is
               };
             }
             return n;
@@ -942,11 +919,7 @@ const MousePositionTracker: React.FC<{
             
             const nodeCenterY = currentY + (height / 2);
             
-            // Update anchor positions
-            const updatedAnchors = node.anchors?.map(anchor => ({
-              ...anchor,
-              yPosition: nodeCenterY
-            }));
+            // Anchors don't need explicit yPosition - calculated from node position
             
             const nodeY = currentY;
             currentY += height + verticalSpacing;
@@ -954,7 +927,7 @@ const MousePositionTracker: React.FC<{
             return {
               ...node,
               yPosition: nodeY,
-              anchors: updatedAnchors as [typeof updatedAnchors[0], typeof updatedAnchors[1]]
+              anchors: node.anchors // Keep anchors as is
             };
           });
           

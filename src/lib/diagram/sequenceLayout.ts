@@ -117,9 +117,6 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     // Position anchor at the vertical center of the node
     const anchorY = connectedNodeYPos + (nodeHeight / 2) - 8; // Center 16px anchor on node center
     
-    // Update the anchor's yPosition in the document to match calculated position
-    anchor.yPosition = connectedNodeYPos + (nodeHeight / 2);
-    
     return {
       id: anchor.id,
       type: 'anchorNode',
@@ -283,29 +280,11 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   };
 };
 
-// Calculate the vertical order of nodes based on array order and stored yPosition
+// Calculate the vertical order of nodes based on stored yPosition or array order
 function calculateNodeSequence(nodes: DiagramNode[]): string[] {
   // If nodes have yPosition, use those for sorting, otherwise use array order
   const nodesWithPosition = nodes.map((node, index) => {
-    let yPos = node.yPosition;
-    
-    // Fallback to anchor positions if yPosition not set
-    if (yPos === undefined) {
-      const sourceAnchor = node.anchors?.[0];
-      const targetAnchor = node.anchors?.[1];
-      
-      if (sourceAnchor && targetAnchor) {
-        yPos = (sourceAnchor.yPosition + targetAnchor.yPosition) / 2;
-      } else if (sourceAnchor) {
-        yPos = sourceAnchor.yPosition;
-      } else if (targetAnchor) {
-        yPos = targetAnchor.yPosition;
-      } else {
-        // Ultimate fallback: use array position
-        yPos = index * 120;
-      }
-    }
-    
+    const yPos = node.yPosition !== undefined ? node.yPosition : index * 120;
     return { id: node.id, yPosition: yPos };
   });
   

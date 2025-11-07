@@ -57,7 +57,6 @@ export interface DiagramNode {
 export interface AnchorNode {
   id: string;
   lifelineId: string;
-  yPosition: number;
   anchorType: 'source' | 'target';
 }
 
