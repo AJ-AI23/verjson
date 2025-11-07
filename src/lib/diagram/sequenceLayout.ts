@@ -190,13 +190,13 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     
     if (anchor.anchorType === 'source') {
       // Edge from anchor to node - arrow points away from source anchor towards node
-      // Left anchor connects from right side to node's left side
-      // Right anchor connects from left side to node's right side
+      // If anchor is on left: connect from anchor's right side (source-right) to node's left side
+      // If anchor is on right: connect from anchor's left side (source-left) to node's right side
       layoutEdges.push({
         id: `anchor-edge-${anchor.id}`,
         source: anchor.id,
         target: node.id,
-        sourceHandle: isLeftAnchor ? 'right' : 'left',
+        sourceHandle: isLeftAnchor ? 'source-right' : 'source-left',
         targetHandle: isLeftAnchor ? 'left' : 'right',
         type: 'sequenceEdge',
         animated: false,
@@ -206,14 +206,14 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       });
     } else {
       // Edge from node to anchor - arrow points towards target anchor
-      // Left anchor connects from node's left side to anchor's right side
-      // Right anchor connects from node's right side to anchor's left side
+      // If anchor is on left: connect from node's left side to anchor's right side (target-right)
+      // If anchor is on right: connect from node's right side to anchor's left side (target-left)
       layoutEdges.push({
         id: `anchor-edge-${anchor.id}`,
         source: node.id,
         target: anchor.id,
         sourceHandle: isLeftAnchor ? 'left' : 'right',
-        targetHandle: isLeftAnchor ? 'right' : 'left',
+        targetHandle: isLeftAnchor ? 'target-right' : 'target-left',
         type: 'sequenceEdge',
         animated: false,
         style: edgeStyles,

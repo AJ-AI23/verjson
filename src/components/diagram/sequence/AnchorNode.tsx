@@ -20,17 +20,17 @@ export const AnchorNode: React.FC<AnchorNodeProps> = ({ data }) => {
         height: '16px',
       }}
     >
-      {/* Left handles - both source and target */}
+      {/* Left side handles */}
       <Handle 
         type="target" 
         position={Position.Left}
-        id="left"
+        id="target-left"
         className="!opacity-0 !pointer-events-none" 
       />
       <Handle 
         type="source" 
         position={Position.Left}
-        id="left"
+        id="source-left"
         className="!opacity-0 !pointer-events-none" 
       />
       
@@ -42,17 +42,17 @@ export const AnchorNode: React.FC<AnchorNodeProps> = ({ data }) => {
         }}
       />
       
-      {/* Right handles - both source and target */}
+      {/* Right side handles */}
       <Handle 
         type="source" 
         position={Position.Right}
-        id="right"
+        id="source-right"
         className="!opacity-0 !pointer-events-none" 
       />
       <Handle 
         type="target" 
         position={Position.Right}
-        id="right"
+        id="target-right"
         className="!opacity-0 !pointer-events-none" 
       />
     </div>
