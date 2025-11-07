@@ -967,6 +967,13 @@ const FitViewHelper: React.FC<{
     const updatedNodes = diagramNodes.map(n =>
       n.id === nodeId ? { ...n, ...updates } : n
     );
+    
+    // Also update the selectedNode state so the editor shows current values
+    const updatedNode = updatedNodes.find(n => n.id === nodeId);
+    if (updatedNode) {
+      setSelectedNode(updatedNode);
+    }
+    
     onDataChange({ ...data, nodes: updatedNodes });
   }, [diagramNodes, data, onDataChange]);
 
