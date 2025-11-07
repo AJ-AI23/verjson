@@ -90,6 +90,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
 }) => {
   const { lifelines = [], nodes: diagramNodes } = data;
   const { settings } = useEditorSettings();
+  const { screenToFlowPosition } = useReactFlow();
   
   const [currentTheme, setCurrentTheme] = useState(initialTheme);
   const [selectedNode, setSelectedNode] = useState<DiagramNode | null>(null);
@@ -1111,11 +1112,9 @@ const FitViewHelper: React.FC<{
             type: 'smoothstep',
           }}
           onMouseMove={(event) => {
-            const bounds = event.currentTarget.getBoundingClientRect();
-            setMousePosition({
-              x: event.clientX - bounds.left,
-              y: event.clientY - bounds.top
-            });
+            // Convert screen coordinates to diagram flow coordinates
+            const flowPos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+            setMousePosition({ x: flowPos.x, y: flowPos.y });
           }}
           onMouseLeave={() => setMousePosition(null)}
         >
