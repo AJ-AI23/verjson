@@ -118,14 +118,13 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
         />
         {!readOnly && onAddNode && hoverPosition !== null && (
           <div
-            className="absolute -translate-y-1/2"
+            className="absolute pointer-events-none"
             style={{ top: `${hoverPosition}px`, left: '30px', transform: 'translate(-50%, -50%)' }}
           >
             {/* Large Clickable Area */}
             <button
               onClick={() => handleAddNode(hoverPosition)}
-              onMouseMove={(e) => e.stopPropagation()}
-              className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-100 relative"
+              className="w-12 h-12 rounded-full flex items-center justify-center relative pointer-events-auto"
               style={{
                 backgroundColor: 'transparent'
               }}
@@ -133,7 +132,7 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
             >
               {/* Visual Circle */}
               <div
-                className="w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 animate-scale-in"
+                className="w-6 h-6 rounded-full flex items-center justify-center"
                 style={{
                   backgroundColor: styles?.colors.nodeBackground || '#ffffff',
                   border: `2px solid #3b82f6`,
@@ -149,7 +148,7 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
             
             {/* Tooltip */}
             <div 
-              className="absolute left-10 top-1/2 -translate-y-1/2 whitespace-nowrap animate-fade-in z-50"
+              className="absolute left-10 top-1/2 -translate-y-1/2 whitespace-nowrap z-50"
               style={{ pointerEvents: 'none' }}
             >
               <div
