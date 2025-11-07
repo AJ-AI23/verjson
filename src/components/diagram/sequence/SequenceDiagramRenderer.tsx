@@ -25,7 +25,6 @@ import { AnchorNode } from './AnchorNode';
 import { NodeEditor } from './NodeEditor';
 import { EdgeEditor } from './EdgeEditor';
 import { NodeToolbarWrapper } from './NodeToolbarWrapper';
-import { DiagramToolbar } from './DiagramToolbar';
 import { DiagramStylesDialog } from './DiagramStylesDialog';
 import { OpenApiImportDialog } from './OpenApiImportDialog';
 import { DiagramHeader } from '../DiagramHeader';
@@ -800,17 +799,6 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         isFullscreen={isFullscreen}
         onToggleFullscreen={onToggleFullscreen}
       />
-      
-      {!readOnly && (
-        <DiagramToolbar
-          onAddNode={handleAddNode}
-          onClearSelection={() => {
-            setSelectedNode(null);
-            setSelectedEdge(null);
-          }}
-          hasSelection={selectedNode !== null || selectedEdge !== null}
-        />
-      )}
 
       <div className="flex-1 relative">
         <ReactFlow
