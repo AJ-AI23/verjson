@@ -385,9 +385,11 @@ const FitViewHelper: React.FC<{
     if (dragChange) {
       const draggedNode = nodes.find(n => n.id === dragChange.id);
       if (draggedNode?.type === 'sequenceNode') {
+        // Use actual measured height, fall back to default if not yet measured
+        const actualHeight = nodeHeights.get(dragChange.id);
         const diagramNode = diagramNodes.find(n => n.id === dragChange.id);
         const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
-        const nodeHeight = nodeConfig?.defaultHeight || 70;
+        const nodeHeight = actualHeight || nodeConfig?.defaultHeight || 70;
         const newY = dragChange.position.y;
         const nodeCenterY = newY + (nodeHeight / 2);
         
@@ -411,9 +413,11 @@ const FitViewHelper: React.FC<{
           
           let shouldSwapWith: Node | null = null;
           for (const otherNode of otherSequenceNodes) {
+            // Use actual measured height for other node
+            const otherActualHeight = nodeHeights.get(otherNode.id);
             const otherDiagramNode = diagramNodes.find(n => n.id === otherNode.id);
             const otherNodeConfig = otherDiagramNode ? getNodeTypeConfig(otherDiagramNode.type) : null;
-            const otherNodeHeight = otherNodeConfig?.defaultHeight || 70;
+            const otherNodeHeight = otherActualHeight || otherNodeConfig?.defaultHeight || 70;
             const otherNodeCenterY = otherNode.position.y + (otherNodeHeight / 2);
             
             // Check if dragged node's center has crossed the other node's center
@@ -453,8 +457,10 @@ const FitViewHelper: React.FC<{
                   };
                 }
                 if (n.id === shouldSwapWith.id) {
+                  // Use actual measured height for swapped node
+                  const swapActualHeight = nodeHeights.get(shouldSwapWith.id);
                   const otherNodeConfig = getNodeTypeConfig(n.type);
-                  const otherNodeHeight = otherNodeConfig?.defaultHeight || 70;
+                  const otherNodeHeight = swapActualHeight || otherNodeConfig?.defaultHeight || 70;
                   const nodeCenterY = draggedOriginalY + (otherNodeHeight / 2);
                   return {
                     ...n,
@@ -483,8 +489,10 @@ const FitViewHelper: React.FC<{
                       return { ...n, position: { x: n.position.x, y: swapCenterY - 8 } };
                     }
                     if (anchorData?.connectedNodeId === shouldSwapWith.id) {
+                      // Use actual measured height for swapped node
+                      const swapActualHeight = nodeHeights.get(shouldSwapWith.id);
                       const otherNodeConfig = swapDiagramNode ? getNodeTypeConfig(swapDiagramNode.type) : null;
-                      const otherNodeHeight = otherNodeConfig?.defaultHeight || 70;
+                      const otherNodeHeight = swapActualHeight || otherNodeConfig?.defaultHeight || 70;
                       const draggedCenterY = draggedOriginalY + (otherNodeHeight / 2);
                       return { ...n, position: { x: n.position.x, y: draggedCenterY - 8 } };
                     }
