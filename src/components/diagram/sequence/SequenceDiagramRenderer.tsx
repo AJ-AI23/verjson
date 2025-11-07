@@ -48,6 +48,8 @@ interface SequenceDiagramRendererProps {
   isRenderMode?: boolean;
   onRenderReady?: () => void;
   onFitViewReady?: (fitView: () => void) => void;
+  initialViewport?: { x: number; y: number; zoom: number };
+  onViewportChange?: (viewport: { x: number; y: number; zoom: number }) => void;
 }
 
 const nodeTypes: NodeTypes = {
@@ -77,7 +79,9 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   onToggleFullscreen,
   isRenderMode = false,
   onRenderReady,
-  onFitViewReady
+  onFitViewReady,
+  initialViewport,
+  onViewportChange
 }) => {
   const { lifelines = [], nodes: diagramNodes } = data;
   
@@ -98,13 +102,15 @@ const FitViewHelper: React.FC<{
   onReady?: () => void; 
   onFitViewReady?: (fitView: () => void) => void;
   nodesCount: number; 
-  edgesCount: number 
+  edgesCount: number;
+  hasInitialViewport: boolean;
 }> = ({ 
   isRenderMode, 
   onReady,
   onFitViewReady,
   nodesCount,
-  edgesCount 
+  edgesCount,
+  hasInitialViewport
 }) => {
   const { fitView } = useReactFlow();
   
@@ -117,9 +123,9 @@ const FitViewHelper: React.FC<{
     }
   }, [onFitViewReady, fitView, nodesCount, edgesCount]);
   
-  // Auto-fit in render mode
+  // Auto-fit in render mode ONLY if no initial viewport is provided
   useEffect(() => {
-    if (isRenderMode && nodesCount > 0 && edgesCount > 0) {
+    if (isRenderMode && nodesCount > 0 && edgesCount > 0 && !hasInitialViewport) {
       console.log('[FitViewHelper] Nodes and edges ready, fitting view...', { nodesCount, edgesCount });
       setTimeout(() => {
         try {
@@ -139,10 +145,19 @@ const FitViewHelper: React.FC<{
           }
         }
       }, 100);
+    } else if (isRenderMode && nodesCount > 0 && edgesCount > 0 && hasInitialViewport) {
+      // If we have initial viewport, just wait for layout then signal ready
+      console.log('[FitViewHelper] Using initial viewport, skipping fit');
+      setTimeout(() => {
+        if (onReady) {
+          console.log('[FitViewHelper] Calling onReady callback with fixed viewport');
+          onReady();
+        }
+      }, 200);
     } else if (isRenderMode) {
       console.log('[FitViewHelper] Waiting for nodes/edges...', { nodesCount, edgesCount });
     }
-  }, [isRenderMode, nodesCount, edgesCount, fitView, onReady]);
+  }, [isRenderMode, nodesCount, edgesCount, fitView, onReady, hasInitialViewport]);
   
   return null;
 };
@@ -923,7 +938,9 @@ const FitViewHelper: React.FC<{
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
-          fitView={!isRenderMode}
+          fitView={!isRenderMode && !initialViewport}
+          defaultViewport={initialViewport}
+          onViewportChange={onViewportChange}
           minZoom={0.1}
           maxZoom={2}
           nodesDraggable={!readOnly}
@@ -951,6 +968,7 @@ const FitViewHelper: React.FC<{
             onFitViewReady={onFitViewReady}
             nodesCount={nodes.length}
             edgesCount={edges.length}
+            hasInitialViewport={!!initialViewport}
           />
           
           {/* Node selection toolbar */}

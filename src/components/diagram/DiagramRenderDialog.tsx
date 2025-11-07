@@ -34,6 +34,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const [height, setHeight] = useState(1080);
   const [selectedTheme, setSelectedTheme] = useState(styles?.activeTheme || 'light');
   const [isRendering, setIsRendering] = useState(false);
+  const [previewViewport, setPreviewViewport] = useState<{ x: number; y: number; zoom: number } | null>(null);
 
   // Default themes if none provided
   const defaultThemes = {
@@ -44,8 +45,13 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const availableThemes = styles?.themes ? Object.keys(styles.themes) : ['light', 'dark'];
 
   const handleRender = async () => {
+    if (!previewViewport) {
+      toast.error('Please wait for preview to load');
+      return;
+    }
+
     setIsRendering(true);
-    console.log('[Render] Starting diagram render process');
+    console.log('[Render] Starting diagram render process with viewport:', previewViewport);
 
     try {
       // Ensure we have valid styles with themes
@@ -115,7 +121,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
 
       console.log('[Render] Starting diagram component render');
 
-      // Render the diagram with render mode enabled
+      // Render the diagram with render mode enabled and fixed viewport
       root.render(
         <ReactFlowProvider>
           <SequenceDiagramRenderer
@@ -123,6 +129,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
             styles={renderStyles}
             readOnly={true}
             isRenderMode={true}
+            initialViewport={previewViewport}
             onRenderReady={() => {
               console.log('[Render] Diagram ready callback triggered');
               clearTimeout(renderTimeout);
@@ -302,6 +309,9 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
                         previewFitViewRef.current = fitView;
                         // Auto-fit on first load
                         setTimeout(() => fitView(), 100);
+                      }}
+                      onViewportChange={(viewport) => {
+                        setPreviewViewport(viewport);
                       }}
                     />
                   </ReactFlowProvider>
