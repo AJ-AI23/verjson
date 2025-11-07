@@ -16,7 +16,8 @@ interface ColumnLifelineNodeProps {
 
 export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) => {
   const { column: lifeline, styles, customLifelineColors, onAddNode, readOnly } = data;
-  const [hoveredAnchor, setHoveredAnchor] = useState<number | null>(null);
+  const [hoverPosition, setHoverPosition] = useState<number | null>(null);
+  const lifelineRef = useRef<HTMLDivElement>(null);
 
   const handleAddNode = (yPosition: number) => {
     if (onAddNode && !readOnly) {
@@ -24,11 +25,24 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
     }
   };
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!lifelineRef.current || readOnly || !onAddNode) return;
+    
+    const rect = lifelineRef.current.getBoundingClientRect();
+    const relativeY = e.clientY - rect.top;
+    
+    // Only show button if mouse is over the lifeline area (not the header)
+    if (relativeY > 0) {
+      setHoverPosition(relativeY);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setHoverPosition(null);
+  };
+
   // Get custom color for this lifeline, fallback to lifeline.color, then to default
   const lifelineColor = customLifelineColors?.[`lifeline-${lifeline.id}`] || lifeline.color || styles?.colors.swimlaneBackground || '#f8fafc';
-
-  // Create anchor points every 150px along the lifeline
-  const anchorPoints = Array.from({ length: 13 }, (_, i) => i * 150 + 75);
 
   return (
     <div
@@ -61,9 +75,10 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
         )}
       </div>
 
-      {/* Vertical Lifeline with Anchor Points */}
+      {/* Vertical Lifeline with Hover Button */}
       <div
-        className="relative"
+        ref={lifelineRef}
+        className="relative pointer-events-auto"
         style={{
           width: '2px',
           height: '2000px',
@@ -75,65 +90,57 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
             transparent 16px
           )`
         }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       >
-        {!readOnly && onAddNode && anchorPoints.map((yPos, index) => (
+        {!readOnly && onAddNode && hoverPosition !== null && (
           <div
-            key={index}
-            className="absolute left-1/2 -translate-x-1/2 pointer-events-auto"
-            style={{ top: `${yPos}px` }}
-            onMouseEnter={() => setHoveredAnchor(index)}
-            onMouseLeave={() => setHoveredAnchor(null)}
+            className="absolute left-1/2 -translate-x-1/2"
+            style={{ top: `${hoverPosition}px` }}
           >
             {/* Large Clickable Area */}
             <button
-              onClick={() => handleAddNode(yPos)}
+              onClick={() => handleAddNode(hoverPosition)}
               className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 relative"
               style={{
                 backgroundColor: 'transparent'
               }}
               title="Add node here"
             >
-              {/* Visual Circle - Always slightly visible */}
+              {/* Visual Circle */}
               <div
-                className={`w-4 h-4 rounded-full flex items-center justify-center transition-all duration-200 ${
-                  hoveredAnchor === index ? 'scale-125' : 'scale-100'
-                }`}
+                className="w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 animate-scale-in"
                 style={{
                   backgroundColor: styles?.colors.nodeBackground || '#ffffff',
-                  border: `2px solid ${styles?.colors.nodeBorder || '#64748b'}`,
-                  boxShadow: hoveredAnchor === index ? '0 4px 12px rgba(0,0,0,0.2)' : '0 2px 6px rgba(0,0,0,0.1)',
-                  opacity: hoveredAnchor === index ? 1 : 0.4
+                  border: `2px solid #3b82f6`,
+                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)'
                 }}
               >
                 <Plus 
-                  className={`h-2.5 w-2.5 transition-transform duration-200 ${
-                    hoveredAnchor === index ? 'scale-110' : 'scale-90'
-                  }`}
-                  style={{ color: styles?.colors.nodeText || '#0f172a' }} 
+                  className="h-3.5 w-3.5"
+                  style={{ color: '#3b82f6' }} 
                 />
               </div>
             </button>
             
             {/* Tooltip */}
-            {hoveredAnchor === index && (
-              <div 
-                className="absolute left-10 top-1/2 -translate-y-1/2 whitespace-nowrap animate-fade-in z-50"
-                style={{ pointerEvents: 'none' }}
+            <div 
+              className="absolute left-10 top-1/2 -translate-y-1/2 whitespace-nowrap animate-fade-in z-50"
+              style={{ pointerEvents: 'none' }}
+            >
+              <div
+                className="px-3 py-1.5 rounded text-xs font-medium shadow-lg"
+                style={{
+                  backgroundColor: styles?.colors.nodeBackground || '#ffffff',
+                  border: `1px solid ${styles?.colors.nodeBorder || '#cbd5e1'}`,
+                  color: styles?.colors.nodeText || '#0f172a'
+                }}
               >
-                <div
-                  className="px-3 py-1.5 rounded text-xs font-medium shadow-lg"
-                  style={{
-                    backgroundColor: styles?.colors.nodeBackground || '#ffffff',
-                    border: `1px solid ${styles?.colors.nodeBorder || '#cbd5e1'}`,
-                    color: styles?.colors.nodeText || '#0f172a'
-                  }}
-                >
-                  Add Node
-                </div>
+                Add Node
               </div>
-            )}
+            </div>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
