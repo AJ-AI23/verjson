@@ -61,7 +61,6 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
       const updatedDocument = {
         ...diagramDocument,
         styles: {
-          activeTheme: 'light',
           themes: {
             light: defaultLightTheme,
             dark: defaultDarkTheme
@@ -75,7 +74,6 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   if (isSequenceDiagram && diagramDocument) {
     // Ensure styles are always defined with defaults
     const documentStyles = diagramDocument.styles || {
-      activeTheme: 'light',
       themes: {
         light: defaultLightTheme,
         dark: defaultDarkTheme

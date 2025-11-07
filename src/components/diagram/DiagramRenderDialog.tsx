@@ -32,7 +32,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
 }) => {
   const [width, setWidth] = useState(1920);
   const [height, setHeight] = useState(1080);
-  const [selectedTheme, setSelectedTheme] = useState(styles?.activeTheme || 'light');
+  const [selectedTheme, setSelectedTheme] = useState<string>('light');
   const [isRendering, setIsRendering] = useState(false);
   const [previewViewport, setPreviewViewport] = useState<{ x: number; y: number; zoom: number } | null>(null);
   const previewContainerRef = React.useRef<HTMLDivElement>(null);
@@ -173,8 +173,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
 
   // Prepare preview styles with correct theme
   const previewStyles: DiagramStyles = {
-    themes: styles?.themes || defaultThemes,
-    activeTheme: selectedTheme
+    themes: styles?.themes || defaultThemes
   };
 
   // Get the active theme colors
@@ -279,6 +278,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
                     <SequenceDiagramRenderer
                       data={data}
                       styles={previewStyles}
+                      theme={selectedTheme}
                       readOnly={true}
                       isRenderMode={true}
                       onFitViewReady={(fitView) => {

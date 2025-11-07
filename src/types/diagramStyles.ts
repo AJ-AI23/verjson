@@ -26,11 +26,10 @@ export interface DiagramStyleTheme {
 }
 
 export interface DiagramStyles {
-  activeTheme: string;
   themes: {
     light: DiagramStyleTheme;
-    dark: DiagramStyleTheme;
-    [key: string]: DiagramStyleTheme;
+    dark?: DiagramStyleTheme;
+    [key: string]: DiagramStyleTheme | undefined;
   };
   customNodeStyles?: Record<string, {
     backgroundColor?: string;

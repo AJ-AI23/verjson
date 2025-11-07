@@ -33,6 +33,7 @@ import '@xyflow/react/dist/style.css';
 interface SequenceDiagramRendererProps {
   data: SequenceDiagramData;
   styles?: DiagramStyles;
+  theme?: string; // Which theme to render: 'light' or 'dark'
   onNodesChange?: (nodes: Node[]) => void;
   onEdgesChange?: (edges: Edge[]) => void;
   onDataChange?: (data: SequenceDiagramData) => void;
@@ -65,6 +66,7 @@ const edgeTypes: EdgeTypes = {
 export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = ({
   data,
   styles,
+  theme = 'light',
   onNodesChange,
   onEdgesChange,
   onDataChange,
@@ -94,7 +96,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [dragStartPositions, setDragStartPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
-  const activeTheme = styles?.themes?.[styles?.activeTheme || 'light'] || styles?.themes?.light || defaultLightTheme;
+  const activeTheme = styles?.themes?.[theme] || styles?.themes?.light || defaultLightTheme;
 
 // Helper component to handle fitView in render mode
 const FitViewHelper: React.FC<{ 

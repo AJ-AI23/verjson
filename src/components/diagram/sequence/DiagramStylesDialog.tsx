@@ -22,7 +22,7 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
 }) => {
   console.log('🎨 DiagramStylesDialog render - isOpen:', isOpen);
   
-  const [activeTab, setActiveTab] = useState<string>(styles.activeTheme);
+  const [activeTab, setActiveTab] = useState<string>('light');
   const currentTheme = styles.themes[activeTab] || styles.themes.light;
 
   const handleColorChange = (key: keyof DiagramStyleTheme['colors'], value: string) => {
@@ -43,11 +43,8 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
     });
   };
 
-  const handleSetActiveTheme = (themeId: string) => {
-    onStylesChange({
-      ...styles,
-      activeTheme: themeId
-    });
+  const handleSetActiveTab = (themeId: string) => {
+    setActiveTab(themeId);
   };
 
   return (
@@ -61,27 +58,6 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Active Theme</Label>
-            <div className="flex gap-2">
-              <Button
-                variant={styles.activeTheme === 'light' ? 'default' : 'outline'}
-                onClick={() => handleSetActiveTheme('light')}
-                className="flex-1"
-              >
-                <Sun className="h-4 w-4 mr-2" />
-                Light Mode
-              </Button>
-              <Button
-                variant={styles.activeTheme === 'dark' ? 'default' : 'outline'}
-                onClick={() => handleSetActiveTheme('dark')}
-                className="flex-1"
-              >
-                <Moon className="h-4 w-4 mr-2" />
-                Dark Mode
-              </Button>
-            </div>
-          </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-2">

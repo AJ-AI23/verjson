@@ -123,7 +123,6 @@ export const defaultDiagramSchema: DiagramDocument = {
     ]
   },
   styles: {
-    activeTheme: 'light',
     themes: {
       light: defaultLightTheme,
       dark: defaultDarkTheme
@@ -145,7 +144,6 @@ export const defaultFlowchartSchema: DiagramDocument = {
     edges: []
   },
   styles: {
-    activeTheme: 'light',
     themes: {
       light: defaultLightTheme,
       dark: defaultDarkTheme

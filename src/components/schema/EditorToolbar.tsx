@@ -110,8 +110,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const handleCopyPngUrl = async () => {
     if (!selectedDocument?.id) return;
     
-    const currentTheme = selectedDocument.content?.styles?.activeTheme || 'light';
-    const pngUrl = `https://swghcmyqracwifpdfyap.supabase.co/functions/v1/public-diagram?id=${selectedDocument.id}&format=png&style_theme=${currentTheme}`;
+    // Default to light theme for PNG export
+    const pngUrl = `https://swghcmyqracwifpdfyap.supabase.co/functions/v1/public-diagram?id=${selectedDocument.id}&format=png&style_theme=light`;
     
     try {
       await navigator.clipboard.writeText(pngUrl);
