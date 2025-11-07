@@ -183,6 +183,8 @@ const FitViewHelper: React.FC<{
   const handleAddNodeOnLifeline = useCallback((sourceLifelineId: string, yPosition: number) => {
     if (!onDataChange || lifelines.length === 0) return;
     
+    console.log('[AddNode] Called with:', { sourceLifelineId, yPosition });
+    
     const nodeId = `node-${Date.now()}`;
     const sourceAnchorId = `anchor-${nodeId}-source`;
     const targetAnchorId = `anchor-${nodeId}-target`;
@@ -217,6 +219,8 @@ const FitViewHelper: React.FC<{
     const nodeY = yPosition - nodeHeight / 2;
     const newNodeBottom = nodeY + nodeHeight;
     
+    console.log('[AddNode] Node positioning:', { yPosition, nodeHeight, nodeY, newNodeBottom });
+    
     const updatedNodes = diagramNodes.map(node => {
       const existingNodeY = node.position?.y || 0;
       // If existing node overlaps with new node position, move it down
@@ -243,6 +247,8 @@ const FitViewHelper: React.FC<{
       ],
       position: { x: 0, y: nodeY }
     };
+    
+    console.log('[AddNode] Created node:', newNode);
     
     const finalNodes = [...updatedNodes, newNode];
     onDataChange({ ...data, lifelines: updatedLifelines, nodes: finalNodes });
