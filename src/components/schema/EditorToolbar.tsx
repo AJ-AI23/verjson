@@ -12,7 +12,6 @@ import { toast } from "sonner";
 
 import { NotationsPanel } from '@/components/notations/NotationsPanel';
 import { RedoclyDialog } from '@/components/RedoclyDialog';
-import { DebugToggle } from '@/components/DebugToggle';
 import { QADialog } from '@/components/QADialog';
 import { OpenAPISplitDialog } from '@/components/OpenAPISplitDialog';
 import { DocumentConfigDialog } from '@/components/DocumentConfigDialog';
@@ -536,8 +535,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             diagramRef={diagramRef}
           />
         )}
-
-        <DebugToggle />
       </div>
     </TooltipProvider>
   );
