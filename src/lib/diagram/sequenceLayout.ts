@@ -189,14 +189,14 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     const isLeftAnchor = anchor.id === (sourceX < targetX ? sourceAnchor?.id : targetAnchor?.id);
     
     if (anchor.anchorType === 'source') {
-      // Edge from anchor to node - arrow points away from source anchor towards node
-      // If anchor is on left: connect from anchor's right side (source-right) to node's left side
-      // If anchor is on right: connect from anchor's left side (source-left) to node's right side
+      // Edge from anchor to node
+      // If source anchor is on left: connect from anchor's right to node's left
+      // If source anchor is on right: connect from anchor's left to node's right
       layoutEdges.push({
         id: `anchor-edge-${anchor.id}`,
         source: anchor.id,
         target: node.id,
-        sourceHandle: isLeftAnchor ? 'source-right' : 'source-left',
+        sourceHandle: isLeftAnchor ? 'right' : 'left',
         targetHandle: isLeftAnchor ? 'left' : 'right',
         type: 'sequenceEdge',
         animated: false,
@@ -205,15 +205,15 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         data: { edgeType: 'default', styles }
       });
     } else {
-      // Edge from node to anchor - arrow points towards target anchor
-      // If anchor is on left: connect from node's left side to anchor's right side (target-right)
-      // If anchor is on right: connect from node's right side to anchor's left side (target-left)
+      // Edge from node to anchor
+      // If target anchor is on left: connect from node's left to anchor's right
+      // If target anchor is on right: connect from node's right to anchor's left
       layoutEdges.push({
         id: `anchor-edge-${anchor.id}`,
         source: node.id,
         target: anchor.id,
         sourceHandle: isLeftAnchor ? 'left' : 'right',
-        targetHandle: isLeftAnchor ? 'target-right' : 'target-left',
+        targetHandle: isLeftAnchor ? 'right' : 'left',
         type: 'sequenceEdge',
         animated: false,
         style: edgeStyles,
