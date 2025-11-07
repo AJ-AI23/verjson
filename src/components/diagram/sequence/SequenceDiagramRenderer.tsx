@@ -97,7 +97,6 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [toolbarPosition, setToolbarPosition] = useState<{ x: number; y: number } | null>(null);
   const [dragStartPositions, setDragStartPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
   const [nodeHeights, setNodeHeights] = useState<Map<string, number>>(new Map());
-  const [viewportZoom, setViewportZoom] = useState(1);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   const activeTheme = styles?.themes?.[theme] || styles?.themes?.light || defaultLightTheme;
@@ -302,8 +301,7 @@ const FitViewHelper: React.FC<{
             ...node.data,
             customLifelineColors,
             onAddNode: handleAddNodeOnLifeline,
-            readOnly,
-            viewportZoom
+            readOnly
           }
         };
       }
@@ -318,7 +316,7 @@ const FitViewHelper: React.FC<{
       }
       return node;
     });
-  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, styles?.customNodeStyles, viewportZoom]);
+  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, styles?.customNodeStyles]);
 
   const [nodes, setNodes, handleNodesChange] = useNodesState(nodesWithHandlers);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
@@ -1035,12 +1033,7 @@ const FitViewHelper: React.FC<{
           edgeTypes={edgeTypes}
           fitView={!isRenderMode && !initialViewport}
           defaultViewport={initialViewport}
-          onViewportChange={(viewport) => {
-            setViewportZoom(viewport.zoom);
-            if (onViewportChange) {
-              onViewportChange(viewport);
-            }
-          }}
+          onViewportChange={onViewportChange}
           minZoom={0.1}
           maxZoom={2}
           nodesDraggable={!readOnly}

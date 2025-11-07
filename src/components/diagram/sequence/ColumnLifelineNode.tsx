@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useViewport } from '@xyflow/react';
 import { Lifeline } from '@/types/diagram';
 import { DiagramStyleTheme } from '@/types/diagramStyles';
 import { Button } from '@/components/ui/button';
@@ -11,20 +12,20 @@ interface ColumnLifelineNodeProps {
     customLifelineColors?: Record<string, string>;
     onAddNode?: (lifelineId: string, yPosition: number) => void;
     readOnly?: boolean;
-    viewportZoom?: number;
   };
 }
 
 export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) => {
-  const { column: lifeline, styles, customLifelineColors, onAddNode, readOnly, viewportZoom = 1 } = data;
+  const { column: lifeline, styles, customLifelineColors, onAddNode, readOnly } = data;
   const [hoverPosition, setHoverPosition] = useState<number | null>(null);
   const lifelineRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
+  const viewport = useViewport();
 
   const handleAddNode = (yPosition: number) => {
     if (onAddNode && !readOnly) {
       // Convert screen position back to diagram coordinates
-      onAddNode(lifeline.id, yPosition / viewportZoom);
+      onAddNode(lifeline.id, yPosition / viewport.zoom);
     }
   };
 
