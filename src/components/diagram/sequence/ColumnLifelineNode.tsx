@@ -131,8 +131,8 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
         />
         {!readOnly && onAddNode && hoverPosition !== null && (
           <div
-            className="absolute pointer-events-none"
-            style={{ top: `${hoverPosition}px`, left: '30px', transform: 'translate(-50%, -50%)' }}
+            className="absolute"
+            style={{ top: `${hoverPosition}px`, left: '30px', transform: 'translate(-50%, -50%)', pointerEvents: 'auto' }}
           >
             {/* Large Clickable Area */}
             <button
@@ -145,7 +145,7 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
               onMouseDown={(e) => {
                 e.stopPropagation();
               }}
-              className="w-12 h-12 rounded-full flex items-center justify-center relative pointer-events-auto cursor-pointer"
+              className="w-12 h-12 rounded-full flex items-center justify-center relative cursor-pointer"
               style={{
                 backgroundColor: 'transparent',
                 zIndex: 10000
