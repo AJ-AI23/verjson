@@ -280,7 +280,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
                       styles={previewStyles}
                       theme={selectedTheme}
                       readOnly={false}
-                      isRenderMode={true}
+                      isRenderMode={false}
                       onFitViewReady={(fitView) => {
                         previewFitViewRef.current = fitView;
                         // Auto-fit on first load
