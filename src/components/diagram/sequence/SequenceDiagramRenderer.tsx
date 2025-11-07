@@ -321,6 +321,33 @@ const MousePositionTracker: React.FC<{
       nodeHeights
     });
     
+    // Save updated yPosition values back to the document
+    // The layout calculation updates yPosition on the nodes, but we need to persist it
+    const hasPositionChanges = diagramNodes.some(node => {
+      const layoutNode = layout.nodes.find(n => n.id === node.id && n.type === 'sequenceNode');
+      if (!layoutNode) return false;
+      const nodeData = layoutNode.data as any; // Contains the full DiagramNode
+      return nodeData.yPosition !== node.yPosition;
+    });
+    
+    if (hasPositionChanges && onDataChange && !isDraggingRef.current) {
+      console.log('💾 [SequenceDiagramRenderer] Saving updated yPosition values to document');
+      // Extract updated nodes from layout
+      const updatedNodes = diagramNodes.map(node => {
+        const layoutNode = layout.nodes.find(n => n.id === node.id && n.type === 'sequenceNode');
+        if (layoutNode) {
+          const nodeData = layoutNode.data as any; // Contains the full DiagramNode
+          return { ...node, yPosition: nodeData.yPosition };
+        }
+        return node;
+      });
+      
+      // Defer the update to avoid updating during render
+      setTimeout(() => {
+        onDataChange({ ...data, nodes: updatedNodes });
+      }, 0);
+    }
+    
     // Validate edge creation and attempt recovery if needed
     if (layout.edges.length === 0 && diagramNodes.length > 0) {
       console.error('❌ [SequenceDiagramRenderer] No edges created! Attempting recovery...');
