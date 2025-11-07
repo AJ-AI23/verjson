@@ -73,7 +73,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   isFullscreen = false,
   onToggleFullscreen
 }) => {
-  const { lifelines = [], nodes: diagramNodes, edges: diagramEdges } = data;
+  const { lifelines = [], nodes: diagramNodes } = data;
   
   const [selectedNode, setSelectedNode] = useState<DiagramNode | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<DiagramEdge | null>(null);
@@ -149,29 +149,18 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
       position: { x: 0, y: yPosition }
     };
     
-    // Create edge connecting the two anchors (representing the message flow)
-    const newEdge: DiagramEdge = {
-      id: `edge-${nodeId}`,
-      source: sourceAnchorId,
-      target: targetAnchorId,
-      type: 'sync',
-      label: ''
-    };
-    
     const finalNodes = [...updatedNodes, newNode];
-    const finalEdges = [...diagramEdges, newEdge];
-    onDataChange({ ...data, lifelines: updatedLifelines, nodes: finalNodes, edges: finalEdges });
-  }, [diagramNodes, lifelines, diagramEdges, data, onDataChange]);
+    onDataChange({ ...data, lifelines: updatedLifelines, nodes: finalNodes });
+  }, [diagramNodes, lifelines, data, onDataChange]);
 
   // Calculate layout
   const { nodes: layoutNodes, edges: layoutEdges } = useMemo(() => {
     return calculateSequenceLayout({
       lifelines,
       nodes: diagramNodes,
-      edges: diagramEdges,
       styles: activeTheme
     });
-  }, [lifelines, diagramNodes, diagramEdges, activeTheme]);
+  }, [lifelines, diagramNodes, activeTheme]);
 
   // Attach onAddNode handler to lifeline nodes
   const nodesWithHandlers = useMemo(() => {
@@ -767,20 +756,16 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const handleDeleteNode = useCallback(() => {
     if (selectedNodeIds.length > 0 && onDataChange) {
       const updatedNodes = diagramNodes.filter(n => !selectedNodeIds.includes(n.id));
-      const updatedEdges = diagramEdges.filter(e => 
-        !selectedNodeIds.includes(e.source) && !selectedNodeIds.includes(e.target)
-      );
       
       onDataChange({
         ...data,
-        nodes: updatedNodes,
-        edges: updatedEdges
+        nodes: updatedNodes
       });
       
       setSelectedNodeIds([]);
       setToolbarPosition(null);
     }
-  }, [selectedNodeIds, diagramNodes, diagramEdges, data, onDataChange]);
+  }, [selectedNodeIds, diagramNodes, data, onDataChange]);
   
   // Close toolbar when clicking outside
   const onPaneClick = useCallback(() => {
@@ -789,29 +774,14 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   }, []);
 
   const onEdgeClick = useCallback((_: any, edge: Edge) => {
+    // Edges are auto-generated, so we don't support editing them directly
     if (readOnly) return;
-    const diagramEdge = diagramEdges.find(e => e.id === edge.id);
-    if (diagramEdge) {
-      setSelectedEdge(diagramEdge);
-      setIsEdgeEditorOpen(true);
-    }
-  }, [diagramEdges, readOnly]);
+  }, [readOnly]);
 
   const onConnect = useCallback((connection: Connection) => {
+    // Edges are auto-generated from anchors, manual connections not supported
     if (readOnly || !onDataChange) return;
-    
-    const newEdge: DiagramEdge = {
-      id: `edge-${Date.now()}`,
-      source: connection.source!,
-      target: connection.target!,
-      type: 'default'
-    };
-    
-    const updatedEdges = [...diagramEdges, newEdge];
-    onDataChange({ ...data, edges: updatedEdges });
-    
-    setEdges((eds) => addFlowEdge(connection, eds));
-  }, [readOnly, diagramEdges, data, onDataChange, setEdges]);
+  }, [readOnly, onDataChange]);
 
   const handleNodeUpdate = useCallback((nodeId: string, updates: Partial<DiagramNode>) => {
     if (!onDataChange) return;
@@ -826,25 +796,16 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
     if (!onDataChange) return;
     
     const updatedNodes = diagramNodes.filter(n => n.id !== nodeId);
-    const updatedEdges = diagramEdges.filter(e => e.source !== nodeId && e.target !== nodeId);
-    onDataChange({ ...data, nodes: updatedNodes, edges: updatedEdges });
-  }, [diagramNodes, diagramEdges, data, onDataChange]);
+    onDataChange({ ...data, nodes: updatedNodes });
+  }, [diagramNodes, data, onDataChange]);
 
   const handleEdgeUpdate = useCallback((edgeId: string, updates: Partial<DiagramEdge>) => {
-    if (!onDataChange) return;
-    
-    const updatedEdges = diagramEdges.map(e =>
-      e.id === edgeId ? { ...e, ...updates } : e
-    );
-    onDataChange({ ...data, edges: updatedEdges });
-  }, [diagramEdges, data, onDataChange]);
+    // Edges are auto-generated, no manual updates supported
+  }, []);
 
   const handleEdgeDelete = useCallback((edgeId: string) => {
-    if (!onDataChange) return;
-    
-    const updatedEdges = diagramEdges.filter(e => e.id !== edgeId);
-    onDataChange({ ...data, edges: updatedEdges });
-  }, [diagramEdges, data, onDataChange]);
+    // Edges are auto-generated, no manual deletion supported
+  }, []);
 
   const handleImportFromOpenApi = useCallback((nodes: DiagramNode[]) => {
     if (!onDataChange) return;

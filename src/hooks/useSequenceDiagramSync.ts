@@ -39,18 +39,8 @@ export const useSequenceDiagramSync = ({
   }, [document, debouncedUpdate]);
 
   const updateEdge = useCallback((edgeId: string, updates: Partial<DiagramEdge>) => {
-    debouncedUpdate(() => {
-      const data = document.data as SequenceDiagramData;
-      const edges = data.edges.map(edge =>
-        edge.id === edgeId ? { ...edge, ...updates } : edge
-      );
-      
-      return {
-        ...document,
-        data: { ...data, edges }
-      };
-    });
-  }, [document, debouncedUpdate]);
+    // Edges are auto-generated, no manual updates supported
+  }, []);
 
   const updateNodePosition = useCallback((nodeId: string, position: { x: number; y: number }) => {
     updateNode(nodeId, { position });
@@ -69,34 +59,20 @@ export const useSequenceDiagramSync = ({
   const deleteNode = useCallback((nodeId: string) => {
     const data = document.data as SequenceDiagramData;
     const nodes = data.nodes.filter(n => n.id !== nodeId);
-    // Also delete edges connected to this node
-    const edges = data.edges.filter(e => e.source !== nodeId && e.target !== nodeId);
     
     onDocumentChange({
       ...document,
-      data: { ...data, nodes, edges }
+      data: { ...data, nodes }
     });
   }, [document, onDocumentChange]);
 
   const addEdge = useCallback((edge: DiagramEdge) => {
-    const data = document.data as SequenceDiagramData;
-    const edges = [...data.edges, edge];
-    
-    onDocumentChange({
-      ...document,
-      data: { ...data, edges }
-    });
-  }, [document, onDocumentChange]);
+    // Edges are auto-generated, no manual additions supported
+  }, []);
 
   const deleteEdge = useCallback((edgeId: string) => {
-    const data = document.data as SequenceDiagramData;
-    const edges = data.edges.filter(e => e.id !== edgeId);
-    
-    onDocumentChange({
-      ...document,
-      data: { ...data, edges }
-    });
-  }, [document, onDocumentChange]);
+    // Edges are auto-generated, no manual deletion supported
+  }, []);
 
   const syncNodesFromFlow = useCallback((flowNodes: Node[]) => {
     const data = document.data as SequenceDiagramData;

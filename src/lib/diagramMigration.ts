@@ -28,8 +28,7 @@ export const migrateDiagramDocument = (document: DiagramDocument): DiagramDocume
 
     const migratedData: SequenceDiagramData = {
       lifelines,
-      nodes: migratedNodes,
-      edges: data.edges || []
+      nodes: migratedNodes
     };
 
     return {

@@ -17,7 +17,6 @@ export interface DiagramDocument {
 export interface SequenceDiagramData {
   lifelines: Lifeline[];
   nodes: DiagramNode[];
-  edges: DiagramEdge[];
 }
 
 export interface FlowchartData {

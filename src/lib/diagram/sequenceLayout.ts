@@ -6,7 +6,6 @@ import { getNodeTypeConfig } from './sequenceNodeTypes';
 interface LayoutOptions {
   lifelines: Lifeline[];
   nodes: DiagramNode[];
-  edges: DiagramEdge[];
   horizontalSpacing?: number;
   styles?: DiagramStyleTheme;
 }
@@ -25,7 +24,6 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   const {
     lifelines = [],
     nodes = [],
-    edges = [],
     horizontalSpacing = 100,
     styles
   } = options;
