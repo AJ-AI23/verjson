@@ -483,16 +483,27 @@ const FitViewHelper: React.FC<{
           .map(visualNode => diagramNodes.find(n => n.id === visualNode.id))
           .filter(Boolean) as DiagramNode[];
         
-        // Recalculate positions with even spacing
+        // Recalculate positions with cumulative spacing based on node heights
         const verticalSpacing = 20;
-        const updatedNodes = reorderedNodes.map((node, idx) => {
-          const yPosition = idx * verticalSpacing;
+        let currentY = 150; // Starting Y position
+        
+        const updatedNodes = reorderedNodes.map((node) => {
+          const actualHeight = nodeHeights.get(node.id);
+          const nodeConfig = getNodeTypeConfig(node.type);
+          const height = actualHeight || nodeConfig?.defaultHeight || 70;
+          
+          const nodeY = currentY;
+          const centerY = nodeY + (height / 2);
+          
+          // Update currentY for next node
+          currentY += height + verticalSpacing;
+          
           return {
             ...node,
-            position: { ...node.position, y: yPosition },
+            position: { ...node.position, y: nodeY },
             anchors: node.anchors.map(anchor => ({
               ...anchor,
-              yPosition
+              yPosition: centerY
             })) as [AnchorNodeType, AnchorNodeType]
           };
         });
