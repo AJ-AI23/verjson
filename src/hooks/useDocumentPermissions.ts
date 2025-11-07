@@ -27,11 +27,18 @@ export function useDocumentPermissions(documentId?: string, document?: any) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchPermissions = async () => {
-    if (!user || !documentId) return;
+    if (!user?.id || !documentId) return;
     
     try {
       setLoading(true);
       setError(null);
+      
+      // Get the session to ensure we have a valid token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setLoading(false);
+        return;
+      }
       
       const { data, error } = await supabase.functions.invoke('permissions-management', {
         body: {

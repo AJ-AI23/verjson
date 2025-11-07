@@ -23,11 +23,18 @@ export function useUserPermissions(userId?: string) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchUserPermissions = async () => {
-    if (!user || !userId) return;
+    if (!user?.id || !userId) return;
     
     try {
       setLoading(true);
       setError(null);
+      
+      // Get the session to ensure we have a valid token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setLoading(false);
+        return;
+      }
       
       // Use the permissions-management edge function
       const { data, error } = await supabase.functions.invoke('permissions-management', {

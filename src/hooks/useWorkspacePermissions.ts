@@ -27,11 +27,18 @@ export function useWorkspacePermissions(workspaceId?: string) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchPermissions = async () => {
-    if (!user || !workspaceId || workspaceId === VIRTUAL_SHARED_WORKSPACE_ID) return;
+    if (!user?.id || !workspaceId || workspaceId === VIRTUAL_SHARED_WORKSPACE_ID) return;
     
     try {
       setLoading(true);
       setError(null);
+      
+      // Get the session to ensure we have a valid token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setLoading(false);
+        return;
+      }
       
       const { data, error } = await supabase.functions.invoke('permissions-management', {
         body: {
