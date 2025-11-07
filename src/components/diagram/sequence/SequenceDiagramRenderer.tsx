@@ -51,6 +51,7 @@ interface SequenceDiagramRendererProps {
   onFitViewReady?: (fitView: () => void) => void;
   initialViewport?: { x: number; y: number; zoom: number };
   onViewportChange?: (viewport: { x: number; y: number; zoom: number }) => void;
+  hasUserInteractedWithViewport?: boolean;
 }
 
 const nodeTypes: NodeTypes = {
@@ -83,7 +84,8 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   onRenderReady,
   onFitViewReady,
   initialViewport,
-  onViewportChange
+  onViewportChange,
+  hasUserInteractedWithViewport = false
 }) => {
   const { lifelines = [], nodes: diagramNodes } = data;
   
@@ -106,13 +108,15 @@ const FitViewHelper: React.FC<{
   nodesCount: number; 
   edgesCount: number;
   hasInitialViewport: boolean;
+  hasUserInteracted: boolean;
 }> = ({ 
   isRenderMode, 
   onReady,
   onFitViewReady,
   nodesCount,
   edgesCount,
-  hasInitialViewport
+  hasInitialViewport,
+  hasUserInteracted
 }) => {
   const { fitView } = useReactFlow();
   
@@ -125,9 +129,9 @@ const FitViewHelper: React.FC<{
     }
   }, [onFitViewReady, fitView, nodesCount, edgesCount]);
   
-  // Auto-fit in render mode ONLY if no initial viewport is provided
+  // Auto-fit in render mode ONLY if no initial viewport is provided and user hasn't interacted
   useEffect(() => {
-    if (isRenderMode && nodesCount > 0 && edgesCount > 0 && !hasInitialViewport) {
+    if (isRenderMode && nodesCount > 0 && edgesCount > 0 && !hasInitialViewport && !hasUserInteracted) {
       console.log('[FitViewHelper] Nodes and edges ready, fitting view...', { nodesCount, edgesCount });
       setTimeout(() => {
         try {
@@ -971,6 +975,7 @@ const FitViewHelper: React.FC<{
             nodesCount={nodes.length}
             edgesCount={edges.length}
             hasInitialViewport={!!initialViewport}
+            hasUserInteracted={hasUserInteractedWithViewport}
           />
           
           {/* Node selection toolbar */}

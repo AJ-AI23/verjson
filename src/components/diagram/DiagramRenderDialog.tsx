@@ -35,6 +35,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const [selectedTheme, setSelectedTheme] = useState<string>('light');
   const [isRendering, setIsRendering] = useState(false);
   const [previewViewport, setPreviewViewport] = useState<{ x: number; y: number; zoom: number } | null>(null);
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const previewContainerRef = React.useRef<HTMLDivElement>(null);
 
   // Default themes if none provided
@@ -280,7 +281,8 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
                       styles={previewStyles}
                       theme={selectedTheme}
                       readOnly={false}
-                      isRenderMode={false}
+                      isRenderMode={true}
+                      hasUserInteractedWithViewport={hasUserInteracted}
                       onFitViewReady={(fitView) => {
                         previewFitViewRef.current = fitView;
                         // Auto-fit on first load
@@ -288,6 +290,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
                       }}
                       onViewportChange={(viewport) => {
                         setPreviewViewport(viewport);
+                        setHasUserInteracted(true);
                       }}
                     />
                   </ReactFlowProvider>
