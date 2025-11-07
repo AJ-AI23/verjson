@@ -472,70 +472,33 @@ const FitViewHelper: React.FC<{
       isDraggingRef.current = false;
       setIsDragging(false);
       
-      // Check if a sequence node was dropped and needs to swap positions
-      const droppedNode = nodes.find(n => n.id === dragEndChange.id);
-      if (droppedNode?.type === 'sequenceNode' && onDataChange) {
-        const actualHeight = nodeHeights.get(dragEndChange.id);
-        const diagramNode = diagramNodes.find(n => n.id === dragEndChange.id);
-        const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
-        const nodeHeight = actualHeight || nodeConfig?.defaultHeight || 70;
-        const droppedY = dragEndChange.position.y;
-        const droppedCenterY = droppedY + (nodeHeight / 2);
-        
-        // Find which node position this dropped into using current visual positions
-        const otherSequenceNodes = nodes
-          .filter(n => n.type === 'sequenceNode' && n.id !== dragEndChange.id)
+      // Simply sort all nodes by their current visual Y position and reorder data
+      if (onDataChange) {
+        const sortedVisualNodes = nodes
+          .filter(n => n.type === 'sequenceNode')
           .sort((a, b) => a.position.y - b.position.y);
         
-        let targetIndex = otherSequenceNodes.length; // Default: last position
-        for (let i = 0; i < otherSequenceNodes.length; i++) {
-          const node = otherSequenceNodes[i];
-          const nodeActualHeight = nodeHeights.get(node.id);
-          const nodeDiagramData = diagramNodes.find(n => n.id === node.id);
-          const nodeConfig = nodeDiagramData ? getNodeTypeConfig(nodeDiagramData.type) : null;
-          const height = nodeActualHeight || nodeConfig?.defaultHeight || 70;
-          const nodeCenterY = node.position.y + (height / 2);
-          
-          if (droppedCenterY < nodeCenterY) {
-            targetIndex = i;
-            break;
-          }
-        }
+        // Reorder diagram nodes to match visual order
+        const reorderedNodes = sortedVisualNodes
+          .map(visualNode => diagramNodes.find(n => n.id === visualNode.id))
+          .filter(Boolean) as DiagramNode[];
         
-        // Rebuild node list with new order based on diagram data
-        const originalIndex = diagramNodes.findIndex(n => n.id === dragEndChange.id);
-        if (originalIndex !== -1) {
-          const reorderedNodes = [...diagramNodes];
-          const [movedNode] = reorderedNodes.splice(originalIndex, 1);
-          
-          // Adjust target index if we removed from before it
-          const adjustedTargetIndex = originalIndex < targetIndex ? targetIndex - 1 : targetIndex;
-          reorderedNodes.splice(adjustedTargetIndex, 0, movedNode);
-          
-          // Recalculate Y positions based on new order
-          const updatedNodes = reorderedNodes.map((node, index) => {
-            const nodeActualHeight = nodeHeights.get(node.id);
-            const nodeConfig = getNodeTypeConfig(node.type);
-            const height = nodeActualHeight || nodeConfig?.defaultHeight || 70;
-            const newY = index * (height + 20); // 20px spacing
-            const centerY = newY + (height / 2);
-            
-            return {
-              ...node,
-              position: { ...node.position, y: newY },
-              anchors: node.anchors?.map(a => ({ ...a, yPosition: centerY })) as any
-            };
-          });
-          
-          console.log('📝 [DROP] Applying position update after drop', {
-            droppedNodeId: dragEndChange.id,
-            droppedCenterY,
-            targetIndex,
-            adjustedTargetIndex,
-            originalIndex
-          });
-          onDataChange({ ...data, nodes: updatedNodes });
-        }
+        // Recalculate positions with even spacing
+        const verticalSpacing = 20;
+        const updatedNodes = reorderedNodes.map((node, idx) => {
+          const yPosition = idx * verticalSpacing;
+          return {
+            ...node,
+            position: { ...node.position, y: yPosition },
+            anchors: node.anchors.map(anchor => ({
+              ...anchor,
+              yPosition
+            })) as [AnchorNodeType, AnchorNodeType]
+          };
+        });
+        
+        console.log('📝 [DROP] Reordered nodes based on visual position');
+        onDataChange({ ...data, nodes: updatedNodes });
       }
     }
     
