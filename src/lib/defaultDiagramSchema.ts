@@ -120,38 +120,6 @@ export const defaultDiagramSchema: DiagramDocument = {
           description: 'Exchange code for token'
         }
       }
-    ],
-    edges: [
-      {
-        id: 'edge-1',
-        source: 'node-1',
-        target: 'node-2',
-        type: 'sync'
-      },
-      {
-        id: 'edge-2',
-        source: 'node-2',
-        target: 'node-3',
-        type: 'sync'
-      },
-      {
-        id: 'edge-3',
-        source: 'node-3',
-        target: 'node-4',
-        type: 'return'
-      },
-      {
-        id: 'edge-4',
-        source: 'node-4',
-        target: 'node-5',
-        type: 'sync'
-      },
-      {
-        id: 'edge-5',
-        source: 'node-5',
-        target: 'node-6',
-        type: 'sync'
-      }
     ]
   },
   styles: {
