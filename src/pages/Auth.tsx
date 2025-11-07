@@ -48,11 +48,13 @@ const Auth = () => {
             console.error('[Auth] Error checking demo session:', error);
           }
 
-          // If it's a demo session that has expired, don't redirect
+          // If it's a demo session that has expired, clear local session only
           if (data && new Date(data.expires_at) < new Date()) {
-            console.log('[Auth] Demo session expired, not redirecting');
-            // Force sign out to clear the expired session
-            await supabase.auth.signOut();
+            console.log('[Auth] Demo session expired, clearing local session');
+            // Don't call signOut() as the session is already gone server-side
+            // Clear local storage and reload to reset everything
+            localStorage.removeItem('sb-swghcmyqracwifpdfyap-auth-token');
+            window.location.reload();
             return;
           }
 
