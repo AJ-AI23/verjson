@@ -45,6 +45,8 @@ interface SequenceDiagramRendererProps {
   onOpenApiImportClose?: () => void;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
+  isRenderMode?: boolean;
+  onRenderReady?: () => void;
 }
 
 const nodeTypes: NodeTypes = {
@@ -71,9 +73,12 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   isOpenApiImportOpen = false,
   onOpenApiImportClose,
   isFullscreen = false,
-  onToggleFullscreen
+  onToggleFullscreen,
+  isRenderMode = false,
+  onRenderReady
 }) => {
   const { lifelines = [], nodes: diagramNodes } = data;
+  const { fitView } = useReactFlow();
   
   const [selectedNode, setSelectedNode] = useState<DiagramNode | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<DiagramEdge | null>(null);
@@ -186,6 +191,22 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   useEffect(() => {
     setNodes(nodesWithHandlers);
   }, [nodesWithHandlers, setNodes]);
+
+  // Handle render mode - fit view and notify when ready
+  useEffect(() => {
+    if (isRenderMode && nodes.length > 0 && edges.length > 0) {
+      // Wait a bit for nodes to be positioned
+      setTimeout(() => {
+        fitView({ padding: 0.1, duration: 0 });
+        // Wait for fitView to complete, then notify ready
+        setTimeout(() => {
+          if (onRenderReady) {
+            onRenderReady();
+          }
+        }, 300);
+      }, 100);
+    }
+  }, [isRenderMode, nodes.length, edges.length, fitView, onRenderReady]);
 
   const onNodesChangeHandler = useCallback((changes: any) => {
     // Store initial positions when drag starts

@@ -75,21 +75,30 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
         activeTheme: selectedTheme
       };
 
-      // Render the diagram with fit view enabled
-      await new Promise<void>((resolve) => {
-        root.render(
-          <ReactFlowProvider>
-            <SequenceDiagramRenderer
-              data={data}
-              styles={renderStyles}
-              readOnly={true}
-            />
-          </ReactFlowProvider>
-        );
-        
-        // Wait for the diagram to render and fit
-        setTimeout(resolve, 1500);
+      // Create a promise that resolves when the diagram is ready
+      let resolveReady: () => void;
+      const readyPromise = new Promise<void>((resolve) => {
+        resolveReady = resolve;
       });
+
+      // Render the diagram with render mode enabled
+      root.render(
+        <ReactFlowProvider>
+          <SequenceDiagramRenderer
+            data={data}
+            styles={renderStyles}
+            readOnly={true}
+            isRenderMode={true}
+            onRenderReady={() => resolveReady()}
+          />
+        </ReactFlowProvider>
+      );
+      
+      // Wait for the diagram to be fully rendered and fitted
+      await readyPromise;
+      
+      // Additional wait for any animations or layout adjustments
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // Capture the rendered diagram
       const dataUrl = await toPng(renderContainer, {
