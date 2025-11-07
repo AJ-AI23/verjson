@@ -142,11 +142,15 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     const sourceAnchor = node.anchors?.[0];
     const targetAnchor = node.anchors?.[1];
     
-    // Use auto-aligned position for consistent spacing
-    const yPos = alignedNodePositions.get(node.id) || (LIFELINE_HEADER_HEIGHT + 40);
+    // Use auto-aligned position for consistent spacing (this is top Y)
+    const topY = alignedNodePositions.get(node.id) || (LIFELINE_HEADER_HEIGHT + 40);
     
-    // Update the node's yPosition to match the calculated position
-    node.yPosition = yPos;
+    // Get node height to calculate center Y
+    const measuredHeight = nodeHeights?.get(node.id);
+    const nodeHeight = measuredHeight || config?.defaultHeight || 70;
+    
+    // Update the node's yPosition to the CENTER Y coordinate
+    node.yPosition = topY + (nodeHeight / 2);
 
     // Determine horizontal positioning based on connected anchors
     const MARGIN = 40; // Margin from lifeline for edges
@@ -178,7 +182,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     return {
       id: node.id,
       type: 'sequenceNode',
-      position: { x: startX, y: yPos },
+      position: { x: startX, y: topY },
       data: {
         ...node,
         config,
