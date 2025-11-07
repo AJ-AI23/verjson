@@ -82,15 +82,17 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
         style={{
           width: '60px',
           height: '2000px',
-          marginLeft: '-29px' // Center the wider hover area on the lifeline
+          marginLeft: '-30px',
+          marginRight: '-30px'
         }}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
         {/* Visual line */}
         <div
-          className="absolute left-1/2 -translate-x-1/2"
+          className="absolute"
           style={{
+            left: '30px',
             width: '2px',
             height: '100%',
             background: `repeating-linear-gradient(
@@ -103,11 +105,10 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
             pointerEvents: 'none'
           }}
         />
-        
         {!readOnly && onAddNode && hoverPosition !== null && (
           <div
-            className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2"
-            style={{ top: `${hoverPosition}px` }}
+            className="absolute -translate-y-1/2"
+            style={{ top: `${hoverPosition}px`, left: '30px', transform: 'translate(-50%, -50%)' }}
           >
             {/* Large Clickable Area */}
             <button
