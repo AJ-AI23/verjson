@@ -383,6 +383,15 @@ const FitViewHelper: React.FC<{
     setNodes(nodesWithHandlers);
   }, [nodesWithHandlers, setNodes]);
 
+  // Update edges when layout changes
+  useEffect(() => {
+    console.log('[SequenceDiagramRenderer] Updating edges from layout:', {
+      edgeCount: layoutEdges.length,
+      edgeIds: layoutEdges.map(e => e.id)
+    });
+    setEdges(layoutEdges);
+  }, [layoutEdges, setEdges]);
+
   // Update anchor positions when node heights change
   useEffect(() => {
     if (nodeHeights.size === 0) return;
