@@ -90,7 +90,6 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
 }) => {
   const { lifelines = [], nodes: diagramNodes } = data;
   const { settings } = useEditorSettings();
-  const { screenToFlowPosition } = useReactFlow();
   
   const [currentTheme, setCurrentTheme] = useState(initialTheme);
   const [selectedNode, setSelectedNode] = useState<DiagramNode | null>(null);
@@ -183,6 +182,36 @@ const FitViewHelper: React.FC<{
       console.log('[FitViewHelper] Waiting for nodes/edges...', { nodesCount, edgesCount, hasUserInteracted, hasInitialViewport });
     }
   }, [isRenderMode, nodesCount, edgesCount, fitView, onReady, hasInitialViewport, hasUserInteracted]);
+  
+  return null;
+};
+
+// Helper component to track mouse position in flow coordinates
+const MousePositionTracker: React.FC<{
+  onMouseMove: (pos: { x: number; y: number }) => void;
+  onMouseLeave: () => void;
+}> = ({ onMouseMove, onMouseLeave }) => {
+  const { screenToFlowPosition } = useReactFlow();
+  
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      const flowPos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      onMouseMove({ x: flowPos.x, y: flowPos.y });
+    };
+    
+    const container = document.querySelector('.react-flow');
+    if (container) {
+      container.addEventListener('mousemove', handleMouseMove as any);
+      container.addEventListener('mouseleave', onMouseLeave);
+    }
+    
+    return () => {
+      if (container) {
+        container.removeEventListener('mousemove', handleMouseMove as any);
+        container.removeEventListener('mouseleave', onMouseLeave);
+      }
+    };
+  }, [screenToFlowPosition, onMouseMove, onMouseLeave]);
   
   return null;
 };
@@ -1111,12 +1140,6 @@ const FitViewHelper: React.FC<{
           defaultEdgeOptions={{
             type: 'smoothstep',
           }}
-          onMouseMove={(event) => {
-            // Convert screen coordinates to diagram flow coordinates
-            const flowPos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-            setMousePosition({ x: flowPos.x, y: flowPos.y });
-          }}
-          onMouseLeave={() => setMousePosition(null)}
         >
           <Background />
           {!isRenderMode && (
@@ -1129,8 +1152,14 @@ const FitViewHelper: React.FC<{
             </>
           )}
           
+          {/* Mouse position tracker */}
+          <MousePositionTracker 
+            onMouseMove={setMousePosition}
+            onMouseLeave={() => setMousePosition(null)}
+          />
+          
           {/* Render mode helper */}
-          <FitViewHelper 
+          <FitViewHelper
             isRenderMode={isRenderMode}
             onReady={onRenderReady}
             onFitViewReady={onFitViewReady}
