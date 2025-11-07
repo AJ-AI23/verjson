@@ -137,15 +137,16 @@ const Index = () => {
   }
 
   return (
-    <SidebarProvider 
-      defaultOpen={true}
-      style={{ 
-        '--sidebar-width': '20rem',
-        '--sidebar-width-mobile': '18rem' 
-      } as React.CSSProperties}
-    >
+    <>
       <DemoSessionRibbon />
-      <div className="min-h-screen bg-background flex w-full relative">
+      <SidebarProvider 
+        defaultOpen={true}
+        style={{ 
+          '--sidebar-width': '20rem',
+          '--sidebar-width-mobile': '18rem' 
+        } as React.CSSProperties}
+      >
+        <div className="min-h-screen bg-background flex w-full relative">
         <WorkspaceSidebar 
           onDocumentSelect={handleDocumentSelect}
           onDocumentDeleted={handleDocumentDeleted}
@@ -213,8 +214,9 @@ const Index = () => {
           documentName={pendingDocument?.name || ''}
           onPinVerified={handlePinVerified}
         />
-      </div>
-    </SidebarProvider>
+        </div>
+      </SidebarProvider>
+    </>
   );
 };
 export default Index;
