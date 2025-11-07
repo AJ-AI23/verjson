@@ -36,10 +36,14 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
     
     // Use requestAnimationFrame to throttle updates
     rafRef.current = requestAnimationFrame(() => {
-      const relativeY = e.nativeEvent.offsetY;
+      if (!lifelineRef.current) return;
+      
+      // Calculate position relative to the lifeline div consistently
+      const rect = lifelineRef.current.getBoundingClientRect();
+      const relativeY = e.clientY - rect.top;
       
       // Only show button if mouse is over the lifeline area
-      if (relativeY >= 0) {
+      if (relativeY >= 0 && relativeY <= rect.height) {
         setHoverPosition(relativeY);
       }
     });
