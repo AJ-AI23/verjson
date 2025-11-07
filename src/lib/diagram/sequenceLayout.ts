@@ -103,7 +103,11 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     const connectedNode = nodes.find(n => 
       n.anchors?.some(a => a.id === anchor.id)
     );
-    const connectedNodeYPos = connectedNode?.position?.y || anchor.yPosition;
+    
+    // Use the newly calculated aligned position instead of stored position
+    const connectedNodeYPos = connectedNode 
+      ? (alignedNodePositions.get(connectedNode.id) || (LIFELINE_HEADER_HEIGHT + 40))
+      : anchor.yPosition;
     
     // Get node height - use measured height if available, otherwise use default from config
     const measuredHeight = connectedNode && nodeHeights ? nodeHeights.get(connectedNode.id) : undefined;
