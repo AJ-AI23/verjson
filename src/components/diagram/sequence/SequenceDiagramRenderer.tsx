@@ -567,9 +567,11 @@ const FitViewHelper: React.FC<{
             const otherDiagramNode = diagramNodes.find(n => n.id === otherNode.id);
             const otherNodeConfig = otherDiagramNode ? getNodeTypeConfig(otherDiagramNode.type) : null;
             const otherNodeHeight = otherActualHeight || otherNodeConfig?.defaultHeight || 70;
-            const otherNodeCenterY = otherNode.position.y + (otherNodeHeight / 2);
             
-            // Use effective positions (current positions during drag, accounting for swaps)
+            // Use effective positions for both nodes (accounting for previous swaps)
+            const otherEffectiveY = effectivePositionsRef.current.get(otherNode.id) ?? otherNode.position.y;
+            const otherNodeCenterY = otherEffectiveY + (otherNodeHeight / 2);
+            
             const effectiveY = effectivePositionsRef.current.get(dragChange.id) ?? 0;
             const effectiveCenterY = effectiveY + (nodeHeight / 2);
             
