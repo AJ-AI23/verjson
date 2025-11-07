@@ -149,9 +149,19 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
       position: { x: 0, y: yPosition }
     };
     
+    // Create edge connecting the two anchors (representing the message flow)
+    const newEdge: DiagramEdge = {
+      id: `edge-${nodeId}`,
+      source: sourceAnchorId,
+      target: targetAnchorId,
+      type: 'sync',
+      label: ''
+    };
+    
     const finalNodes = [...updatedNodes, newNode];
-    onDataChange({ ...data, lifelines: updatedLifelines, nodes: finalNodes });
-  }, [diagramNodes, lifelines, data, onDataChange]);
+    const finalEdges = [...diagramEdges, newEdge];
+    onDataChange({ ...data, lifelines: updatedLifelines, nodes: finalNodes, edges: finalEdges });
+  }, [diagramNodes, lifelines, diagramEdges, data, onDataChange]);
 
   // Calculate layout
   const { nodes: layoutNodes, edges: layoutEdges } = useMemo(() => {
