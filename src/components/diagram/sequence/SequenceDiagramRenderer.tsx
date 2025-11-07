@@ -877,7 +877,34 @@ const MousePositionTracker: React.FC<{
             (a.position?.y || 0) - (b.position?.y || 0)
           );
           
-          onDataChange({ ...data, nodes: sortedUpdatedNodes });
+          // Recalculate positions with proper vertical spacing
+          const verticalSpacing = 20;
+          let currentY = LIFELINE_HEADER_HEIGHT + 40;
+          
+          const recalculatedNodes = sortedUpdatedNodes.map(node => {
+            const nodeConfig = getNodeTypeConfig(node.type);
+            const measuredHeight = nodeHeights.get(node.id);
+            const height = measuredHeight || nodeConfig?.defaultHeight || 70;
+            
+            const newPosition = { ...node.position, y: currentY };
+            const nodeCenterY = currentY + (height / 2);
+            
+            // Update anchor positions
+            const updatedAnchors = node.anchors?.map(anchor => ({
+              ...anchor,
+              yPosition: nodeCenterY
+            }));
+            
+            currentY += height + verticalSpacing;
+            
+            return {
+              ...node,
+              position: newPosition,
+              anchors: updatedAnchors as [typeof updatedAnchors[0], typeof updatedAnchors[1]]
+            };
+          });
+          
+          onDataChange({ ...data, nodes: recalculatedNodes });
         } else {
           // Single node update
           // Calculate the correct horizontal position based on anchors (keep original X)
@@ -938,21 +965,55 @@ const MousePositionTracker: React.FC<{
             (a.position?.y || 0) - (b.position?.y || 0)
           );
           
+          // Recalculate positions with proper vertical spacing
+          const verticalSpacing = 20;
+          let currentY = LIFELINE_HEADER_HEIGHT + 40;
+          
+          const recalculatedNodes = sortedUpdatedNodes.map(node => {
+            const nodeConfig = getNodeTypeConfig(node.type);
+            const measuredHeight = nodeHeights.get(node.id);
+            const height = measuredHeight || nodeConfig?.defaultHeight || 70;
+            
+            const newPosition = { ...node.position, y: currentY };
+            const nodeCenterY = currentY + (height / 2);
+            
+            // Update anchor positions
+            const updatedAnchors = node.anchors?.map(anchor => ({
+              ...anchor,
+              yPosition: nodeCenterY
+            }));
+            
+            currentY += height + verticalSpacing;
+            
+            return {
+              ...node,
+              position: newPosition,
+              anchors: updatedAnchors as [typeof updatedAnchors[0], typeof updatedAnchors[1]]
+            };
+          });
+          
           // Immediately update node and anchor positions visually
-          setNodes(currentNodes => 
-            currentNodes.map(n => {
+          setNodes(currentNodes => {
+            const nodePositionMap = new Map(recalculatedNodes.map(n => [n.id, n.position!]));
+            const anchorPositionMap = new Map<string, number>();
+            recalculatedNodes.forEach(n => {
+              const centerY = n.position!.y + ((nodeHeights.get(n.id) || 70) / 2);
+              n.anchors?.forEach(a => anchorPositionMap.set(a.id, centerY));
+            });
+            
+            return currentNodes.map(n => {
               const anchorData = n.data as any;
-              if (n.id === moveChange.id) {
-                return { ...n, position: { x: originalX, y: constrainedY } };
+              if (n.type === 'sequenceNode' && nodePositionMap.has(n.id)) {
+                return { ...n, position: nodePositionMap.get(n.id)! };
               }
-              if (n.type === 'anchorNode' && anchorData?.connectedNodeId === moveChange.id) {
-                return { ...n, position: { ...n.position, y: nodeCenterY - 8 } };
+              if (n.type === 'anchorNode' && anchorData?.connectedNodeId && anchorPositionMap.has(n.id)) {
+                return { ...n, position: { ...n.position, y: anchorPositionMap.get(n.id)! - 8 } };
               }
               return n;
-            })
-          );
+            });
+          });
           
-          onDataChange({ ...data, nodes: sortedUpdatedNodes });
+          onDataChange({ ...data, nodes: recalculatedNodes });
         }
       }
     }
