@@ -11,18 +11,20 @@ interface ColumnLifelineNodeProps {
     customLifelineColors?: Record<string, string>;
     onAddNode?: (lifelineId: string, yPosition: number) => void;
     readOnly?: boolean;
+    viewportZoom?: number;
   };
 }
 
 export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) => {
-  const { column: lifeline, styles, customLifelineColors, onAddNode, readOnly } = data;
+  const { column: lifeline, styles, customLifelineColors, onAddNode, readOnly, viewportZoom = 1 } = data;
   const [hoverPosition, setHoverPosition] = useState<number | null>(null);
   const lifelineRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
 
   const handleAddNode = (yPosition: number) => {
     if (onAddNode && !readOnly) {
-      onAddNode(lifeline.id, yPosition);
+      // Convert screen position back to diagram coordinates
+      onAddNode(lifeline.id, yPosition / viewportZoom);
     }
   };
 
