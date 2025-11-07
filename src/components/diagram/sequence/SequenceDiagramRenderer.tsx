@@ -14,7 +14,7 @@ import {
   addEdge as addFlowEdge,
   useReactFlow
 } from '@xyflow/react';
-import { SequenceDiagramData, DiagramNode, DiagramEdge, DiagramNodeType } from '@/types/diagram';
+import { SequenceDiagramData, DiagramNode, DiagramEdge, DiagramNodeType, Lifeline } from '@/types/diagram';
 import { DiagramStyles } from '@/types/diagramStyles';
 import { calculateSequenceLayout } from '@/lib/diagram/sequenceLayout';
 import { getNodeTypeConfig } from '@/lib/diagram/sequenceNodeTypes';
@@ -73,7 +73,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   isFullscreen = false,
   onToggleFullscreen
 }) => {
-  const { lifelines, nodes: diagramNodes, edges: diagramEdges } = data;
+  const { lifelines = [], nodes: diagramNodes, edges: diagramEdges } = data;
   
   const [selectedNode, setSelectedNode] = useState<DiagramNode | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<DiagramEdge | null>(null);
@@ -86,6 +86,57 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
 
   const activeTheme = styles?.themes[styles?.activeTheme || 'light'] || styles?.themes.light;
 
+  // Add node on lifeline callback
+  const handleAddNodeOnLifeline = useCallback((sourceLifelineId: string) => {
+    if (!onDataChange || lifelines.length === 0) return;
+    
+    const nodeId = `node-${Date.now()}`;
+    const sourceAnchorId = `anchor-${nodeId}-source`;
+    const targetAnchorId = `anchor-${nodeId}-target`;
+    
+    // Find the source lifeline and get the next one
+    const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
+    const sourceIndex = sortedLifelines.findIndex(l => l.id === sourceLifelineId);
+    
+    let targetLifelineId: string;
+    let updatedLifelines = lifelines;
+    
+    // Check if there's a lifeline to the right
+    if (sourceIndex < sortedLifelines.length - 1) {
+      // Use the next lifeline
+      targetLifelineId = sortedLifelines[sourceIndex + 1].id;
+    } else {
+      // Create a new lifeline
+      const newLifelineId = `lifeline-${Date.now()}`;
+      const newLifeline: Lifeline = {
+        id: newLifelineId,
+        name: `Service ${sortedLifelines.length + 1}`,
+        order: sortedLifelines.length
+      };
+      updatedLifelines = [...lifelines, newLifeline];
+      targetLifelineId = newLifelineId;
+    }
+    
+    // Calculate Y position based on existing nodes
+    const existingYPositions = diagramNodes.map(n => n.position?.y || 0);
+    const maxY = existingYPositions.length > 0 ? Math.max(...existingYPositions) : 50;
+    const newYPosition = maxY + 120;
+    
+    const newNode: DiagramNode = {
+      id: nodeId,
+      type: 'endpoint',
+      label: 'New Endpoint',
+      anchors: [
+        { id: sourceAnchorId, lifelineId: sourceLifelineId, yPosition: newYPosition + 35, anchorType: 'source' },
+        { id: targetAnchorId, lifelineId: targetLifelineId, yPosition: newYPosition + 35, anchorType: 'target' }
+      ],
+      position: { x: 0, y: newYPosition }
+    };
+    
+    const updatedNodes = [...diagramNodes, newNode];
+    onDataChange({ ...data, lifelines: updatedLifelines, nodes: updatedNodes });
+  }, [diagramNodes, lifelines, data, onDataChange]);
+
   // Calculate layout
   const { nodes: layoutNodes, edges: layoutEdges } = useMemo(() => {
     return calculateSequenceLayout({
@@ -96,22 +147,30 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
     });
   }, [lifelines, diagramNodes, diagramEdges, activeTheme]);
 
-  const [nodes, setNodes, handleNodesChange] = useNodesState(layoutNodes);
+  // Attach onAddNode handler to lifeline nodes
+  const nodesWithHandlers = useMemo(() => {
+    return layoutNodes.map(node => {
+      if (node.type === 'columnLifeline') {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            onAddNode: handleAddNodeOnLifeline,
+            readOnly
+          }
+        };
+      }
+      return node;
+    });
+  }, [layoutNodes, handleAddNodeOnLifeline, readOnly]);
+
+  const [nodes, setNodes, handleNodesChange] = useNodesState(nodesWithHandlers);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
 
-  // Update edges when layout changes (e.g., when anchors are swapped)
+  // Update nodes when layout changes and apply handlers
   useEffect(() => {
-    setEdges(layoutEdges);
-  }, [layoutEdges, setEdges]);
-
-  // Update nodes when layout changes and apply selection state
-  useEffect(() => {
-    const nodesWithSelection = layoutNodes.map(node => ({
-      ...node,
-      selected: selectedNodeIds.includes(node.id)
-    }));
-    setNodes(nodesWithSelection);
-  }, [layoutNodes, selectedNodeIds, setNodes]);
+    setNodes(nodesWithHandlers);
+  }, [nodesWithHandlers, setNodes]);
 
   const onNodesChangeHandler = useCallback((changes: any) => {
     // Store initial positions when drag starts
@@ -760,31 +819,6 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
     const updatedEdges = diagramEdges.filter(e => e.id !== edgeId);
     onDataChange({ ...data, edges: updatedEdges });
   }, [diagramEdges, data, onDataChange]);
-
-  const handleAddNode = useCallback((type: DiagramNodeType) => {
-    if (!onDataChange || lifelines.length === 0) return;
-    
-    const nodeId = `node-${Date.now()}`;
-    const sourceAnchorId = `anchor-${nodeId}-source`;
-    const targetAnchorId = `anchor-${nodeId}-target`;
-    
-    const sourceLifelineId = lifelines[0].id;
-    const targetLifelineId = lifelines.length > 1 ? lifelines[1].id : sourceLifelineId;
-    
-    const newNode: DiagramNode = {
-      id: nodeId,
-      type,
-      label: `New ${type}`,
-      anchors: [
-        { id: sourceAnchorId, lifelineId: sourceLifelineId, yPosition: 100, anchorType: 'source' },
-        { id: targetAnchorId, lifelineId: targetLifelineId, yPosition: 100, anchorType: 'target' }
-      ],
-      position: { x: 100, y: 100 }
-    };
-    
-    const updatedNodes = [...diagramNodes, newNode];
-    onDataChange({ ...data, nodes: updatedNodes });
-  }, [diagramNodes, lifelines, data, onDataChange]);
 
   const handleImportFromOpenApi = useCallback((nodes: DiagramNode[]) => {
     if (!onDataChange) return;
