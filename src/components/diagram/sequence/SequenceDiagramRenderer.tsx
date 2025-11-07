@@ -22,7 +22,8 @@ import {
   calculateAdjustedPositions, 
   applyAdjustedPositions,
   applyAdjustedPositionsToDiagramNodes,
-  getNodeHeight 
+  getNodeHeight,
+  calculateValidDragRange 
 } from '@/lib/diagram/verticalSpacing';
 import { SequenceNode } from './SequenceNode';
 import { SequenceEdge } from './SequenceEdge';
@@ -321,12 +322,17 @@ const FitViewHelper: React.FC<{
         if (node?.type === 'sequenceNode') {
           // Multi-node drag disabled - only single node swapping is supported
           
-          // Keep original X position, only allow Y to change
+          // Calculate valid drag range for this node
+          const { minY, maxY } = calculateValidDragRange(change.id, diagramNodes);
+          const requestedY = change.position?.y || node.position.y;
+          const clampedY = Math.max(minY, Math.min(maxY, requestedY));
+          
+          // Keep original X position, constrain Y to valid range
           return {
             ...change,
             position: {
               x: node.position.x,
-              y: change.position?.y || node.position.y
+              y: clampedY
             }
           };
         }

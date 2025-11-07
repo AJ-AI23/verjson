@@ -56,6 +56,48 @@ export function hasInsufficientMargin(
 }
 
 /**
+ * Calculate the valid Y range for a node being dragged
+ * Returns min and max Y positions that respect spacing constraints
+ */
+export function calculateValidDragRange(
+  draggedNodeId: string,
+  allDiagramNodes: DiagramNode[]
+): { minY: number; maxY: number } {
+  // Get all nodes with their heights and current positions, sorted by Y position
+  const nodesWithHeights: NodeWithHeight[] = allDiagramNodes
+    .map(node => ({
+      id: node.id,
+      y: node.position?.y || 0,
+      height: getNodeHeight(node)
+    }))
+    .sort((a, b) => a.y - b.y);
+  
+  const draggedNodeIndex = nodesWithHeights.findIndex(n => n.id === draggedNodeId);
+  if (draggedNodeIndex === -1) {
+    return { minY: MIN_NODE_Y_POSITION, maxY: 10000 };
+  }
+  
+  const draggedNode = nodesWithHeights[draggedNodeIndex];
+  
+  // Calculate minimum Y (node above + margin, or absolute minimum)
+  let minY = MIN_NODE_Y_POSITION;
+  if (draggedNodeIndex > 0) {
+    const nodeAbove = nodesWithHeights[draggedNodeIndex - 1];
+    const minFromAbove = nodeAbove.y + nodeAbove.height + MIN_VERTICAL_MARGIN;
+    minY = Math.max(minY, minFromAbove);
+  }
+  
+  // Calculate maximum Y (node below - margin, or very large number)
+  let maxY = 10000;
+  if (draggedNodeIndex < nodesWithHeights.length - 1) {
+    const nodeBelow = nodesWithHeights[draggedNodeIndex + 1];
+    maxY = nodeBelow.y - draggedNode.height - MIN_VERTICAL_MARGIN;
+  }
+  
+  return { minY, maxY };
+}
+
+/**
  * Calculate adjusted positions for all nodes to maintain minimum vertical margins
  * Returns a map of node IDs to their new Y positions, or null if the drag would cause invalid overlaps
  */
