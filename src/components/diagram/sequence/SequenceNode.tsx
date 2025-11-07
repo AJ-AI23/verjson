@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Badge } from '@/components/ui/badge';
 import { DiagramNode } from '@/types/diagram';
@@ -11,12 +11,32 @@ interface SequenceNodeProps {
     config: NodeTypeConfig;
     styles?: DiagramStyleTheme;
     width?: number;
+    onHeightChange?: (nodeId: string, height: number) => void;
   };
   selected?: boolean;
 }
 
 export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected }) => {
-  const { config, label, type, data: nodeData, styles, width } = data;
+  const { config, label, type, data: nodeData, styles, width, onHeightChange, id } = data;
+  const nodeRef = useRef<HTMLDivElement>(null);
+
+  // Track node height changes and notify parent
+  useEffect(() => {
+    if (!nodeRef.current || !onHeightChange) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = entry.contentRect.height;
+        onHeightChange(id, height);
+      }
+    });
+
+    resizeObserver.observe(nodeRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [id, onHeightChange]);
 
   const getNodeColors = () => {
     const typeColors = styles?.colors.nodeTypes?.[type];
@@ -92,6 +112,7 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected }) =>
 
   return (
     <div
+      ref={nodeRef}
       className={cn(
         'px-4 py-3 border-2 shadow-md transition-all',
         getNodeShape(),

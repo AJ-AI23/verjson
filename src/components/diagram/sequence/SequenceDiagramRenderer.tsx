@@ -96,6 +96,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [toolbarPosition, setToolbarPosition] = useState<{ x: number; y: number } | null>(null);
   const [dragStartPositions, setDragStartPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
+  const [nodeHeights, setNodeHeights] = useState<Map<string, number>>(new Map());
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   const activeTheme = styles?.themes?.[theme] || styles?.themes?.light || defaultLightTheme;
@@ -270,7 +271,16 @@ const FitViewHelper: React.FC<{
     return layout;
   }, [lifelines, diagramNodes, activeTheme, isRenderMode]);
 
-  // Attach onAddNode handler to lifeline nodes
+  // Handle node height changes
+  const handleNodeHeightChange = useCallback((nodeId: string, height: number) => {
+    setNodeHeights(prev => {
+      const newHeights = new Map(prev);
+      newHeights.set(nodeId, height);
+      return newHeights;
+    });
+  }, []);
+
+  // Attach handlers to nodes
   const nodesWithHandlers = useMemo(() => {
     return layoutNodes.map(node => {
       if (node.type === 'columnLifeline') {
@@ -283,9 +293,18 @@ const FitViewHelper: React.FC<{
           }
         };
       }
+      if (node.type === 'sequenceNode') {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            onHeightChange: handleNodeHeightChange
+          }
+        };
+      }
       return node;
     });
-  }, [layoutNodes, handleAddNodeOnLifeline, readOnly]);
+  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly]);
 
   const [nodes, setNodes, handleNodesChange] = useNodesState(nodesWithHandlers);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
@@ -294,6 +313,37 @@ const FitViewHelper: React.FC<{
   useEffect(() => {
     setNodes(nodesWithHandlers);
   }, [nodesWithHandlers, setNodes]);
+
+  // Update anchor positions when node heights change
+  useEffect(() => {
+    if (nodeHeights.size === 0) return;
+
+    setNodes(currentNodes =>
+      currentNodes.map(n => {
+        if (n.type === 'anchorNode') {
+          const anchorData = n.data as any;
+          const connectedNodeId = anchorData?.connectedNodeId;
+          if (!connectedNodeId) return n;
+
+          const actualHeight = nodeHeights.get(connectedNodeId);
+          if (!actualHeight) return n;
+
+          // Find the connected node's Y position
+          const connectedNode = currentNodes.find(node => node.id === connectedNodeId);
+          if (!connectedNode) return n;
+
+          // Position anchor at the vertical center of the actual rendered node
+          const anchorY = connectedNode.position.y + (actualHeight / 2) - 8;
+
+          return {
+            ...n,
+            position: { x: n.position.x, y: anchorY }
+          };
+        }
+        return n;
+      })
+    );
+  }, [nodeHeights, setNodes]);
 
   const onNodesChangeHandler = useCallback((changes: any) => {
     // Store initial positions when drag starts
