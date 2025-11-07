@@ -11,13 +11,14 @@ interface ColumnLifelineNodeProps {
     styles?: DiagramStyleTheme;
     customLifelineColors?: Record<string, string>;
     onAddNode?: (lifelineId: string, yPosition: number) => void;
+    onHoverChange?: (yPosition: number | null) => void;
+    hoverPosition?: number | null;
     readOnly?: boolean;
   };
 }
 
 export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) => {
-  const { column: lifeline, styles, customLifelineColors, onAddNode, readOnly } = data;
-  const [hoverPosition, setHoverPosition] = useState<number | null>(null);
+  const { column: lifeline, styles, customLifelineColors, onAddNode, onHoverChange, hoverPosition, readOnly } = data;
   const lifelineRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
   const viewport = useViewport();
@@ -38,7 +39,7 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!lifelineRef.current || readOnly || !onAddNode) return;
+    if (!lifelineRef.current || readOnly || !onAddNode || !onHoverChange) return;
     
     console.log('[ColumnLifeline] Mouse move on lifeline:', lifeline.id);
     
@@ -49,7 +50,7 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
     
     // Use requestAnimationFrame to throttle updates
     rafRef.current = requestAnimationFrame(() => {
-      if (!lifelineRef.current) return;
+      if (!lifelineRef.current || !onHoverChange) return;
       
       // Calculate position relative to the lifeline div consistently
       const rect = lifelineRef.current.getBoundingClientRect();
@@ -63,7 +64,7 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
       if (screenY >= 0 && screenY <= rect.height) {
         // Store both screen and diagram positions
         console.log('[ColumnLifeline] Setting hover position:', { screenY, diagramY });
-        setHoverPosition(diagramY);
+        onHoverChange(diagramY);
       }
     });
   };
@@ -72,7 +73,9 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
     }
-    setHoverPosition(null);
+    if (onHoverChange) {
+      onHoverChange(null);
+    }
   };
 
   // Get custom color for this lifeline, fallback to lifeline.color, then to default

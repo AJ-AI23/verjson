@@ -97,6 +97,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [toolbarPosition, setToolbarPosition] = useState<{ x: number; y: number } | null>(null);
   const [dragStartPositions, setDragStartPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
   const [nodeHeights, setNodeHeights] = useState<Map<string, number>>(new Map());
+  const [lifelineHover, setLifelineHover] = useState<{ lifelineId: string; yPosition: number } | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   const activeTheme = styles?.themes?.[theme] || styles?.themes?.light || defaultLightTheme;
@@ -310,12 +311,23 @@ const FitViewHelper: React.FC<{
 
     return layoutNodes.map(node => {
       if (node.type === 'columnLifeline') {
+        const lifelineData = node.data as any;
+        const lifelineId = lifelineData?.column?.id;
+        const isHovered = lifelineHover?.lifelineId === lifelineId;
         return {
           ...node,
           data: {
             ...node.data,
             customLifelineColors,
             onAddNode: handleAddNodeOnLifeline,
+            onHoverChange: (yPosition: number | null) => {
+              if (yPosition !== null) {
+                setLifelineHover({ lifelineId, yPosition });
+              } else {
+                setLifelineHover(null);
+              }
+            },
+            hoverPosition: isHovered ? lifelineHover.yPosition : null,
             readOnly
           }
         };
@@ -331,7 +343,7 @@ const FitViewHelper: React.FC<{
       }
       return node;
     });
-  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, styles?.customNodeStyles]);
+  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, styles?.customNodeStyles, lifelineHover]);
 
   const [nodes, setNodes, handleNodesChange] = useNodesState(nodesWithHandlers);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
