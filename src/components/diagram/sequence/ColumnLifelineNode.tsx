@@ -80,19 +80,30 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
         ref={lifelineRef}
         className="relative pointer-events-auto"
         style={{
-          width: '2px',
+          width: '60px',
           height: '2000px',
-          background: `repeating-linear-gradient(
-            to bottom,
-            ${styles?.colors.nodeBorder || '#cbd5e1'} 0px,
-            ${styles?.colors.nodeBorder || '#cbd5e1'} 8px,
-            transparent 8px,
-            transparent 16px
-          )`
+          marginLeft: '-29px' // Center the wider hover area on the lifeline
         }}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
+        {/* Visual line */}
+        <div
+          className="absolute left-1/2 -translate-x-1/2"
+          style={{
+            width: '2px',
+            height: '100%',
+            background: `repeating-linear-gradient(
+              to bottom,
+              ${styles?.colors.nodeBorder || '#cbd5e1'} 0px,
+              ${styles?.colors.nodeBorder || '#cbd5e1'} 8px,
+              transparent 8px,
+              transparent 16px
+            )`,
+            pointerEvents: 'none'
+          }}
+        />
+        
         {!readOnly && onAddNode && hoverPosition !== null && (
           <div
             className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2"
@@ -101,6 +112,7 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
             {/* Large Clickable Area */}
             <button
               onClick={() => handleAddNode(hoverPosition)}
+              onMouseMove={(e) => e.stopPropagation()}
               className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-100 relative"
               style={{
                 backgroundColor: 'transparent'
