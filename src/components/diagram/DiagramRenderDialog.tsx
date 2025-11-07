@@ -71,13 +71,21 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       
       console.log('[Render] Capturing preview container directly');
       
+      if (!previewContainerRef.current) {
+        throw new Error('Preview container ref is null');
+      }
+      
       // Find the React Flow viewport element within the preview
       const reactFlowViewport = previewContainerRef.current.querySelector('.react-flow__viewport');
       if (!reactFlowViewport) {
         throw new Error('React Flow viewport not found in preview');
       }
       
-      console.log('[Render] Found React Flow viewport, capturing as PNG...');
+      console.log('[Render] Found React Flow viewport, checking container styles...');
+      const computedStyle = window.getComputedStyle(previewContainerRef.current);
+      console.log('[Render] Container computed background:', computedStyle.backgroundColor);
+      
+      console.log('[Render] Starting PNG capture...');
       
       // Get the actual dimensions of the preview container
       const previewRect = previewContainerRef.current.getBoundingClientRect();
@@ -94,6 +102,8 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       
       // Add a small delay to ensure theme is fully applied
       await new Promise(resolve => setTimeout(resolve, 300));
+      
+      console.log('[Render] Calling toPng...');
       
       // Capture the preview container as PNG at the target resolution
       const dataUrl = await toPng(previewContainerRef.current, {
@@ -114,7 +124,11 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
         }
       });
       
-      console.log('[Render] PNG data URL length:', dataUrl.length);
+      console.log('[Render] PNG captured successfully, data URL length:', dataUrl.length);
+      
+      if (!dataUrl || dataUrl.length < 100) {
+        throw new Error('PNG capture produced empty or invalid data');
+      }
 
       console.log('[Render] PNG captured successfully');
 
