@@ -872,7 +872,12 @@ const MousePositionTracker: React.FC<{
             return n;
           });
           
-          onDataChange({ ...data, nodes: updatedNodes });
+          // Reorder nodes by Y position to maintain correct array order
+          const sortedUpdatedNodes = [...updatedNodes].sort((a, b) => 
+            (a.position?.y || 0) - (b.position?.y || 0)
+          );
+          
+          onDataChange({ ...data, nodes: sortedUpdatedNodes });
         } else {
           // Single node update
           // Calculate the correct horizontal position based on anchors (keep original X)
@@ -928,6 +933,11 @@ const MousePositionTracker: React.FC<{
             return n;
           });
           
+          // Reorder nodes by Y position to maintain correct array order
+          const sortedUpdatedNodes = [...updatedNodes].sort((a, b) => 
+            (a.position?.y || 0) - (b.position?.y || 0)
+          );
+          
           // Immediately update node and anchor positions visually
           setNodes(currentNodes => 
             currentNodes.map(n => {
@@ -942,7 +952,7 @@ const MousePositionTracker: React.FC<{
             })
           );
           
-          onDataChange({ ...data, nodes: updatedNodes });
+          onDataChange({ ...data, nodes: sortedUpdatedNodes });
         }
       }
     }
