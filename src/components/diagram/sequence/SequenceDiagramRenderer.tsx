@@ -87,7 +87,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const activeTheme = styles?.themes[styles?.activeTheme || 'light'] || styles?.themes.light;
 
   // Add node on lifeline callback
-  const handleAddNodeOnLifeline = useCallback((sourceLifelineId: string) => {
+  const handleAddNodeOnLifeline = useCallback((sourceLifelineId: string, yPosition: number) => {
     if (!onDataChange || lifelines.length === 0) return;
     
     const nodeId = `node-${Date.now()}`;
@@ -117,24 +117,40 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
       targetLifelineId = newLifelineId;
     }
     
-    // Calculate Y position based on existing nodes
-    const existingYPositions = diagramNodes.map(n => n.position?.y || 0);
-    const maxY = existingYPositions.length > 0 ? Math.max(...existingYPositions) : 50;
-    const newYPosition = maxY + 120;
+    // Find nodes that need to be moved down
+    const nodeHeight = 70;
+    const minSpacing = 50;
+    const newNodeBottom = yPosition + nodeHeight;
     
+    const updatedNodes = diagramNodes.map(node => {
+      const nodeY = node.position?.y || 0;
+      // If existing node overlaps with new node position, move it down
+      if (nodeY >= yPosition - minSpacing && nodeY < newNodeBottom + minSpacing) {
+        const newY = newNodeBottom + minSpacing;
+        const nodeCenterY = newY + nodeHeight / 2;
+        return {
+          ...node,
+          position: { ...node.position, y: newY },
+          anchors: node.anchors?.map(a => ({ ...a, yPosition: nodeCenterY })) as any
+        };
+      }
+      return node;
+    });
+    
+    const nodeCenterY = yPosition + nodeHeight / 2;
     const newNode: DiagramNode = {
       id: nodeId,
       type: 'endpoint',
       label: 'New Endpoint',
       anchors: [
-        { id: sourceAnchorId, lifelineId: sourceLifelineId, yPosition: newYPosition + 35, anchorType: 'source' },
-        { id: targetAnchorId, lifelineId: targetLifelineId, yPosition: newYPosition + 35, anchorType: 'target' }
+        { id: sourceAnchorId, lifelineId: sourceLifelineId, yPosition: nodeCenterY, anchorType: 'source' },
+        { id: targetAnchorId, lifelineId: targetLifelineId, yPosition: nodeCenterY, anchorType: 'target' }
       ],
-      position: { x: 0, y: newYPosition }
+      position: { x: 0, y: yPosition }
     };
     
-    const updatedNodes = [...diagramNodes, newNode];
-    onDataChange({ ...data, lifelines: updatedLifelines, nodes: updatedNodes });
+    const finalNodes = [...updatedNodes, newNode];
+    onDataChange({ ...data, lifelines: updatedLifelines, nodes: finalNodes });
   }, [diagramNodes, lifelines, data, onDataChange]);
 
   // Calculate layout

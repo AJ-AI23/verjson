@@ -8,7 +8,7 @@ interface ColumnLifelineNodeProps {
   data: {
     column: Lifeline; // Using 'column' property name for backward compatibility
     styles?: DiagramStyleTheme;
-    onAddNode?: (lifelineId: string) => void;
+    onAddNode?: (lifelineId: string, yPosition: number) => void;
     readOnly?: boolean;
   };
 }
@@ -17,9 +17,9 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
   const { column: lifeline, styles, onAddNode, readOnly } = data;
   const [hoveredAnchor, setHoveredAnchor] = useState<number | null>(null);
 
-  const handleAddNode = () => {
+  const handleAddNode = (yPosition: number) => {
     if (onAddNode && !readOnly) {
-      onAddNode(lifeline.id);
+      onAddNode(lifeline.id, yPosition);
     }
   };
 
@@ -82,7 +82,7 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
           >
             {/* Large Clickable Area */}
             <button
-              onClick={handleAddNode}
+              onClick={() => handleAddNode(yPos)}
               className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 relative"
               style={{
                 backgroundColor: 'transparent'
