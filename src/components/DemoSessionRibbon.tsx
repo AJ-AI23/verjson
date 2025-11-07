@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemoSession } from '@/contexts/DemoSessionContext';
 import { supabase } from '@/integrations/supabase/client';
 
 export function DemoSessionRibbon() {
   const { user } = useAuth();
+  const { handleDemoExpiration } = useDemoSession();
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isDemo, setIsDemo] = useState(false);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
@@ -57,9 +59,10 @@ export function DemoSessionRibbon() {
         const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
         setTimeRemaining(remaining);
         
-        // If expired, stop counting
+        // If expired, trigger expiration handler
         if (remaining === 0) {
           clearInterval(interval);
+          handleDemoExpiration();
         }
       }
     }, 1000);
