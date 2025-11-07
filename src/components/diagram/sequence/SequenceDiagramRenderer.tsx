@@ -431,7 +431,8 @@ const MousePositionTracker: React.FC<{
           ...node,
           data: {
             ...node.data,
-            onHeightChange: handleNodeHeightChange
+            onHeightChange: handleNodeHeightChange,
+            calculatedHeight: nodeHeights.get(node.id)
           }
         };
       }

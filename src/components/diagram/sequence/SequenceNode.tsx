@@ -12,6 +12,7 @@ interface SequenceNodeProps {
     styles?: DiagramStyleTheme;
     width?: number;
     onHeightChange?: (nodeId: string, height: number) => void;
+    calculatedHeight?: number;
   };
   selected?: boolean;
   positionAbsoluteX: number;
@@ -19,7 +20,7 @@ interface SequenceNodeProps {
 }
 
 export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected, positionAbsoluteY }) => {
-  const { config, label, type, data: nodeData, styles, width, onHeightChange, id } = data;
+  const { config, label, type, data: nodeData, styles, width, onHeightChange, id, calculatedHeight } = data;
   const nodeRef = useRef<HTMLDivElement>(null);
 
   // Track node height changes and notify parent
@@ -127,7 +128,7 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected, posi
       
       {/* Debug coordinates */}
       <div className="mt-2 pt-2 border-t text-xs opacity-50" style={{ color: nodeColors.text }}>
-        y: {positionAbsoluteY.toFixed(0)}
+        y: {positionAbsoluteY.toFixed(0)} | h: {calculatedHeight?.toFixed(0) || config.defaultHeight}
       </div>
       
       {/* Right side handles - both source and target for bidirectional flow */}
