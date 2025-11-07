@@ -43,7 +43,7 @@ export const defaultLightTheme: DiagramStyleTheme = {
   name: 'Light Mode',
   colors: {
     background: '#ffffff',
-    swimlaneBackground: '#f8fafc',
+    swimlaneBackground: '#e0f2fe',
     swimlaneBorder: '#cbd5e1',
     nodeBackground: '#ffffff',
     nodeBorder: '#94a3b8',
@@ -70,7 +70,7 @@ export const defaultDarkTheme: DiagramStyleTheme = {
   name: 'Dark Mode',
   colors: {
     background: '#0f172a',
-    swimlaneBackground: '#1e293b',
+    swimlaneBackground: '#1e3a5f',
     swimlaneBorder: '#475569',
     nodeBackground: '#1e293b',
     nodeBorder: '#64748b',
