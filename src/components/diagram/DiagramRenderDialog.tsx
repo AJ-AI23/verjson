@@ -62,6 +62,13 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
     try {
       const selectedThemeData = styles?.themes?.[selectedTheme] || defaultThemes[selectedTheme as 'light' | 'dark'];
       
+      console.log('[Render] Starting capture with theme:', {
+        selectedTheme,
+        hasThemeData: !!selectedThemeData,
+        backgroundColor: selectedThemeData?.colors?.background,
+        themeColors: selectedThemeData?.colors
+      });
+      
       console.log('[Render] Capturing preview container directly');
       
       // Find the React Flow viewport element within the preview
@@ -81,8 +88,12 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
         targetHeight: height, 
         previewWidth: previewRect.width,
         previewHeight: previewRect.height,
-        scale 
+        scale,
+        backgroundColor: selectedThemeData?.colors?.background
       });
+      
+      // Add a small delay to ensure theme is fully applied
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       // Capture the preview container as PNG at the target resolution
       const dataUrl = await toPng(previewContainerRef.current, {
@@ -91,8 +102,19 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
         width: previewRect.width,
         height: previewRect.height,
         backgroundColor: selectedThemeData?.colors?.background,
-        cacheBust: true
+        cacheBust: true,
+        filter: (node) => {
+          // Filter out any overlays or controls that shouldn't be captured
+          if (node.classList) {
+            return !node.classList.contains('react-flow__controls') &&
+                   !node.classList.contains('react-flow__minimap') &&
+                   !node.classList.contains('react-flow__attribution');
+          }
+          return true;
+        }
       });
+      
+      console.log('[Render] PNG data URL length:', dataUrl.length);
 
       console.log('[Render] PNG captured successfully');
 
