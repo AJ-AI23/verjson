@@ -46,6 +46,8 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const availableThemes = styles?.themes ? Object.keys(styles.themes) : ['light', 'dark'];
 
   const handleRender = async () => {
+    console.log('[Render] Button clicked!', { hasViewport: !!previewViewport, hasRef: !!previewContainerRef.current });
+    
     if (!previewViewport) {
       toast.error('Please wait for preview to load');
       return;
