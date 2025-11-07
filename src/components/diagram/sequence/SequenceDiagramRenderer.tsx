@@ -102,8 +102,6 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [nodeHeights, setNodeHeights] = useState<Map<string, number>>(new Map());
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
-  const pendingDataChangeRef = useRef<SequenceDiagramData | null>(null);
-  const effectivePositionsRef = useRef<Map<string, number>>(new Map());
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const previousLayoutRef = useRef<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
 
@@ -458,14 +456,6 @@ const FitViewHelper: React.FC<{
       isDraggingRef.current = true;
       setIsDragging(true);
       
-      // Initialize effective positions from diagram data
-      effectivePositionsRef.current.clear();
-      diagramNodes.forEach(node => {
-        if (node.position) {
-          effectivePositionsRef.current.set(node.id, node.position.y);
-        }
-      });
-      
       const startPositions = new Map<string, { x: number; y: number }>();
       nodes.forEach(n => {
         if (selectedNodeIds.includes(n.id) && n.type === 'sequenceNode') {
@@ -477,20 +467,69 @@ const FitViewHelper: React.FC<{
     
     // Detect drag end
     const dragEndChange = changes.find((c: any) => c.type === 'position' && c.dragging === false && c.position);
-    if (dragEndChange) {
+    if (dragEndChange && dragEndChange.type === 'position') {
       console.log('🔴 [DRAG END] Setting isDraggingRef.current = false');
       isDraggingRef.current = false;
       setIsDragging(false);
       
-      // Apply any pending data changes that were deferred during drag
-      if (pendingDataChangeRef.current && onDataChange) {
-        console.log('📝 [DRAG END] Applying deferred data change');
-        onDataChange(pendingDataChangeRef.current);
-        pendingDataChangeRef.current = null;
+      // Check if a sequence node was dropped and needs to swap positions
+      const droppedNode = nodes.find(n => n.id === dragEndChange.id);
+      if (droppedNode?.type === 'sequenceNode' && onDataChange) {
+        const actualHeight = nodeHeights.get(dragEndChange.id);
+        const diagramNode = diagramNodes.find(n => n.id === dragEndChange.id);
+        const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
+        const nodeHeight = actualHeight || nodeConfig?.defaultHeight || 70;
+        const droppedY = dragEndChange.position.y;
+        const droppedCenterY = droppedY + (nodeHeight / 2);
+        
+        // Find which node position this dropped into
+        const sortedNodes = [...diagramNodes]
+          .filter(n => n.id !== dragEndChange.id)
+          .sort((a, b) => (a.position?.y || 0) - (b.position?.y || 0));
+        
+        let targetIndex = sortedNodes.length; // Default: last position
+        for (let i = 0; i < sortedNodes.length; i++) {
+          const node = sortedNodes[i];
+          const nodeActualHeight = nodeHeights.get(node.id);
+          const nodeConfig = getNodeTypeConfig(node.type);
+          const height = nodeActualHeight || nodeConfig?.defaultHeight || 70;
+          const nodeCenterY = (node.position?.y || 0) + (height / 2);
+          
+          if (droppedCenterY < nodeCenterY) {
+            targetIndex = i;
+            break;
+          }
+        }
+        
+        // Rebuild node list with new order
+        const originalIndex = diagramNodes.findIndex(n => n.id === dragEndChange.id);
+        if (originalIndex !== -1) {
+          const reorderedNodes = [...diagramNodes];
+          const [movedNode] = reorderedNodes.splice(originalIndex, 1);
+          
+          // Adjust target index if we removed from before it
+          const adjustedTargetIndex = originalIndex < targetIndex ? targetIndex - 1 : targetIndex;
+          reorderedNodes.splice(adjustedTargetIndex, 0, movedNode);
+          
+          // Recalculate Y positions based on new order
+          const updatedNodes = reorderedNodes.map((node, index) => {
+            const nodeActualHeight = nodeHeights.get(node.id);
+            const nodeConfig = getNodeTypeConfig(node.type);
+            const height = nodeActualHeight || nodeConfig?.defaultHeight || 70;
+            const newY = index * (height + 20); // 20px spacing
+            const centerY = newY + (height / 2);
+            
+            return {
+              ...node,
+              position: { ...node.position, y: newY },
+              anchors: node.anchors?.map(a => ({ ...a, yPosition: centerY })) as any
+            };
+          });
+          
+          console.log('📝 [DROP] Applying position update after drop');
+          onDataChange({ ...data, nodes: updatedNodes });
+        }
       }
-      
-      // Clear effective positions
-      effectivePositionsRef.current.clear();
     }
     
     // Constrain sequence node movement to vertical only during drag
@@ -542,9 +581,8 @@ const FitViewHelper: React.FC<{
         const newY = dragChange.position.y;
         const nodeCenterY = newY + (nodeHeight / 2);
         
-        // For single node, check for swapping with other nodes
+        // Update anchor positions for the dragged node during drag
         if (!(selectedNodeIds.includes(dragChange.id) && selectedNodeIds.length > 1)) {
-          // Update anchor positions for the dragged node
           setNodes(currentNodes =>
             currentNodes.map(n => {
               const anchorData = n.data as any;
@@ -554,112 +592,6 @@ const FitViewHelper: React.FC<{
               return n;
             })
           );
-          
-          // Check for collision and potential swap
-          const otherSequenceNodes = nodes.filter(n => 
-            n.type === 'sequenceNode' && n.id !== dragChange.id
-          );
-          
-          let shouldSwapWith: Node | null = null;
-          for (const otherNode of otherSequenceNodes) {
-            // Use actual measured height for other node
-            const otherActualHeight = nodeHeights.get(otherNode.id);
-            const otherDiagramNode = diagramNodes.find(n => n.id === otherNode.id);
-            const otherNodeConfig = otherDiagramNode ? getNodeTypeConfig(otherDiagramNode.type) : null;
-            const otherNodeHeight = otherActualHeight || otherNodeConfig?.defaultHeight || 70;
-            
-            // Use effective positions for both nodes (accounting for previous swaps)
-            const otherEffectiveY = effectivePositionsRef.current.get(otherNode.id) ?? otherNode.position.y;
-            const otherNodeCenterY = otherEffectiveY + (otherNodeHeight / 2);
-            
-            const effectiveY = effectivePositionsRef.current.get(dragChange.id) ?? 0;
-            const effectiveCenterY = effectiveY + (nodeHeight / 2);
-            
-            // Swap if centers have crossed
-            if (effectiveCenterY < otherNodeCenterY && nodeCenterY > otherNodeCenterY) {
-              // Dragging down and crossed center
-              shouldSwapWith = otherNode;
-              break;
-            } else if (effectiveCenterY > otherNodeCenterY && nodeCenterY < otherNodeCenterY) {
-              // Dragging up and crossed center
-              shouldSwapWith = otherNode;
-              break;
-            }
-          }
-          
-          if (shouldSwapWith) {
-            // Perform swap - exchange Y positions
-            const draggedDiagramNode = diagramNodes.find(n => n.id === dragChange.id);
-            const swapDiagramNode = diagramNodes.find(n => n.id === shouldSwapWith.id);
-            
-            if (draggedDiagramNode && swapDiagramNode) {
-              const draggedOriginalY = draggedDiagramNode.position?.y || 0;
-              const swapOriginalY = swapDiagramNode.position?.y || 0;
-              
-              // Update diagram data with swapped positions
-              const updatedDiagramNodes = diagramNodes.map(n => {
-                if (n.id === dragChange.id) {
-                  const nodeCenterY = swapOriginalY + (nodeHeight / 2);
-                  return {
-                    ...n,
-                    position: { ...n.position, y: swapOriginalY },
-                    anchors: n.anchors?.map(a => ({ ...a, yPosition: nodeCenterY })) as any
-                  };
-                }
-                if (n.id === shouldSwapWith.id) {
-                  // Use actual measured height for swapped node
-                  const swapActualHeight = nodeHeights.get(shouldSwapWith.id);
-                  const otherNodeConfig = getNodeTypeConfig(n.type);
-                  const otherNodeHeight = swapActualHeight || otherNodeConfig?.defaultHeight || 70;
-                  const nodeCenterY = draggedOriginalY + (otherNodeHeight / 2);
-                  return {
-                    ...n,
-                    position: { ...n.position, y: draggedOriginalY },
-                    anchors: n.anchors?.map(a => ({ ...a, yPosition: nodeCenterY })) as any
-                  };
-                }
-                return n;
-              });
-              
-              // Update visual positions
-              setNodes(currentNodes =>
-                currentNodes.map(n => {
-                  if (n.id === dragChange.id) {
-                    return { ...n, position: { x: n.position.x, y: swapOriginalY } };
-                  }
-                  if (n.id === shouldSwapWith.id) {
-                    return { ...n, position: { x: n.position.x, y: draggedOriginalY } };
-                  }
-                  
-                  // Update anchors for swapped nodes
-                  const anchorData = n.data as any;
-                  if (n.type === 'anchorNode') {
-                    if (anchorData?.connectedNodeId === dragChange.id) {
-                      const swapCenterY = swapOriginalY + (nodeHeight / 2);
-                      return { ...n, position: { x: n.position.x, y: swapCenterY - 8 } };
-                    }
-                    if (anchorData?.connectedNodeId === shouldSwapWith.id) {
-                      // Use actual measured height for swapped node
-                      const swapActualHeight = nodeHeights.get(shouldSwapWith.id);
-                      const otherNodeConfig = swapDiagramNode ? getNodeTypeConfig(swapDiagramNode.type) : null;
-                      const otherNodeHeight = swapActualHeight || otherNodeConfig?.defaultHeight || 70;
-                      const draggedCenterY = draggedOriginalY + (otherNodeHeight / 2);
-                      return { ...n, position: { x: n.position.x, y: draggedCenterY - 8 } };
-                    }
-                  }
-                  return n;
-                })
-              );
-              
-              // Update effective positions after swap
-              effectivePositionsRef.current.set(dragChange.id, swapOriginalY);
-              effectivePositionsRef.current.set(shouldSwapWith.id, draggedOriginalY);
-              
-              // Defer data change until drag ends
-              console.log('⏳ [SWAP] Deferring data change until drag ends');
-              pendingDataChangeRef.current = { ...data, nodes: updatedDiagramNodes };
-            }
-          }
         }
       }
     }
