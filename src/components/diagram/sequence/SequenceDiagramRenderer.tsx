@@ -197,12 +197,28 @@ const FitViewHelper: React.FC<{ isRenderMode: boolean; onReady?: () => void; nod
 
   // Calculate layout
   const { nodes: layoutNodes, edges: layoutEdges } = useMemo(() => {
-    return calculateSequenceLayout({
+    console.log('[SequenceRenderer] Calculating layout', {
+      isRenderMode,
+      lifelinesCount: lifelines?.length || 0,
+      nodesCount: diagramNodes?.length || 0,
+      hasActiveTheme: !!activeTheme
+    });
+    
+    const layout = calculateSequenceLayout({
       lifelines,
       nodes: diagramNodes,
       styles: activeTheme
     });
-  }, [lifelines, diagramNodes, activeTheme]);
+    
+    console.log('[SequenceRenderer] Layout calculated', {
+      layoutNodesCount: layout.nodes?.length || 0,
+      layoutEdgesCount: layout.edges?.length || 0,
+      firstNode: layout.nodes?.[0],
+      firstEdge: layout.edges?.[0]
+    });
+    
+    return layout;
+  }, [lifelines, diagramNodes, activeTheme, isRenderMode]);
 
   // Attach onAddNode handler to lifeline nodes
   const nodesWithHandlers = useMemo(() => {
@@ -855,6 +871,17 @@ const FitViewHelper: React.FC<{ isRenderMode: boolean; onReady?: () => void; nod
     const updatedNodes = [...diagramNodes, ...nodes];
     onDataChange({ ...data, nodes: updatedNodes });
   }, [diagramNodes, data, onDataChange]);
+
+  // Log rendering information
+  console.log('[SequenceRenderer] Rendering with:', {
+    isRenderMode,
+    nodesCount: nodes?.length || 0,
+    edgesCount: edges?.length || 0,
+    hasActiveTheme: !!activeTheme,
+    backgroundColor: activeTheme?.colors.background,
+    firstThreeNodes: nodes?.slice(0, 3).map(n => ({ id: n.id, type: n.type, position: n.position })),
+    firstThreeEdges: edges?.slice(0, 3).map(e => ({ id: e.id, source: e.source, target: e.target }))
+  });
 
   return (
     <div className="w-full h-full flex flex-col" style={{ backgroundColor: activeTheme?.colors.background }}>

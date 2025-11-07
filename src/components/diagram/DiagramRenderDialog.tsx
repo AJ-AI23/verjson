@@ -59,6 +59,16 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
         activeTheme: renderStyles.activeTheme,
         themeKeys: Object.keys(renderStyles.themes || {})
       });
+      
+      console.log('[Render] Diagram data:', {
+        hasData: !!data,
+        hasLifelines: !!data?.lifelines,
+        lifelinesCount: data?.lifelines?.length || 0,
+        hasNodes: !!data?.nodes,
+        nodesCount: data?.nodes?.length || 0,
+        lifelines: data?.lifelines,
+        nodes: data?.nodes
+      });
 
       // Create a hidden rendering container
       const renderContainer = document.createElement('div');
