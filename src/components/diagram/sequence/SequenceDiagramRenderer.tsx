@@ -103,6 +103,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
   const pendingDataChangeRef = useRef<SequenceDiagramData | null>(null);
+  const effectivePositionsRef = useRef<Map<string, number>>(new Map());
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const previousLayoutRef = useRef<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
 
@@ -456,6 +457,15 @@ const FitViewHelper: React.FC<{
       console.log('🟢 [DRAG START] Setting isDraggingRef.current = true');
       isDraggingRef.current = true;
       setIsDragging(true);
+      
+      // Initialize effective positions from diagram data
+      effectivePositionsRef.current.clear();
+      diagramNodes.forEach(node => {
+        if (node.position) {
+          effectivePositionsRef.current.set(node.id, node.position.y);
+        }
+      });
+      
       const startPositions = new Map<string, { x: number; y: number }>();
       nodes.forEach(n => {
         if (selectedNodeIds.includes(n.id) && n.type === 'sequenceNode') {
@@ -478,6 +488,9 @@ const FitViewHelper: React.FC<{
         onDataChange(pendingDataChangeRef.current);
         pendingDataChangeRef.current = null;
       }
+      
+      // Clear effective positions
+      effectivePositionsRef.current.clear();
     }
     
     // Constrain sequence node movement to vertical only during drag
@@ -556,17 +569,16 @@ const FitViewHelper: React.FC<{
             const otherNodeHeight = otherActualHeight || otherNodeConfig?.defaultHeight || 70;
             const otherNodeCenterY = otherNode.position.y + (otherNodeHeight / 2);
             
-            // Check if dragged node's center has crossed the other node's center
-            const draggedNodeOriginal = diagramNodes.find(n => n.id === dragChange.id);
-            const originalY = draggedNodeOriginal?.position?.y || 0;
-            const originalCenterY = originalY + (nodeHeight / 2);
+            // Use effective positions (current positions during drag, accounting for swaps)
+            const effectiveY = effectivePositionsRef.current.get(dragChange.id) ?? 0;
+            const effectiveCenterY = effectiveY + (nodeHeight / 2);
             
             // Swap if centers have crossed
-            if (originalCenterY < otherNodeCenterY && nodeCenterY > otherNodeCenterY) {
+            if (effectiveCenterY < otherNodeCenterY && nodeCenterY > otherNodeCenterY) {
               // Dragging down and crossed center
               shouldSwapWith = otherNode;
               break;
-            } else if (originalCenterY > otherNodeCenterY && nodeCenterY < otherNodeCenterY) {
+            } else if (effectiveCenterY > otherNodeCenterY && nodeCenterY < otherNodeCenterY) {
               // Dragging up and crossed center
               shouldSwapWith = otherNode;
               break;
@@ -636,6 +648,10 @@ const FitViewHelper: React.FC<{
                   return n;
                 })
               );
+              
+              // Update effective positions after swap
+              effectivePositionsRef.current.set(dragChange.id, swapOriginalY);
+              effectivePositionsRef.current.set(shouldSwapWith.id, draggedOriginalY);
               
               // Defer data change until drag ends
               console.log('⏳ [SWAP] Deferring data change until drag ends');
