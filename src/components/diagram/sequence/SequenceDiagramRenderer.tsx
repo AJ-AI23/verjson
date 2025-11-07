@@ -212,9 +212,10 @@ const FitViewHelper: React.FC<{
     
     // Find nodes that need to be moved down
     const nodeHeight = 70;
+    const anchorHeight = 16;
     const minSpacing = 50;
-    // Position node starting at click position + half node height offset
-    const nodeY = yPosition + (nodeHeight / 2);
+    // Position node starting at click position + half node height + half anchor height offset
+    const nodeY = yPosition + (nodeHeight / 2) + (anchorHeight / 2);
     const newNodeBottom = nodeY + nodeHeight;
     
     const updatedNodes = diagramNodes.map(node => {
