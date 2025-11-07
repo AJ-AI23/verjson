@@ -92,7 +92,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Build a dependency graph to determine node order
   const nodeOrder = calculateNodeSequence(nodes);
 
-  // Auto-align only nodes that don't have stored positions
+  // Auto-align all nodes with even vertical spacing
   const alignedNodePositions = calculateEvenSpacing(nodes, nodeOrder);
 
   // Create anchor nodes - positioned at the same Y as their connected node's center
@@ -138,8 +138,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     const sourceAnchor = node.anchors?.[0];
     const targetAnchor = node.anchors?.[1];
     
-    // Use stored position if available, otherwise use auto-aligned position
-    const yPos = node.position?.y ?? (alignedNodePositions.get(node.id) || (LIFELINE_HEADER_HEIGHT + 40));
+    // Use auto-aligned position for consistent spacing
+    const yPos = alignedNodePositions.get(node.id) || (LIFELINE_HEADER_HEIGHT + 40);
 
     // Determine horizontal positioning based on connected anchors
     const MARGIN = 40; // Margin from lifeline for edges
@@ -302,7 +302,7 @@ function calculateNodeSequence(nodes: DiagramNode[]): string[] {
 }
 
 // Calculate even spacing for nodes based on their sequence order
-// Only assign positions to nodes that don't already have stored positions
+// Always recalculates positions for all nodes to maintain even spacing
 function calculateEvenSpacing(nodes: DiagramNode[], nodeOrder: string[]): Map<string, number> {
   const positions = new Map<string, number>();
   
@@ -312,14 +312,10 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeOrder: string[]): Map<st
   
   const startY = LIFELINE_HEADER_HEIGHT + 40;
   
-  // Only assign positions to nodes without stored positions
+  // Assign evenly spaced Y positions to all nodes based on sequence order
   nodeOrder.forEach((nodeId, index) => {
-    const node = nodes.find(n => n.id === nodeId);
-    // Only auto-align if node doesn't have a stored Y position
-    if (!node?.position?.y) {
-      const yPos = startY + (index * NODE_VERTICAL_SPACING);
-      positions.set(nodeId, yPos);
-    }
+    const yPos = startY + (index * NODE_VERTICAL_SPACING);
+    positions.set(nodeId, yPos);
   });
   
   return positions;
