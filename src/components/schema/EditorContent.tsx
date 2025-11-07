@@ -7,6 +7,8 @@ import { VersionControls } from '@/components/VersionControls';
 import { CollapsedState } from '@/lib/diagram/types';
 import { DocumentVersionComparison } from '@/lib/importVersionUtils';
 import { Version, VersionTier } from '@/lib/versionUtils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface EditorContentProps {
   schema: string;
@@ -67,53 +69,80 @@ export const EditorContent: React.FC<EditorContentProps> = ({
   onToggleFullscreen,
   diagramRef,
 }) => {
+  const isMobile = useIsMobile();
+
+  const editorPane = (
+    <div className="flex flex-col h-full">
+      <JsonEditorWrapper
+        value={schema} 
+        onChange={onEditorChange} 
+        error={error}
+        collapsedPaths={collapsedPaths}
+        onToggleCollapse={onToggleCollapse}
+        maxDepth={maxDepth}
+        documentId={documentId}
+      />
+      <VersionControls 
+        version={currentVersion} 
+        userRole={userRole}
+        onVersionBump={onVersionBump}
+        isModified={isModified}
+        schema={schema}
+        patches={patches}
+        onImportVersion={onImportVersion}
+        documentId={documentId}
+        currentFileType={currentFileType}
+        suggestedVersion={suggestedVersion}
+      />
+    </div>
+  );
+
+  const diagramPane = (
+    <SchemaDiagram 
+      schema={parsedSchema}
+      error={error !== null}
+      groupProperties={groupProperties}
+      collapsedPaths={collapsedPaths}
+      maxDepth={maxDepth}
+      onAddNotation={onAddNotation}
+      expandedNotationPaths={expandedNotationPaths}
+      isDiagram={currentFileType === 'diagram'}
+      workspaceId={workspaceId}
+      isStylesDialogOpen={isStylesDialogOpen}
+      onStylesDialogClose={onStylesDialogClose}
+      isOpenApiImportOpen={isOpenApiImportOpen}
+      onOpenApiImportClose={onOpenApiImportClose}
+      isFullscreen={isFullscreen}
+      onToggleFullscreen={onToggleFullscreen}
+      diagramRef={diagramRef}
+      onSchemaChange={(updatedSchema) => {
+        // When diagram is edited, update the JSON editor
+        onEditorChange(JSON.stringify(updatedSchema, null, 2));
+      }}
+    />
+  );
+
+  if (isMobile) {
+    return (
+      <Tabs defaultValue="editor" className="h-full flex flex-col">
+        <TabsList className="w-full justify-start rounded-none border-b">
+          <TabsTrigger value="editor" className="flex-1">Editor</TabsTrigger>
+          <TabsTrigger value="diagram" className="flex-1">Diagram</TabsTrigger>
+        </TabsList>
+        <TabsContent value="editor" className="flex-1 mt-0">
+          {editorPane}
+        </TabsContent>
+        <TabsContent value="diagram" className="flex-1 mt-0">
+          {diagramPane}
+        </TabsContent>
+      </Tabs>
+    );
+  }
+
   return (
     <SplitPane>
-      <div className="flex flex-col h-full">
-        <JsonEditorWrapper
-          value={schema} 
-          onChange={onEditorChange} 
-          error={error}
-          collapsedPaths={collapsedPaths}
-          onToggleCollapse={onToggleCollapse}
-          maxDepth={maxDepth}
-          documentId={documentId}
-        />
-        <VersionControls 
-          version={currentVersion} 
-          userRole={userRole}
-          onVersionBump={onVersionBump}
-          isModified={isModified}
-          schema={schema}
-          patches={patches}
-          onImportVersion={onImportVersion}
-          documentId={documentId}
-          currentFileType={currentFileType}
-          suggestedVersion={suggestedVersion}
-        />
-      </div>
-      <SchemaDiagram 
-        schema={parsedSchema}
-        error={error !== null}
-        groupProperties={groupProperties}
-        collapsedPaths={collapsedPaths}
-        maxDepth={maxDepth}
-        onAddNotation={onAddNotation}
-        expandedNotationPaths={expandedNotationPaths}
-        isDiagram={currentFileType === 'diagram'}
-        workspaceId={workspaceId}
-        isStylesDialogOpen={isStylesDialogOpen}
-        onStylesDialogClose={onStylesDialogClose}
-        isOpenApiImportOpen={isOpenApiImportOpen}
-        onOpenApiImportClose={onOpenApiImportClose}
-        isFullscreen={isFullscreen}
-        onToggleFullscreen={onToggleFullscreen}
-        diagramRef={diagramRef}
-        onSchemaChange={(updatedSchema) => {
-          // When diagram is edited, update the JSON editor
-          onEditorChange(JSON.stringify(updatedSchema, null, 2));
-        }}
-      />
+      {editorPane}
+      {diagramPane}
     </SplitPane>
   );
 };
