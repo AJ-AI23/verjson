@@ -75,33 +75,49 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
         {!readOnly && onAddNode && anchorPoints.map((yPos, index) => (
           <div
             key={index}
-            className="absolute left-1/2 -translate-x-1/2 pointer-events-auto group"
+            className="absolute left-1/2 -translate-x-1/2 pointer-events-auto"
             style={{ top: `${yPos}px` }}
             onMouseEnter={() => setHoveredAnchor(index)}
             onMouseLeave={() => setHoveredAnchor(null)}
           >
-            {/* Anchor Button */}
+            {/* Large Clickable Area */}
             <button
               onClick={handleAddNode}
-              className="w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100"
+              className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 relative"
               style={{
-                backgroundColor: styles?.colors.nodeBackground || '#ffffff',
-                border: `2px solid ${styles?.colors.nodeBorder || '#64748b'}`,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                backgroundColor: 'transparent'
               }}
               title="Add node here"
             >
-              <Plus className="h-3 w-3" style={{ color: styles?.colors.nodeText || '#0f172a' }} />
+              {/* Visual Circle - Always slightly visible */}
+              <div
+                className={`w-4 h-4 rounded-full flex items-center justify-center transition-all duration-200 ${
+                  hoveredAnchor === index ? 'scale-125' : 'scale-100'
+                }`}
+                style={{
+                  backgroundColor: styles?.colors.nodeBackground || '#ffffff',
+                  border: `2px solid ${styles?.colors.nodeBorder || '#64748b'}`,
+                  boxShadow: hoveredAnchor === index ? '0 4px 12px rgba(0,0,0,0.2)' : '0 2px 6px rgba(0,0,0,0.1)',
+                  opacity: hoveredAnchor === index ? 1 : 0.4
+                }}
+              >
+                <Plus 
+                  className={`h-2.5 w-2.5 transition-transform duration-200 ${
+                    hoveredAnchor === index ? 'scale-110' : 'scale-90'
+                  }`}
+                  style={{ color: styles?.colors.nodeText || '#0f172a' }} 
+                />
+              </div>
             </button>
             
             {/* Tooltip */}
             {hoveredAnchor === index && (
               <div 
-                className="absolute left-8 top-1/2 -translate-y-1/2 whitespace-nowrap animate-fade-in"
+                className="absolute left-10 top-1/2 -translate-y-1/2 whitespace-nowrap animate-fade-in z-50"
                 style={{ pointerEvents: 'none' }}
               >
                 <div
-                  className="px-2 py-1 rounded text-xs shadow-lg"
+                  className="px-3 py-1.5 rounded text-xs font-medium shadow-lg"
                   style={{
                     backgroundColor: styles?.colors.nodeBackground || '#ffffff',
                     border: `1px solid ${styles?.colors.nodeBorder || '#cbd5e1'}`,
