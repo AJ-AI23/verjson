@@ -31,8 +31,8 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
     const rect = lifelineRef.current.getBoundingClientRect();
     const relativeY = e.clientY - rect.top;
     
-    // Only show button if mouse is over the lifeline area (not the header)
-    if (relativeY > 0) {
+    // Only show button if mouse is over the lifeline area
+    if (relativeY > 0 && relativeY < rect.height) {
       setHoverPosition(relativeY);
     }
   };
@@ -95,13 +95,13 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
       >
         {!readOnly && onAddNode && hoverPosition !== null && (
           <div
-            className="absolute left-1/2 -translate-x-1/2"
+            className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2"
             style={{ top: `${hoverPosition}px` }}
           >
             {/* Large Clickable Area */}
             <button
               onClick={() => handleAddNode(hoverPosition)}
-              className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 relative"
+              className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-100 relative"
               style={{
                 backgroundColor: 'transparent'
               }}
