@@ -51,9 +51,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Convert base64 to blob
-    const base64Data = imageData.split(',')[1]; // Remove data:image/xxx;base64, prefix
-    const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+    // Convert data URL to binary data
+    let binaryData: Uint8Array;
+    
+    if (format === 'svg') {
+      // SVG uses charset=utf-8 encoding, not base64
+      // Format: data:image/svg+xml;charset=utf-8,<svg>...</svg>
+      const svgContent = decodeURIComponent(imageData.split(',')[1]);
+      binaryData = new TextEncoder().encode(svgContent);
+    } else {
+      // PNG uses base64 encoding
+      // Format: data:image/png;base64,iVBORw0KGgo...
+      const base64Data = imageData.split(',')[1];
+      binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+    }
 
     // Generate storage path with correct extension
     const extension = format === 'svg' ? 'svg' : 'png';
