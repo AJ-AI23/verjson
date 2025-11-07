@@ -100,7 +100,9 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [toolbarPosition, setToolbarPosition] = useState<{ x: number; y: number } | null>(null);
   const [dragStartPositions, setDragStartPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
   const [nodeHeights, setNodeHeights] = useState<Map<string, number>>(new Map());
+  const [isDragging, setIsDragging] = useState(false);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const previousLayoutRef = useRef<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
 
   const activeTheme = styles?.themes?.[currentTheme] || styles?.themes?.light || defaultLightTheme;
 
@@ -262,6 +264,12 @@ const FitViewHelper: React.FC<{
 
   // Calculate layout with validation and recovery
   const { nodes: layoutNodes, edges: layoutEdges } = useMemo(() => {
+    // Skip recalculation during active drag operations
+    if (isDragging) {
+      console.log('[SequenceDiagramRenderer] Skipping layout recalculation during drag');
+      return previousLayoutRef.current;
+    }
+    
     console.log('[SequenceDiagramRenderer] Calculating layout...', { 
       diagramNodesCount: diagramNodes.length,
       lifelinesCount: lifelines.length 
@@ -338,8 +346,10 @@ const FitViewHelper: React.FC<{
       });
     }
     
+    // Store layout for use during drag
+    previousLayoutRef.current = layout;
     return layout;
-  }, [lifelines, diagramNodes, activeTheme, isRenderMode, nodeHeights, onDataChange, data]);
+  }, [lifelines, diagramNodes, activeTheme, isRenderMode, nodeHeights, onDataChange, data, isDragging]);
 
   // Handle node height changes
   const handleNodeHeightChange = useCallback((nodeId: string, height: number) => {
@@ -440,6 +450,7 @@ const FitViewHelper: React.FC<{
     // Store initial positions when drag starts
     const dragStartChange = changes.find((c: any) => c.type === 'position' && c.dragging === true);
     if (dragStartChange) {
+      setIsDragging(true);
       const startPositions = new Map<string, { x: number; y: number }>();
       nodes.forEach(n => {
         if (selectedNodeIds.includes(n.id) && n.type === 'sequenceNode') {
@@ -447,6 +458,12 @@ const FitViewHelper: React.FC<{
         }
       });
       setDragStartPositions(startPositions);
+    }
+    
+    // Detect drag end
+    const dragEndChange = changes.find((c: any) => c.type === 'position' && c.dragging === false && c.position);
+    if (dragEndChange) {
+      setIsDragging(false);
     }
     
     // Constrain sequence node movement to vertical only during drag
