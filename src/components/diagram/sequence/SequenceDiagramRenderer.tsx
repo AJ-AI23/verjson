@@ -213,12 +213,14 @@ const FitViewHelper: React.FC<{
     // Find nodes that need to be moved down
     const nodeHeight = 70;
     const minSpacing = 50;
-    const newNodeBottom = yPosition + nodeHeight;
+    // Center the node on the click position
+    const nodeY = yPosition - nodeHeight / 2;
+    const newNodeBottom = nodeY + nodeHeight;
     
     const updatedNodes = diagramNodes.map(node => {
-      const nodeY = node.position?.y || 0;
+      const existingNodeY = node.position?.y || 0;
       // If existing node overlaps with new node position, move it down
-      if (nodeY >= yPosition - minSpacing && nodeY < newNodeBottom + minSpacing) {
+      if (existingNodeY >= nodeY - minSpacing && existingNodeY < newNodeBottom + minSpacing) {
         const newY = newNodeBottom + minSpacing;
         const nodeCenterY = newY + nodeHeight / 2;
         return {
@@ -230,7 +232,7 @@ const FitViewHelper: React.FC<{
       return node;
     });
     
-    const nodeCenterY = yPosition + nodeHeight / 2;
+    const nodeCenterY = yPosition; // The click position is already the center
     const newNode: DiagramNode = {
       id: nodeId,
       type: 'endpoint',
@@ -239,7 +241,7 @@ const FitViewHelper: React.FC<{
         { id: sourceAnchorId, lifelineId: sourceLifelineId, yPosition: nodeCenterY, anchorType: 'source' },
         { id: targetAnchorId, lifelineId: targetLifelineId, yPosition: nodeCenterY, anchorType: 'target' }
       ],
-      position: { x: 0, y: yPosition }
+      position: { x: 0, y: nodeY }
     };
     
     const finalNodes = [...updatedNodes, newNode];
