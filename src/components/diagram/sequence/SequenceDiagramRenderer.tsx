@@ -102,6 +102,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [nodeHeights, setNodeHeights] = useState<Map<string, number>>(new Map());
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
+  const pendingDataChangeRef = useRef<SequenceDiagramData | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const previousLayoutRef = useRef<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
 
@@ -470,6 +471,13 @@ const FitViewHelper: React.FC<{
       console.log('🔴 [DRAG END] Setting isDraggingRef.current = false');
       isDraggingRef.current = false;
       setIsDragging(false);
+      
+      // Apply any pending data changes that were deferred during drag
+      if (pendingDataChangeRef.current && onDataChange) {
+        console.log('📝 [DRAG END] Applying deferred data change');
+        onDataChange(pendingDataChangeRef.current);
+        pendingDataChangeRef.current = null;
+      }
     }
     
     // Constrain sequence node movement to vertical only during drag
@@ -629,7 +637,9 @@ const FitViewHelper: React.FC<{
                 })
               );
               
-              onDataChange({ ...data, nodes: updatedDiagramNodes });
+              // Defer data change until drag ends
+              console.log('⏳ [SWAP] Deferring data change until drag ends');
+              pendingDataChangeRef.current = { ...data, nodes: updatedDiagramNodes };
             }
           }
         }
