@@ -30,10 +30,31 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     nodeHeights
   } = options;
 
+  // Validate and extract anchors from nodes
+  console.log('[SequenceLayout] Validating nodes and anchors...', { nodeCount: nodes.length });
+  
+  // Check for nodes without anchors
+  const nodesWithoutAnchors = nodes.filter(node => !node.anchors || node.anchors.length !== 2);
+  if (nodesWithoutAnchors.length > 0) {
+    console.error('❌ [SequenceLayout] Nodes missing anchors detected:', {
+      nodesWithoutAnchors: nodesWithoutAnchors.map(n => ({
+        id: n.id,
+        label: n.label,
+        hasAnchors: !!n.anchors,
+        anchorCount: n.anchors?.length || 0
+      }))
+    });
+  }
+  
   // Extract all anchors from nodes
   const anchors: AnchorNode[] = nodes.flatMap(node => 
     node.anchors?.map(anchor => ({ ...anchor })) || []
   );
+  
+  console.log('[SequenceLayout] Anchor extraction complete:', {
+    totalAnchors: anchors.length,
+    expectedAnchors: nodes.length * 2
+  });
 
   // Guard against undefined lifelines
   if (!lifelines || lifelines.length === 0) {
@@ -173,6 +194,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Convert edges - connect anchors to nodes only
   const layoutEdges: Edge[] = [];
   
+  console.log('[SequenceLayout] Creating edges from anchors...', { anchorCount: anchors.length });
+  
   // Create edges between anchors and their nodes
   anchors.forEach(anchor => {
     const node = nodes.find(n => 
@@ -180,6 +203,21 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     );
     
     if (!node) {
+      console.error('❌ [SequenceLayout] No node found for anchor:', {
+        anchorId: anchor.id,
+        lifelineId: anchor.lifelineId,
+        anchorType: anchor.anchorType
+      });
+      return;
+    }
+    
+    // Validate that node has both anchors
+    if (!node.anchors || node.anchors.length !== 2) {
+      console.error('❌ [SequenceLayout] Node has invalid anchors:', {
+        nodeId: node.id,
+        nodeLabel: node.label,
+        anchorCount: node.anchors?.length || 0
+      });
       return;
     }
     
@@ -227,7 +265,20 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     }
   });
   
-  console.log('[SequenceLayout] Total edges created:', layoutEdges.length);
+  console.log('[SequenceLayout] Edge creation complete:', {
+    totalEdges: layoutEdges.length,
+    expectedEdges: anchors.length,
+    nodesProcessed: nodes.length
+  });
+  
+  // Final validation
+  if (layoutEdges.length === 0 && nodes.length > 0) {
+    console.error('❌ [SequenceLayout] NO EDGES CREATED despite having nodes!', {
+      nodeCount: nodes.length,
+      anchorCount: anchors.length,
+      nodesWithAnchors: nodes.filter(n => n.anchors && n.anchors.length === 2).length
+    });
+  }
 
   return {
     nodes: [...lifelineNodes, ...anchorNodes, ...layoutNodes],

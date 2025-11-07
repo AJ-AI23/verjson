@@ -14,7 +14,7 @@ import {
   addEdge as addFlowEdge,
   useReactFlow
 } from '@xyflow/react';
-import { SequenceDiagramData, DiagramNode, DiagramEdge, DiagramNodeType, Lifeline } from '@/types/diagram';
+import { SequenceDiagramData, DiagramNode, DiagramEdge, DiagramNodeType, Lifeline, AnchorNode as AnchorNodeType } from '@/types/diagram';
 import { DiagramStyles, defaultLightTheme } from '@/types/diagramStyles';
 import { calculateSequenceLayout } from '@/lib/diagram/sequenceLayout';
 import { getNodeTypeConfig } from '@/lib/diagram/sequenceNodeTypes';
@@ -248,8 +248,13 @@ const FitViewHelper: React.FC<{
     onDataChange({ ...data, lifelines: updatedLifelines, nodes: finalNodes });
   }, [diagramNodes, lifelines, data, onDataChange]);
 
-  // Calculate layout
+  // Calculate layout with validation and recovery
   const { nodes: layoutNodes, edges: layoutEdges } = useMemo(() => {
+    console.log('[SequenceDiagramRenderer] Calculating layout...', { 
+      diagramNodesCount: diagramNodes.length,
+      lifelinesCount: lifelines.length 
+    });
+    
     const layout = calculateSequenceLayout({
       lifelines,
       nodes: diagramNodes,
@@ -257,8 +262,72 @@ const FitViewHelper: React.FC<{
       nodeHeights
     });
     
+    // Validate edge creation and attempt recovery if needed
+    if (layout.edges.length === 0 && diagramNodes.length > 0) {
+      console.error('❌ [SequenceDiagramRenderer] No edges created! Attempting recovery...');
+      
+      // Check if nodes have anchors
+      const nodesWithoutAnchors = diagramNodes.filter(n => !n.anchors || n.anchors.length !== 2);
+      if (nodesWithoutAnchors.length > 0) {
+        console.error('❌ [SequenceDiagramRenderer] Found nodes without proper anchors:', 
+          nodesWithoutAnchors.map(n => ({ id: n.id, label: n.label }))
+        );
+        
+        // Attempt to regenerate anchors for nodes that are missing them
+        if (onDataChange && lifelines.length > 0) {
+          console.warn('⚠️ [SequenceDiagramRenderer] Attempting to auto-repair missing anchors...');
+          
+          const repairedNodes = diagramNodes.map(node => {
+            if (!node.anchors || node.anchors.length !== 2) {
+              // Auto-generate anchors between first two lifelines
+              const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
+              const sourceLifeline = sortedLifelines[0];
+              const targetLifeline = sortedLifelines[Math.min(1, sortedLifelines.length - 1)];
+              
+              const nodeConfig = getNodeTypeConfig(node.type);
+              const nodeHeight = nodeConfig?.defaultHeight || 70;
+              const nodeY = node.position?.y || 100;
+              const nodeCenterY = nodeY + (nodeHeight / 2);
+              
+              const newAnchors: [AnchorNodeType, AnchorNodeType] = [
+                { 
+                  id: `anchor-${node.id}-source`, 
+                  lifelineId: sourceLifeline.id, 
+                  yPosition: nodeCenterY, 
+                  anchorType: 'source'
+                },
+                { 
+                  id: `anchor-${node.id}-target`, 
+                  lifelineId: targetLifeline.id, 
+                  yPosition: nodeCenterY, 
+                  anchorType: 'target'
+                }
+              ];
+              
+              return {
+                ...node,
+                anchors: newAnchors
+              };
+            }
+            return node;
+          });
+          
+          // Update document with repaired nodes
+          setTimeout(() => {
+            console.log('✅ [SequenceDiagramRenderer] Updating document with repaired anchors');
+            onDataChange({ ...data, nodes: repairedNodes });
+          }, 0);
+        }
+      }
+    } else {
+      console.log('✅ [SequenceDiagramRenderer] Layout calculated successfully:', {
+        nodesCount: layout.nodes.length,
+        edgesCount: layout.edges.length
+      });
+    }
+    
     return layout;
-  }, [lifelines, diagramNodes, activeTheme, isRenderMode, nodeHeights]);
+  }, [lifelines, diagramNodes, activeTheme, isRenderMode, nodeHeights, onDataChange, data]);
 
   // Handle node height changes
   const handleNodeHeightChange = useCallback((nodeId: string, height: number) => {
