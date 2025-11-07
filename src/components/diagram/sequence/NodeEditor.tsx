@@ -60,9 +60,9 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
               onValueChange={(value) => handleUpdate('type', value as DiagramNodeType)}
             >
               <SelectTrigger id="node-type">
-                <SelectValue />
+                <SelectValue placeholder="Select node type" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-background z-50">
                 <SelectItem value="endpoint">API Endpoint</SelectItem>
                 <SelectItem value="process">Process</SelectItem>
                 <SelectItem value="decision">Decision</SelectItem>
@@ -91,9 +91,9 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
                   onValueChange={(value) => handleDataUpdate('method', value)}
                 >
                   <SelectTrigger id="node-method">
-                    <SelectValue />
+                    <SelectValue placeholder="Select method" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-background z-50">
                     <SelectItem value="GET">GET</SelectItem>
                     <SelectItem value="POST">POST</SelectItem>
                     <SelectItem value="PUT">PUT</SelectItem>
