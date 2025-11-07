@@ -139,6 +139,7 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
+                console.log('[ColumnLifeline] Button clicked!', { hoverPosition, lifelineId: lifeline.id, readOnly, hasOnAddNode: !!onAddNode });
                 handleAddNode(hoverPosition);
               }}
               onMouseDown={(e) => {
