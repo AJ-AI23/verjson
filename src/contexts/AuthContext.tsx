@@ -237,6 +237,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     console.log('Signing out user');
+    // Set flag to prevent auto-redirect during logout
+    sessionStorage.setItem('logout-in-progress', 'true');
+    
     // Clear local state immediately
     setUser(null);
     setSession(null);

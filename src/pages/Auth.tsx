@@ -34,6 +34,13 @@ const Auth = () => {
 
   // Redirect if already logged in - but check session validity first
   useEffect(() => {
+    // Clear logout flag when component mounts
+    const logoutInProgress = sessionStorage.getItem('logout-in-progress');
+    if (logoutInProgress) {
+      sessionStorage.removeItem('logout-in-progress');
+      return; // Don't redirect if we just logged out
+    }
+
     const checkSessionAndRedirect = async () => {
       if (!loading && user) {
         // Check if this is a demo session and if it has expired
