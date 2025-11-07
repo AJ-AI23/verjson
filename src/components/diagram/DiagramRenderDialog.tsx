@@ -119,7 +119,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       // Capture the preview container as PNG at the target resolution
       const dataUrl = await toPng(previewContainerRef.current, {
         quality: 1.0,
-        pixelRatio: scale * 2, // Scale up to target resolution
+        pixelRatio: scale,
         width: previewRect.width,
         height: previewRect.height,
         backgroundColor: selectedThemeData?.colors?.background,
