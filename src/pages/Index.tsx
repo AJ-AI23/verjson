@@ -23,10 +23,15 @@ const Index = () => {
   const { content: documentContent, loading: contentLoading } = useDocumentContent(selectedDocument?.id);
   const { checkDocumentPinStatus } = useDocumentPinSecurity();
 
-  // Redirect to auth if not logged in
+  // Redirect to auth if not logged in - with delay to prevent race conditions
   useEffect(() => {
     if (!loading && !user) {
-      window.location.href = '/auth';
+      // Add a small delay to ensure auth state is fully settled
+      const timer = setTimeout(() => {
+        console.log('[Index] Redirecting to auth - no user found');
+        window.location.href = '/auth';
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [user, loading]);
 

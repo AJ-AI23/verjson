@@ -236,8 +236,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    console.log('Signing out user');
+    // Clear local state immediately
+    setUser(null);
+    setSession(null);
+    setProfile(null);
+    
     await supabase.auth.signOut();
-    window.location.href = '/auth';
+    
+    // Small delay to ensure auth state is cleared before redirect
+    setTimeout(() => {
+      window.location.href = '/auth';
+    }, 100);
   };
 
   const updatePassword = async (newPassword: string) => {

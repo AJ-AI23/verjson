@@ -31,10 +31,15 @@ const Auth = () => {
     }
   }, []);
 
-  // Redirect if already logged in
+  // Redirect if already logged in - but only after loading completes
+  // and we're certain there's a valid session
   useEffect(() => {
-    if (user && !loading) {
-      window.location.href = '/';
+    if (!loading && user) {
+      // Add a small delay to ensure auth state is fully settled
+      const timer = setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [user, loading]);
 
