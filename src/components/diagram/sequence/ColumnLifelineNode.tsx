@@ -22,11 +22,12 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
   const rafRef = useRef<number | null>(null);
   const viewport = useViewport();
 
-  const handleAddNode = (yPosition: number) => {
+  const handleAddNode = (screenY: number) => {
     if (onAddNode && !readOnly) {
-      console.log('[ColumnLifeline] handleAddNode called:', { yPosition, zoom: viewport.zoom });
-      // yPosition is already in diagram coordinates
-      onAddNode(lifeline.id, yPosition);
+      // Convert screen space to diagram space for node creation
+      const diagramY = screenY / viewport.zoom;
+      console.log('[ColumnLifeline] handleAddNode called:', { screenY, diagramY, zoom: viewport.zoom });
+      onAddNode(lifeline.id, diagramY);
     }
   };
 
@@ -46,14 +47,10 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
       const rect = lifelineRef.current.getBoundingClientRect();
       const screenY = e.clientY - rect.top;
       
-      // Store screen position for button display
-      // Convert to diagram space for node creation
-      const diagramY = screenY / viewport.zoom;
-      
       // Only show button if mouse is over the lifeline area
       if (screenY >= 0 && screenY <= rect.height) {
-        // Store both screen and diagram positions
-        setHoverPosition(diagramY);
+        // Store screen position for display (used in CSS)
+        setHoverPosition(screenY);
       }
     });
   };
