@@ -18,6 +18,12 @@ import { SequenceDiagramData, DiagramNode, DiagramEdge, DiagramNodeType, Lifelin
 import { DiagramStyles, defaultLightTheme } from '@/types/diagramStyles';
 import { calculateSequenceLayout } from '@/lib/diagram/sequenceLayout';
 import { getNodeTypeConfig } from '@/lib/diagram/sequenceNodeTypes';
+import { 
+  calculateAdjustedPositions, 
+  applyAdjustedPositions,
+  applyAdjustedPositionsToDiagramNodes,
+  getNodeHeight 
+} from '@/lib/diagram/verticalSpacing';
 import { SequenceNode } from './SequenceNode';
 import { SequenceEdge } from './SequenceEdge';
 import { ColumnLifelineNode } from './ColumnLifelineNode';
@@ -457,8 +463,68 @@ const FitViewHelper: React.FC<{
     // Sync position changes back to data
     const moveChange = constrainedChanges.find((c: any) => c.type === 'position' && c.position && !c.dragging);
     if (moveChange && onDataChange) {
-      // Check if this is an anchor node
+      // Check if this is a sequence node that just finished dragging
       const movedNode = nodes.find(n => n.id === moveChange.id);
+      const isSequenceNode = movedNode?.type === 'sequenceNode';
+      
+      if (isSequenceNode) {
+        // Apply vertical spacing adjustments
+        const newY = moveChange.position.y;
+        const adjustedPositions = calculateAdjustedPositions(
+          moveChange.id,
+          newY,
+          diagramNodes
+        );
+        
+        // Apply adjusted positions to visual nodes
+        setNodes(currentNodes => {
+          const updatedNodes = applyAdjustedPositions(currentNodes, adjustedPositions);
+          
+          // Update anchor positions for all adjusted nodes
+          return updatedNodes.map(n => {
+            const adjustedY = adjustedPositions.get(n.id);
+            if (adjustedY !== undefined && n.type === 'sequenceNode') {
+              const diagramNode = diagramNodes.find(dn => dn.id === n.id);
+              if (diagramNode) {
+                const nodeHeight = getNodeHeight(diagramNode);
+                const nodeCenterY = adjustedY + (nodeHeight / 2);
+                
+                // Return node with updated position
+                return n;
+              }
+            }
+            
+            // Update anchor positions for adjusted nodes
+            const anchorData = n.data as any;
+            if (n.type === 'anchorNode' && anchorData?.connectedNodeId) {
+              const connectedAdjustedY = adjustedPositions.get(anchorData.connectedNodeId);
+              if (connectedAdjustedY !== undefined) {
+                const connectedDiagramNode = diagramNodes.find(dn => dn.id === anchorData.connectedNodeId);
+                if (connectedDiagramNode) {
+                  const nodeHeight = getNodeHeight(connectedDiagramNode);
+                  const nodeCenterY = connectedAdjustedY + (nodeHeight / 2);
+                  return { ...n, position: { x: n.position.x, y: nodeCenterY - 8 } };
+                }
+              }
+            }
+            
+            return n;
+          });
+        });
+        
+        // Apply adjusted positions to diagram data
+        const updatedDiagramNodes = applyAdjustedPositionsToDiagramNodes(
+          diagramNodes,
+          adjustedPositions
+        );
+        
+        onDataChange({ ...data, nodes: updatedDiagramNodes });
+        
+        // Skip further processing for sequence nodes
+        return;
+      }
+      
+      // Check if this is an anchor node
       const isAnchor = movedNode?.type === 'anchorNode';
       
       if (isAnchor) {
