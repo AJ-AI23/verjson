@@ -85,6 +85,15 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       const computedStyle = window.getComputedStyle(previewContainerRef.current);
       console.log('[Render] Container computed background:', computedStyle.backgroundColor);
       
+      // Debug: Check what's actually in the DOM
+      const reactFlowPane = previewContainerRef.current.querySelector('.react-flow__pane');
+      const nodes = previewContainerRef.current.querySelectorAll('[data-id]');
+      console.log('[Render] DOM elements found:', {
+        hasReactFlowPane: !!reactFlowPane,
+        nodeCount: nodes.length,
+        containerHTML: previewContainerRef.current.innerHTML.substring(0, 500)
+      });
+      
       console.log('[Render] Starting PNG capture...');
       
       // Get the actual dimensions of the preview container
@@ -160,11 +169,14 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
     }
   };
 
-  // Prepare preview styles
+  // Prepare preview styles with correct theme
   const previewStyles: DiagramStyles = {
     themes: styles?.themes || defaultThemes,
     activeTheme: selectedTheme
   };
+
+  // Get the active theme colors
+  const activeThemeData = previewStyles.themes[selectedTheme] || previewStyles.themes['light'] || defaultLightTheme;
 
   // Reference for fit view control in preview
   const previewFitViewRef = React.useRef<(() => void) | null>(null);
@@ -257,7 +269,8 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
                   style={{ 
                     width: '100%',
                     aspectRatio: `${width} / ${height}`,
-                    maxHeight: '100%'
+                    maxHeight: '100%',
+                    backgroundColor: activeThemeData.colors.background
                   }}
                 >
                   <ReactFlowProvider>
