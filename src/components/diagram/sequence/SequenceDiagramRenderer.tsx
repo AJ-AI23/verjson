@@ -213,8 +213,8 @@ const FitViewHelper: React.FC<{
     // Find nodes that need to be moved down
     const nodeHeight = 70;
     const minSpacing = 50;
-    // Center the node on the click position
-    const nodeY = yPosition - nodeHeight / 2;
+    // Position node starting at the click position (not centered)
+    const nodeY = yPosition;
     const newNodeBottom = nodeY + nodeHeight;
     
     const updatedNodes = diagramNodes.map(node => {
@@ -232,7 +232,8 @@ const FitViewHelper: React.FC<{
       return node;
     });
     
-    const nodeCenterY = yPosition; // The click position is already the center
+    // Calculate center Y for anchors based on the node's top position
+    const nodeCenterY = yPosition + nodeHeight / 2;
     const newNode: DiagramNode = {
       id: nodeId,
       type: 'endpoint',
