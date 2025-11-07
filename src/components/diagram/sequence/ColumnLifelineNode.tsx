@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Lifeline } from '@/types/diagram';
 import { DiagramStyleTheme } from '@/types/diagramStyles';
 import { Button } from '@/components/ui/button';
@@ -16,10 +16,20 @@ interface ColumnLifelineNodeProps {
 export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) => {
   const { column: lifeline, styles, onAddNode, readOnly } = data;
   const [isHovered, setIsHovered] = useState(false);
+  const [mouseY, setMouseY] = useState(0);
+  const lifelineRef = useRef<HTMLDivElement>(null);
 
   const handleAddNode = () => {
     if (onAddNode && !readOnly) {
       onAddNode(lifeline.id);
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (lifelineRef.current) {
+      const rect = lifelineRef.current.getBoundingClientRect();
+      const relativeY = e.clientY - rect.top;
+      setMouseY(relativeY);
     }
   };
 
@@ -32,6 +42,7 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onMouseMove={handleMouseMove}
     >
       {/* Column Header */}
       <div
@@ -58,6 +69,7 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
 
       {/* Vertical Lifeline with Add Node Button */}
       <div
+        ref={lifelineRef}
         className="relative pointer-events-auto"
         style={{
           width: '2px',
@@ -73,8 +85,12 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
       >
         {isHovered && !readOnly && onAddNode && (
           <div 
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-            style={{ pointerEvents: 'auto' }}
+            className="absolute left-1/2 -translate-x-1/2"
+            style={{ 
+              pointerEvents: 'auto',
+              top: `${mouseY}px`,
+              transform: 'translateX(-50%) translateY(-50%)'
+            }}
           >
             <Button
               size="sm"
