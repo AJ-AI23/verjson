@@ -28,6 +28,9 @@ verify_jwt = true
 [functions.public-document]
 verify_jwt = false
 
+[functions.public-diagram]
+verify_jwt = false
+
 [functions.crowdin-integration]
 verify_jwt = true
 
