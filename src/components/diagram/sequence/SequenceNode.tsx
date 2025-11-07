@@ -17,7 +17,7 @@ interface SequenceNodeProps {
 }
 
 export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected }) => {
-  const { config, label, type, data: nodeData, styles, width, onHeightChange, id } = data;
+  const { config, label, type, data: nodeData, styles, width, onHeightChange, id, position } = data;
   const nodeRef = useRef<HTMLDivElement>(null);
 
   // Track node height changes and notify parent
@@ -122,6 +122,11 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected }) =>
       <Handle type="source" position={Position.Left} id="source-left" className="w-3 h-3 !bg-slate-400" />
       
       {renderNodeContent()}
+      
+      {/* Debug coordinates */}
+      <div className="mt-2 pt-2 border-t text-xs opacity-50" style={{ color: nodeColors.text }}>
+        y: {position?.y?.toFixed(0) || 0}
+      </div>
       
       {/* Right side handles - both source and target for bidirectional flow */}
       <Handle type="source" position={Position.Right} id="source-right" className="w-3 h-3 !bg-slate-400" />

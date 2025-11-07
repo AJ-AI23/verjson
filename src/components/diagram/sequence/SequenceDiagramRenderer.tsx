@@ -104,6 +104,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const isDraggingRef = useRef(false);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const previousLayoutRef = useRef<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
+  const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
 
   const activeTheme = styles?.themes?.[currentTheme] || styles?.themes?.light || defaultLightTheme;
 
@@ -1109,6 +1110,14 @@ const FitViewHelper: React.FC<{
           defaultEdgeOptions={{
             type: 'smoothstep',
           }}
+          onMouseMove={(event) => {
+            const bounds = event.currentTarget.getBoundingClientRect();
+            setMousePosition({
+              x: event.clientX - bounds.left,
+              y: event.clientY - bounds.top
+            });
+          }}
+          onMouseLeave={() => setMousePosition(null)}
         >
           <Background />
           {!isRenderMode && (
@@ -1140,6 +1149,20 @@ const FitViewHelper: React.FC<{
               onEdit={handleEditNode}
               onDelete={handleDeleteNode}
             />
+          )}
+          
+          {/* Mouse position tooltip for debugging */}
+          {mousePosition && (
+            <div 
+              className="absolute pointer-events-none bg-background/90 border border-border px-2 py-1 rounded text-xs"
+              style={{
+                left: mousePosition.x + 15,
+                top: mousePosition.y + 15,
+                zIndex: 1000
+              }}
+            >
+              x: {mousePosition.x.toFixed(0)}, y: {mousePosition.y.toFixed(0)}
+            </div>
           )}
         </ReactFlow>
       </div>
