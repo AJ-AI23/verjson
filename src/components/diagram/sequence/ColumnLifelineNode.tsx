@@ -28,11 +28,11 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!lifelineRef.current || readOnly || !onAddNode) return;
     
-    const rect = lifelineRef.current.getBoundingClientRect();
-    const relativeY = e.clientY - rect.top;
+    // Use offsetY which gives position relative to the element itself
+    const relativeY = e.nativeEvent.offsetY;
     
     // Only show button if mouse is over the lifeline area
-    if (relativeY > 0 && relativeY < rect.height) {
+    if (relativeY >= 0) {
       setHoverPosition(relativeY);
     }
   };
