@@ -306,6 +306,25 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                         </TooltipContent>
                       </Tooltip>
                       
+                      {isDiagram && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-5 px-1 gap-1 text-xs text-muted-foreground hover:text-foreground"
+                              onClick={handleCopyPngUrl}
+                            >
+                              <Image className="h-3 w-3" />
+                              PNG
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Copy public PNG URL</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      
                       {selectedDocument.import_url && (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -429,17 +448,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                     >
                       <Image className="h-4 w-4" />
                       <span className="hidden sm:inline">Render</span>
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleCopyPngUrl}
-                      className="gap-1 md:gap-2 h-8 text-xs md:text-sm"
-                      disabled={!selectedDocument}
-                      title="Copy PNG URL"
-                    >
-                      <Image className="h-4 w-4" />
-                      <span className="hidden sm:inline">PNG URL</span>
                     </Button>
                   </>
                 )}
