@@ -45,6 +45,13 @@ export function useDocumentVersions(documentId?: string) {
       debugToast('🔔 fetchVersions: Fetching versions for document', documentId);
       setLoading(true);
       
+      // Ensure we have a valid session before making the call
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        console.error('🔔 fetchVersions: No valid session', sessionError);
+        throw new Error('Authentication session expired. Please log in again.');
+      }
+      
       const { data, error } = await supabase.functions.invoke('document-versions', {
         body: {
           action: 'listDocumentVersions',
@@ -91,6 +98,14 @@ export function useDocumentVersions(documentId?: string) {
     if (!user || !documentId) return null;
 
     try {
+      // Ensure we have a valid session before making the call
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        console.error('createVersion: No valid session', sessionError);
+        toast.error('Authentication session expired. Please log in again.');
+        return null;
+      }
+      
       const { data, error } = await supabase.functions.invoke('document-versions', {
         body: {
           action: 'createDocumentVersion',
@@ -125,6 +140,13 @@ export function useDocumentVersions(documentId?: string) {
     if (!user || !documentId) return null;
 
     try {
+      // Ensure we have a valid session before making the call
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        console.error('createInitialVersionSafe: No valid session', sessionError);
+        return null;
+      }
+      
       const { data, error } = await supabase.functions.invoke('document-versions', {
         body: {
           action: 'createInitialDocumentVersion',
@@ -153,6 +175,14 @@ export function useDocumentVersions(documentId?: string) {
 
     try {
       console.log('🔄 updateVersion: Starting update', { versionId, updates });
+      
+      // Ensure we have a valid session before making the call
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        console.error('updateVersion: No valid session', sessionError);
+        toast.error('Authentication session expired. Please log in again.');
+        return null;
+      }
       
       const { data, error } = await supabase.functions.invoke('document-versions', {
         body: {
@@ -202,6 +232,14 @@ export function useDocumentVersions(documentId?: string) {
     try {
       debugToast('🗑️ deleteVersion: Attempting to delete version', versionId);
       
+      // Ensure we have a valid session before making the call
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        console.error('deleteVersion: No valid session', sessionError);
+        toast.error('Authentication session expired. Please log in again.');
+        return false;
+      }
+      
       const { data, error } = await supabase.functions.invoke('document-versions', {
         body: {
           action: 'deleteDocumentVersion',
@@ -248,6 +286,15 @@ export function useDocumentVersions(documentId?: string) {
     try {
       setLoading(true);
       
+      // Ensure we have a valid session before making the call
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        console.error('approvePendingVersion: No valid session', sessionError);
+        toast.error('Authentication session expired. Please log in again.');
+        setLoading(false);
+        return;
+      }
+      
       const { data, error } = await supabase.functions.invoke('document-versions', {
         body: {
           action: 'approvePendingVersion',
@@ -275,6 +322,15 @@ export function useDocumentVersions(documentId?: string) {
   const rejectPendingVersion = async (versionId: string) => {
     try {
       setLoading(true);
+      
+      // Ensure we have a valid session before making the call
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        console.error('rejectPendingVersion: No valid session', sessionError);
+        toast.error('Authentication session expired. Please log in again.');
+        setLoading(false);
+        return;
+      }
       
       const { data, error } = await supabase.functions.invoke('document-versions', {
         body: {
