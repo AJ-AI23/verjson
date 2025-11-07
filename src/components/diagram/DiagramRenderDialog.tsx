@@ -193,55 +193,102 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
     }
   };
 
+  // Prepare preview styles
+  const previewStyles: DiagramStyles = {
+    themes: styles?.themes || defaultThemes,
+    activeTheme: selectedTheme
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-6xl h-[80vh]">
         <DialogHeader>
           <DialogTitle>Render Diagram</DialogTitle>
           <DialogDescription>
-            Configure rendering settings and generate a PNG image
+            Configure settings and preview before rendering to PNG
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="width">Width (px)</Label>
-            <Input
-              id="width"
-              type="number"
-              value={width}
-              onChange={(e) => setWidth(parseInt(e.target.value) || 1920)}
-              min={800}
-              max={4096}
-            />
+        <div className="flex gap-6 flex-1 min-h-0">
+          {/* Settings Panel */}
+          <div className="w-64 space-y-4 flex-shrink-0">
+            <div className="space-y-2">
+              <Label htmlFor="width">Width (px)</Label>
+              <Input
+                id="width"
+                type="number"
+                value={width}
+                onChange={(e) => setWidth(parseInt(e.target.value) || 1920)}
+                min={800}
+                max={4096}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="height">Height (px)</Label>
+              <Input
+                id="height"
+                type="number"
+                value={height}
+                onChange={(e) => setHeight(parseInt(e.target.value) || 1080)}
+                min={600}
+                max={4096}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="theme">Style Theme</Label>
+              <Select value={selectedTheme} onValueChange={setSelectedTheme}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableThemes.map(theme => (
+                    <SelectItem key={theme} value={theme}>
+                      {theme.charAt(0).toUpperCase() + theme.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="pt-4 space-y-2 border-t">
+              <div className="text-sm text-muted-foreground">
+                <p>Aspect Ratio: {(width / height).toFixed(2)}</p>
+                <p className="mt-1">Resolution: {width} × {height}</p>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="height">Height (px)</Label>
-            <Input
-              id="height"
-              type="number"
-              value={height}
-              onChange={(e) => setHeight(parseInt(e.target.value) || 1080)}
-              min={600}
-              max={4096}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="theme">Style Theme</Label>
-            <Select value={selectedTheme} onValueChange={setSelectedTheme}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {availableThemes.map(theme => (
-                  <SelectItem key={theme} value={theme}>
-                    {theme.charAt(0).toUpperCase() + theme.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Preview Panel */}
+          <div className="flex-1 border rounded-lg overflow-hidden bg-muted/20 min-w-0">
+            <div className="h-full flex flex-col">
+              <div className="bg-muted px-3 py-2 border-b flex items-center justify-between">
+                <span className="text-sm font-medium">Preview</span>
+                <span className="text-xs text-muted-foreground">
+                  Scaled to fit
+                </span>
+              </div>
+              <div className="flex-1 p-4 overflow-auto">
+                <div 
+                  className="mx-auto border shadow-lg"
+                  style={{ 
+                    width: '100%',
+                    aspectRatio: `${width} / ${height}`,
+                    maxHeight: '100%'
+                  }}
+                >
+                  <ReactFlowProvider>
+                    <SequenceDiagramRenderer
+                      data={data}
+                      styles={previewStyles}
+                      readOnly={true}
+                      isRenderMode={false}
+                    />
+                  </ReactFlowProvider>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
