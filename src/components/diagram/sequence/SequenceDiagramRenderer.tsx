@@ -101,14 +101,27 @@ const FitViewHelper: React.FC<{ isRenderMode: boolean; onReady?: () => void; nod
   
   useEffect(() => {
     if (isRenderMode && nodesCount > 0 && edgesCount > 0) {
+      console.log('[FitViewHelper] Nodes and edges ready, fitting view...', { nodesCount, edgesCount });
       setTimeout(() => {
-        fitView({ padding: 0.1, duration: 0 });
-        setTimeout(() => {
+        try {
+          fitView({ padding: 0.1, duration: 0 });
+          console.log('[FitViewHelper] fitView called successfully');
+          setTimeout(() => {
+            if (onReady) {
+              console.log('[FitViewHelper] Calling onReady callback');
+              onReady();
+            }
+          }, 300);
+        } catch (error) {
+          console.error('[FitViewHelper] Error in fitView:', error);
+          // Still call onReady even if fitView fails
           if (onReady) {
             onReady();
           }
-        }, 300);
+        }
       }, 100);
+    } else if (isRenderMode) {
+      console.log('[FitViewHelper] Waiting for nodes/edges...', { nodesCount, edgesCount });
     }
   }, [isRenderMode, nodesCount, edgesCount, fitView, onReady]);
   

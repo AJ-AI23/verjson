@@ -45,6 +45,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
 
   const handleRender = async () => {
     setIsRendering(true);
+    console.log('[Render] Starting diagram render process');
 
     try {
       // Ensure we have valid styles with themes
@@ -52,6 +53,12 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
         themes: styles?.themes || defaultThemes,
         activeTheme: selectedTheme
       };
+
+      console.log('[Render] Using styles:', { 
+        hasThemes: !!renderStyles.themes, 
+        activeTheme: renderStyles.activeTheme,
+        themeKeys: Object.keys(renderStyles.themes || {})
+      });
 
       // Create a hidden rendering container
       const renderContainer = document.createElement('div');
@@ -70,6 +77,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       }
       
       document.body.appendChild(renderContainer);
+      console.log('[Render] Container created and added to DOM');
 
       // Create a wrapper for the React Flow instance
       const flowWrapper = document.createElement('div');
@@ -80,12 +88,22 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       // Import ReactDOM dynamically to render the diagram
       const ReactDOM = await import('react-dom/client');
       const root = ReactDOM.createRoot(flowWrapper);
+      console.log('[Render] React root created');
 
       // Create a promise that resolves when the diagram is ready
       let resolveReady: () => void;
-      const readyPromise = new Promise<void>((resolve) => {
+      let rejectReady: (error: Error) => void;
+      const readyPromise = new Promise<void>((resolve, reject) => {
         resolveReady = resolve;
+        rejectReady = reject;
       });
+
+      // Set a timeout for the rendering process (10 seconds)
+      const renderTimeout = setTimeout(() => {
+        rejectReady(new Error('Diagram rendering timed out after 10 seconds'));
+      }, 10000);
+
+      console.log('[Render] Starting diagram component render');
 
       // Render the diagram with render mode enabled
       root.render(
@@ -95,17 +113,24 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
             styles={renderStyles}
             readOnly={true}
             isRenderMode={true}
-            onRenderReady={() => resolveReady()}
+            onRenderReady={() => {
+              console.log('[Render] Diagram ready callback triggered');
+              clearTimeout(renderTimeout);
+              resolveReady();
+            }}
           />
         </ReactFlowProvider>
       );
       
+      console.log('[Render] Waiting for diagram to be ready...');
       // Wait for the diagram to be fully rendered and fitted
       await readyPromise;
       
+      console.log('[Render] Diagram ready, waiting for layout stabilization...');
       // Additional wait for any animations or layout adjustments
       await new Promise(resolve => setTimeout(resolve, 500));
 
+      console.log('[Render] Capturing diagram as PNG...');
       // Capture the rendered diagram
       const dataUrl = await toPng(renderContainer, {
         quality: 1.0,
@@ -115,10 +140,12 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
         backgroundColor: selectedThemeData?.colors?.background
       });
 
+      console.log('[Render] PNG captured, cleaning up...');
       // Clean up
       root.unmount();
       document.body.removeChild(renderContainer);
 
+      console.log('[Render] Uploading to server...');
       // Upload to server
       const { data: uploadData, error } = await supabase.functions.invoke('diagram-render', {
         body: {
@@ -132,16 +159,27 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
 
       if (error) throw error;
 
+      console.log('[Render] Upload successful:', uploadData);
       toast.success('Diagram rendered successfully!');
-      console.log('Render public URL:', uploadData.publicUrl);
       
       onOpenChange(false);
 
     } catch (error) {
-      console.error('Rendering error:', error);
-      toast.error('Failed to render diagram');
+      console.error('[Render] Error occurred:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to render diagram');
+      
+      // Clean up on error
+      try {
+        const container = document.getElementById('diagram-render-container');
+        if (container) {
+          document.body.removeChild(container);
+        }
+      } catch (cleanupError) {
+        console.error('[Render] Cleanup error:', cleanupError);
+      }
     } finally {
       setIsRendering(false);
+      console.log('[Render] Render process complete');
     }
   };
 
