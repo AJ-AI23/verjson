@@ -123,7 +123,9 @@ const FitViewHelper: React.FC<{
   // Expose fitView function to parent for preview
   useEffect(() => {
     if (onFitViewReady && nodesCount > 0 && edgesCount > 0) {
+      console.log('[FitViewHelper] Exposing fitView function to parent');
       onFitViewReady(() => {
+        console.log('[FitViewHelper] fitView CALLED via onFitViewReady callback');
         fitView({ padding: 0.1, duration: 200 });
       });
     }
@@ -132,9 +134,15 @@ const FitViewHelper: React.FC<{
   // Auto-fit in render mode ONLY if no initial viewport is provided and user hasn't interacted
   useEffect(() => {
     if (isRenderMode && nodesCount > 0 && edgesCount > 0 && !hasInitialViewport && !hasUserInteracted) {
-      console.log('[FitViewHelper] Nodes and edges ready, fitting view...', { nodesCount, edgesCount });
+      console.log('[FitViewHelper] AUTO-FIT TRIGGERED - Nodes and edges ready, fitting view...', { 
+        nodesCount, 
+        edgesCount,
+        hasUserInteracted,
+        hasInitialViewport 
+      });
       setTimeout(() => {
         try {
+          console.log('[FitViewHelper] CALLING fitView() - AUTO-FIT');
           fitView({ padding: 0.1, duration: 0 });
           console.log('[FitViewHelper] fitView called successfully');
           setTimeout(() => {
@@ -153,17 +161,19 @@ const FitViewHelper: React.FC<{
       }, 100);
     } else if (isRenderMode && nodesCount > 0 && edgesCount > 0 && hasInitialViewport) {
       // If we have initial viewport, just wait for layout then signal ready
-      console.log('[FitViewHelper] Using initial viewport, skipping fit');
+      console.log('[FitViewHelper] Using initial viewport, skipping fit', { hasInitialViewport, hasUserInteracted });
       setTimeout(() => {
         if (onReady) {
           console.log('[FitViewHelper] Calling onReady callback with fixed viewport');
           onReady();
         }
       }, 200);
+    } else if (isRenderMode && nodesCount > 0 && edgesCount > 0 && hasUserInteracted) {
+      console.log('[FitViewHelper] SKIPPING AUTO-FIT - User has interacted', { hasUserInteracted });
     } else if (isRenderMode) {
-      console.log('[FitViewHelper] Waiting for nodes/edges...', { nodesCount, edgesCount });
+      console.log('[FitViewHelper] Waiting for nodes/edges...', { nodesCount, edgesCount, hasUserInteracted, hasInitialViewport });
     }
-  }, [isRenderMode, nodesCount, edgesCount, fitView, onReady, hasInitialViewport]);
+  }, [isRenderMode, nodesCount, edgesCount, fitView, onReady, hasInitialViewport, hasUserInteracted]);
   
   return null;
 };

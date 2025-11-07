@@ -184,6 +184,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const previewFitViewRef = React.useRef<(() => void) | null>(null);
 
   const handleFitView = () => {
+    console.log('[DiagramRenderDialog] Fit to View button clicked - MANUAL fitView call');
     if (previewFitViewRef.current) {
       previewFitViewRef.current();
     }
@@ -284,11 +285,18 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
                       isRenderMode={true}
                       hasUserInteractedWithViewport={hasUserInteracted}
                       onFitViewReady={(fitView) => {
+                        console.log('[DiagramRenderDialog] onFitViewReady called, storing fitView reference');
                         previewFitViewRef.current = fitView;
-                        // Auto-fit on first load
-                        setTimeout(() => fitView(), 100);
+                        // ONLY auto-fit on first load if user hasn't interacted yet
+                        if (!hasUserInteracted) {
+                          console.log('[DiagramRenderDialog] AUTO-CALLING fitView on first load');
+                          setTimeout(() => fitView(), 100);
+                        } else {
+                          console.log('[DiagramRenderDialog] SKIPPING auto-fit - user has interacted');
+                        }
                       }}
                       onViewportChange={(viewport) => {
+                        console.log('[DiagramRenderDialog] Viewport changed - USER INTERACTION', viewport);
                         setPreviewViewport(viewport);
                         setHasUserInteracted(true);
                       }}
