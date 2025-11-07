@@ -8,7 +8,7 @@ import { DiagramStyles, DiagramStyleTheme, defaultLightTheme, defaultDarkTheme }
 import { SequenceDiagramData } from '@/types/diagram';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { toPng } from 'html-to-image';
+import { toPng, toSvg } from 'html-to-image';
 import { Loader2 } from 'lucide-react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { SequenceDiagramRenderer } from './sequence/SequenceDiagramRenderer';
@@ -33,6 +33,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const [width, setWidth] = useState(1920);
   const [height, setHeight] = useState(1080);
   const [selectedTheme, setSelectedTheme] = useState<string>('light');
+  const [outputFormat, setOutputFormat] = useState<'png' | 'svg'>('png');
   const [isRendering, setIsRendering] = useState(false);
   const [previewViewport, setPreviewViewport] = useState<{ x: number; y: number; zoom: number } | null>(null);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
@@ -115,12 +116,13 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       // Add a small delay to ensure theme is fully applied
       await new Promise(resolve => setTimeout(resolve, 300));
       
-      console.log('[Render] Calling toPng...');
+      console.log(`[Render] Calling to${outputFormat === 'svg' ? 'Svg' : 'Png'}...`);
       
-      // Capture the preview container as PNG at the target resolution
-      const dataUrl = await toPng(previewContainerRef.current, {
-        quality: 1.0,
-        pixelRatio: scale,
+      // Capture the preview container as PNG or SVG at the target resolution
+      const renderFunction = outputFormat === 'svg' ? toSvg : toPng;
+      const dataUrl = await renderFunction(previewContainerRef.current, {
+        quality: outputFormat === 'png' ? 1.0 : undefined,
+        pixelRatio: outputFormat === 'png' ? scale : 1,
         width: previewRect.width,
         height: previewRect.height,
         backgroundColor: selectedThemeData?.colors?.background,
@@ -136,13 +138,13 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
         }
       });
       
-      console.log('[Render] PNG captured successfully, data URL length:', dataUrl.length);
+      console.log(`[Render] ${outputFormat.toUpperCase()} captured successfully, data URL length:`, dataUrl.length);
       
       if (!dataUrl || dataUrl.length < 100) {
-        throw new Error('PNG capture produced empty or invalid data');
+        throw new Error(`${outputFormat.toUpperCase()} capture produced empty or invalid data`);
       }
 
-      console.log('[Render] PNG captured successfully');
+      console.log(`[Render] ${outputFormat.toUpperCase()} captured successfully`);
 
       console.log('[Render] Uploading to server...');
       // Upload to server
@@ -152,14 +154,15 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
           styleTheme: selectedTheme,
           width,
           height,
-          imageData: dataUrl
+          imageData: dataUrl,
+          format: outputFormat
         }
       });
 
       if (error) throw error;
 
       console.log('[Render] Upload successful:', uploadData);
-      toast.success('Diagram rendered successfully!');
+      toast.success(`Diagram rendered successfully as ${outputFormat.toUpperCase()}!`);
       
       onOpenChange(false);
 
@@ -196,7 +199,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
         <DialogHeader>
           <DialogTitle>Render Diagram</DialogTitle>
           <DialogDescription>
-            Configure settings and preview before rendering to PNG
+            Configure settings and preview before rendering
           </DialogDescription>
         </DialogHeader>
 
@@ -239,6 +242,19 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
                       {theme.charAt(0).toUpperCase() + theme.slice(1)}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="format">Output Format</Label>
+              <Select value={outputFormat} onValueChange={(value: 'png' | 'svg') => setOutputFormat(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="png">PNG (Raster)</SelectItem>
+                  <SelectItem value="svg">SVG (Vector)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -321,7 +337,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
             disabled={isRendering}
           >
             {isRendering && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Render PNG
+            Render {outputFormat.toUpperCase()}
           </Button>
         </DialogFooter>
       </DialogContent>

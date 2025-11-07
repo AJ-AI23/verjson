@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
     }
 
     // Parse request body
-    const { documentId, styleTheme, width, height, imageData } = await req.json();
+    const { documentId, styleTheme, width, height, imageData, format = 'png' } = await req.json();
 
     if (!documentId || !styleTheme || !imageData) {
       return new Response(
@@ -52,17 +52,21 @@ Deno.serve(async (req) => {
     }
 
     // Convert base64 to blob
-    const base64Data = imageData.split(',')[1]; // Remove data:image/png;base64, prefix
+    const base64Data = imageData.split(',')[1]; // Remove data:image/xxx;base64, prefix
     const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
 
-    // Generate storage path
-    const storagePath = `${documentId}/${styleTheme}.png`;
+    // Generate storage path with correct extension
+    const extension = format === 'svg' ? 'svg' : 'png';
+    const storagePath = `${documentId}/${styleTheme}.${extension}`;
+
+    // Determine content type
+    const contentType = format === 'svg' ? 'image/svg+xml' : 'image/png';
 
     // Upload to storage (upsert - replace if exists)
     const { error: uploadError } = await supabase.storage
       .from('diagram-renders')
       .upload(storagePath, binaryData, {
-        contentType: 'image/png',
+        contentType,
         upsert: true
       });
 
