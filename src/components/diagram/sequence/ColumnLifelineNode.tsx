@@ -7,64 +7,43 @@ import { Plus } from 'lucide-react';
 
 interface ColumnLifelineNodeProps {
   data: {
-    column: Lifeline; // Using 'column' property name for backward compatibility
+    column: Lifeline;
     styles?: DiagramStyleTheme;
     customLifelineColors?: Record<string, string>;
     onAddNode?: (lifelineId: string, yPosition: number) => void;
-    onHoverChange?: (yPosition: number | null) => void;
-    hoverPosition?: number | null;
     readOnly?: boolean;
   };
 }
 
 export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) => {
-  const { column: lifeline, styles, customLifelineColors, onAddNode, onHoverChange, hoverPosition, readOnly } = data;
+  const { column: lifeline, styles, customLifelineColors, onAddNode, readOnly } = data;
+  const [hoverPosition, setHoverPosition] = useState<number | null>(null);
   const lifelineRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
   const viewport = useViewport();
 
-  console.log('[ColumnLifeline] Render:', { 
-    lifelineId: lifeline.id, 
-    hasOnAddNode: !!onAddNode, 
-    readOnly, 
-    hoverPosition 
-  });
-
   const handleAddNode = (yPosition: number) => {
     if (onAddNode && !readOnly) {
-      console.log('[ColumnLifeline] handleAddNode called:', { yPosition, zoom: viewport.zoom });
-      // yPosition is already in diagram coordinates
       onAddNode(lifeline.id, yPosition);
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!lifelineRef.current || readOnly || !onAddNode || !onHoverChange) return;
+    if (!lifelineRef.current || readOnly || !onAddNode) return;
     
-    console.log('[ColumnLifeline] Mouse move on lifeline:', lifeline.id);
-    
-    // Cancel any pending animation frame
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
     }
     
-    // Use requestAnimationFrame to throttle updates
     rafRef.current = requestAnimationFrame(() => {
-      if (!lifelineRef.current || !onHoverChange) return;
+      if (!lifelineRef.current) return;
       
-      // Calculate position relative to the lifeline div consistently
       const rect = lifelineRef.current.getBoundingClientRect();
       const screenY = e.clientY - rect.top;
-      
-      // Store screen position for button display
-      // Convert to diagram space for node creation
       const diagramY = screenY / viewport.zoom;
       
-      // Only show button if mouse is over the lifeline area
       if (screenY >= 0 && screenY <= rect.height) {
-        // Store both screen and diagram positions
-        console.log('[ColumnLifeline] Setting hover position:', { screenY, diagramY });
-        onHoverChange(diagramY);
+        setHoverPosition(diagramY);
       }
     });
   };
@@ -73,9 +52,7 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
     }
-    if (onHoverChange) {
-      onHoverChange(null);
-    }
+    setHoverPosition(null);
   };
 
   // Get custom color for this lifeline, fallback to lifeline.color, then to default
@@ -152,7 +129,6 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                console.log('[ColumnLifeline] Button clicked!', { hoverPosition, lifelineId: lifeline.id, readOnly, hasOnAddNode: !!onAddNode });
                 handleAddNode(hoverPosition);
               }}
               onMouseDown={(e) => {

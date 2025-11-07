@@ -173,11 +173,6 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Convert edges - connect anchors to nodes only
   const layoutEdges: Edge[] = [];
   
-  console.log('[SequenceLayout] Creating edges for anchors:', {
-    totalAnchors: anchors.length,
-    anchorsDetails: anchors.map(a => ({ id: a.id, type: a.anchorType, lifelineId: a.lifelineId }))
-  });
-  
   // Create edges between anchors and their nodes
   anchors.forEach(anchor => {
     const node = nodes.find(n => 
@@ -185,16 +180,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     );
     
     if (!node) {
-      console.warn('[SequenceLayout] No node found for anchor:', anchor.id);
       return;
     }
-    
-    console.log('[SequenceLayout] Processing anchor:', {
-      anchorId: anchor.id,
-      anchorType: anchor.anchorType,
-      nodeId: node.id,
-      nodeAnchors: node.anchors?.map(a => ({ id: a.id, type: a.anchorType }))
-    });
     
     const edgeStyles = getEdgeStyle('default');
     
@@ -209,8 +196,6 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     
     if (anchor.anchorType === 'source') {
       // Edge from anchor to node
-      // If source anchor is on left: connect from anchor's right to node's target-left
-      // If source anchor is on right: connect from anchor's left to node's target-right
       const edge = {
         id: `anchor-edge-${anchor.id}`,
         source: anchor.id,
@@ -223,12 +208,9 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         markerEnd: { type: MarkerType.ArrowClosed },
         data: { edgeType: 'default', styles }
       };
-      console.log('[SequenceLayout] Created source edge:', edge);
       layoutEdges.push(edge);
     } else if (anchor.anchorType === 'target') {
       // Edge from node to anchor
-      // If target anchor is on left: connect from node's source-left to anchor's right
-      // If target anchor is on right: connect from node's source-right to anchor's left
       const edge = {
         id: `anchor-edge-${anchor.id}`,
         source: node.id,
@@ -241,10 +223,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         markerEnd: { type: MarkerType.ArrowClosed },
         data: { edgeType: 'default', styles }
       };
-      console.log('[SequenceLayout] Created target edge:', edge);
       layoutEdges.push(edge);
-    } else {
-      console.warn('[SequenceLayout] Anchor has no valid anchorType:', anchor);
     }
   });
   

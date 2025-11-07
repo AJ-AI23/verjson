@@ -97,7 +97,6 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [toolbarPosition, setToolbarPosition] = useState<{ x: number; y: number } | null>(null);
   const [dragStartPositions, setDragStartPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
   const [nodeHeights, setNodeHeights] = useState<Map<string, number>>(new Map());
-  const [lifelineHover, setLifelineHover] = useState<{ lifelineId: string; yPosition: number } | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   const activeTheme = styles?.themes?.[theme] || styles?.themes?.light || defaultLightTheme;
@@ -184,9 +183,6 @@ const FitViewHelper: React.FC<{
   const handleAddNodeOnLifeline = useCallback((sourceLifelineId: string, yPosition: number) => {
     if (!onDataChange || lifelines.length === 0) return;
     
-    console.log('[AddNode] Called with:', { sourceLifelineId, yPosition });
-    console.log('[AddNode] Current nodes:', diagramNodes.map(n => ({ id: n.id, anchors: n.anchors?.length })));
-    
     const nodeId = `node-${Date.now()}`;
     const sourceAnchorId = `anchor-${nodeId}-source`;
     const targetAnchorId = `anchor-${nodeId}-target`;
@@ -221,8 +217,6 @@ const FitViewHelper: React.FC<{
     const nodeY = yPosition - nodeHeight / 2;
     const newNodeBottom = nodeY + nodeHeight;
     
-    console.log('[AddNode] Node positioning:', { yPosition, nodeHeight, nodeY, newNodeBottom });
-    
     const updatedNodes = diagramNodes.map(node => {
       const existingNodeY = node.position?.y || 0;
       // If existing node overlaps with new node position, move it down
@@ -250,39 +244,17 @@ const FitViewHelper: React.FC<{
       position: { x: 0, y: nodeY }
     };
     
-    console.log('[AddNode] Created node:', { 
-      id: newNode.id, 
-      type: newNode.type,
-      anchors: newNode.anchors?.map(a => ({ id: a.id, type: a.anchorType, lifelineId: a.lifelineId }))
-    });
-    
     const finalNodes = [...updatedNodes, newNode];
-    console.log('[AddNode] Final nodes count:', finalNodes.length);
-    console.log('[AddNode] Calling onDataChange with new node');
     onDataChange({ ...data, lifelines: updatedLifelines, nodes: finalNodes });
   }, [diagramNodes, lifelines, data, onDataChange]);
 
   // Calculate layout
   const { nodes: layoutNodes, edges: layoutEdges } = useMemo(() => {
-    console.log('[SequenceRenderer] Calculating layout', {
-      isRenderMode,
-      lifelinesCount: lifelines?.length || 0,
-      nodesCount: diagramNodes?.length || 0,
-      hasActiveTheme: !!activeTheme
-    });
-    
     const layout = calculateSequenceLayout({
       lifelines,
       nodes: diagramNodes,
       styles: activeTheme,
       nodeHeights
-    });
-    
-    console.log('[SequenceRenderer] Layout calculated', {
-      layoutNodesCount: layout.nodes?.length || 0,
-      layoutEdgesCount: layout.edges?.length || 0,
-      firstNode: layout.nodes?.[0],
-      firstEdge: layout.edges?.[0]
     });
     
     return layout;
@@ -311,23 +283,12 @@ const FitViewHelper: React.FC<{
 
     return layoutNodes.map(node => {
       if (node.type === 'columnLifeline') {
-        const lifelineData = node.data as any;
-        const lifelineId = lifelineData?.column?.id;
-        const isHovered = lifelineHover?.lifelineId === lifelineId;
         return {
           ...node,
           data: {
             ...node.data,
             customLifelineColors,
             onAddNode: handleAddNodeOnLifeline,
-            onHoverChange: (yPosition: number | null) => {
-              if (yPosition !== null) {
-                setLifelineHover({ lifelineId, yPosition });
-              } else {
-                setLifelineHover(null);
-              }
-            },
-            hoverPosition: isHovered ? lifelineHover.yPosition : null,
             readOnly
           }
         };
@@ -343,7 +304,7 @@ const FitViewHelper: React.FC<{
       }
       return node;
     });
-  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, styles?.customNodeStyles, lifelineHover]);
+  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, styles?.customNodeStyles]);
 
   const [nodes, setNodes, handleNodesChange] = useNodesState(nodesWithHandlers);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
