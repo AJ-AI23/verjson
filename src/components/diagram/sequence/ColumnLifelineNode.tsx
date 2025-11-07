@@ -22,6 +22,13 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
   const rafRef = useRef<number | null>(null);
   const viewport = useViewport();
 
+  console.log('[ColumnLifeline] Render:', { 
+    lifelineId: lifeline.id, 
+    hasOnAddNode: !!onAddNode, 
+    readOnly, 
+    hoverPosition 
+  });
+
   const handleAddNode = (yPosition: number) => {
     if (onAddNode && !readOnly) {
       console.log('[ColumnLifeline] handleAddNode called:', { yPosition, zoom: viewport.zoom });
@@ -32,6 +39,8 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!lifelineRef.current || readOnly || !onAddNode) return;
+    
+    console.log('[ColumnLifeline] Mouse move on lifeline:', lifeline.id);
     
     // Cancel any pending animation frame
     if (rafRef.current !== null) {
@@ -53,6 +62,7 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
       // Only show button if mouse is over the lifeline area
       if (screenY >= 0 && screenY <= rect.height) {
         // Store both screen and diagram positions
+        console.log('[ColumnLifeline] Setting hover position:', { screenY, diagramY });
         setHoverPosition(diagramY);
       }
     });
