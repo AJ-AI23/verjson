@@ -136,8 +136,8 @@ export const OpenApiImportDialog: React.FC<OpenApiImportDialogProps> = ({
           type: 'endpoint',
           label: endpoint.summary || `${endpoint.method} ${endpoint.path}`,
           anchors: [
-            { id: sourceAnchorId, lifelineId: sourceLifelineId, anchorType: 'source' },
-            { id: targetAnchorId, lifelineId: targetLifelineNextId, anchorType: 'target' }
+            { id: sourceAnchorId, lifelineId: sourceLifelineId, yPosition: yPos, anchorType: 'source' },
+            { id: targetAnchorId, lifelineId: targetLifelineNextId, yPosition: yPos, anchorType: 'target' }
           ],
           data: {
             method: endpoint.method,

@@ -47,9 +47,10 @@ export const defaultDiagramSchema: DiagramDocument = {
         type: 'process',
         label: 'Click login link',
         anchors: [
-          { id: 'anchor-1-source', lifelineId: 'lifeline-1', anchorType: 'source' },
-          { id: 'anchor-1-target', lifelineId: 'lifeline-2', anchorType: 'target' }
+          { id: 'anchor-1-source', lifelineId: 'lifeline-1', yPosition: 140, anchorType: 'source' },
+          { id: 'anchor-1-target', lifelineId: 'lifeline-2', yPosition: 140, anchorType: 'target' }
         ],
+        position: { x: 100, y: 140 },
         data: {
           description: 'User initiates login'
         }
@@ -59,9 +60,10 @@ export const defaultDiagramSchema: DiagramDocument = {
         type: 'process',
         label: 'Authorization Code Request to /authorize',
         anchors: [
-          { id: 'anchor-2-source', lifelineId: 'lifeline-2', anchorType: 'source' },
-          { id: 'anchor-2-target', lifelineId: 'lifeline-3', anchorType: 'target' }
+          { id: 'anchor-2-source', lifelineId: 'lifeline-2', yPosition: 280, anchorType: 'source' },
+          { id: 'anchor-2-target', lifelineId: 'lifeline-3', yPosition: 280, anchorType: 'target' }
         ],
+        position: { x: 100, y: 280 },
         data: {
           description: 'Request authorization code'
         }
@@ -71,9 +73,10 @@ export const defaultDiagramSchema: DiagramDocument = {
         type: 'process',
         label: 'Redirect to login/authorization prompt',
         anchors: [
-          { id: 'anchor-3-source', lifelineId: 'lifeline-3', anchorType: 'source' },
-          { id: 'anchor-3-target', lifelineId: 'lifeline-1', anchorType: 'target' }
+          { id: 'anchor-3-source', lifelineId: 'lifeline-3', yPosition: 420, anchorType: 'source' },
+          { id: 'anchor-3-target', lifelineId: 'lifeline-1', yPosition: 420, anchorType: 'target' }
         ],
+        position: { x: 100, y: 420 },
         data: {
           description: 'Show login screen'
         }
@@ -83,9 +86,10 @@ export const defaultDiagramSchema: DiagramDocument = {
         type: 'process',
         label: 'Authenticate and consent',
         anchors: [
-          { id: 'anchor-4-source', lifelineId: 'lifeline-1', anchorType: 'source' },
-          { id: 'anchor-4-target', lifelineId: 'lifeline-3', anchorType: 'target' }
+          { id: 'anchor-4-source', lifelineId: 'lifeline-1', yPosition: 560, anchorType: 'source' },
+          { id: 'anchor-4-target', lifelineId: 'lifeline-3', yPosition: 560, anchorType: 'target' }
         ],
+        position: { x: 100, y: 560 },
         data: {
           description: 'User provides credentials'
         }
@@ -95,9 +99,10 @@ export const defaultDiagramSchema: DiagramDocument = {
         type: 'process',
         label: 'Authorization Code',
         anchors: [
-          { id: 'anchor-5-source', lifelineId: 'lifeline-3', anchorType: 'source' },
-          { id: 'anchor-5-target', lifelineId: 'lifeline-2', anchorType: 'target' }
+          { id: 'anchor-5-source', lifelineId: 'lifeline-3', yPosition: 700, anchorType: 'source' },
+          { id: 'anchor-5-target', lifelineId: 'lifeline-2', yPosition: 700, anchorType: 'target' }
         ],
+        position: { x: 100, y: 700 },
         data: {
           description: 'Return authorization code'
         }
@@ -107,9 +112,10 @@ export const defaultDiagramSchema: DiagramDocument = {
         type: 'process',
         label: 'Authorization Code + Client ID + Client Secret to /oauth/token endpoint',
         anchors: [
-          { id: 'anchor-6-source', lifelineId: 'lifeline-2', anchorType: 'source' },
-          { id: 'anchor-6-target', lifelineId: 'lifeline-3', anchorType: 'target' }
+          { id: 'anchor-6-source', lifelineId: 'lifeline-2', yPosition: 840, anchorType: 'source' },
+          { id: 'anchor-6-target', lifelineId: 'lifeline-3', yPosition: 840, anchorType: 'target' }
         ],
+        position: { x: 100, y: 840 },
         data: {
           description: 'Exchange code for token'
         }
