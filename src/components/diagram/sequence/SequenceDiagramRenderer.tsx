@@ -23,7 +23,8 @@ import {
   applyAdjustedPositions,
   applyAdjustedPositionsToDiagramNodes,
   getNodeHeight,
-  calculateValidDragRange 
+  calculateValidDragRange,
+  MIN_NODE_Y_POSITION 
 } from '@/lib/diagram/verticalSpacing';
 import { SequenceNode } from './SequenceNode';
 import { SequenceEdge } from './SequenceEdge';
@@ -327,6 +328,16 @@ const FitViewHelper: React.FC<{
           const requestedY = change.position?.y || node.position.y;
           const clampedY = Math.max(minY, Math.min(maxY, requestedY));
           
+          // Check if trying to drag beyond limits (swap trigger)
+          const draggedBeyondMin = requestedY < minY && minY > MIN_NODE_Y_POSITION;
+          const draggedBeyondMax = requestedY > maxY && maxY < 10000;
+          
+          // Store swap trigger info in the change
+          if (draggedBeyondMin || draggedBeyondMax) {
+            (change as any).shouldSwap = true;
+            (change as any).swapDirection = draggedBeyondMin ? 'up' : 'down';
+          }
+          
           // Keep original X position, constrain Y to valid range
           return {
             ...change,
@@ -366,32 +377,25 @@ const FitViewHelper: React.FC<{
             })
           );
           
-          // Check for collision and potential swap
-          const otherSequenceNodes = nodes.filter(n => 
-            n.type === 'sequenceNode' && n.id !== dragChange.id
-          );
-          
+          // Check if trying to swap based on boundary hit
           let shouldSwapWith: Node | null = null;
-          for (const otherNode of otherSequenceNodes) {
-            const otherDiagramNode = diagramNodes.find(n => n.id === otherNode.id);
-            const otherNodeConfig = otherDiagramNode ? getNodeTypeConfig(otherDiagramNode.type) : null;
-            const otherNodeHeight = otherNodeConfig?.defaultHeight || 70;
-            const otherNodeCenterY = otherNode.position.y + (otherNodeHeight / 2);
+          
+          if ((dragChange as any).shouldSwap) {
+            const swapDirection = (dragChange as any).swapDirection;
             
-            // Check if dragged node's center has crossed the other node's center
-            const draggedNodeOriginal = diagramNodes.find(n => n.id === dragChange.id);
-            const originalY = draggedNodeOriginal?.position?.y || 0;
-            const originalCenterY = originalY + (nodeHeight / 2);
+            // Find the blocking node in the swap direction
+            const sortedNodes = [...nodes]
+              .filter(n => n.type === 'sequenceNode')
+              .sort((a, b) => a.position.y - b.position.y);
             
-            // Swap if centers have crossed
-            if (originalCenterY < otherNodeCenterY && nodeCenterY > otherNodeCenterY) {
-              // Dragging down and crossed center
-              shouldSwapWith = otherNode;
-              break;
-            } else if (originalCenterY > otherNodeCenterY && nodeCenterY < otherNodeCenterY) {
-              // Dragging up and crossed center
-              shouldSwapWith = otherNode;
-              break;
+            const draggedIndex = sortedNodes.findIndex(n => n.id === dragChange.id);
+            
+            if (swapDirection === 'up' && draggedIndex > 0) {
+              // Swap with the node above
+              shouldSwapWith = sortedNodes[draggedIndex - 1];
+            } else if (swapDirection === 'down' && draggedIndex < sortedNodes.length - 1) {
+              // Swap with the node below
+              shouldSwapWith = sortedNodes[draggedIndex + 1];
             }
           }
           
