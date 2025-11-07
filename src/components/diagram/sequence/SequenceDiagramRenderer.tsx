@@ -15,7 +15,7 @@ import {
   useReactFlow
 } from '@xyflow/react';
 import { SequenceDiagramData, DiagramNode, DiagramEdge, DiagramNodeType, Lifeline } from '@/types/diagram';
-import { DiagramStyles } from '@/types/diagramStyles';
+import { DiagramStyles, defaultLightTheme } from '@/types/diagramStyles';
 import { calculateSequenceLayout } from '@/lib/diagram/sequenceLayout';
 import { getNodeTypeConfig } from '@/lib/diagram/sequenceNodeTypes';
 import { SequenceNode } from './SequenceNode';
@@ -88,7 +88,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [dragStartPositions, setDragStartPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
-  const activeTheme = styles?.themes[styles?.activeTheme || 'light'] || styles?.themes.light;
+  const activeTheme = styles?.themes?.[styles?.activeTheme || 'light'] || styles?.themes?.light || defaultLightTheme;
 
 // Helper component to handle fitView in render mode
 const FitViewHelper: React.FC<{ isRenderMode: boolean; onReady?: () => void; nodesCount: number; edgesCount: number }> = ({ 

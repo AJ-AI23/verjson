@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DiagramStyles, DiagramStyleTheme } from '@/types/diagramStyles';
+import { DiagramStyles, DiagramStyleTheme, defaultLightTheme, defaultDarkTheme } from '@/types/diagramStyles';
 import { SequenceDiagramData } from '@/types/diagram';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,12 +35,24 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const [selectedTheme, setSelectedTheme] = useState(styles?.activeTheme || 'light');
   const [isRendering, setIsRendering] = useState(false);
 
+  // Default themes if none provided
+  const defaultThemes = {
+    light: defaultLightTheme,
+    dark: defaultDarkTheme
+  };
+
   const availableThemes = styles?.themes ? Object.keys(styles.themes) : ['light', 'dark'];
 
   const handleRender = async () => {
     setIsRendering(true);
 
     try {
+      // Ensure we have valid styles with themes
+      const renderStyles: DiagramStyles = {
+        themes: styles?.themes || defaultThemes,
+        activeTheme: selectedTheme
+      };
+
       // Create a hidden rendering container
       const renderContainer = document.createElement('div');
       renderContainer.id = 'diagram-render-container';
@@ -52,7 +64,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       renderContainer.style.overflow = 'hidden';
       
       // Apply theme background
-      const selectedThemeData = styles?.themes[selectedTheme];
+      const selectedThemeData = renderStyles.themes[selectedTheme];
       if (selectedThemeData?.colors?.background) {
         renderContainer.style.backgroundColor = selectedThemeData.colors.background;
       }
@@ -68,12 +80,6 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       // Import ReactDOM dynamically to render the diagram
       const ReactDOM = await import('react-dom/client');
       const root = ReactDOM.createRoot(flowWrapper);
-
-      // Create the styles with the selected theme
-      const renderStyles: DiagramStyles = {
-        ...styles,
-        activeTheme: selectedTheme
-      };
 
       // Create a promise that resolves when the diagram is ready
       let resolveReady: () => void;
