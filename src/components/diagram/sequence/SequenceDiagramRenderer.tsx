@@ -18,14 +18,6 @@ import { SequenceDiagramData, DiagramNode, DiagramEdge, DiagramNodeType, Lifelin
 import { DiagramStyles, defaultLightTheme } from '@/types/diagramStyles';
 import { calculateSequenceLayout } from '@/lib/diagram/sequenceLayout';
 import { getNodeTypeConfig } from '@/lib/diagram/sequenceNodeTypes';
-import { 
-  calculateAdjustedPositions, 
-  applyAdjustedPositions,
-  applyAdjustedPositionsToDiagramNodes,
-  getNodeHeight,
-  calculateValidDragRange,
-  MIN_NODE_Y_POSITION 
-} from '@/lib/diagram/verticalSpacing';
 import { SequenceNode } from './SequenceNode';
 import { SequenceEdge } from './SequenceEdge';
 import { ColumnLifelineNode } from './ColumnLifelineNode';
@@ -323,27 +315,12 @@ const FitViewHelper: React.FC<{
         if (node?.type === 'sequenceNode') {
           // Multi-node drag disabled - only single node swapping is supported
           
-          // Calculate valid drag range for this node
-          const { minY, maxY } = calculateValidDragRange(change.id, diagramNodes);
-          const requestedY = change.position?.y || node.position.y;
-          const clampedY = Math.max(minY, Math.min(maxY, requestedY));
-          
-          // Check if trying to drag beyond limits (swap trigger)
-          const draggedBeyondMin = requestedY < minY && minY > MIN_NODE_Y_POSITION;
-          const draggedBeyondMax = requestedY > maxY && maxY < 10000;
-          
-          // Store swap trigger info in the change
-          if (draggedBeyondMin || draggedBeyondMax) {
-            (change as any).shouldSwap = true;
-            (change as any).swapDirection = draggedBeyondMin ? 'up' : 'down';
-          }
-          
-          // Keep original X position, constrain Y to valid range
+          // Keep original X position, only allow Y to change
           return {
             ...change,
             position: {
               x: node.position.x,
-              y: clampedY
+              y: change.position?.y || node.position.y
             }
           };
         }
@@ -377,74 +354,61 @@ const FitViewHelper: React.FC<{
             })
           );
           
-          // Check if trying to swap based on boundary hit
-          let shouldSwapWith: Node | null = null;
+          // Check for collision and potential swap
+          const otherSequenceNodes = nodes.filter(n => 
+            n.type === 'sequenceNode' && n.id !== dragChange.id
+          );
           
-          if ((dragChange as any).shouldSwap) {
-            const swapDirection = (dragChange as any).swapDirection;
+          let shouldSwapWith: Node | null = null;
+          for (const otherNode of otherSequenceNodes) {
+            const otherDiagramNode = diagramNodes.find(n => n.id === otherNode.id);
+            const otherNodeConfig = otherDiagramNode ? getNodeTypeConfig(otherDiagramNode.type) : null;
+            const otherNodeHeight = otherNodeConfig?.defaultHeight || 70;
+            const otherNodeCenterY = otherNode.position.y + (otherNodeHeight / 2);
             
-            // Find the blocking node in the swap direction
-            const sortedNodes = [...nodes]
-              .filter(n => n.type === 'sequenceNode')
-              .sort((a, b) => a.position.y - b.position.y);
+            // Check if dragged node's center has crossed the other node's center
+            const draggedNodeOriginal = diagramNodes.find(n => n.id === dragChange.id);
+            const originalY = draggedNodeOriginal?.position?.y || 0;
+            const originalCenterY = originalY + (nodeHeight / 2);
             
-            const draggedIndex = sortedNodes.findIndex(n => n.id === dragChange.id);
-            
-            if (swapDirection === 'up' && draggedIndex > 0) {
-              // Swap with the node above
-              shouldSwapWith = sortedNodes[draggedIndex - 1];
-            } else if (swapDirection === 'down' && draggedIndex < sortedNodes.length - 1) {
-              // Swap with the node below
-              shouldSwapWith = sortedNodes[draggedIndex + 1];
+            // Swap if centers have crossed
+            if (originalCenterY < otherNodeCenterY && nodeCenterY > otherNodeCenterY) {
+              // Dragging down and crossed center
+              shouldSwapWith = otherNode;
+              break;
+            } else if (originalCenterY > otherNodeCenterY && nodeCenterY < otherNodeCenterY) {
+              // Dragging up and crossed center
+              shouldSwapWith = otherNode;
+              break;
             }
           }
           
           if (shouldSwapWith) {
-            // Perform swap - exchange current Y positions at collision
+            // Perform swap - exchange Y positions
             const draggedDiagramNode = diagramNodes.find(n => n.id === dragChange.id);
             const swapDiagramNode = diagramNodes.find(n => n.id === shouldSwapWith.id);
             
             if (draggedDiagramNode && swapDiagramNode) {
-              // Use CURRENT positions from the visual nodes, not original positions
-              const draggedCurrentY = draggedNode.position.y;
-              const swapCurrentY = shouldSwapWith.position.y;
-              
-              // Calculate the new positions based on collision point
-              const swapDirection = (dragChange as any).swapDirection;
-              let newDraggedY: number;
-              let newSwapY: number;
-              
-              if (swapDirection === 'up') {
-                // Dragged node goes to blocking node's position
-                newDraggedY = swapCurrentY;
-                // Blocking node moves down with spacing
-                const draggedHeight = getNodeHeight(draggedDiagramNode);
-                newSwapY = swapCurrentY + draggedHeight + 40; // MIN_VERTICAL_MARGIN
-              } else {
-                // Dragged node goes to blocking node's position
-                newDraggedY = swapCurrentY;
-                // Blocking node moves up with spacing
-                const swapHeight = getNodeHeight(swapDiagramNode);
-                newSwapY = swapCurrentY - swapHeight - 40; // MIN_VERTICAL_MARGIN
-              }
+              const draggedOriginalY = draggedDiagramNode.position?.y || 0;
+              const swapOriginalY = swapDiagramNode.position?.y || 0;
               
               // Update diagram data with swapped positions
               const updatedDiagramNodes = diagramNodes.map(n => {
                 if (n.id === dragChange.id) {
-                  const nodeHeight = getNodeHeight(n);
-                  const nodeCenterY = newDraggedY + (nodeHeight / 2);
+                  const nodeCenterY = swapOriginalY + (nodeHeight / 2);
                   return {
                     ...n,
-                    position: { ...n.position, y: newDraggedY },
+                    position: { ...n.position, y: swapOriginalY },
                     anchors: n.anchors?.map(a => ({ ...a, yPosition: nodeCenterY })) as any
                   };
                 }
                 if (n.id === shouldSwapWith.id) {
-                  const nodeHeight = getNodeHeight(n);
-                  const nodeCenterY = newSwapY + (nodeHeight / 2);
+                  const otherNodeConfig = getNodeTypeConfig(n.type);
+                  const otherNodeHeight = otherNodeConfig?.defaultHeight || 70;
+                  const nodeCenterY = draggedOriginalY + (otherNodeHeight / 2);
                   return {
                     ...n,
-                    position: { ...n.position, y: newSwapY },
+                    position: { ...n.position, y: draggedOriginalY },
                     anchors: n.anchors?.map(a => ({ ...a, yPosition: nodeCenterY })) as any
                   };
                 }
@@ -455,24 +419,24 @@ const FitViewHelper: React.FC<{
               setNodes(currentNodes =>
                 currentNodes.map(n => {
                   if (n.id === dragChange.id) {
-                    return { ...n, position: { x: n.position.x, y: newDraggedY } };
+                    return { ...n, position: { x: n.position.x, y: swapOriginalY } };
                   }
                   if (n.id === shouldSwapWith.id) {
-                    return { ...n, position: { x: n.position.x, y: newSwapY } };
+                    return { ...n, position: { x: n.position.x, y: draggedOriginalY } };
                   }
                   
                   // Update anchors for swapped nodes
                   const anchorData = n.data as any;
                   if (n.type === 'anchorNode') {
                     if (anchorData?.connectedNodeId === dragChange.id) {
-                      const nodeHeight = getNodeHeight(draggedDiagramNode);
-                      const centerY = newDraggedY + (nodeHeight / 2);
-                      return { ...n, position: { x: n.position.x, y: centerY - 8 } };
+                      const swapCenterY = swapOriginalY + (nodeHeight / 2);
+                      return { ...n, position: { x: n.position.x, y: swapCenterY - 8 } };
                     }
                     if (anchorData?.connectedNodeId === shouldSwapWith.id) {
-                      const nodeHeight = getNodeHeight(swapDiagramNode);
-                      const centerY = newSwapY + (nodeHeight / 2);
-                      return { ...n, position: { x: n.position.x, y: centerY - 8 } };
+                      const otherNodeConfig = swapDiagramNode ? getNodeTypeConfig(swapDiagramNode.type) : null;
+                      const otherNodeHeight = otherNodeConfig?.defaultHeight || 70;
+                      const draggedCenterY = draggedOriginalY + (otherNodeHeight / 2);
+                      return { ...n, position: { x: n.position.x, y: draggedCenterY - 8 } };
                     }
                   }
                   return n;
@@ -493,101 +457,8 @@ const FitViewHelper: React.FC<{
     // Sync position changes back to data
     const moveChange = constrainedChanges.find((c: any) => c.type === 'position' && c.position && !c.dragging);
     if (moveChange && onDataChange) {
-      // Check if this is a sequence node that just finished dragging
-      const movedNode = nodes.find(n => n.id === moveChange.id);
-      const isSequenceNode = movedNode?.type === 'sequenceNode';
-      
-      if (isSequenceNode) {
-        // Apply vertical spacing adjustments
-        const newY = moveChange.position.y;
-        const adjustedPositions = calculateAdjustedPositions(
-          moveChange.id,
-          newY,
-          diagramNodes
-        );
-        
-        // Check if the adjustment is valid
-        if (adjustedPositions === null) {
-          // Invalid drag - would cause overlaps, revert to start position
-          const startPos = dragStartPositions.get(moveChange.id);
-          if (startPos) {
-            setNodes(currentNodes => 
-              currentNodes.map(n => {
-                if (n.id === moveChange.id) {
-                  return { ...n, position: startPos };
-                }
-                // Also revert anchor positions
-                const anchorData = n.data as any;
-                if (n.type === 'anchorNode' && anchorData?.connectedNodeId === moveChange.id) {
-                  const diagramNode = diagramNodes.find(dn => dn.id === moveChange.id);
-                  if (diagramNode) {
-                    const nodeHeight = getNodeHeight(diagramNode);
-                    const nodeCenterY = startPos.y + (nodeHeight / 2);
-                    return { ...n, position: { x: n.position.x, y: nodeCenterY - 8 } };
-                  }
-                }
-                return n;
-              })
-            );
-          }
-          // Clear drag start positions
-          setDragStartPositions(new Map());
-          handleNodesChange(constrainedChanges);
-          return;
-        }
-        
-        // Apply adjusted positions to visual nodes
-        setNodes(currentNodes => {
-          const updatedNodes = applyAdjustedPositions(currentNodes, adjustedPositions);
-          
-          // Update anchor positions for all adjusted nodes
-          return updatedNodes.map(n => {
-            const adjustedY = adjustedPositions.get(n.id);
-            if (adjustedY !== undefined && n.type === 'sequenceNode') {
-              const diagramNode = diagramNodes.find(dn => dn.id === n.id);
-              if (diagramNode) {
-                const nodeHeight = getNodeHeight(diagramNode);
-                const nodeCenterY = adjustedY + (nodeHeight / 2);
-                
-                // Return node with updated position
-                return n;
-              }
-            }
-            
-            // Update anchor positions for adjusted nodes
-            const anchorData = n.data as any;
-            if (n.type === 'anchorNode' && anchorData?.connectedNodeId) {
-              const connectedAdjustedY = adjustedPositions.get(anchorData.connectedNodeId);
-              if (connectedAdjustedY !== undefined) {
-                const connectedDiagramNode = diagramNodes.find(dn => dn.id === anchorData.connectedNodeId);
-                if (connectedDiagramNode) {
-                  const nodeHeight = getNodeHeight(connectedDiagramNode);
-                  const nodeCenterY = connectedAdjustedY + (nodeHeight / 2);
-                  return { ...n, position: { x: n.position.x, y: nodeCenterY - 8 } };
-                }
-              }
-            }
-            
-            return n;
-          });
-        });
-        
-        // Apply adjusted positions to diagram data
-        const updatedDiagramNodes = applyAdjustedPositionsToDiagramNodes(
-          diagramNodes,
-          adjustedPositions
-        );
-        
-        // Clear drag start positions after successful adjustment
-        setDragStartPositions(new Map());
-        
-        onDataChange({ ...data, nodes: updatedDiagramNodes });
-        
-        // Skip further processing for sequence nodes
-        return;
-      }
-      
       // Check if this is an anchor node
+      const movedNode = nodes.find(n => n.id === moveChange.id);
       const isAnchor = movedNode?.type === 'anchorNode';
       
       if (isAnchor) {
