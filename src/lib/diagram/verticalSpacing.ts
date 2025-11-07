@@ -8,6 +8,12 @@ import { getNodeTypeConfig } from './sequenceNodeTypes';
  */
 export const MIN_VERTICAL_MARGIN = 40;
 
+/**
+ * Minimum Y position for nodes (upper limit)
+ * Nodes should not go above the lifeline header area
+ */
+export const MIN_NODE_Y_POSITION = 140;
+
 interface NodeWithHeight {
   id: string;
   y: number;
@@ -98,8 +104,15 @@ export function calculateAdjustedPositions(
     const gap = requiredTop - currentBottom;
     
     if (gap < MIN_VERTICAL_MARGIN) {
-      // Push this node up to maintain margin
+      // Calculate the new position needed to maintain margin
       const newY = nodeBelow.y - currentNode.height - MIN_VERTICAL_MARGIN;
+      
+      // Check if this would push the node above the upper limit
+      if (newY < MIN_NODE_Y_POSITION) {
+        // Stop adjusting nodes above - can't push them higher
+        break;
+      }
+      
       nodesWithHeights[i] = { ...currentNode, y: newY };
       adjustedPositions.set(currentNode.id, newY);
     }
