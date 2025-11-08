@@ -100,14 +100,20 @@ export const useVersioning = ({
         const mergedSchemaString = JSON.stringify(currentMergedSchema, null, 2);
         setDatabaseVersion(mergedSchemaString);
         
-        // Also update the editor schema to reflect the current version state
-        // This ensures the editor shows the correct content based on selected versions
-        console.log('📝 EDITOR CHANGE from useVersioning - syncing with database version, length:', mergedSchemaString.length);
-        debugToast('Syncing editor schema with database version', mergedSchemaString.substring(0, 100));
-        setSchema(mergedSchemaString);
-        setSavedSchema(mergedSchemaString);
+        // Check if user has uncommitted changes before syncing
+        const hasUncommittedChanges = schema !== databaseVersion;
         
-        debugToast('Database version and editor schema synchronized');
+        if (hasUncommittedChanges) {
+          console.log('📝 SKIPPING editor sync - user has uncommitted changes');
+          debugToast('Skipping sync - user has uncommitted changes');
+        } else {
+          // Only sync if no uncommitted changes
+          console.log('📝 EDITOR CHANGE from useVersioning - syncing with database version, length:', mergedSchemaString.length);
+          debugToast('Syncing editor schema with database version', mergedSchemaString.substring(0, 100));
+          setSchema(mergedSchemaString);
+          setSavedSchema(mergedSchemaString);
+          debugToast('Database version and editor schema synchronized');
+        }
       } catch (err) {
         console.error('Failed to calculate database version from patches:', err);
         debugToast('Version calculation failed', (err as Error).message);
