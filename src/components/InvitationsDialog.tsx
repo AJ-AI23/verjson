@@ -32,10 +32,6 @@ export function InvitationsDialog({ open, onOpenChange }: InvitationsDialogProps
   const { invitations, invitationsLoading, acceptInvitation, declineInvitation } = useNotifications();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Debug logging
-  console.log('🗂️ InvitationsDialog - Invitations:', invitations);
-  console.log('🗂️ InvitationsDialog - Loading:', invitationsLoading);
-
   const getInvitationIcon = (invitation: Invitation) => {
     return invitation.type === 'workspace' ? <Folder className="h-5 w-5" /> : <FileText className="h-5 w-5" />;
   };
