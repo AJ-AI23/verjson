@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { HexColorPicker } from 'react-colorful';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -6,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DiagramStyles, DiagramStyleTheme } from '@/types/diagramStyles';
 import { DiagramNode, Lifeline } from '@/types/diagram';
 import { Palette, Sun, Moon, Box, Columns } from 'lucide-react';
@@ -125,25 +127,37 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
     setActiveTab(themeId);
   };
 
-  const ColorInput = ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) => (
-    <div className="space-y-2">
-      <Label className="text-sm">{label}</Label>
-      <div className="flex gap-2">
-        <Input
-          type="color"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-16 h-10 p-1 cursor-pointer"
-        />
-        <Input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="flex-1 font-mono text-xs"
-        />
+  const ColorInput = ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    
+    return (
+      <div className="space-y-2">
+        <Label className="text-sm">{label}</Label>
+        <div className="flex gap-2">
+          <Popover open={isOpen} onOpenChange={setIsOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-16 h-10 p-1 cursor-pointer"
+                style={{ backgroundColor: value }}
+              >
+                <span className="sr-only">Pick color</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-3 pointer-events-auto" align="start">
+              <HexColorPicker color={value} onChange={onChange} />
+            </PopoverContent>
+          </Popover>
+          <Input
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="flex-1 font-mono text-xs"
+          />
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
