@@ -102,6 +102,7 @@ export const useVersioning = ({
         
         // Also update the editor schema to reflect the current version state
         // This ensures the editor shows the correct content based on selected versions
+        console.log('📝 EDITOR CHANGE from useVersioning - syncing with database version, length:', mergedSchemaString.length);
         debugToast('Syncing editor schema with database version', mergedSchemaString.substring(0, 100));
         setSchema(mergedSchemaString);
         setSavedSchema(mergedSchemaString);
@@ -269,6 +270,7 @@ export const useVersioning = ({
       
       // Guard against empty patches during toggle operations
       if (updatedPatches.length === 0) {
+        console.log('📝 EDITOR CHANGE from useVersioning - no patches, resetting to empty');
         debugToast('No patches available after toggle, resetting to empty schema');
         setSchema('{}');
         setSavedSchema('{}');
@@ -281,6 +283,7 @@ export const useVersioning = ({
         try {
           const newSchema = applySelectedPatches(updatedPatches);
           const newSchemaString = JSON.stringify(newSchema, null, 2);
+          console.log('📝 EDITOR CHANGE from useVersioning - toggle selection, length:', newSchemaString.length);
           debugToast('🔍 New schema calculated, length', newSchemaString.length);
           debugToast('🎯 Setting editor content to', newSchemaString.substring(0, 200) + '...');
           
@@ -394,18 +397,21 @@ export const useVersioning = ({
         try {
           const newSchema = applySelectedPatches(result.updatedPatches);
           const newSchemaString = JSON.stringify(newSchema, null, 2);
+          console.log('📝 EDITOR CHANGE from useVersioning - recalculate after deletion, length:', newSchemaString.length);
           setSchema(newSchemaString);
           setSavedSchema(newSchemaString);
           setDatabaseVersion(newSchemaString);
         } catch (err) {
           console.error('Failed to recalculate schema after version deletion:', err);
           // Fallback to empty state if recalculation fails
+          console.log('📝 EDITOR CHANGE from useVersioning - fallback to empty after failed recalculation');
           setSchema('{}');
           setSavedSchema('{}');
           setDatabaseVersion('');
         }
       } else {
         // If no versions remain, reset to empty state
+        console.log('📝 EDITOR CHANGE from useVersioning - no versions remain, resetting to empty');
         setSchema('{}');
         setSavedSchema('{}');
         setDatabaseVersion('');
@@ -453,6 +459,7 @@ export const useVersioning = ({
     try {
       // First, apply the imported schema to the editor
       const importedSchemaString = JSON.stringify(importedSchema, null, 2);
+      console.log('📝 EDITOR CHANGE from useVersioning - importing version, length:', importedSchemaString.length);
       setSchema(importedSchemaString);
       
       // Create a new version with the imported schema
