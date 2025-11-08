@@ -105,6 +105,22 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
     });
   };
 
+  const handleLifelineAnchorColorChange = (lifelineId: string, value: string) => {
+    const updatedLifeline = lifelines.find(l => l.id === lifelineId);
+    if (!updatedLifeline) return;
+
+    // Store anchor color in customNodeStyles
+    onStylesChange({
+      ...styles,
+      customNodeStyles: {
+        ...styles.customNodeStyles,
+        [`lifeline-${lifelineId}-anchor`]: {
+          backgroundColor: value
+        }
+      }
+    });
+  };
+
   const handleSetActiveTab = (themeId: string) => {
     setActiveTab(themeId);
   };
@@ -246,16 +262,26 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
                       </div>
                     </AccordionTrigger>
                     <AccordionContent>
-                      <div className="space-y-3 p-2">
+                      <div className="space-y-4 p-2">
                         {lifelines.map((lifeline) => {
                           const customColor = styles.customNodeStyles?.[`lifeline-${lifeline.id}`]?.backgroundColor;
+                          const customAnchorColor = styles.customNodeStyles?.[`lifeline-${lifeline.id}-anchor`]?.backgroundColor;
                           return (
-                            <ColorInput
-                              key={lifeline.id}
-                              label={lifeline.name}
-                              value={customColor || lifeline.color || currentTheme.colors.swimlaneBackground}
-                              onChange={(v) => handleLifelineColorChange(lifeline.id, v)}
-                            />
+                            <div key={lifeline.id} className="space-y-3 pb-4 border-b last:border-b-0">
+                              <div className="font-medium text-sm">{lifeline.name}</div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <ColorInput
+                                  label="Background"
+                                  value={customColor || lifeline.color || currentTheme.colors.swimlaneBackground}
+                                  onChange={(v) => handleLifelineColorChange(lifeline.id, v)}
+                                />
+                                <ColorInput
+                                  label="Anchor Color"
+                                  value={customAnchorColor || lifeline.anchorColor || '#3b82f6'}
+                                  onChange={(v) => handleLifelineAnchorColorChange(lifeline.id, v)}
+                                />
+                              </div>
+                            </div>
                           );
                         })}
                       </div>

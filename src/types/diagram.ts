@@ -31,6 +31,7 @@ export interface Lifeline {
   width?: number;
   description?: string;
   color?: string;
+  anchorColor?: string;
 }
 
 export interface DiagramNode {

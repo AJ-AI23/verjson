@@ -1,6 +1,6 @@
 import { Node, Edge, MarkerType } from '@xyflow/react';
 import { DiagramNode, DiagramEdge, Lifeline, AnchorNode } from '@/types/diagram';
-import { DiagramStyleTheme } from '@/types/diagramStyles';
+import { DiagramStyleTheme, DiagramStyles } from '@/types/diagramStyles';
 import { getNodeTypeConfig } from './sequenceNodeTypes';
 
 interface LayoutOptions {
@@ -8,6 +8,7 @@ interface LayoutOptions {
   nodes: DiagramNode[];
   horizontalSpacing?: number;
   styles?: DiagramStyleTheme;
+  fullStyles?: DiagramStyles;
   nodeHeights?: Map<string, number>;
 }
 
@@ -28,6 +29,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     nodes = [],
     horizontalSpacing = 100,
     styles,
+    fullStyles,
     nodeHeights
   } = options;
 
@@ -124,7 +126,9 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         lifelineId: anchor.lifelineId,
         connectedNodeId: connectedNode?.id,
         anchorType: anchor.anchorType,
-        styles
+        lifelines: sortedLifelines,
+        styles,
+        customStyles: fullStyles
       },
       draggable: true,
       selectable: false,

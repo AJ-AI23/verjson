@@ -326,6 +326,7 @@ const MousePositionTracker: React.FC<{
       lifelines,
       nodes: diagramNodes,
       styles: activeTheme,
+      fullStyles: styles,
       nodeHeights
     });
     
