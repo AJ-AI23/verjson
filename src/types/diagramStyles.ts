@@ -69,20 +69,20 @@ export const defaultDarkTheme: DiagramStyleTheme = {
   id: 'dark',
   name: 'Dark Mode',
   colors: {
-    background: '#0f172a',
-    swimlaneBackground: '#1e3a5f',
+    background: '#030712',
+    swimlaneBackground: '#0c1a2e',
     swimlaneBorder: '#475569',
-    nodeBackground: '#1e293b',
+    nodeBackground: '#0f172a',
     nodeBorder: '#64748b',
     nodeText: '#f1f5f9',
     edgeStroke: '#94a3b8',
     edgeLabel: '#cbd5e1',
     nodeTypes: {
-      endpoint: { background: '#1e3a8a', border: '#60a5fa', text: '#dbeafe' },
-      process: { background: '#334155', border: '#94a3b8', text: '#f1f5f9' },
-      decision: { background: '#78350f', border: '#fbbf24', text: '#fef3c7' },
-      data: { background: '#14532d', border: '#4ade80', text: '#dcfce7' },
-      custom: { background: '#581c87', border: '#a855f7', text: '#f3e8ff' }
+      endpoint: { background: '#0c1e3d', border: '#60a5fa', text: '#dbeafe' },
+      process: { background: '#1e293b', border: '#94a3b8', text: '#f1f5f9' },
+      decision: { background: '#3d1e05', border: '#fbbf24', text: '#fef3c7' },
+      data: { background: '#0a2615', border: '#4ade80', text: '#dcfce7' },
+      custom: { background: '#2e1149', border: '#a855f7', text: '#f3e8ff' }
     }
   },
   fonts: {
