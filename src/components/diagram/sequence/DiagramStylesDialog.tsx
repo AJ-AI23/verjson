@@ -123,6 +123,23 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
     });
   };
 
+  const handleLifelineAnchorBorderColorChange = (lifelineId: string, value: string) => {
+    const updatedLifeline = lifelines.find(l => l.id === lifelineId);
+    if (!updatedLifeline) return;
+
+    // Store anchor border color in customNodeStyles
+    onStylesChange({
+      ...styles,
+      customNodeStyles: {
+        ...styles.customNodeStyles,
+        [`lifeline-${lifelineId}-anchor`]: {
+          ...styles.customNodeStyles?.[`lifeline-${lifelineId}-anchor`],
+          borderColor: value
+        }
+      }
+    });
+  };
+
   const handleSetActiveTab = (themeId: string) => {
     setActiveTab(themeId);
   };
@@ -313,10 +330,17 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
                         {lifelines.map((lifeline) => {
                           const customColor = styles.customNodeStyles?.[`lifeline-${lifeline.id}`]?.backgroundColor;
                           const customAnchorColor = styles.customNodeStyles?.[`lifeline-${lifeline.id}-anchor`]?.backgroundColor;
+                          const customAnchorBorderColor = styles.customNodeStyles?.[`lifeline-${lifeline.id}-anchor`]?.borderColor;
+                          
+                          // Calculate default anchor color as 50% lighter than lifeline background
+                          const lifelineColor = customColor || lifeline.color || currentTheme.colors.swimlaneBackground;
+                          const defaultAnchorColor = lightenColor(lifelineColor, 50);
+                          const defaultAnchorBorderColor = lightenColor(lifelineColor, 30);
+                          
                           return (
                             <div key={lifeline.id} className="space-y-3 pb-4 border-b last:border-b-0">
                               <div className="font-medium text-sm">{lifeline.name}</div>
-                              <div className="grid grid-cols-2 gap-3">
+                              <div className="grid grid-cols-1 gap-3">
                                 <ColorInput
                                   label="Background"
                                   value={customColor || lifeline.color || currentTheme.colors.swimlaneBackground}
@@ -324,8 +348,13 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
                                 />
                                 <ColorInput
                                   label="Anchor Color"
-                                  value={customAnchorColor || lifeline.anchorColor || '#3b82f6'}
+                                  value={customAnchorColor || lifeline.anchorColor || defaultAnchorColor}
                                   onChange={(v) => handleLifelineAnchorColorChange(lifeline.id, v)}
+                                />
+                                <ColorInput
+                                  label="Anchor Border"
+                                  value={customAnchorBorderColor || defaultAnchorBorderColor}
+                                  onChange={(v) => handleLifelineAnchorBorderColorChange(lifeline.id, v)}
                                 />
                               </div>
                             </div>
@@ -351,3 +380,20 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
     </Dialog>
   );
 };
+
+// Helper function to lighten a color by a percentage
+function lightenColor(color: string, percent: number): string {
+  // Convert hex to RGB
+  const hex = color.replace('#', '');
+  let r = parseInt(hex.substring(0, 2), 16);
+  let g = parseInt(hex.substring(2, 4), 16);
+  let b = parseInt(hex.substring(4, 6), 16);
+  
+  // Lighten by moving toward white (255)
+  r = Math.min(255, Math.floor(r + (255 - r) * (percent / 100)));
+  g = Math.min(255, Math.floor(g + (255 - g) * (percent / 100)));
+  b = Math.min(255, Math.floor(b + (255 - b) * (percent / 100)));
+  
+  // Convert back to hex
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}

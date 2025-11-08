@@ -19,10 +19,17 @@ export const AnchorNode: React.FC<AnchorNodeProps> = ({ data }) => {
   // Find the lifeline for this anchor
   const lifeline = lifelines?.find(l => l.id === lifelineId);
   
-  // Check customNodeStyles first, then lifeline.anchorColor, then default
-  const customAnchorColor = customStyles?.customNodeStyles?.[`lifeline-${lifelineId}-anchor`]?.backgroundColor;
-  const anchorColor = customAnchorColor || lifeline?.anchorColor || '#3b82f6';
-  const anchorBorderColor = adjustColorBrightness(anchorColor, -20);
+  // Get custom colors from styles
+  const anchorStyles = customStyles?.customNodeStyles?.[`lifeline-${lifelineId}-anchor`];
+  const lifelineColor = customStyles?.customNodeStyles?.[`lifeline-${lifelineId}`]?.backgroundColor || lifeline?.color || '#e0f2fe';
+  
+  // Calculate default anchor color as 50% lighter than lifeline background
+  const defaultAnchorColor = lightenColor(lifelineColor, 50);
+  const defaultAnchorBorderColor = lightenColor(lifelineColor, 30);
+  
+  // Use custom colors if available, otherwise use calculated defaults
+  const anchorColor = anchorStyles?.backgroundColor || lifeline?.anchorColor || defaultAnchorColor;
+  const anchorBorderColor = anchorStyles?.borderColor || defaultAnchorBorderColor;
   
   return (
     <div
@@ -71,7 +78,24 @@ export const AnchorNode: React.FC<AnchorNodeProps> = ({ data }) => {
   );
 };
 
-// Helper function to darken a color for the border
+// Helper function to lighten a color by a percentage
+function lightenColor(color: string, percent: number): string {
+  // Convert hex to RGB
+  const hex = color.replace('#', '');
+  let r = parseInt(hex.substring(0, 2), 16);
+  let g = parseInt(hex.substring(2, 4), 16);
+  let b = parseInt(hex.substring(4, 6), 16);
+  
+  // Lighten by moving toward white (255)
+  r = Math.min(255, Math.floor(r + (255 - r) * (percent / 100)));
+  g = Math.min(255, Math.floor(g + (255 - g) * (percent / 100)));
+  b = Math.min(255, Math.floor(b + (255 - b) * (percent / 100)));
+  
+  // Convert back to hex
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+// Helper function to darken a color for the border (kept for backward compatibility)
 function adjustColorBrightness(color: string, amount: number): string {
   // Convert hex to RGB
   const hex = color.replace('#', '');

@@ -70,7 +70,7 @@ export const defaultDarkTheme: DiagramStyleTheme = {
   name: 'Dark Mode',
   colors: {
     background: '#030712',
-    swimlaneBackground: '#0c1a2e',
+    swimlaneBackground: '#0a1628',
     swimlaneBorder: '#475569',
     nodeBackground: '#0f172a',
     nodeBorder: '#64748b',
