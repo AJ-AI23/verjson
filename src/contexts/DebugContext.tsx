@@ -59,7 +59,6 @@ export const DebugProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const debugToast = (message: string, data?: any) => {
-    console.log('🔍 debugToast called, isDebugMode:', isDebugMode, 'message:', message);
     if (isDebugMode) {
       console.log('🔧 DEBUG:', message, data);
       throttledInfoToast(`🔧 ${message}`, {

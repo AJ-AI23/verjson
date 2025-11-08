@@ -61,45 +61,18 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   const { workspaces, createWorkspace, updateWorkspace, deleteWorkspace } = useWorkspaces();
   const [selectedWorkspace, setSelectedWorkspace] = useState<string>('');
   
-  console.log('[WorkspacePanel] Selected workspace:', selectedWorkspace);
   const { documents, createDocument, deleteDocument } = useDocuments(selectedWorkspace);
-  console.log('[WorkspacePanel] Documents for workspace:', selectedWorkspace, 'count:', documents.length);
-  console.log('[WorkspacePanel] Document details:', documents.map(d => ({ id: d.id, name: d.name, workspace_id: d.workspace_id })));
   
   // Get shared documents count for virtual workspace visibility
   const { documents: sharedDocuments } = useSharedDocuments();
   const hasSharedDocuments = sharedDocuments.length > 0;
   const isVirtualSharedWorkspace = selectedWorkspace === VIRTUAL_SHARED_WORKSPACE_ID;
   
-  console.log('[WorkspacePanel] 🔍 Virtual workspace state:', {
-    selectedWorkspace,
-    hasSharedDocuments,
-    sharedDocumentsCount: sharedDocuments.length,
-    isVirtualSharedWorkspace,
-    firstSharedDoc: sharedDocuments[0]?.name
-  });
-  
-  console.log('[WorkspacePanel] 🎨 Rendering workspace dropdown - hasSharedDocuments:', hasSharedDocuments, 'sharedCount:', sharedDocuments.length, 'selectedWorkspace:', selectedWorkspace);
-  
   // Clear virtual workspace selection if no shared documents
   useEffect(() => {
-    console.log('[WorkspacePanel] 🔍 useEffect TRIGGERED - Checking virtual workspace clear condition:', {
-      hasSharedDocuments,
-      selectedWorkspace,
-      isVirtual: selectedWorkspace === VIRTUAL_SHARED_WORKSPACE_ID,
-      shouldClear: !hasSharedDocuments && selectedWorkspace === VIRTUAL_SHARED_WORKSPACE_ID,
-      VIRTUAL_ID: VIRTUAL_SHARED_WORKSPACE_ID
-    });
-    
     if (!hasSharedDocuments && selectedWorkspace === VIRTUAL_SHARED_WORKSPACE_ID) {
-      console.log('[WorkspacePanel] 🧹 No shared documents - clearing virtual workspace selection');
       setSelectedWorkspace('');
     }
-  }, [hasSharedDocuments, selectedWorkspace]);
-
-  // Log whenever key values change
-  useEffect(() => {
-    console.log('[WorkspacePanel] 📊 VALUES CHANGED - hasSharedDocuments:', hasSharedDocuments, 'selectedWorkspace:', selectedWorkspace);
   }, [hasSharedDocuments, selectedWorkspace]);
   
   const { inviteToWorkspace, inviteBulkDocuments } = useWorkspacePermissions(selectedWorkspace);
@@ -158,7 +131,6 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   useEffect(() => {
     const handleClearWorkspacePanelSelection = (event: CustomEvent) => {
       const { workspaceId, type } = event.detail;
-      console.log('[WorkspacePanel] 🔒 Clearing workspace selection:', { workspaceId, type, currentSelection: selectedWorkspace });
       
       // Clear workspace selection if user lost access to current workspace
       if (selectedWorkspace && (
@@ -166,7 +138,6 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
         type === 'workspace_access_revoked' ||
         type === 'document_access_revoked'
       )) {
-        console.log('[WorkspacePanel] 🔒 Clearing selected workspace');
         setSelectedWorkspace('');
       }
     };
@@ -378,8 +349,6 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
 
   const handleImportFiles = async (filesToImport: any[]) => {
     try {
-      console.log('[WorkspacePanel] Importing files:', filesToImport.map(f => ({ name: f.name, url: f.url })));
-      
       for (const file of filesToImport) {
         const docData: any = {
           workspace_id: selectedWorkspace,
@@ -387,8 +356,6 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
           content: file.content,
           file_type: file.fileType,
         };
-        
-        console.log('[WorkspacePanel] Creating document with data:', { name: docData.name, hasUrl: !!file.url });
         
         // Add import URL and auth info if available
         if (file.url) {
@@ -535,7 +502,6 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
         <div className="space-y-1 md:space-y-2">
           <Label className="text-xs md:text-sm">Select Workspace</Label>
           <Select value={selectedWorkspace} onValueChange={(value) => {
-            console.log('[WorkspacePanel] Workspace selection changed from', selectedWorkspace, 'to', value);
             setSelectedWorkspace(value);
           }}>
             <SelectTrigger>
