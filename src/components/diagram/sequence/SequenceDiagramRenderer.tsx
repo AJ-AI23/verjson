@@ -322,10 +322,27 @@ const MousePositionTracker: React.FC<{
     });
     
     // Extract calculated yPosition values and persist them if they changed
+    console.log('🔍 [SequenceDiagramRenderer] Persistence check:', {
+      hasCalculatedYPositions: !!layout.calculatedYPositions,
+      calculatedYPositionsSize: layout.calculatedYPositions?.size,
+      hasOnDataChange: !!onDataChange,
+      isDragging: isDraggingRef.current,
+      diagramNodesCount: diagramNodes.length
+    });
+    
     if (layout.calculatedYPositions && layout.calculatedYPositions.size > 0 && onDataChange && !isDraggingRef.current) {
       const hasChanges = diagramNodes.some(node => {
         const calculatedY = layout.calculatedYPositions?.get(node.id);
         return calculatedY !== undefined && calculatedY !== node.yPosition;
+      });
+      
+      console.log('🔍 [SequenceDiagramRenderer] hasChanges check:', {
+        hasChanges,
+        firstThreeNodes: diagramNodes.slice(0, 3).map(node => ({
+          id: node.id,
+          currentYPosition: node.yPosition,
+          calculatedYPosition: layout.calculatedYPositions?.get(node.id)
+        }))
       });
       
       if (hasChanges) {
