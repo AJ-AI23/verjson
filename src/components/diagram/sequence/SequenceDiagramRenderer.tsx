@@ -359,8 +359,15 @@ const MousePositionTracker: React.FC<{
   const { nodes: layoutNodes, edges: layoutEdges } = useMemo(() => {
     // Skip recalculation during active drag operations - use ref for synchronous check
     if (isDraggingRef.current) {
+      console.log('⏸️ [Layout] Skipping recalculation during drag');
       return previousLayoutRef.current;
     }
+    
+    console.log('🔄 [Layout] Recalculating layout:', {
+      nodeCount: diagramNodes.length,
+      lifelineCount: lifelines.length,
+      isDragging
+    });
     
     const layout = calculateSequenceLayout({
       lifelines,
@@ -572,7 +579,6 @@ const MousePositionTracker: React.FC<{
     if (dragEndChange && dragEndChange.type === 'position') {
       console.log('🔴 [DRAG END] Setting isDraggingRef.current = false');
       isDraggingRef.current = false;
-      setIsDragging(false);
       
       // Simply sort all nodes by their current visual Y position and reorder data
       if (onDataChange) {
@@ -609,6 +615,9 @@ const MousePositionTracker: React.FC<{
         
         console.log('📝 [DROP] Reordered nodes based on visual position');
         onDataChange({ ...data, nodes: updatedNodes });
+        
+        // Force state update to trigger layout recalculation
+        setIsDragging(false);
       }
     }
     
