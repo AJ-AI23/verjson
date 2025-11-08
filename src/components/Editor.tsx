@@ -9,7 +9,6 @@ import { detectSchemaType } from '@/lib/schemaUtils';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 import { useDocumentPermissions } from '@/hooks/useDocumentPermissions';
 import { useAuth } from '@/contexts/AuthContext';
-import { useEditorSessionCache } from '@/hooks/useEditorSessionCache';
 
 interface EditorProps {
   initialSchema?: any;
@@ -28,58 +27,13 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const diagramRef = React.useRef<HTMLDivElement>(null);
   
-  // Check sessionStorage FIRST before converting initialSchema
-  const [effectiveSchema, setEffectiveSchema] = React.useState<any>(null);
-  const hasCheckedCacheRef = React.useRef<string | null>(null);
-  
-  // Check cache on mount or document change
-  React.useEffect(() => {
-    const docId = selectedDocument?.id;
-    if (!docId) {
-      setEffectiveSchema(initialSchema);
-      return;
-    }
-    
-    // Only check cache once per document
-    if (hasCheckedCacheRef.current === docId) {
-      return;
-    }
-    
-    hasCheckedCacheRef.current = docId;
-    
-    // Try to load from sessionStorage
-    const cacheKey = `editor-cache-${docId}`;
-    try {
-      const cached = sessionStorage.getItem(cacheKey);
-      if (cached) {
-        const { schema, timestamp } = JSON.parse(cached);
-        const age = Date.now() - timestamp;
-        
-        // Only use cache if less than 1 hour old
-        if (age < 60 * 60 * 1000) {
-          console.log('📦 Restoring from sessionStorage cache');
-          setEffectiveSchema(JSON.parse(schema));
-          return;
-        } else {
-          console.log('🗑️ Cache expired, clearing');
-          sessionStorage.removeItem(cacheKey);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to restore from cache:', err);
-    }
-    
-    // No cache, use initialSchema
-    setEffectiveSchema(initialSchema);
-  }, [selectedDocument?.id, initialSchema]);
-  
-  // Convert effectiveSchema to string if it's an object
+  // Convert initialSchema to string if it's an object to prevent crashes in versioning hooks
   const schemaAsString = React.useMemo(() => {
-    if (effectiveSchema && typeof effectiveSchema === 'object') {
-      return JSON.stringify(effectiveSchema, null, 2);
+    if (initialSchema && typeof initialSchema === 'object') {
+      return JSON.stringify(initialSchema, null, 2);
     }
-    return effectiveSchema || defaultSchema;
-  }, [effectiveSchema]);
+    return initialSchema || defaultSchema;
+  }, [initialSchema]);
   
   const { settings, updateGroupProperties } = useEditorSettings();
   const { permissions } = useDocumentPermissions(selectedDocument?.id, selectedDocument);
@@ -137,13 +91,6 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     suggestedVersion
   } = useEditorState(schemaAsString, selectedDocument?.id);
 
-  // Session cache for uncommitted changes
-  const { clearCache, hasCachedChanges } = useEditorSessionCache({
-    documentId: selectedDocument?.id,
-    currentSchema: schema,
-    isModified
-  });
-
   // Clear editor state when onClearRequest is triggered
   React.useEffect(() => {
     if (onClearRequest) {
@@ -153,70 +100,53 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
 
   // Update editor state when initialSchema changes (document selection)
   const lastLoadedSchemaRef = React.useRef<any>(null);
-  const lastLoadedContentRef = React.useRef<string>('');
-  const currentSchemaRef = React.useRef<string>(schema);
-  
-  // Track current schema value
-  React.useEffect(() => {
-    currentSchemaRef.current = schema;
-  }, [schema]);
+  const lastLoadedDocumentIdRef = React.useRef<string | null>(null);
   
   React.useEffect(() => {
-    if (initialSchema && typeof initialSchema === 'object' && initialSchema !== lastLoadedSchemaRef.current) {
-      const incomingSchemaString = JSON.stringify(initialSchema, null, 2);
+    // Only load initialSchema when:
+    // 1. Document ID actually changes (switching documents)
+    // 2. OR it's the first load of this component
+    const currentDocId = selectedDocument?.id || null;
+    const isDocumentSwitch = currentDocId !== lastLoadedDocumentIdRef.current;
+    const isSameDocument = initialSchema === lastLoadedSchemaRef.current;
+    
+    // If it's the same document and we're not modified, ignore prop changes
+    // This prevents reloads from tab switching or parent re-renders
+    if (!isDocumentSwitch && isSameDocument) {
+      return;
+    }
+    
+    // If we have uncommitted changes, NEVER reload
+    if (isModified) {
+      console.log('🛡️ Preventing schema reload - isModified=true');
+      lastLoadedSchemaRef.current = initialSchema;
+      return;
+    }
+    
+    // Additional check: if current schema differs from saved schema, don't reload
+    if (schema !== savedSchema) {
+      console.log('🛡️ Preventing schema reload - uncommitted changes detected');
+      lastLoadedSchemaRef.current = initialSchema;
+      return;
+    }
+    
+    // Safe to load only on document switch
+    if (isDocumentSwitch && initialSchema && typeof initialSchema === 'object') {
+      console.log('✅ Loading schema for new document');
       
-      // Check if this is actually the same content we already loaded
-      // This prevents unnecessary reloads when the same object reference changes
-      if (incomingSchemaString === lastLoadedContentRef.current) {
-        lastLoadedSchemaRef.current = initialSchema;
-        return;
-      }
-      
-      // CRITICAL: Check sessionStorage first - if we have cached changes, don't reload from initialSchema
-      if (hasCachedChanges()) {
-        console.log('🛡️ Preventing schema reload - sessionStorage has uncommitted changes');
-        lastLoadedSchemaRef.current = initialSchema;
-        return;
-      }
-      
-      // Don't overwrite unsaved changes when tab regains focus or component re-renders
-      if (isModified) {
-        console.log('🛡️ Preventing schema reload - document is modified (isModified=true)');
-        lastLoadedSchemaRef.current = initialSchema;
-        return;
-      }
-      
-      // Additional protection: check if current editor content differs from both saved and incoming
-      // This catches cases where diagram changes haven't updated isModified flag yet
-      if (currentSchemaRef.current !== savedSchema && currentSchemaRef.current !== incomingSchemaString) {
-        console.log('🛡️ Preventing schema reload - editor has uncommitted changes that differ from incoming schema');
-        lastLoadedSchemaRef.current = initialSchema;
-        return;
-      }
-      
-      // Final protection: if current content is different from saved content, don't reload
-      // This is the most aggressive check to prevent any data loss
-      if (currentSchemaRef.current.trim() !== '' && currentSchemaRef.current !== savedSchema) {
-        console.log('🛡️ Preventing schema reload - current schema differs from saved schema');
-        lastLoadedSchemaRef.current = initialSchema;
-        return;
-      }
-      
-      console.log('✅ Loading schema - all safety checks passed');
-      
-      // Detect the schema type and update it
       const detectedType = detectSchemaType(initialSchema);
       if (detectedType !== schemaType) {
         handleSchemaTypeChange(detectedType);
       }
       
-      setSchema(incomingSchemaString);
-      setSavedSchema(incomingSchemaString);
+      const schemaString = JSON.stringify(initialSchema, null, 2);
+      setSchema(schemaString);
+      setSavedSchema(schemaString);
       setCollapsedPaths({ root: true });
       lastLoadedSchemaRef.current = initialSchema;
-      lastLoadedContentRef.current = incomingSchemaString;
+      lastLoadedDocumentIdRef.current = currentDocId;
     }
-  }, [initialSchema, setSchema, setSavedSchema, setCollapsedPaths, schemaType, handleSchemaTypeChange, isModified, savedSchema, hasCachedChanges]);
+  }, [initialSchema, selectedDocument?.id, isModified, schema, savedSchema, schemaType, handleSchemaTypeChange, setSchema, setSavedSchema, setCollapsedPaths]);
   
   
   return (
@@ -237,13 +167,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         selectedDocument={selectedDocument}
         onClose={onClose}
         onDocumentUpdate={onDocumentUpdate}
-        onSave={(content) => {
-          // Clear sessionStorage cache before saving
-          clearCache();
-          if (onSave) {
-            onSave(content);
-          }
-        }}
+        onSave={onSave}
         onOpenStyles={() => setIsStylesDialogOpen(true)}
         onImportOpenApi={() => setIsOpenApiImportOpen(true)}
         diagramRef={diagramRef}
