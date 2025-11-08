@@ -179,7 +179,6 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
 
   const handleEditorChange = (value: string) => {
     debugToast('Editor content changed');
-    console.log('[useEditorState] handleEditorChange called, length:', value.length);
     setSchema(value);
   };
 

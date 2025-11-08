@@ -319,15 +319,8 @@ const MousePositionTracker: React.FC<{
   const { nodes: layoutNodes, edges: layoutEdges } = useMemo(() => {
     // Skip recalculation during active drag operations - use ref for synchronous check
     if (isDraggingRef.current) {
-      console.log('🚫 [SequenceDiagramRenderer] BLOCKED layout recalculation during active drag');
       return previousLayoutRef.current;
     }
-    
-    console.log('✅ [SequenceDiagramRenderer] Calculating layout...', { 
-      diagramNodesCount: diagramNodes.length,
-      lifelinesCount: lifelines.length,
-      isDragging: isDraggingRef.current
-    });
     
     const layout = calculateSequenceLayout({
       lifelines,
@@ -337,31 +330,13 @@ const MousePositionTracker: React.FC<{
     });
     
     // Extract calculated yPosition values and persist them if they changed
-    console.log('🔍 [SequenceDiagramRenderer] Persistence check:', {
-      hasCalculatedYPositions: !!layout.calculatedYPositions,
-      calculatedYPositionsSize: layout.calculatedYPositions?.size,
-      hasOnDataChange: !!onDataChange,
-      isDragging: isDraggingRef.current,
-      diagramNodesCount: diagramNodes.length
-    });
-    
     if (layout.calculatedYPositions && layout.calculatedYPositions.size > 0 && onDataChange && !isDraggingRef.current) {
       const hasChanges = diagramNodes.some(node => {
         const calculatedY = layout.calculatedYPositions?.get(node.id);
         return calculatedY !== undefined && calculatedY !== node.yPosition;
       });
       
-      console.log('🔍 [SequenceDiagramRenderer] hasChanges check:', {
-        hasChanges,
-        firstThreeNodes: diagramNodes.slice(0, 3).map(node => ({
-          id: node.id,
-          currentYPosition: node.yPosition,
-          calculatedYPosition: layout.calculatedYPositions?.get(node.id)
-        }))
-      });
-      
       if (hasChanges) {
-        console.log('💾 [SequenceDiagramRenderer] Persisting calculated yPosition values');
         const updatedNodes = diagramNodes.map(node => {
           const calculatedY = layout.calculatedYPositions?.get(node.id);
           if (calculatedY !== undefined) {
@@ -501,10 +476,6 @@ const MousePositionTracker: React.FC<{
 
   // Update edges when layout changes
   useEffect(() => {
-    console.log('[SequenceDiagramRenderer] Updating edges from layout:', {
-      edgeCount: layoutEdges.length,
-      edgeIds: layoutEdges.map(e => e.id)
-    });
     setEdges(layoutEdges);
   }, [layoutEdges, setEdges]);
 
@@ -543,7 +514,6 @@ const MousePositionTracker: React.FC<{
     // Store initial positions when drag starts
     const dragStartChange = changes.find((c: any) => c.type === 'position' && c.dragging === true);
     if (dragStartChange) {
-      console.log('🟢 [DRAG START] Setting isDraggingRef.current = true');
       isDraggingRef.current = true;
       setIsDragging(true);
       

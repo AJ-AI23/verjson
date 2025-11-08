@@ -117,10 +117,6 @@ export const EditorContent: React.FC<EditorContentProps> = ({
       diagramRef={diagramRef}
       onSchemaChange={(updatedSchema) => {
         // When diagram is edited, update the JSON editor
-        console.log('[EditorContent] onSchemaChange called from diagram:', {
-          hasUpdatedSchema: !!updatedSchema,
-          nodeCount: updatedSchema?.data?.nodes?.length
-        });
         onEditorChange(JSON.stringify(updatedSchema, null, 2));
       }}
     />

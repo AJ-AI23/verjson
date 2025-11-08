@@ -32,7 +32,6 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   } = options;
 
   // Validate and extract anchors from nodes
-  console.log('[SequenceLayout] Validating nodes and anchors...', { nodeCount: nodes.length });
   
   // Check for nodes without anchors
   const nodesWithoutAnchors = nodes.filter(node => !node.anchors || node.anchors.length !== 2);
@@ -51,11 +50,6 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   const anchors: AnchorNode[] = nodes.flatMap(node => 
     node.anchors?.map(anchor => ({ ...anchor })) || []
   );
-  
-  console.log('[SequenceLayout] Anchor extraction complete:', {
-    totalAnchors: anchors.length,
-    expectedAnchors: nodes.length * 2
-  });
 
   // Guard against undefined lifelines
   if (!lifelines || lifelines.length === 0) {
@@ -202,8 +196,6 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Convert edges - connect anchors to nodes only
   const layoutEdges: Edge[] = [];
   
-  console.log('[SequenceLayout] Creating edges from anchors...', { anchorCount: anchors.length });
-  
   // Create edges between anchors and their nodes
   anchors.forEach(anchor => {
     const node = nodes.find(n => 
@@ -271,12 +263,6 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       };
       layoutEdges.push(edge);
     }
-  });
-  
-  console.log('[SequenceLayout] Edge creation complete:', {
-    totalEdges: layoutEdges.length,
-    expectedEdges: anchors.length,
-    nodesProcessed: nodes.length
   });
   
   // Final validation

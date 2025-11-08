@@ -46,13 +46,6 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   onToggleFullscreen,
   diagramRef
 }) => {
-  console.log('🔄 [SchemaDiagram] Component render:', {
-    isDiagram,
-    hasSchema: !!schema,
-    nodeCount: (schema as any)?.data?.nodes?.length,
-    schemaType: (schema as any)?.type
-  });
-  
   // Check if this is a diagram document and migrate if needed
   const diagramDocument = useMemo(() => {
     if (!isDiagram || !schema) return null;
@@ -64,7 +57,6 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   // Ensure styles are initialized
   React.useEffect(() => {
     if (diagramDocument && !diagramDocument.styles && onSchemaChange) {
-      console.log('🎨 Initializing missing styles for diagram');
       const updatedDocument = {
         ...diagramDocument,
         styles: {
@@ -87,8 +79,6 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
       }
     };
 
-    console.log('🎨 Rendering SequenceDiagram - isStylesDialogOpen:', isStylesDialogOpen, 'has styles:', !!documentStyles);
-
     return (
       <div ref={diagramRef} className={`h-full flex flex-col min-h-0 ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
         <SequenceDiagramRenderer
@@ -103,10 +93,6 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
           onToggleFullscreen={onToggleFullscreen}
           onDataChange={(newData) => {
             if (onSchemaChange) {
-              console.log('[SchemaDiagram] onDataChange called:', {
-                nodeCount: newData.nodes?.length,
-                lifelineCount: newData.lifelines?.length
-              });
               const updatedDocument = {
                 ...diagramDocument,
                 data: newData,
