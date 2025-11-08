@@ -149,28 +149,34 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
             className="flex-1 font-mono text-xs"
           />
           
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="max-w-[280px]">
-              <DialogHeader>
-                <DialogTitle className="text-sm">{label}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-3">
-                <HexColorPicker color={value} onChange={onChange} className="w-full" />
-                <Input
-                  type="text"
-                  value={value}
-                  onChange={(e) => onChange(e.target.value)}
-                  className="font-mono text-xs"
-                />
-                <Button 
-                  className="w-full"
-                  onClick={() => setIsOpen(false)}
-                >
-                  Done
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          {isOpen && (
+            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+              <DialogContent 
+                className="max-w-[280px]"
+                onInteractOutside={(e) => e.preventDefault()}
+                onEscapeKeyDown={(e) => e.preventDefault()}
+              >
+                <DialogHeader>
+                  <DialogTitle className="text-sm">{label}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3" onPointerDown={(e) => e.stopPropagation()}>
+                  <HexColorPicker color={value} onChange={onChange} className="w-full" />
+                  <Input
+                    type="text"
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    className="font-mono text-xs"
+                  />
+                  <Button 
+                    className="w-full"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Done
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </div>
     );
