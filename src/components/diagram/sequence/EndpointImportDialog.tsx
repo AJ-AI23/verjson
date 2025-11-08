@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useDocuments } from '@/hooks/useDocuments';
 import { getMethodColor } from '@/lib/diagram/sequenceNodeTypes';
 import { FileJson, Search } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface EndpointImportDialogProps {
   isOpen: boolean;
@@ -41,37 +42,60 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
   const { documents } = useDocuments(currentWorkspaceId);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [documentContent, setDocumentContent] = useState<any>(null);
+  const [loadingContent, setLoadingContent] = useState(false);
 
   // Filter OpenAPI documents
   const openApiDocuments = useMemo(() => {
     const filtered = documents?.filter(doc => doc.file_type === 'openapi') || [];
     console.log('[EndpointImport] Total documents:', documents?.length);
     console.log('[EndpointImport] OpenAPI documents:', filtered.length);
-    console.log('[EndpointImport] OpenAPI documents:', filtered);
     return filtered;
   }, [documents]);
 
+  // Fetch document content when a document is selected
+  useEffect(() => {
+    const fetchDocumentContent = async () => {
+      if (!selectedDocumentId) {
+        setDocumentContent(null);
+        return;
+      }
+
+      setLoadingContent(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('document-management', {
+          body: { action: 'getDocument', id: selectedDocumentId }
+        });
+
+        if (error) {
+          console.error('[EndpointImport] Error fetching document:', error);
+          setDocumentContent(null);
+        } else {
+          console.log('[EndpointImport] Fetched document content:', data.document);
+          setDocumentContent(data.document?.content);
+        }
+      } catch (err) {
+        console.error('[EndpointImport] Error:', err);
+        setDocumentContent(null);
+      } finally {
+        setLoadingContent(false);
+      }
+    };
+
+    fetchDocumentContent();
+  }, [selectedDocumentId]);
+
   // Extract endpoints from selected document
   const endpoints = useMemo(() => {
-    console.log('[EndpointImport] selectedDocumentId:', selectedDocumentId);
-    console.log('[EndpointImport] openApiDocuments count:', openApiDocuments.length);
-    
-    if (!selectedDocumentId) return [];
-
-    const document = openApiDocuments.find(doc => doc.id === selectedDocumentId);
-    console.log('[EndpointImport] Found document:', !!document);
-    console.log('[EndpointImport] Document:', document);
-    
-    if (!document || !document.content) {
-      console.log('[EndpointImport] No document or content found. Has document:', !!document, 'Has content:', !!document?.content);
+    if (!selectedDocumentId || !documentContent) {
+      console.log('[EndpointImport] No content yet');
       return [];
     }
 
-    console.log('[EndpointImport] Document content type:', typeof document.content);
-    console.log('[EndpointImport] Document content:', document.content);
+    console.log('[EndpointImport] Document content type:', typeof documentContent);
 
     // Handle both parsed JSON objects and JSON strings
-    let content = document.content;
+    let content = documentContent;
     if (typeof content === 'string') {
       try {
         content = JSON.parse(content);
@@ -97,8 +121,8 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
             method: method.toUpperCase(),
             summary: operation.summary,
             description: operation.description,
-            documentId: document.id,
-            documentName: document.name
+            documentId: selectedDocumentId,
+            documentName: openApiDocuments.find(d => d.id === selectedDocumentId)?.name || ''
           });
         }
       });
@@ -106,7 +130,7 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
 
     console.log('[EndpointImport] Extracted endpoints:', extractedEndpoints.length);
     return extractedEndpoints;
-  }, [selectedDocumentId, openApiDocuments]);
+  }, [selectedDocumentId, documentContent, openApiDocuments]);
 
   // Filter endpoints based on search
   const filteredEndpoints = useMemo(() => {
@@ -173,7 +197,13 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
 
           {selectedDocumentId && (
             <>
-              {/* Search */}
+              {loadingContent ? (
+                <div className="text-sm text-slate-500 p-4 text-center">
+                  Loading endpoints...
+                </div>
+              ) : (
+                <>
+                  {/* Search */}
               <div className="space-y-2">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -233,6 +263,8 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
                   </div>
                 </ScrollArea>
               </div>
+                </>
+              )}
             </>
           )}
         </div>
