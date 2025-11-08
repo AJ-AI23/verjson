@@ -14,6 +14,7 @@ interface LayoutOptions {
 interface LayoutResult {
   nodes: Node[];
   edges: Edge[];
+  calculatedYPositions?: Map<string, number>;
 }
 
 const LIFELINE_WIDTH = 300;
@@ -94,6 +95,9 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
 
   // Auto-align all nodes with even vertical spacing based on actual heights
   const alignedNodePositions = calculateEvenSpacing(nodes, nodeOrder, nodeHeights);
+  
+  // Create a map to store calculated yPosition values (center Y)
+  const calculatedYPositions = new Map<string, number>();
 
   // Create anchor nodes - positioned at the same Y as their connected node's center
   const anchorNodes: Node[] = anchors.map(anchor => {
@@ -149,8 +153,9 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     const measuredHeight = nodeHeights?.get(node.id);
     const nodeHeight = measuredHeight || config?.defaultHeight || 70;
     
-    // Update the node's yPosition to the CENTER Y coordinate
-    node.yPosition = topY + (nodeHeight / 2);
+    // Calculate the CENTER Y coordinate and store it for later persistence
+    const centerY = topY + (nodeHeight / 2);
+    calculatedYPositions.set(node.id, centerY);
 
     // Determine horizontal positioning based on connected anchors
     const MARGIN = 40; // Margin from lifeline for edges
@@ -187,7 +192,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         ...node,
         config,
         styles,
-        width: width > 180 ? width : undefined
+        width: width > 180 ? width : undefined,
+        calculatedYPosition: centerY // Pass the calculated yPosition via data
       }
     };
   });
@@ -283,7 +289,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
 
   return {
     nodes: [...lifelineNodes, ...anchorNodes, ...layoutNodes],
-    edges: layoutEdges
+    edges: layoutEdges,
+    calculatedYPositions // Return the map of calculated yPosition values
   };
 };
 

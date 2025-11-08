@@ -321,41 +321,27 @@ const MousePositionTracker: React.FC<{
       nodeHeights
     });
     
-    // Log the calculated yPosition values for debugging
-    console.log('📍 [SequenceDiagramRenderer] Calculated yPosition values:', 
-      layout.nodes
-        .filter(n => n.type === 'sequenceNode')
-        .slice(0, 3)
-        .map(n => ({
-          id: n.id,
-          yPosition: (n.data as any).yPosition,
-          displayY: n.position.y,
-          displayHeight: nodeHeights.get(n.id) || 70
-        }))
-    );
-    
-    // Extract updated nodes with their new yPosition values from the layout
-    // The layout function has already updated the yPosition on the node objects
-    const updatedNodes = layout.nodes
-      .filter(n => n.type === 'sequenceNode')
-      .map(n => {
-        const nodeData = n.data as any;
-        return diagramNodes.find(dn => dn.id === n.id);
-      })
-      .filter((n): n is DiagramNode => n !== undefined);
-    
-    // Check if we need to persist these changes
-    // Since the layout function mutates the nodes, they should already have the updated yPosition
-    const needsPersist = updatedNodes.some(node => {
-      const original = diagramNodes.find(n => n.id === node.id);
-      return original && original.yPosition !== node.yPosition;
-    });
-    
-    if (needsPersist && onDataChange && !isDraggingRef.current) {
-      console.log('💾 [SequenceDiagramRenderer] Persisting yPosition changes to document');
-      setTimeout(() => {
-        onDataChange({ ...data, nodes: updatedNodes });
-      }, 100);
+    // Extract calculated yPosition values and persist them if they changed
+    if (layout.calculatedYPositions && layout.calculatedYPositions.size > 0 && onDataChange && !isDraggingRef.current) {
+      const hasChanges = diagramNodes.some(node => {
+        const calculatedY = layout.calculatedYPositions?.get(node.id);
+        return calculatedY !== undefined && calculatedY !== node.yPosition;
+      });
+      
+      if (hasChanges) {
+        console.log('💾 [SequenceDiagramRenderer] Persisting calculated yPosition values');
+        const updatedNodes = diagramNodes.map(node => {
+          const calculatedY = layout.calculatedYPositions?.get(node.id);
+          if (calculatedY !== undefined) {
+            return { ...node, yPosition: calculatedY };
+          }
+          return node;
+        });
+        
+        setTimeout(() => {
+          onDataChange({ ...data, nodes: updatedNodes });
+        }, 100);
+      }
     }
     
     // Validate edge creation and attempt recovery if needed
