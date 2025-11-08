@@ -580,22 +580,10 @@ const MousePositionTracker: React.FC<{
       console.log('🔴 [DRAG END] Setting isDraggingRef.current = false');
       isDraggingRef.current = false;
       
-      // Update positions based on actual visual positions and handle conflicts
+      // Update positions with slot-based cascading conflict resolution
       if (onDataChange) {
+        const SLOT_HEIGHT = 100; // Each slot is 100 units
         const sequenceNodes = nodes.filter(n => n.type === 'sequenceNode');
-        
-        // Create position map from current visual positions
-        const visualPositions = new Map<string, number>();
-        sequenceNodes.forEach(n => {
-          visualPositions.set(n.id, n.position.y);
-        });
-        
-        // Sort nodes by their visual Y position
-        const sortedByVisual = [...diagramNodes].sort((a, b) => {
-          const aY = visualPositions.get(a.id) || 0;
-          const bY = visualPositions.get(b.id) || 0;
-          return aY - bY;
-        });
         
         // Build lifeline position map for overlap detection
         const lifelinePositions = new Map<string, number>();
@@ -621,39 +609,82 @@ const MousePositionTracker: React.FC<{
           return !(max1 < min2 || max2 < min1);
         };
         
-        // Assign final positions, handling conflicts
-        const finalPositions = new Map<string, number>();
-        const minSpacing = 20;
+        // Create slot assignments: convert visual Y positions to slot indices
+        const nodeToSlot = new Map<string, number>();
+        sequenceNodes.forEach(n => {
+          const visualY = n.position.y;
+          const slot = Math.round(visualY / SLOT_HEIGHT);
+          nodeToSlot.set(n.id, slot);
+        });
         
-        sortedByVisual.forEach((node, index) => {
-          const visualY = visualPositions.get(node.id) || 0;
-          const nodeConfig = getNodeTypeConfig(node.type);
-          const height = nodeHeights.get(node.id) || nodeConfig?.defaultHeight || 70;
+        // Find which node was dragged (the one that moved most from its original yPosition)
+        let draggedNodeId: string | null = null;
+        let maxDelta = 0;
+        diagramNodes.forEach(node => {
+          const originalY = node.yPosition || 0;
+          const visualY = nodes.find(n => n.id === node.id)?.position.y || 0;
+          const delta = Math.abs(visualY - originalY);
+          if (delta > maxDelta) {
+            maxDelta = delta;
+            draggedNodeId = node.id;
+          }
+        });
+        
+        // Build slot occupancy: which nodes are at which slots
+        const slotOccupants = new Map<number, Set<string>>();
+        nodeToSlot.forEach((slot, nodeId) => {
+          if (!slotOccupants.has(slot)) {
+            slotOccupants.set(slot, new Set());
+          }
+          slotOccupants.get(slot)!.add(nodeId);
+        });
+        
+        // Cascade conflicts starting from the dragged node's slot
+        if (draggedNodeId) {
+          const draggedNode = diagramNodes.find(n => n.id === draggedNodeId);
+          const draggedSlot = nodeToSlot.get(draggedNodeId)!;
           
-          // Check for conflicts with already-positioned nodes above
-          let targetY = visualY;
+          // Process slots from dragged slot downward to cascade conflicts
+          const maxSlot = Math.max(...Array.from(nodeToSlot.values()));
           
-          for (const [placedNodeId, placedY] of finalPositions.entries()) {
-            const placedNode = diagramNodes.find(n => n.id === placedNodeId);
-            if (!placedNode) continue;
+          for (let currentSlot = draggedSlot; currentSlot <= maxSlot + 10; currentSlot++) {
+            const occupants = slotOccupants.get(currentSlot);
+            if (!occupants || occupants.size === 0) continue;
             
-            // Only check nodes that are above this one
-            if (placedY >= targetY) continue;
+            // Check for conflicts at this slot
+            const occupantsList = Array.from(occupants);
+            let hasConflict = false;
             
-            // Check if they overlap in lifeline range
-            if (nodesOverlap(node, placedNode)) {
-              const placedConfig = getNodeTypeConfig(placedNode.type);
-              const placedHeight = nodeHeights.get(placedNodeId) || placedConfig?.defaultHeight || 70;
-              const minY = placedY + placedHeight + minSpacing;
-              
-              // Push this node down if it conflicts
-              if (targetY < minY) {
-                targetY = minY;
+            for (let i = 0; i < occupantsList.length; i++) {
+              for (let j = i + 1; j < occupantsList.length; j++) {
+                const node1 = diagramNodes.find(n => n.id === occupantsList[i]);
+                const node2 = diagramNodes.find(n => n.id === occupantsList[j]);
+                
+                if (node1 && node2 && nodesOverlap(node1, node2)) {
+                  hasConflict = true;
+                  // Push the second node down to next slot
+                  const nodeIdToPush = occupantsList[j];
+                  occupants.delete(nodeIdToPush);
+                  nodeToSlot.set(nodeIdToPush, currentSlot + 1);
+                  
+                  if (!slotOccupants.has(currentSlot + 1)) {
+                    slotOccupants.set(currentSlot + 1, new Set());
+                  }
+                  slotOccupants.get(currentSlot + 1)!.add(nodeIdToPush);
+                  
+                  console.log(`🔄 [CONFLICT] Moved node ${nodeIdToPush} from slot ${currentSlot} to ${currentSlot + 1}`);
+                  break;
+                }
               }
+              if (hasConflict) break;
             }
           }
-          
-          finalPositions.set(node.id, targetY);
+        }
+        
+        // Convert slots back to Y positions
+        const finalPositions = new Map<string, number>();
+        nodeToSlot.forEach((slot, nodeId) => {
+          finalPositions.set(nodeId, slot * SLOT_HEIGHT);
         });
         
         // Update nodes with final positions
@@ -663,7 +694,7 @@ const MousePositionTracker: React.FC<{
           anchors: node.anchors
         }));
         
-        console.log('📝 [DROP] Repositioned nodes with conflict resolution');
+        console.log('📝 [DROP] Repositioned nodes with cascading slot-based conflict resolution');
         onDataChange({ ...data, nodes: updatedNodes });
         
         // Force state update to trigger layout recalculation
