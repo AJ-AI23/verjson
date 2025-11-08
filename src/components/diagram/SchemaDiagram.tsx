@@ -96,6 +96,10 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
           onToggleFullscreen={onToggleFullscreen}
           onDataChange={(newData) => {
             if (onSchemaChange) {
+              console.log('[SchemaDiagram] onDataChange called:', {
+                nodeCount: newData.nodes?.length,
+                lifelineCount: newData.lifelines?.length
+              });
               const updatedDocument = {
                 ...diagramDocument,
                 data: newData,
