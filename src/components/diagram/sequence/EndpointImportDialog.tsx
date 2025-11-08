@@ -170,7 +170,7 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-auto space-y-4 min-h-0">
+        <div className="space-y-4">
           {/* Document Selection */}
           <div className="space-y-2">
             <Label>OpenAPI Document</Label>
