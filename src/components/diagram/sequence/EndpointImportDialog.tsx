@@ -44,16 +44,26 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
 
   // Filter OpenAPI documents
   const openApiDocuments = useMemo(() => {
-    return documents?.filter(doc => doc.file_type === 'openapi') || [];
+    const filtered = documents?.filter(doc => doc.file_type === 'openapi') || [];
+    console.log('[EndpointImport] Total documents:', documents?.length);
+    console.log('[EndpointImport] OpenAPI documents:', filtered.length);
+    console.log('[EndpointImport] OpenAPI documents:', filtered);
+    return filtered;
   }, [documents]);
 
   // Extract endpoints from selected document
   const endpoints = useMemo(() => {
+    console.log('[EndpointImport] selectedDocumentId:', selectedDocumentId);
+    console.log('[EndpointImport] openApiDocuments count:', openApiDocuments.length);
+    
     if (!selectedDocumentId) return [];
 
     const document = openApiDocuments.find(doc => doc.id === selectedDocumentId);
+    console.log('[EndpointImport] Found document:', !!document);
+    console.log('[EndpointImport] Document:', document);
+    
     if (!document || !document.content) {
-      console.log('[EndpointImport] No document or content found');
+      console.log('[EndpointImport] No document or content found. Has document:', !!document, 'Has content:', !!document?.content);
       return [];
     }
 
