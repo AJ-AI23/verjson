@@ -134,43 +134,43 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
       <div className="space-y-2">
         <Label className="text-sm">{label}</Label>
         <div className="flex gap-2">
-          <Popover open={isOpen} onOpenChange={setIsOpen} modal={false}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-16 h-10 p-1 cursor-pointer"
-                style={{ backgroundColor: value }}
-              >
-                <span className="sr-only">Pick color</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent 
-              className="w-auto p-3" 
-              align="start"
-              onOpenAutoFocus={(e) => e.preventDefault()}
-              onCloseAutoFocus={(e) => e.preventDefault()}
-              onEscapeKeyDown={(e) => e.preventDefault()}
-              onPointerDownOutside={(e) => e.preventDefault()}
-              onInteractOutside={(e) => e.preventDefault()}
-            >
-              <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
-                <HexColorPicker color={value} onChange={onChange} />
-                <Button 
-                  size="sm" 
-                  className="w-full"
-                  onClick={() => setIsOpen(false)}
-                >
-                  Done
-                </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
+          <Button
+            variant="outline"
+            className="w-16 h-10 p-1 cursor-pointer"
+            style={{ backgroundColor: value }}
+            onClick={() => setIsOpen(true)}
+          >
+            <span className="sr-only">Pick color</span>
+          </Button>
           <Input
             type="text"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             className="flex-1 font-mono text-xs"
           />
+          
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogContent className="max-w-[280px]">
+              <DialogHeader>
+                <DialogTitle className="text-sm">{label}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <HexColorPicker color={value} onChange={onChange} className="w-full" />
+                <Input
+                  type="text"
+                  value={value}
+                  onChange={(e) => onChange(e.target.value)}
+                  className="font-mono text-xs"
+                />
+                <Button 
+                  className="w-full"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Done
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     );
