@@ -130,11 +130,6 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
   const ColorInput = ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) => {
     const [isOpen, setIsOpen] = useState(false);
     
-    const handleColorPickerClick = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      e.preventDefault();
-    };
-    
     return (
       <div className="space-y-2">
         <Label className="text-sm">{label}</Label>
@@ -156,35 +151,21 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
           
           {isOpen && (
             <Dialog open={isOpen} onOpenChange={(open) => {
-              // Only allow closing via the Done button
-              if (!open) return;
+              // Don't let the dialog close itself - only via Done button
+              if (open === false) return;
               setIsOpen(open);
             }}>
-              <DialogContent 
-                className="max-w-[280px]"
-                onPointerDownOutside={(e) => e.preventDefault()}
-                onInteractOutside={(e) => e.preventDefault()}
-              >
+              <DialogContent className="max-w-[280px]">
                 <DialogHeader>
                   <DialogTitle className="text-sm">{label}</DialogTitle>
                 </DialogHeader>
-                <div 
-                  className="space-y-3"
-                  onClick={handleColorPickerClick}
-                  onMouseDown={handleColorPickerClick}
-                  onMouseUp={handleColorPickerClick}
-                  onPointerDown={handleColorPickerClick}
-                  onPointerUp={handleColorPickerClick}
-                >
-                  <div onClick={handleColorPickerClick} onMouseDown={handleColorPickerClick}>
-                    <HexColorPicker color={value} onChange={onChange} className="w-full" />
-                  </div>
+                <div className="space-y-3">
+                  <HexColorPicker color={value} onChange={onChange} className="w-full" />
                   <Input
                     type="text"
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
                     className="font-mono text-xs"
-                    onClick={handleColorPickerClick}
                   />
                   <Button 
                     className="w-full"
