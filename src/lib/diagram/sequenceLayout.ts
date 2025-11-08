@@ -94,7 +94,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   const nodeOrder = calculateNodeSequence(nodes);
 
   // Auto-align all nodes with even vertical spacing based on actual heights
-  const alignedNodePositions = calculateEvenSpacing(nodes, nodeOrder, nodeHeights);
+  // Allow nodes to share Y positions when they connect to non-overlapping lifelines
+  const alignedNodePositions = calculateEvenSpacing(nodes, nodeOrder, nodeHeights, lifelines);
   
   // Create a map to store calculated yPosition values (center Y)
   const calculatedYPositions = new Map<string, number>();
@@ -308,9 +309,24 @@ function calculateNodeSequence(nodes: DiagramNode[]): string[] {
   return nodesWithPosition.map(n => n.id);
 }
 
-// Calculate even spacing for nodes based on their sequence order and actual heights
-// Always recalculates positions for all nodes to maintain even spacing
-function calculateEvenSpacing(nodes: DiagramNode[], nodeOrder: string[], nodeHeights?: Map<string, number>): Map<string, number> {
+// Helper to check if two lifeline ranges overlap
+function lifelineRangesOverlap(range1: [string, string], range2: [string, string], lifelinePositions: Map<string, number>): boolean {
+  const pos1Start = lifelinePositions.get(range1[0]) || 0;
+  const pos1End = lifelinePositions.get(range1[1]) || 0;
+  const pos2Start = lifelinePositions.get(range2[0]) || 0;
+  const pos2End = lifelinePositions.get(range2[1]) || 0;
+  
+  const min1 = Math.min(pos1Start, pos1End);
+  const max1 = Math.max(pos1Start, pos1End);
+  const min2 = Math.min(pos2Start, pos2End);
+  const max2 = Math.max(pos2Start, pos2End);
+  
+  // Check if ranges overlap
+  return !(max1 < min2 || max2 < min1);
+}
+
+// Calculate spacing that allows nodes to share Y positions when they don't overlap horizontally
+function calculateEvenSpacing(nodes: DiagramNode[], nodeOrder: string[], nodeHeights?: Map<string, number>, lifelines?: Lifeline[]): Map<string, number> {
   const positions = new Map<string, number>();
   
   if (nodes.length === 0) {
@@ -318,22 +334,76 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeOrder: string[], nodeHei
   }
   
   const startY = LIFELINE_HEADER_HEIGHT + 40;
-  const SPACING_BETWEEN_NODES = 50; // Additional spacing between nodes
+  const SPACING_BETWEEN_ROWS = 50; // Spacing between different Y levels
   
-  let currentY = startY;
+  // Create a map of lifeline positions for overlap detection
+  const lifelinePositions = new Map<string, number>();
+  if (lifelines) {
+    const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
+    sortedLifelines.forEach((lifeline, index) => {
+      lifelinePositions.set(lifeline.id, index);
+    });
+  }
   
-  // Assign Y positions based on actual node heights
+  // Track which nodes are at each Y level and their lifeline ranges
+  interface YLevel {
+    y: number;
+    height: number;
+    nodesWithRanges: Array<{ nodeId: string; range: [string, string] }>;
+  }
+  const yLevels: YLevel[] = [];
+  
+  // Assign Y positions based on node order, allowing sharing when no overlap
   nodeOrder.forEach((nodeId) => {
-    positions.set(nodeId, currentY);
-    
-    // Get the actual height of this node
     const node = nodes.find(n => n.id === nodeId);
-    const nodeConfig = node ? getNodeTypeConfig(node.type) : null;
+    if (!node || !node.anchors || node.anchors.length !== 2) {
+      positions.set(nodeId, startY);
+      return;
+    }
+    
+    const nodeConfig = getNodeTypeConfig(node.type);
     const measuredHeight = nodeHeights?.get(nodeId);
     const nodeHeight = measuredHeight || nodeConfig?.defaultHeight || 70;
     
-    // Move to next position: current position + node height + spacing
-    currentY += nodeHeight + SPACING_BETWEEN_NODES;
+    // Get the lifeline range this node spans
+    const sourceLifelineId = node.anchors[0].lifelineId;
+    const targetLifelineId = node.anchors[1].lifelineId;
+    const nodeRange: [string, string] = [sourceLifelineId, targetLifelineId];
+    
+    // Try to find an existing Y level where this node can fit (no overlap)
+    let assignedLevel: YLevel | null = null;
+    
+    for (const level of yLevels) {
+      // Check if this node overlaps with any node at this level
+      const hasOverlap = level.nodesWithRanges.some(existing => 
+        lifelineRangesOverlap(nodeRange, existing.range, lifelinePositions)
+      );
+      
+      if (!hasOverlap) {
+        // This node can share this Y level
+        assignedLevel = level;
+        // Update level height if this node is taller
+        level.height = Math.max(level.height, nodeHeight);
+        level.nodesWithRanges.push({ nodeId, range: nodeRange });
+        break;
+      }
+    }
+    
+    if (!assignedLevel) {
+      // Need to create a new Y level
+      const newY = yLevels.length === 0 
+        ? startY 
+        : yLevels[yLevels.length - 1].y + yLevels[yLevels.length - 1].height + SPACING_BETWEEN_ROWS;
+      
+      assignedLevel = {
+        y: newY,
+        height: nodeHeight,
+        nodesWithRanges: [{ nodeId, range: nodeRange }]
+      };
+      yLevels.push(assignedLevel);
+    }
+    
+    positions.set(nodeId, assignedLevel.y);
   });
   
   return positions;
