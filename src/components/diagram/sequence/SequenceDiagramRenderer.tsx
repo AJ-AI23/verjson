@@ -126,7 +126,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   // Calculate dynamic lifeline height based on nodes
   const calculateLifelineHeight = useCallback(() => {
     const LIFELINE_HEADER_HEIGHT = 100;
-    const BOTTOM_MARGIN = 300; // Space for adding new nodes
+    const BOTTOM_MARGIN = 100; // Space for adding new nodes (about one node height)
     const MIN_HEIGHT = 500;
     
     if (diagramNodes.length === 0) {
@@ -1198,7 +1198,7 @@ const MousePositionTracker: React.FC<{
 
       <div className="flex-1 relative">
         <ReactFlow
-          key={`sequence-diagram-${lifelineHeight}`}
+          key="sequence-diagram"
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChangeHandler}
