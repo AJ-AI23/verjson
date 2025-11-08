@@ -226,7 +226,17 @@ const MousePositionTracker: React.FC<{
 
   // Add node on lifeline callback
   const handleAddNodeOnLifeline = useCallback((sourceLifelineId: string, yPosition: number, lifelineHeight: number) => {
-    if (!onDataChange || lifelines.length === 0) return;
+    console.log('🆕 [handleAddNodeOnLifeline] Called:', {
+      sourceLifelineId,
+      yPosition,
+      currentNodeCount: diagramNodes.length,
+      hasOnDataChange: !!onDataChange
+    });
+    
+    if (!onDataChange || lifelines.length === 0) {
+      console.warn('⚠️ [handleAddNodeOnLifeline] Aborted - missing onDataChange or no lifelines');
+      return;
+    }
     
     const nodeId = `node-${Date.now()}`;
     const sourceAnchorId = `anchor-${nodeId}-source`;
@@ -297,6 +307,11 @@ const MousePositionTracker: React.FC<{
     };
     
     const finalNodes = [...updatedNodes, newNode];
+    console.log('💾 [handleAddNodeOnLifeline] Calling onDataChange with new node:', {
+      newNodeId: nodeId,
+      totalNodes: finalNodes.length,
+      newNodeLabel: newNode.label
+    });
     onDataChange({ ...data, lifelines: updatedLifelines, nodes: finalNodes });
   }, [diagramNodes, lifelines, data, onDataChange]);
 
