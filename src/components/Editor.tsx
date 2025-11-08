@@ -102,12 +102,24 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
   const lastLoadedSchemaRef = React.useRef<any>(null);
   
   React.useEffect(() => {
+    console.log('[Editor] initialSchema effect triggered:', {
+      hasInitialSchema: !!initialSchema,
+      isObject: typeof initialSchema === 'object',
+      isDifferentFromLast: initialSchema !== lastLoadedSchemaRef.current,
+      isModified,
+      willSkipReset: isModified
+    });
+    
     if (initialSchema && typeof initialSchema === 'object' && initialSchema !== lastLoadedSchemaRef.current) {
       // Don't overwrite unsaved changes when tab regains focus or component re-renders
       if (isModified) {
-        console.log('[Editor] Skipping schema reset - unsaved changes present');
+        console.log('[Editor] ✅ Skipping schema reset - unsaved changes present');
+        // Update the ref so we don't keep triggering this
+        lastLoadedSchemaRef.current = initialSchema;
         return;
       }
+      
+      console.log('[Editor] 🔄 Resetting schema to initialSchema');
       
       // Detect the schema type and update it
       const detectedType = detectSchemaType(initialSchema);
