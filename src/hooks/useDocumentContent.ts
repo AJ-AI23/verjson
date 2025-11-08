@@ -10,7 +10,14 @@ export function useDocumentContent(documentId?: string) {
   const [fetchedDocumentId, setFetchedDocumentId] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('[useDocumentContent] 🔄 Effect triggered:', {
+      documentId,
+      fetchedDocumentId,
+      willFetch: documentId && fetchedDocumentId !== documentId
+    });
+
     if (!documentId) {
+      console.log('[useDocumentContent] 🧹 Clearing content - no documentId');
       setContent(null);
       setLoading(false);
       setError(null);
@@ -37,7 +44,7 @@ export function useDocumentContent(documentId?: string) {
 
         if (error) throw error;
 
-        console.log('[useDocumentContent] ✅ Content loaded successfully');
+        console.log('[useDocumentContent] ✅ Content loaded successfully, content length:', JSON.stringify(data.document?.content || {}).length);
         setContent(data.document);
         setFetchedDocumentId(documentId);
       } catch (err) {
@@ -49,7 +56,7 @@ export function useDocumentContent(documentId?: string) {
     };
 
     fetchDocumentContent();
-  }, [documentId, fetchedDocumentId]);
+  }, [documentId]); // REMOVED fetchedDocumentId from deps to prevent extra re-runs
 
   return {
     content,
