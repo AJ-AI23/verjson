@@ -100,6 +100,12 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
 
   // Update editor state when initialSchema changes (document selection)
   const lastLoadedSchemaRef = React.useRef<any>(null);
+  const currentSchemaRef = React.useRef<string>(schema);
+  
+  // Track current schema value
+  React.useEffect(() => {
+    currentSchemaRef.current = schema;
+  }, [schema]);
   
   React.useEffect(() => {
     if (initialSchema && typeof initialSchema === 'object' && initialSchema !== lastLoadedSchemaRef.current) {
@@ -110,19 +116,27 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         return;
       }
       
+      // Also check if current editor content differs from what would be loaded
+      // This catches cases where diagram changes haven't updated isModified yet
+      const incomingSchemaString = JSON.stringify(initialSchema, null, 2);
+      if (currentSchemaRef.current !== savedSchema && currentSchemaRef.current !== incomingSchemaString) {
+        console.log('🛡️ Preventing schema reload - editor has uncommitted changes');
+        lastLoadedSchemaRef.current = initialSchema;
+        return;
+      }
+      
       // Detect the schema type and update it
       const detectedType = detectSchemaType(initialSchema);
       if (detectedType !== schemaType) {
         handleSchemaTypeChange(detectedType);
       }
       
-      const schemaString = JSON.stringify(initialSchema, null, 2);
-      setSchema(schemaString);
-      setSavedSchema(schemaString);
+      setSchema(incomingSchemaString);
+      setSavedSchema(incomingSchemaString);
       setCollapsedPaths({ root: true });
       lastLoadedSchemaRef.current = initialSchema;
     }
-  }, [initialSchema, setSchema, setSavedSchema, setCollapsedPaths, schemaType, handleSchemaTypeChange, isModified]);
+  }, [initialSchema, setSchema, setSavedSchema, setCollapsedPaths, schemaType, handleSchemaTypeChange, isModified, savedSchema]);
   
   
   return (
