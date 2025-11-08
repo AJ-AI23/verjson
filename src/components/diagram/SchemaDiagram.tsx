@@ -46,6 +46,13 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   onToggleFullscreen,
   diagramRef
 }) => {
+  console.log('🔄 [SchemaDiagram] Component render:', {
+    isDiagram,
+    hasSchema: !!schema,
+    nodeCount: (schema as any)?.data?.nodes?.length,
+    schemaType: (schema as any)?.type
+  });
+  
   // Check if this is a diagram document and migrate if needed
   const diagramDocument = useMemo(() => {
     if (!isDiagram || !schema) return null;
