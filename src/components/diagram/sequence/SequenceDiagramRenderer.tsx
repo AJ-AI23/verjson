@@ -122,6 +122,32 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [mousePosition, setMousePosition] = useState<{ viewport: { x: number; y: number }; flow: { x: number; y: number } } | null>(null);
 
   const activeTheme = styles?.themes?.[currentTheme] || styles?.themes?.light || defaultLightTheme;
+  
+  // Calculate dynamic lifeline height based on nodes
+  const calculateLifelineHeight = useCallback(() => {
+    const LIFELINE_HEADER_HEIGHT = 100;
+    const BOTTOM_MARGIN = 300; // Space for adding new nodes
+    const MIN_HEIGHT = 500;
+    
+    if (diagramNodes.length === 0) {
+      return MIN_HEIGHT;
+    }
+    
+    // Find the maximum Y position considering node heights
+    const maxY = diagramNodes.reduce((max, node) => {
+      const nodeConfig = getNodeTypeConfig(node.type);
+      const nodeHeight = nodeHeights.get(node.id) || nodeConfig?.defaultHeight || 70;
+      const nodeY = node.yPosition || 0;
+      const nodeBottom = nodeY + (nodeHeight / 2); // yPosition is center, add half height
+      return Math.max(max, nodeBottom);
+    }, 0);
+    
+    // Total height = header + max node bottom + bottom margin
+    const calculatedHeight = maxY + BOTTOM_MARGIN;
+    return Math.max(calculatedHeight, MIN_HEIGHT);
+  }, [diagramNodes, nodeHeights]);
+  
+  const lifelineHeight = useMemo(() => calculateLifelineHeight(), [calculateLifelineHeight]);
 
 // Helper component to handle fitView in render mode
 const FitViewHelper: React.FC<{ 
@@ -289,9 +315,8 @@ const MousePositionTracker: React.FC<{
     // Position node starting at click position + half node height + half anchor height offset
     const nodeY = yPosition + (nodeHeight / 2) + (anchorHeight / 2);
     
-    // Enforce bottom limit - node bottom should not exceed lifeline height
-    const maxNodeY = LIFELINE_HEADER_HEIGHT + lifelineHeight - nodeHeight;
-    const constrainedNodeY = Math.min(nodeY, maxNodeY);
+    // Node can be placed anywhere - lifeline will auto-extend
+    const constrainedNodeY = nodeY;
     
     const newNodeBottom = constrainedNodeY + nodeHeight;
     
@@ -299,7 +324,7 @@ const MousePositionTracker: React.FC<{
       const existingNodeY = node.yPosition || 0;
       // If existing node overlaps with new node position, move it down
       if (existingNodeY >= constrainedNodeY - minSpacing && existingNodeY < newNodeBottom + minSpacing) {
-        const newY = Math.min(newNodeBottom + minSpacing, maxNodeY);
+        const newY = newNodeBottom + minSpacing; // Node can extend infinitely
         return {
           ...node,
           yPosition: newY,
@@ -462,9 +487,9 @@ const MousePositionTracker: React.FC<{
           data: {
             ...node.data,
             customLifelineColors,
-            onAddNode: (lifelineId: string, yPosition: number) => handleAddNodeOnLifeline(lifelineId, yPosition, settings.sequenceDiagramHeight),
+            onAddNode: (lifelineId: string, yPosition: number) => handleAddNodeOnLifeline(lifelineId, yPosition, lifelineHeight),
             readOnly,
-            lifelineHeight: settings.sequenceDiagramHeight
+            lifelineHeight: lifelineHeight
           }
         };
       }
@@ -600,13 +625,12 @@ const MousePositionTracker: React.FC<{
           const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
           const nodeHeight = actualHeight || nodeConfig?.defaultHeight || 70;
           
-          // Constrain Y position to keep node within lifeline bounds
+          // Only constrain top boundary - lifeline will auto-extend downward
           const LIFELINE_HEADER_HEIGHT = 100;
           const minY = LIFELINE_HEADER_HEIGHT + 40; // Top constraint
-          const maxY = LIFELINE_HEADER_HEIGHT + settings.sequenceDiagramHeight - nodeHeight; // Bottom constraint
           
           const newY = change.position?.y || node.position.y;
-          const constrainedY = Math.max(minY, Math.min(newY, maxY));
+          const constrainedY = Math.max(minY, newY);
           
           // Keep original X position, only allow Y to change within constraints
           return {
@@ -857,15 +881,14 @@ const MousePositionTracker: React.FC<{
         const nodeConfig = movedDiagramNode ? getNodeTypeConfig(movedDiagramNode.type) : null;
         const nodeHeight = nodeConfig?.defaultHeight || 70;
         
-        // Constrain vertical position to be below lifeline headers and above lifeline bottom
+        // Only constrain vertical position to be below lifeline headers - lifeline will auto-extend downward
         const LIFELINE_HEADER_HEIGHT = 100;
         const MIN_Y_POSITION = LIFELINE_HEADER_HEIGHT + 20; // 20px padding below header
-        const MAX_Y_POSITION = LIFELINE_HEADER_HEIGHT + settings.sequenceDiagramHeight - nodeHeight; // Bottom constraint
         const GRID_SIZE = 10; // Snap to 10px grid
         
-        // Snap to grid and constrain to minimum and maximum position
+        // Snap to grid and constrain to minimum position only
         const snappedY = Math.round(moveChange.position.y / GRID_SIZE) * GRID_SIZE;
-        const constrainedY = Math.max(MIN_Y_POSITION, Math.min(snappedY, MAX_Y_POSITION));
+        const constrainedY = Math.max(MIN_Y_POSITION, snappedY);
         
         // If multi-select, update all selected nodes
         if (selectedNodeIds.includes(moveChange.id) && selectedNodeIds.length > 1) {
@@ -873,8 +896,6 @@ const MousePositionTracker: React.FC<{
           const originalCenterY = movedDiagramNode?.yPosition || 0;
           const originalTopY = originalCenterY - (movedNodeHeight / 2);
           const deltaY = constrainedY - originalTopY;
-          
-          const MAX_Y_POSITION_FOR_MULTI = LIFELINE_HEADER_HEIGHT + settings.sequenceDiagramHeight;
           
           // Update all selected nodes with the same delta
           const updatedNodes = diagramNodes.map(n => {
@@ -884,8 +905,7 @@ const MousePositionTracker: React.FC<{
               const currentY = n.yPosition || 0;
               const newTopY = n.id === moveChange.id ? constrainedY : (currentY - nHeight / 2) + deltaY;
               const snappedNewTopY = Math.round(newTopY / GRID_SIZE) * GRID_SIZE;
-              const maxYForNode = MAX_Y_POSITION_FOR_MULTI - nHeight;
-              const constrainedNewTopY = Math.max(MIN_Y_POSITION, Math.min(snappedNewTopY, maxYForNode));
+              const constrainedNewTopY = Math.max(MIN_Y_POSITION, snappedNewTopY); // No max constraint
               const centerY = constrainedNewTopY + (nHeight / 2);
               
               // Store CENTER Y as yPosition for consistent sorting
@@ -1178,7 +1198,7 @@ const MousePositionTracker: React.FC<{
 
       <div className="flex-1 relative">
         <ReactFlow
-          key={`sequence-diagram-${settings.sequenceDiagramHeight}`}
+          key={`sequence-diagram-${lifelineHeight}`}
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChangeHandler}

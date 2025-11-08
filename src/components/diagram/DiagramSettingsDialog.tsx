@@ -25,7 +25,7 @@ export const DiagramSettingsDialog: React.FC<DiagramSettingsDialogProps> = ({
   currentTheme = 'light',
   onThemeChange
 }) => {
-  const { settings, updateMaxIndividualProperties, updateMaxIndividualArrayItems, updateTruncateAncestralBoxes, updateSequenceDiagramHeight } = useEditorSettings();
+  const { settings, updateMaxIndividualProperties, updateMaxIndividualArrayItems, updateTruncateAncestralBoxes } = useEditorSettings();
   
   const availableThemes = styles ? Object.keys(styles.themes).filter(key => styles.themes[key]) : ['light', 'dark'];
 
@@ -40,13 +40,6 @@ export const DiagramSettingsDialog: React.FC<DiagramSettingsDialogProps> = ({
     const value = parseInt(e.target.value);
     if (!isNaN(value) && value >= 0 && value <= 250) {
       updateMaxIndividualArrayItems(value);
-    }
-  };
-
-  const handleSequenceDiagramHeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value);
-    if (!isNaN(value) && value >= 500 && value <= 10000) {
-      updateSequenceDiagramHeight(value);
     }
   };
 
@@ -81,26 +74,7 @@ export const DiagramSettingsDialog: React.FC<DiagramSettingsDialogProps> = ({
                   </SelectContent>
                 </Select>
                 <p className="text-sm text-muted-foreground">
-                  Select the color theme for the diagram
-                </p>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="diagram-height">
-                  Diagram Height (px)
-                </Label>
-                <Input
-                  id="diagram-height"
-                  type="number"
-                  min="500"
-                  max="10000"
-                  step="100"
-                  value={settings.sequenceDiagramHeight}
-                  onChange={handleSequenceDiagramHeightChange}
-                />
-                <p className="text-sm text-muted-foreground">
-                  Height of the lifelines in pixels. Nodes cannot be positioned beyond this limit.
-                  Range: 500-10000, default: 2000
+                  Select the color theme for the diagram. Lifeline heights adjust automatically based on nodes.
                 </p>
               </div>
             </>
