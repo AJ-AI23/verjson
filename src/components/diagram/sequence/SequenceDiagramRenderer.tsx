@@ -868,8 +868,10 @@ const MousePositionTracker: React.FC<{
         
         // If multi-select, update all selected nodes
         if (selectedNodeIds.includes(moveChange.id) && selectedNodeIds.length > 1) {
-          const originalY = movedDiagramNode?.yPosition || 0;
-          const deltaY = constrainedY - originalY;
+          const movedNodeHeight = nodeHeight;
+          const originalCenterY = movedDiagramNode?.yPosition || 0;
+          const originalTopY = originalCenterY - (movedNodeHeight / 2);
+          const deltaY = constrainedY - originalTopY;
           
           const MAX_Y_POSITION_FOR_MULTI = LIFELINE_HEADER_HEIGHT + settings.sequenceDiagramHeight;
           
@@ -877,20 +879,19 @@ const MousePositionTracker: React.FC<{
           const updatedNodes = diagramNodes.map(n => {
             if (selectedNodeIds.includes(n.id)) {
               const nConfig = getNodeTypeConfig(n.type);
-              const nHeight = nConfig?.defaultHeight || 70;
+              const nHeight = nodeHeights.get(n.id) || nConfig?.defaultHeight || 70;
               const currentY = n.yPosition || 0;
-              const newY = n.id === moveChange.id ? constrainedY : currentY + deltaY;
-              const snappedNewY = Math.round(newY / GRID_SIZE) * GRID_SIZE;
+              const newTopY = n.id === moveChange.id ? constrainedY : (currentY - nHeight / 2) + deltaY;
+              const snappedNewTopY = Math.round(newTopY / GRID_SIZE) * GRID_SIZE;
               const maxYForNode = MAX_Y_POSITION_FOR_MULTI - nHeight;
-              const constrainedNewY = Math.max(MIN_Y_POSITION, Math.min(snappedNewY, maxYForNode));
-              const centerY = constrainedNewY + (nHeight / 2);
+              const constrainedNewTopY = Math.max(MIN_Y_POSITION, Math.min(snappedNewTopY, maxYForNode));
+              const centerY = constrainedNewTopY + (nHeight / 2);
               
-              // Anchors don't need explicit yPosition - calculated from node position
-              
+              // Store CENTER Y as yPosition for consistent sorting
               return {
                 ...n,
-                yPosition: constrainedNewY,
-                anchors: n.anchors // Keep anchors as is
+                yPosition: centerY,
+                anchors: n.anchors
               };
             }
             return n;
@@ -911,15 +912,13 @@ const MousePositionTracker: React.FC<{
             const height = measuredHeight || nodeConfig?.defaultHeight || 70;
             
             const nodeCenterY = currentY + (height / 2);
-            
-            // Anchors don't need explicit yPosition - calculated from node position
-            
             currentY += height + verticalSpacing;
             
+            // Store CENTER Y as yPosition for consistency with layout calculation
             return {
               ...node,
-              yPosition: currentY - height - verticalSpacing, // Use the position we calculated
-              anchors: node.anchors // Keep anchors as is
+              yPosition: nodeCenterY,
+              anchors: node.anchors
             };
           });
           
@@ -929,15 +928,16 @@ const MousePositionTracker: React.FC<{
           // X position is always calculated from anchors/lifelines, so we don't need to store it
           const nodeAnchors = movedDiagramNode?.anchors;
           
-          // Update node and its anchors
-          const nodeCenterY = constrainedY + (nodeHeight / 2);
+          // Update node and its anchors - store CENTER Y as yPosition
+          const measuredHeight = nodeHeights.get(moveChange.id) || nodeHeight;
+          const nodeCenterY = constrainedY + (measuredHeight / 2);
           const updatedNodes = diagramNodes.map(n => {
             if (n.id === moveChange.id) {
-              // Update node position - anchors don't need yPosition
+              // Store CENTER Y as yPosition for consistency
               return { 
                 ...n, 
-                yPosition: constrainedY,
-                anchors: n.anchors // Keep anchors as is
+                yPosition: nodeCenterY,
+                anchors: n.anchors
               };
             }
             return n;
@@ -958,32 +958,32 @@ const MousePositionTracker: React.FC<{
             const height = measuredHeight || nodeConfig?.defaultHeight || 70;
             
             const nodeCenterY = currentY + (height / 2);
-            
-            // Anchors don't need explicit yPosition - calculated from node position
-            
-            const nodeY = currentY;
             currentY += height + verticalSpacing;
             
+            // Store CENTER Y as yPosition for consistency with layout calculation
             return {
               ...node,
-              yPosition: nodeY,
-              anchors: node.anchors // Keep anchors as is
+              yPosition: nodeCenterY,
+              anchors: node.anchors
             };
           });
           
           // Immediately update node and anchor positions visually
           setNodes(currentNodes => {
-            const nodePositionMap = new Map(recalculatedNodes.map(n => [n.id, n.yPosition!]));
+            const nodeTopYMap = new Map<string, number>();
             const anchorPositionMap = new Map<string, number>();
             recalculatedNodes.forEach(n => {
-              const centerY = n.yPosition! + ((nodeHeights.get(n.id) || 70) / 2);
+              const height = nodeHeights.get(n.id) || 70;
+              const centerY = n.yPosition!; // yPosition is now CENTER Y
+              const topY = centerY - (height / 2);
+              nodeTopYMap.set(n.id, topY);
               n.anchors?.forEach(a => anchorPositionMap.set(a.id, centerY));
             });
             
             return currentNodes.map(n => {
               const anchorData = n.data as any;
-              if (n.type === 'sequenceNode' && nodePositionMap.has(n.id)) {
-                return { ...n, position: { ...n.position, y: nodePositionMap.get(n.id)! } };
+              if (n.type === 'sequenceNode' && nodeTopYMap.has(n.id)) {
+                return { ...n, position: { ...n.position, y: nodeTopYMap.get(n.id)! } };
               }
               if (n.type === 'anchorNode' && anchorData?.connectedNodeId && anchorPositionMap.has(n.id)) {
                 return { ...n, position: { ...n.position, y: anchorPositionMap.get(n.id)! - 8 } };
