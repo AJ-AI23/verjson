@@ -134,7 +134,7 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
       <div className="space-y-2">
         <Label className="text-sm">{label}</Label>
         <div className="flex gap-2">
-          <Popover open={isOpen} onOpenChange={setIsOpen}>
+          <Popover open={isOpen} onOpenChange={setIsOpen} modal={false}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -145,18 +145,18 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
               </Button>
             </PopoverTrigger>
             <PopoverContent 
-              className="w-auto p-3 pointer-events-auto" 
+              className="w-auto p-3" 
               align="start"
-              onInteractOutside={(e) => {
-                // Prevent closing when clicking inside the color picker
-                e.preventDefault();
-              }}
+              onOpenAutoFocus={(e) => e.preventDefault()}
+              onCloseAutoFocus={(e) => e.preventDefault()}
+              onEscapeKeyDown={(e) => e.preventDefault()}
+              onPointerDownOutside={(e) => e.preventDefault()}
+              onInteractOutside={(e) => e.preventDefault()}
             >
-              <div className="space-y-2">
+              <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
                 <HexColorPicker color={value} onChange={onChange} />
                 <Button 
                   size="sm" 
-                  variant="outline" 
                   className="w-full"
                   onClick={() => setIsOpen(false)}
                 >
