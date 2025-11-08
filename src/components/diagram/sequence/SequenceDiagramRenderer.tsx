@@ -580,40 +580,90 @@ const MousePositionTracker: React.FC<{
       console.log('🔴 [DRAG END] Setting isDraggingRef.current = false');
       isDraggingRef.current = false;
       
-      // Simply sort all nodes by their current visual Y position and reorder data
+      // Update positions based on actual visual positions and handle conflicts
       if (onDataChange) {
-        const sortedVisualNodes = nodes
-          .filter(n => n.type === 'sequenceNode')
-          .sort((a, b) => a.position.y - b.position.y);
+        const sequenceNodes = nodes.filter(n => n.type === 'sequenceNode');
         
-        // Reorder diagram nodes to match visual order
-        const reorderedNodes = sortedVisualNodes
-          .map(visualNode => diagramNodes.find(n => n.id === visualNode.id))
-          .filter(Boolean) as DiagramNode[];
-        
-        // Recalculate positions with cumulative spacing based on node heights
-        const verticalSpacing = 20;
-        let currentY = 150; // Starting Y position
-        
-        const updatedNodes = reorderedNodes.map((node) => {
-          const actualHeight = nodeHeights.get(node.id);
-          const nodeConfig = getNodeTypeConfig(node.type);
-          const height = actualHeight || nodeConfig?.defaultHeight || 70;
-          
-          const nodeY = currentY;
-          const centerY = nodeY + (height / 2);
-          
-          // Update currentY for next node
-          currentY += height + verticalSpacing;
-          
-          return {
-            ...node,
-            yPosition: nodeY,
-            anchors: node.anchors // Anchors don't need yPosition - calculated from node
-          };
+        // Create position map from current visual positions
+        const visualPositions = new Map<string, number>();
+        sequenceNodes.forEach(n => {
+          visualPositions.set(n.id, n.position.y);
         });
         
-        console.log('📝 [DROP] Reordered nodes based on visual position');
+        // Sort nodes by their visual Y position
+        const sortedByVisual = [...diagramNodes].sort((a, b) => {
+          const aY = visualPositions.get(a.id) || 0;
+          const bY = visualPositions.get(b.id) || 0;
+          return aY - bY;
+        });
+        
+        // Build lifeline position map for overlap detection
+        const lifelinePositions = new Map<string, number>();
+        const sortedLifelines = [...data.lifelines].sort((a, b) => a.order - b.order);
+        sortedLifelines.forEach((lifeline, index) => {
+          lifelinePositions.set(lifeline.id, index);
+        });
+        
+        // Helper to check if two nodes overlap in lifeline range
+        const nodesOverlap = (node1: DiagramNode, node2: DiagramNode): boolean => {
+          if (!node1.anchors || !node2.anchors) return false;
+          
+          const n1Start = lifelinePositions.get(node1.anchors[0].lifelineId) || 0;
+          const n1End = lifelinePositions.get(node1.anchors[1].lifelineId) || 0;
+          const n2Start = lifelinePositions.get(node2.anchors[0].lifelineId) || 0;
+          const n2End = lifelinePositions.get(node2.anchors[1].lifelineId) || 0;
+          
+          const min1 = Math.min(n1Start, n1End);
+          const max1 = Math.max(n1Start, n1End);
+          const min2 = Math.min(n2Start, n2End);
+          const max2 = Math.max(n2Start, n2End);
+          
+          return !(max1 < min2 || max2 < min1);
+        };
+        
+        // Assign final positions, handling conflicts
+        const finalPositions = new Map<string, number>();
+        const minSpacing = 20;
+        
+        sortedByVisual.forEach((node, index) => {
+          const visualY = visualPositions.get(node.id) || 0;
+          const nodeConfig = getNodeTypeConfig(node.type);
+          const height = nodeHeights.get(node.id) || nodeConfig?.defaultHeight || 70;
+          
+          // Check for conflicts with already-positioned nodes above
+          let targetY = visualY;
+          
+          for (const [placedNodeId, placedY] of finalPositions.entries()) {
+            const placedNode = diagramNodes.find(n => n.id === placedNodeId);
+            if (!placedNode) continue;
+            
+            // Only check nodes that are above this one
+            if (placedY >= targetY) continue;
+            
+            // Check if they overlap in lifeline range
+            if (nodesOverlap(node, placedNode)) {
+              const placedConfig = getNodeTypeConfig(placedNode.type);
+              const placedHeight = nodeHeights.get(placedNodeId) || placedConfig?.defaultHeight || 70;
+              const minY = placedY + placedHeight + minSpacing;
+              
+              // Push this node down if it conflicts
+              if (targetY < minY) {
+                targetY = minY;
+              }
+            }
+          }
+          
+          finalPositions.set(node.id, targetY);
+        });
+        
+        // Update nodes with final positions
+        const updatedNodes = diagramNodes.map(node => ({
+          ...node,
+          yPosition: finalPositions.get(node.id) || node.yPosition || 0,
+          anchors: node.anchors
+        }));
+        
+        console.log('📝 [DROP] Repositioned nodes with conflict resolution');
         onDataChange({ ...data, nodes: updatedNodes });
         
         // Force state update to trigger layout recalculation
