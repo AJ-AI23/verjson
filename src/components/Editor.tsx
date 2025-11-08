@@ -28,13 +28,58 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const diagramRef = React.useRef<HTMLDivElement>(null);
   
-  // Convert initialSchema to string if it's an object to prevent crashes in versioning hooks
-  const schemaAsString = React.useMemo(() => {
-    if (initialSchema && typeof initialSchema === 'object') {
-      return JSON.stringify(initialSchema, null, 2);
+  // Check sessionStorage FIRST before converting initialSchema
+  const [effectiveSchema, setEffectiveSchema] = React.useState<any>(null);
+  const hasCheckedCacheRef = React.useRef<string | null>(null);
+  
+  // Check cache on mount or document change
+  React.useEffect(() => {
+    const docId = selectedDocument?.id;
+    if (!docId) {
+      setEffectiveSchema(initialSchema);
+      return;
     }
-    return initialSchema || defaultSchema;
-  }, [initialSchema]);
+    
+    // Only check cache once per document
+    if (hasCheckedCacheRef.current === docId) {
+      return;
+    }
+    
+    hasCheckedCacheRef.current = docId;
+    
+    // Try to load from sessionStorage
+    const cacheKey = `editor-cache-${docId}`;
+    try {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        const { schema, timestamp } = JSON.parse(cached);
+        const age = Date.now() - timestamp;
+        
+        // Only use cache if less than 1 hour old
+        if (age < 60 * 60 * 1000) {
+          console.log('📦 Restoring from sessionStorage cache');
+          setEffectiveSchema(JSON.parse(schema));
+          return;
+        } else {
+          console.log('🗑️ Cache expired, clearing');
+          sessionStorage.removeItem(cacheKey);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to restore from cache:', err);
+    }
+    
+    // No cache, use initialSchema
+    setEffectiveSchema(initialSchema);
+  }, [selectedDocument?.id, initialSchema]);
+  
+  // Convert effectiveSchema to string if it's an object
+  const schemaAsString = React.useMemo(() => {
+    if (effectiveSchema && typeof effectiveSchema === 'object') {
+      return JSON.stringify(effectiveSchema, null, 2);
+    }
+    return effectiveSchema || defaultSchema;
+  }, [effectiveSchema]);
   
   const { settings, updateGroupProperties } = useEditorSettings();
   const { permissions } = useDocumentPermissions(selectedDocument?.id, selectedDocument);
@@ -93,7 +138,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
   } = useEditorState(schemaAsString, selectedDocument?.id);
 
   // Session cache for uncommitted changes
-  const { loadCachedSchema, clearCache, hasCachedChanges } = useEditorSessionCache({
+  const { clearCache, hasCachedChanges } = useEditorSessionCache({
     documentId: selectedDocument?.id,
     currentSchema: schema,
     isModified
@@ -110,26 +155,11 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
   const lastLoadedSchemaRef = React.useRef<any>(null);
   const lastLoadedContentRef = React.useRef<string>('');
   const currentSchemaRef = React.useRef<string>(schema);
-  const hasLoadedCacheRef = React.useRef<boolean>(false);
   
   // Track current schema value
   React.useEffect(() => {
     currentSchemaRef.current = schema;
   }, [schema]);
-  
-  // Check for cached changes on document load
-  React.useEffect(() => {
-    if (selectedDocument?.id && !hasLoadedCacheRef.current) {
-      const cachedSchema = loadCachedSchema();
-      if (cachedSchema && cachedSchema !== schemaAsString) {
-        console.log('🔄 Restoring uncommitted changes from sessionStorage');
-        setSchema(cachedSchema);
-        hasLoadedCacheRef.current = true;
-        return;
-      }
-      hasLoadedCacheRef.current = true;
-    }
-  }, [selectedDocument?.id, loadCachedSchema, schemaAsString, setSchema]);
   
   React.useEffect(() => {
     if (initialSchema && typeof initialSchema === 'object' && initialSchema !== lastLoadedSchemaRef.current) {
