@@ -3,8 +3,6 @@ export interface DiagramStyleTheme {
   name: string;
   colors: {
     background: string;
-    swimlaneBackground: string;
-    swimlaneBorder: string;
     nodeBackground: string;
     nodeBorder: string;
     nodeText: string;
@@ -18,6 +16,11 @@ export interface DiagramStyleTheme {
       custom: { background: string; border: string; text: string };
     };
   };
+  lifelineColors?: Record<string, {
+    background: string;
+    anchorColor: string;
+    anchorBorder: string;
+  }>;
   fonts: {
     nodeFont: string;
     nodeFontSize: string;
@@ -43,8 +46,6 @@ export const defaultLightTheme: DiagramStyleTheme = {
   name: 'Light Mode',
   colors: {
     background: '#ffffff',
-    swimlaneBackground: '#e0f2fe',
-    swimlaneBorder: '#cbd5e1',
     nodeBackground: '#ffffff',
     nodeBorder: '#94a3b8',
     nodeText: '#0f172a',
@@ -58,6 +59,7 @@ export const defaultLightTheme: DiagramStyleTheme = {
       custom: { background: '#f3e8ff', border: '#a855f7', text: '#581c87' }
     }
   },
+  lifelineColors: {},
   fonts: {
     nodeFont: 'system-ui, -apple-system, sans-serif',
     nodeFontSize: '14px',
@@ -70,8 +72,6 @@ export const defaultDarkTheme: DiagramStyleTheme = {
   name: 'Dark Mode',
   colors: {
     background: '#030712',
-    swimlaneBackground: '#0a1628',
-    swimlaneBorder: '#475569',
     nodeBackground: '#0f172a',
     nodeBorder: '#64748b',
     nodeText: '#f1f5f9',
@@ -85,6 +85,7 @@ export const defaultDarkTheme: DiagramStyleTheme = {
       custom: { background: '#2e1149', border: '#a855f7', text: '#f3e8ff' }
     }
   },
+  lifelineColors: {},
   fonts: {
     nodeFont: 'system-ui, -apple-system, sans-serif',
     nodeFontSize: '14px',

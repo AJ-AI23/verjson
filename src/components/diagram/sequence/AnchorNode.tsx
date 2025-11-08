@@ -19,17 +19,17 @@ export const AnchorNode: React.FC<AnchorNodeProps> = ({ data }) => {
   // Find the lifeline for this anchor
   const lifeline = lifelines?.find(l => l.id === lifelineId);
   
-  // Get custom colors from styles
-  const anchorStyles = customStyles?.customNodeStyles?.[`lifeline-${lifelineId}-anchor`];
-  const lifelineColor = customStyles?.customNodeStyles?.[`lifeline-${lifelineId}`]?.backgroundColor || lifeline?.color || '#e0f2fe';
+  // Get colors from theme first, then fall back to custom styles or defaults
+  const lifelineColors = styles?.lifelineColors?.[lifelineId];
+  const lifelineColor = lifelineColors?.background || customStyles?.customNodeStyles?.[`lifeline-${lifelineId}`]?.backgroundColor || lifeline?.color || '#e0f2fe';
   
-  // Calculate default anchor color as 50% lighter than lifeline background
+  // Calculate default anchor colors as 50% lighter than lifeline background
   const defaultAnchorColor = lightenColor(lifelineColor, 50);
   const defaultAnchorBorderColor = lightenColor(lifelineColor, 30);
   
-  // Use custom colors if available, otherwise use calculated defaults
-  const anchorColor = anchorStyles?.backgroundColor || lifeline?.anchorColor || defaultAnchorColor;
-  const anchorBorderColor = anchorStyles?.borderColor || defaultAnchorBorderColor;
+  // Use theme colors first, then custom styles, then calculated defaults
+  const anchorColor = lifelineColors?.anchorColor || customStyles?.customNodeStyles?.[`lifeline-${lifelineId}-anchor`]?.backgroundColor || lifeline?.anchorColor || defaultAnchorColor;
+  const anchorBorderColor = lifelineColors?.anchorBorder || customStyles?.customNodeStyles?.[`lifeline-${lifelineId}-anchor`]?.borderColor || defaultAnchorBorderColor;
   
   return (
     <div

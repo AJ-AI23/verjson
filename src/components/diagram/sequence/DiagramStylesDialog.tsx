@@ -90,52 +90,70 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
   };
 
   const handleLifelineColorChange = (lifelineId: string, value: string) => {
-    const updatedLifeline = lifelines.find(l => l.id === lifelineId);
-    if (!updatedLifeline) return;
+    const updatedTheme = {
+      ...currentTheme,
+      lifelineColors: {
+        ...currentTheme.lifelineColors,
+        [lifelineId]: {
+          ...currentTheme.lifelineColors?.[lifelineId],
+          background: value,
+          anchorColor: currentTheme.lifelineColors?.[lifelineId]?.anchorColor || lightenColor(value, 50),
+          anchorBorder: currentTheme.lifelineColors?.[lifelineId]?.anchorBorder || lightenColor(value, 30)
+        }
+      }
+    };
 
-    // Color is stored directly on the lifeline object, not in styles
-    // We need to trigger an update through the parent component
-    // For now, we'll use customNodeStyles as a workaround
     onStylesChange({
       ...styles,
-      customNodeStyles: {
-        ...styles.customNodeStyles,
-        [`lifeline-${lifelineId}`]: {
-          backgroundColor: value
-        }
+      themes: {
+        ...styles.themes,
+        [activeTab]: updatedTheme
       }
     });
   };
 
   const handleLifelineAnchorColorChange = (lifelineId: string, value: string) => {
-    const updatedLifeline = lifelines.find(l => l.id === lifelineId);
-    if (!updatedLifeline) return;
+    const updatedTheme = {
+      ...currentTheme,
+      lifelineColors: {
+        ...currentTheme.lifelineColors,
+        [lifelineId]: {
+          ...currentTheme.lifelineColors?.[lifelineId],
+          background: currentTheme.lifelineColors?.[lifelineId]?.background || '#e0f2fe',
+          anchorColor: value,
+          anchorBorder: currentTheme.lifelineColors?.[lifelineId]?.anchorBorder || lightenColor(value, 30)
+        }
+      }
+    };
 
-    // Store anchor color in customNodeStyles
     onStylesChange({
       ...styles,
-      customNodeStyles: {
-        ...styles.customNodeStyles,
-        [`lifeline-${lifelineId}-anchor`]: {
-          backgroundColor: value
-        }
+      themes: {
+        ...styles.themes,
+        [activeTab]: updatedTheme
       }
     });
   };
 
   const handleLifelineAnchorBorderColorChange = (lifelineId: string, value: string) => {
-    const updatedLifeline = lifelines.find(l => l.id === lifelineId);
-    if (!updatedLifeline) return;
+    const updatedTheme = {
+      ...currentTheme,
+      lifelineColors: {
+        ...currentTheme.lifelineColors,
+        [lifelineId]: {
+          ...currentTheme.lifelineColors?.[lifelineId],
+          background: currentTheme.lifelineColors?.[lifelineId]?.background || '#e0f2fe',
+          anchorColor: currentTheme.lifelineColors?.[lifelineId]?.anchorColor || '#3b82f6',
+          anchorBorder: value
+        }
+      }
+    };
 
-    // Store anchor border color in customNodeStyles
     onStylesChange({
       ...styles,
-      customNodeStyles: {
-        ...styles.customNodeStyles,
-        [`lifeline-${lifelineId}-anchor`]: {
-          ...styles.customNodeStyles?.[`lifeline-${lifelineId}-anchor`],
-          borderColor: value
-        }
+      themes: {
+        ...styles.themes,
+        [activeTab]: updatedTheme
       }
     });
   };
@@ -249,11 +267,6 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
                         onChange={(v) => handleColorChange('background', v)}
                       />
                       <ColorInput
-                        label="Swimlane Background"
-                        value={currentTheme.colors.swimlaneBackground}
-                        onChange={(v) => handleColorChange('swimlaneBackground', v)}
-                      />
-                      <ColorInput
                         label="Default Node Background"
                         value={currentTheme.colors.nodeBackground}
                         onChange={(v) => handleColorChange('nodeBackground', v)}
@@ -328,14 +341,13 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
                     <AccordionContent>
                       <div className="space-y-4 p-2">
                         {lifelines.map((lifeline) => {
-                          const customColor = styles.customNodeStyles?.[`lifeline-${lifeline.id}`]?.backgroundColor;
-                          const customAnchorColor = styles.customNodeStyles?.[`lifeline-${lifeline.id}-anchor`]?.backgroundColor;
-                          const customAnchorBorderColor = styles.customNodeStyles?.[`lifeline-${lifeline.id}-anchor`]?.borderColor;
+                          const lifelineColors = currentTheme.lifelineColors?.[lifeline.id];
+                          const defaultBg = lifeline.color || '#e0f2fe';
                           
-                          // Calculate default anchor color as 50% lighter than lifeline background
-                          const lifelineColor = customColor || lifeline.color || currentTheme.colors.swimlaneBackground;
-                          const defaultAnchorColor = lightenColor(lifelineColor, 50);
-                          const defaultAnchorBorderColor = lightenColor(lifelineColor, 30);
+                          // Calculate default anchor colors based on background
+                          const bgColor = lifelineColors?.background || defaultBg;
+                          const defaultAnchorColor = lightenColor(bgColor, 50);
+                          const defaultAnchorBorderColor = lightenColor(bgColor, 30);
                           
                           return (
                             <div key={lifeline.id} className="space-y-3 pb-4 border-b last:border-b-0">
@@ -343,17 +355,17 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
                               <div className="grid grid-cols-1 gap-3">
                                 <ColorInput
                                   label="Background"
-                                  value={customColor || lifeline.color || currentTheme.colors.swimlaneBackground}
+                                  value={lifelineColors?.background || defaultBg}
                                   onChange={(v) => handleLifelineColorChange(lifeline.id, v)}
                                 />
                                 <ColorInput
                                   label="Anchor Color"
-                                  value={customAnchorColor || lifeline.anchorColor || defaultAnchorColor}
+                                  value={lifelineColors?.anchorColor || defaultAnchorColor}
                                   onChange={(v) => handleLifelineAnchorColorChange(lifeline.id, v)}
                                 />
                                 <ColorInput
                                   label="Anchor Border"
-                                  value={customAnchorBorderColor || defaultAnchorBorderColor}
+                                  value={lifelineColors?.anchorBorder || defaultAnchorBorderColor}
                                   onChange={(v) => handleLifelineAnchorBorderColorChange(lifeline.id, v)}
                                 />
                               </div>

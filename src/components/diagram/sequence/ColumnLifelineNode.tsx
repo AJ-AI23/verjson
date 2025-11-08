@@ -56,8 +56,8 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
     setHoverPosition(null);
   };
 
-  // Get custom color for this lifeline, fallback to lifeline.color, then to default
-  const lifelineColor = customLifelineColors?.[`lifeline-${lifeline.id}`] || lifeline.color || styles?.colors.swimlaneBackground || '#f8fafc';
+  // Get custom color for this lifeline from theme, fallback to lifeline.color, then to default
+  const lifelineColor = styles?.lifelineColors?.[lifeline.id]?.background || customLifelineColors?.[`lifeline-${lifeline.id}`] || lifeline.color || '#e0f2fe';
 
   return (
     <div
