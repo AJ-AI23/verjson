@@ -12,6 +12,7 @@ export interface DiagramDocument {
   };
   data: SequenceDiagramData | FlowchartData;
   styles?: DiagramStyles;
+  selectedTheme?: string; // Current active theme (e.g., 'light' or 'dark')
 }
 
 export interface SequenceDiagramData {

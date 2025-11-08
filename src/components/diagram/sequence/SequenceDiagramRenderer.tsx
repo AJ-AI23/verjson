@@ -39,6 +39,7 @@ interface SequenceDiagramRendererProps {
   onEdgesChange?: (edges: Edge[]) => void;
   onDataChange?: (data: SequenceDiagramData) => void;
   onStylesChange?: (styles: DiagramStyles) => void;
+  onThemeChange?: (theme: string) => void; // Called when theme changes
   readOnly?: boolean;
   workspaceId?: string;
   isStylesDialogOpen?: boolean;
@@ -73,6 +74,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   onEdgesChange,
   onDataChange,
   onStylesChange,
+  onThemeChange,
   readOnly = false,
   workspaceId,
   isStylesDialogOpen = false,
@@ -92,6 +94,19 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const { settings } = useEditorSettings();
   
   const [currentTheme, setCurrentTheme] = useState(initialTheme);
+  
+  // Update local theme state when initialTheme prop changes
+  React.useEffect(() => {
+    setCurrentTheme(initialTheme);
+  }, [initialTheme]);
+  
+  // Handle theme change and persist to document
+  const handleThemeChange = useCallback((newTheme: string) => {
+    setCurrentTheme(newTheme);
+    if (onThemeChange) {
+      onThemeChange(newTheme);
+    }
+  }, [onThemeChange]);
   const [selectedNode, setSelectedNode] = useState<DiagramNode | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<DiagramEdge | null>(null);
   const [isNodeEditorOpen, setIsNodeEditorOpen] = useState(false);
@@ -1157,7 +1172,7 @@ const MousePositionTracker: React.FC<{
           styles={styles}
           onStylesChange={onStylesChange}
           currentTheme={currentTheme}
-          onThemeChange={setCurrentTheme}
+          onThemeChange={handleThemeChange}
         />
       )}
 

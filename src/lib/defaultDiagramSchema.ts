@@ -10,6 +10,7 @@ export const defaultDiagramSchema: DiagramDocument = {
     created: new Date().toISOString(),
     modified: new Date().toISOString()
   },
+  selectedTheme: 'light',
   data: {
     lifelines: [
       {
@@ -124,8 +125,56 @@ export const defaultDiagramSchema: DiagramDocument = {
   },
   styles: {
     themes: {
-      light: defaultLightTheme,
-      dark: defaultDarkTheme
+      light: {
+        ...defaultLightTheme,
+        lifelineColors: {
+          'lifeline-1': {
+            background: '#dbeafe',
+            anchorColor: '#93c5fd',
+            anchorBorder: '#60a5fa'
+          },
+          'lifeline-2': {
+            background: '#d1fae5',
+            anchorColor: '#6ee7b7',
+            anchorBorder: '#34d399'
+          },
+          'lifeline-3': {
+            background: '#ede9fe',
+            anchorColor: '#c4b5fd',
+            anchorBorder: '#a78bfa'
+          },
+          'lifeline-4': {
+            background: '#fed7aa',
+            anchorColor: '#fdba74',
+            anchorBorder: '#fb923c'
+          }
+        }
+      },
+      dark: {
+        ...defaultDarkTheme,
+        lifelineColors: {
+          'lifeline-1': {
+            background: '#1e3a8a',
+            anchorColor: '#3b82f6',
+            anchorBorder: '#60a5fa'
+          },
+          'lifeline-2': {
+            background: '#065f46',
+            anchorColor: '#10b981',
+            anchorBorder: '#34d399'
+          },
+          'lifeline-3': {
+            background: '#5b21b6',
+            anchorColor: '#8b5cf6',
+            anchorBorder: '#a78bfa'
+          },
+          'lifeline-4': {
+            background: '#92400e',
+            anchorColor: '#f59e0b',
+            anchorBorder: '#fb923c'
+          }
+        }
+      }
     }
   }
 };
@@ -139,6 +188,7 @@ export const defaultFlowchartSchema: DiagramDocument = {
     created: new Date().toISOString(),
     modified: new Date().toISOString()
   },
+  selectedTheme: 'light',
   data: {
     nodes: [],
     edges: []
