@@ -129,33 +129,62 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
 
   const ColorInput = ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [localValue, setLocalValue] = useState(value);
+    
+    // Update local value when prop changes (but not during picking)
+    React.useEffect(() => {
+      if (!isOpen) {
+        setLocalValue(value);
+      }
+    }, [value, isOpen]);
+    
+    const handleChange = (newValue: string) => {
+      setLocalValue(newValue);
+    };
+    
+    const handleClose = () => {
+      setIsOpen(false);
+      // Only update parent when closing
+      if (localValue !== value) {
+        onChange(localValue);
+      }
+    };
     
     return (
       <div className="space-y-2">
         <Label className="text-sm">{label}</Label>
         <div className="flex gap-2">
-          <Popover open={isOpen} onOpenChange={setIsOpen}>
+          <Popover open={isOpen} onOpenChange={(open) => {
+            if (open) {
+              setIsOpen(true);
+            } else {
+              handleClose();
+            }
+          }}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 className="w-16 h-10 p-1 cursor-pointer"
-                style={{ backgroundColor: value }}
+                style={{ backgroundColor: localValue }}
               >
                 <span className="sr-only">Pick color</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0 border-0" align="start">
               <SketchPicker 
-                color={value} 
-                onChange={(color) => onChange(color.hex)}
+                color={localValue} 
+                onChange={(color) => handleChange(color.hex)}
                 disableAlpha
               />
             </PopoverContent>
           </Popover>
           <Input
             type="text"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
+            value={localValue}
+            onChange={(e) => {
+              setLocalValue(e.target.value);
+              onChange(e.target.value);
+            }}
             className="flex-1 font-mono text-xs"
           />
         </div>
