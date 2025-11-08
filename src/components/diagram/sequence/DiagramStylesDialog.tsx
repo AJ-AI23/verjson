@@ -144,8 +144,25 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
                 <span className="sr-only">Pick color</span>
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-3 pointer-events-auto" align="start">
-              <HexColorPicker color={value} onChange={onChange} />
+            <PopoverContent 
+              className="w-auto p-3 pointer-events-auto" 
+              align="start"
+              onInteractOutside={(e) => {
+                // Prevent closing when clicking inside the color picker
+                e.preventDefault();
+              }}
+            >
+              <div className="space-y-2">
+                <HexColorPicker color={value} onChange={onChange} />
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Done
+                </Button>
+              </div>
             </PopoverContent>
           </Popover>
           <Input
