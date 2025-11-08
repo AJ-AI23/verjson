@@ -137,6 +137,14 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     const selectedVersion = versions.find(v => v.is_selected);
     if (!selectedVersion) return;
     
+    console.log('🔔 Version comparison:', {
+      trackedVersionId: loadedVersionId,
+      latestVersionId: selectedVersion.id,
+      versionsCount: versions.length,
+      isModified,
+      match: selectedVersion.id === loadedVersionId
+    });
+    
     // On first load, track the loaded version
     if (!loadedVersionId) {
       console.log('📌 Tracking loaded version:', selectedVersion.id);
@@ -147,8 +155,8 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     // Detect version mismatch
     if (selectedVersion.id !== loadedVersionId) {
       console.log('⚠️ Version mismatch detected:', {
-        loaded: loadedVersionId,
-        latest: selectedVersion.id,
+        trackedVersionId: loadedVersionId,
+        latestVersionId: selectedVersion.id,
         hasChanges: isModified
       });
       
