@@ -229,7 +229,7 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[85vh]">
+      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Palette className="h-5 w-5" />
@@ -237,7 +237,7 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="h-full max-h-[calc(85vh-120px)]">
+        <ScrollArea className="flex-1 min-h-0">
           <div className="space-y-4 pr-4">
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -385,8 +385,8 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
         </div>
         </ScrollArea>
 
-        <div className="flex justify-end gap-2 pt-4 border-t">
-          <Button variant="outline" onClick={onClose}>
+        <div className="flex justify-end gap-2 pt-4 border-t mt-4">
+          <Button onClick={onClose}>
             Close
           </Button>
         </div>

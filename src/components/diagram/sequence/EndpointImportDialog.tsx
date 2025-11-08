@@ -159,7 +159,7 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh]">
+      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileJson className="h-5 w-5" />
@@ -170,7 +170,7 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-hidden flex flex-col space-y-4 min-h-0">
           {/* Document Selection */}
           <div className="space-y-2">
             <Label>OpenAPI Document</Label>
@@ -184,7 +184,7 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
                 <SelectTrigger>
                   <SelectValue placeholder="Select an OpenAPI document" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background z-50">
                   {openApiDocuments.map(doc => (
                     <SelectItem key={doc.id} value={doc.id}>
                       {doc.name}
@@ -217,10 +217,10 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
               </div>
 
               {/* Endpoints List */}
-              <div className="space-y-2">
+              <div className="space-y-2 flex-1 min-h-0 flex flex-col">
                 <Label>Select Endpoint ({filteredEndpoints.length})</Label>
 
-                <ScrollArea className="h-[400px] border rounded-md">
+                <ScrollArea className="flex-1 border rounded-md">
                   <div className="p-4 space-y-2">
                     {filteredEndpoints.length === 0 ? (
                       <div className="text-sm text-slate-500 text-center py-8">
@@ -269,7 +269,7 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
           )}
         </div>
 
-        <div className="flex justify-end pt-4 border-t">
+        <div className="flex justify-end pt-4 border-t mt-4">
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
