@@ -342,10 +342,12 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
                       <div className="space-y-4 p-2">
                         {lifelines.map((lifeline) => {
                           const lifelineColors = currentTheme.lifelineColors?.[lifeline.id];
-                          const defaultBg = lifeline.color || '#e0f2fe';
+                          
+                          // Use theme-specific default colors
+                          const defaultBg = activeTab === 'dark' ? '#0a1628' : '#e0f2fe';
+                          const bgColor = lifelineColors?.background || lifeline.color || defaultBg;
                           
                           // Calculate default anchor colors based on background
-                          const bgColor = lifelineColors?.background || defaultBg;
                           const defaultAnchorColor = lightenColor(bgColor, 50);
                           const defaultAnchorBorderColor = lightenColor(bgColor, 30);
                           
