@@ -23,13 +23,11 @@ export function useDocuments(workspaceId?: string) {
 
   const fetchDocuments = async () => {
     if (!user) {
-      console.log('[useDocuments] No user, skipping fetch');
       return;
     }
     
     // Don't fetch anything if no workspace is selected or if it's the virtual shared workspace
     if (!workspaceId || isVirtualSharedWorkspace) {
-      console.log('[useDocuments] No workspace selected or virtual workspace, skipping document fetch');
       setDocuments([]);
       setLoading(false);
       return;
@@ -37,7 +35,6 @@ export function useDocuments(workspaceId?: string) {
     
     try {
       setLoading(true);
-      console.log('[useDocuments] Fetching documents for workspace:', workspaceId);
       
       const { data, error } = await supabase.functions.invoke('document-management', {
         body: { action: 'listDocumentsByWorkspace', workspace_id: workspaceId }
@@ -52,14 +49,6 @@ export function useDocuments(workspaceId?: string) {
         }
         throw error;
       }
-      
-      console.log('[useDocuments] Documents fetched:', data.documents?.length || 0);
-      console.log('[useDocuments] Sample document with integration:', data.documents?.[0] ? {
-        id: data.documents[0].id,
-        name: data.documents[0].name,
-        crowdin_integration_id: data.documents[0].crowdin_integration_id,
-        crowdin_integration: data.documents[0].crowdin_integration
-      } : 'No documents');
       
       setDocuments(data.documents || []);
     } catch (err) {

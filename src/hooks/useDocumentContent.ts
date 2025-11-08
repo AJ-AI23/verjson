@@ -20,7 +20,6 @@ export function useDocumentContent(documentId?: string) {
     try {
       setLoading(true);
       setError(null);
-      console.log('[useDocumentContent] Fetching content for document:', documentId);
 
       const { data, error } = await supabase.functions.invoke('document-content', {
         body: { action: 'fetchDocumentWithContent', document_id: documentId }
@@ -28,10 +27,6 @@ export function useDocumentContent(documentId?: string) {
 
       if (error) throw error;
 
-      console.log('[useDocumentContent] Content loaded for document:', documentId, {
-        hasCrowdinIntegration: !!data.document.crowdin_integration_id,
-        crowdinIntegration: data.document.crowdin_integration
-      });
       setContent(data.document);
     } catch (err) {
       console.error('[useDocumentContent] Error fetching content:', err);

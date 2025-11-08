@@ -19,7 +19,6 @@ export const registerWorkspaceUpdateHandler = (handler: (() => void) | null) => 
 };
 
 export const registerSharedDocumentsUpdateHandler = (handler: (() => void) | null) => {
-  console.log('[useNotifications] 📝 Registering shared documents update handler:', !!handler);
   globalSharedDocumentsUpdateHandler = handler;
 };
 
