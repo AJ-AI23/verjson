@@ -170,7 +170,7 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden flex flex-col space-y-4 min-h-0">
+        <div className="space-y-4">
           {/* Document Selection */}
           <div className="space-y-2">
             <Label>OpenAPI Document</Label>
@@ -217,11 +217,10 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
               </div>
 
               {/* Endpoints List */}
-              <div className="flex-1 min-h-0 flex flex-col gap-2">
+              <div className="space-y-2">
                 <Label>Select Endpoint ({filteredEndpoints.length})</Label>
 
-                <div className="flex-1 min-h-0 border rounded-md overflow-hidden">
-                  <ScrollArea className="h-full">
+                <ScrollArea className="h-[400px] border rounded-md">
                   <div className="p-4 space-y-2">
                     {filteredEndpoints.length === 0 ? (
                       <div className="text-sm text-slate-500 text-center py-8">
@@ -262,8 +261,7 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
                       })
                     )}
                   </div>
-                  </ScrollArea>
-                </div>
+                </ScrollArea>
               </div>
                 </>
               )}
