@@ -103,6 +103,12 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
   
   React.useEffect(() => {
     if (initialSchema && typeof initialSchema === 'object' && initialSchema !== lastLoadedSchemaRef.current) {
+      // Don't overwrite unsaved changes when tab regains focus or component re-renders
+      if (isModified) {
+        console.log('[Editor] Skipping schema reset - unsaved changes present');
+        return;
+      }
+      
       // Detect the schema type and update it
       const detectedType = detectSchemaType(initialSchema);
       if (detectedType !== schemaType) {
@@ -115,7 +121,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
       setCollapsedPaths({ root: true });
       lastLoadedSchemaRef.current = initialSchema;
     }
-  }, [initialSchema, setSchema, setSavedSchema, setCollapsedPaths, schemaType, handleSchemaTypeChange]);
+  }, [initialSchema, setSchema, setSavedSchema, setCollapsedPaths, schemaType, handleSchemaTypeChange, isModified]);
   
   
   return (
