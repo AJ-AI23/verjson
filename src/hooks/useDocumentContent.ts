@@ -7,37 +7,49 @@ export function useDocumentContent(documentId?: string) {
   const [content, setContent] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fetchedDocumentId, setFetchedDocumentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!documentId) {
       setContent(null);
       setLoading(false);
       setError(null);
+      setFetchedDocumentId(null);
+      return;
+    }
+
+    // ⚠️ CRITICAL: Only fetch if we haven't already fetched this document
+    // This prevents refetching stale data on tab switches/re-renders
+    if (fetchedDocumentId === documentId) {
+      console.log('[useDocumentContent] ⚠️ Document already loaded, skipping refetch:', documentId);
       return;
     }
 
     const fetchDocumentContent = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+      try {
+        console.log('[useDocumentContent] 📥 Fetching content for document:', documentId);
+        setLoading(true);
+        setError(null);
 
-      const { data, error } = await supabase.functions.invoke('document-content', {
-        body: { action: 'fetchDocumentWithContent', document_id: documentId }
-      });
+        const { data, error } = await supabase.functions.invoke('document-content', {
+          body: { action: 'fetchDocumentWithContent', document_id: documentId }
+        });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      setContent(data.document);
-    } catch (err) {
-      console.error('[useDocumentContent] Error fetching content:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load document content');
-    } finally {
-      setLoading(false);
-    }
+        console.log('[useDocumentContent] ✅ Content loaded successfully');
+        setContent(data.document);
+        setFetchedDocumentId(documentId);
+      } catch (err) {
+        console.error('[useDocumentContent] ❌ Error fetching content:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load document content');
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchDocumentContent();
-  }, [documentId]);
+  }, [documentId, fetchedDocumentId]);
 
   return {
     content,
