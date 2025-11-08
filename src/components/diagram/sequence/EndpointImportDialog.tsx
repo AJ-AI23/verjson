@@ -220,7 +220,7 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
               <div className="space-y-2">
                 <Label>Select Endpoint ({filteredEndpoints.length})</Label>
 
-                <ScrollArea className="h-[400px] border rounded-md">
+                <ScrollArea className="h-[300px] border rounded-md">
                   <div className="p-4 space-y-2">
                     {filteredEndpoints.length === 0 ? (
                       <div className="text-sm text-slate-500 text-center py-8">
