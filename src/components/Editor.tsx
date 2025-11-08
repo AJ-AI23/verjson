@@ -113,7 +113,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
       return;
     }
     
-    console.log('📝 EDITOR CHANGE from handleReloadWithLatestVersion - reloading with version:', selectedVersion.id);
+    console.log('📝 EDITOR CHANGE from handleReloadWithLatestVersion - version:', selectedVersion.id);
     
     // Use the full_document from the selected version, NOT initialSchema
     const versionContent = selectedVersion.full_document;
@@ -123,13 +123,12 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     }
     
     const schemaString = JSON.stringify(versionContent, null, 2);
+    console.log('📝 Setting schema from version.full_document, length:', schemaString.length);
     setSchema(schemaString);
     setSavedSchema(schemaString);
     setCollapsedPaths({ root: true });
     setLoadedVersionId(selectedVersion.id);
     setShowVersionMismatch(false);
-    
-    console.log('✅ Editor reloaded with version:', selectedVersion.id);
   }, [versions, schemaType, handleSchemaTypeChange, setSchema, setSavedSchema, setCollapsedPaths]);
 
   // Check for version mismatches
@@ -206,7 +205,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     
     // Safe to load only on document switch
     if (isDocumentSwitch && initialSchema && typeof initialSchema === 'object') {
-      console.log('📝 EDITOR CHANGE from document switch - loading new document');
+      console.log('📝 EDITOR CHANGE from document switch - loading:', currentDocId);
       
       const detectedType = detectSchemaType(initialSchema);
       if (detectedType !== schemaType) {
@@ -214,6 +213,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
       }
       
       const schemaString = JSON.stringify(initialSchema, null, 2);
+      console.log('📝 Setting schema from initialSchema prop, length:', schemaString.length);
       setSchema(schemaString);
       setSavedSchema(schemaString);
       setCollapsedPaths({ root: true });
