@@ -9,6 +9,7 @@ import { detectSchemaType } from '@/lib/schemaUtils';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 import { useDocumentPermissions } from '@/hooks/useDocumentPermissions';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEditorSessionCache } from '@/hooks/useEditorSessionCache';
 
 interface EditorProps {
   initialSchema?: any;
@@ -91,6 +92,13 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     suggestedVersion
   } = useEditorState(schemaAsString, selectedDocument?.id);
 
+  // Session cache for uncommitted changes
+  const { loadCachedSchema, clearCache, hasCachedChanges } = useEditorSessionCache({
+    documentId: selectedDocument?.id,
+    currentSchema: schema,
+    isModified
+  });
+
   // Clear editor state when onClearRequest is triggered
   React.useEffect(() => {
     if (onClearRequest) {
@@ -102,11 +110,26 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
   const lastLoadedSchemaRef = React.useRef<any>(null);
   const lastLoadedContentRef = React.useRef<string>('');
   const currentSchemaRef = React.useRef<string>(schema);
+  const hasLoadedCacheRef = React.useRef<boolean>(false);
   
   // Track current schema value
   React.useEffect(() => {
     currentSchemaRef.current = schema;
   }, [schema]);
+  
+  // Check for cached changes on document load
+  React.useEffect(() => {
+    if (selectedDocument?.id && !hasLoadedCacheRef.current) {
+      const cachedSchema = loadCachedSchema();
+      if (cachedSchema && cachedSchema !== schemaAsString) {
+        console.log('🔄 Restoring uncommitted changes from sessionStorage');
+        setSchema(cachedSchema);
+        hasLoadedCacheRef.current = true;
+        return;
+      }
+      hasLoadedCacheRef.current = true;
+    }
+  }, [selectedDocument?.id, loadCachedSchema, schemaAsString, setSchema]);
   
   React.useEffect(() => {
     if (initialSchema && typeof initialSchema === 'object' && initialSchema !== lastLoadedSchemaRef.current) {
@@ -115,6 +138,13 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
       // Check if this is actually the same content we already loaded
       // This prevents unnecessary reloads when the same object reference changes
       if (incomingSchemaString === lastLoadedContentRef.current) {
+        lastLoadedSchemaRef.current = initialSchema;
+        return;
+      }
+      
+      // CRITICAL: Check sessionStorage first - if we have cached changes, don't reload from initialSchema
+      if (hasCachedChanges()) {
+        console.log('🛡️ Preventing schema reload - sessionStorage has uncommitted changes');
         lastLoadedSchemaRef.current = initialSchema;
         return;
       }
@@ -156,7 +186,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
       lastLoadedSchemaRef.current = initialSchema;
       lastLoadedContentRef.current = incomingSchemaString;
     }
-  }, [initialSchema, setSchema, setSavedSchema, setCollapsedPaths, schemaType, handleSchemaTypeChange, isModified, savedSchema]);
+  }, [initialSchema, setSchema, setSavedSchema, setCollapsedPaths, schemaType, handleSchemaTypeChange, isModified, savedSchema, hasCachedChanges]);
   
   
   return (
@@ -177,7 +207,13 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         selectedDocument={selectedDocument}
         onClose={onClose}
         onDocumentUpdate={onDocumentUpdate}
-        onSave={onSave}
+        onSave={(content) => {
+          // Clear sessionStorage cache before saving
+          clearCache();
+          if (onSave) {
+            onSave(content);
+          }
+        }}
         onOpenStyles={() => setIsStylesDialogOpen(true)}
         onImportOpenApi={() => setIsOpenApiImportOpen(true)}
         diagramRef={diagramRef}
