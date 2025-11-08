@@ -1287,6 +1287,7 @@ const MousePositionTracker: React.FC<{
             }}
             onUpdate={handleNodeUpdate}
             onDelete={handleNodeDelete}
+            currentWorkspaceId={workspaceId}
           />
 
           <EdgeEditor

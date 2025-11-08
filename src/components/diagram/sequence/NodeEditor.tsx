@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { DiagramNode, DiagramNodeType } from '@/types/diagram';
 import { Badge } from '@/components/ui/badge';
-import { X } from 'lucide-react';
+import { FileJson } from 'lucide-react';
+import { EndpointImportDialog } from './EndpointImportDialog';
 
 interface NodeEditorProps {
   node: DiagramNode | null;
@@ -16,6 +17,7 @@ interface NodeEditorProps {
   onClose: () => void;
   onUpdate: (nodeId: string, updates: Partial<DiagramNode>) => void;
   onDelete: (nodeId: string) => void;
+  currentWorkspaceId?: string;
 }
 
 export const NodeEditor: React.FC<NodeEditorProps> = ({
@@ -24,8 +26,11 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
   isOpen,
   onClose,
   onUpdate,
-  onDelete
+  onDelete,
+  currentWorkspaceId
 }) => {
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+
   if (!node) return null;
 
   const handleUpdate = (field: string, value: any) => {
@@ -35,6 +40,29 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
   const handleDataUpdate = (field: string, value: any) => {
     onUpdate(node.id, {
       data: { ...node.data, [field]: value }
+    });
+  };
+
+  const handleImportEndpoint = (endpoint: {
+    method: string;
+    path: string;
+    summary?: string;
+    description?: string;
+    documentId: string;
+  }) => {
+    onUpdate(node.id, {
+      label: endpoint.summary || `${endpoint.method} ${endpoint.path}`,
+      data: {
+        ...node.data,
+        method: endpoint.method,
+        path: endpoint.path,
+        description: endpoint.description,
+        openApiRef: {
+          documentId: endpoint.documentId,
+          path: endpoint.path,
+          method: endpoint.method
+        }
+      }
     });
   };
 
@@ -84,6 +112,19 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
 
           {node.type === 'endpoint' && (
             <>
+              <div className="flex items-center justify-between">
+                <Label>Endpoint Details</Label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsImportDialogOpen(true)}
+                  className="gap-2"
+                >
+                  <FileJson className="h-4 w-4" />
+                  Import from OpenAPI
+                </Button>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="node-method">HTTP Method</Label>
                 <Select
@@ -162,6 +203,13 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
           )}
         </div>
       </DialogContent>
+
+      <EndpointImportDialog
+        isOpen={isImportDialogOpen}
+        onClose={() => setIsImportDialogOpen(false)}
+        onImport={handleImportEndpoint}
+        currentWorkspaceId={currentWorkspaceId}
+      />
     </Dialog>
   );
 };
