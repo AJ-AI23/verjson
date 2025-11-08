@@ -63,15 +63,15 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
 
       setLoadingContent(true);
       try {
-        const { data, error } = await supabase.functions.invoke('document-management', {
-          body: { action: 'getDocument', id: selectedDocumentId }
+        const { data, error } = await supabase.functions.invoke('document-content', {
+          body: { action: 'fetchDocumentWithContent', document_id: selectedDocumentId }
         });
 
         if (error) {
           console.error('[EndpointImport] Error fetching document:', error);
           setDocumentContent(null);
         } else {
-          console.log('[EndpointImport] Fetched document content:', data.document);
+          console.log('[EndpointImport] Fetched document with versions:', data.document);
           setDocumentContent(data.document?.content);
         }
       } catch (err) {
