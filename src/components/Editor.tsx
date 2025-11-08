@@ -5,9 +5,11 @@ import { EditorToolbar } from './schema/EditorToolbar';
 import { EditorContent } from './schema/EditorContent';
 import { useEditorState } from './editor/useEditorState';
 import { EditorVersionDialog } from './editor/EditorVersionDialog';
+import { VersionMismatchRibbon } from './editor/VersionMismatchRibbon';
 import { detectSchemaType } from '@/lib/schemaUtils';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 import { useDocumentPermissions } from '@/hooks/useDocumentPermissions';
+import { useDocumentVersions } from '@/hooks/useDocumentVersions';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface EditorProps {
@@ -25,7 +27,12 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
   const [isStylesDialogOpen, setIsStylesDialogOpen] = React.useState(false);
   const [isOpenApiImportOpen, setIsOpenApiImportOpen] = React.useState(false);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const [showVersionMismatch, setShowVersionMismatch] = React.useState(false);
+  const [loadedVersionId, setLoadedVersionId] = React.useState<string | null>(null);
   const diagramRef = React.useRef<HTMLDivElement>(null);
+  
+  // Fetch versions to detect mismatches
+  const { versions, getSchemaPatches } = useDocumentVersions(selectedDocument?.id);
   
   // Convert initialSchema to string if it's an object to prevent crashes in versioning hooks
   const schemaAsString = React.useMemo(() => {
@@ -98,6 +105,63 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     }
   }, [onClearRequest, clearEditorState]);
 
+  // Handle reloading editor with latest version
+  const handleReloadWithLatestVersion = React.useCallback(() => {
+    if (!initialSchema) return;
+    
+    console.log('🔄 Reloading editor with latest version');
+    
+    const detectedType = detectSchemaType(initialSchema);
+    if (detectedType !== schemaType) {
+      handleSchemaTypeChange(detectedType);
+    }
+    
+    const schemaString = JSON.stringify(initialSchema, null, 2);
+    setSchema(schemaString);
+    setSavedSchema(schemaString);
+    setCollapsedPaths({ root: true });
+    
+    // Update tracked version
+    const selectedVersion = versions.find(v => v.is_selected);
+    if (selectedVersion) {
+      setLoadedVersionId(selectedVersion.id);
+    }
+    
+    setShowVersionMismatch(false);
+  }, [initialSchema, schemaType, handleSchemaTypeChange, setSchema, setSavedSchema, setCollapsedPaths, versions]);
+
+  // Check for version mismatches
+  React.useEffect(() => {
+    if (!selectedDocument?.id || !versions.length) return;
+    
+    const selectedVersion = versions.find(v => v.is_selected);
+    if (!selectedVersion) return;
+    
+    // On first load, track the loaded version
+    if (!loadedVersionId) {
+      console.log('📌 Tracking loaded version:', selectedVersion.id);
+      setLoadedVersionId(selectedVersion.id);
+      return;
+    }
+    
+    // Detect version mismatch
+    if (selectedVersion.id !== loadedVersionId) {
+      console.log('⚠️ Version mismatch detected:', {
+        loaded: loadedVersionId,
+        latest: selectedVersion.id,
+        hasChanges: isModified
+      });
+      
+      // Only show warning if user has uncommitted changes
+      if (isModified) {
+        setShowVersionMismatch(true);
+      } else {
+        // Auto-reload if no changes
+        handleReloadWithLatestVersion();
+      }
+    }
+  }, [versions, loadedVersionId, isModified, selectedDocument?.id, handleReloadWithLatestVersion]);
+
   // Update editor state when initialSchema changes (document selection)
   const lastLoadedSchemaRef = React.useRef<any>(null);
   const lastLoadedDocumentIdRef = React.useRef<string | null>(null);
@@ -145,12 +209,23 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
       setCollapsedPaths({ root: true });
       lastLoadedSchemaRef.current = initialSchema;
       lastLoadedDocumentIdRef.current = currentDocId;
+      
+      // Track the loaded version
+      setLoadedVersionId(null); // Reset on document switch
     }
   }, [initialSchema, selectedDocument?.id, isModified, schema, savedSchema, schemaType, handleSchemaTypeChange, setSchema, setSavedSchema, setCollapsedPaths]);
   
   
   return (
     <div className="json-schema-editor">
+      <VersionMismatchRibbon
+        isVisible={showVersionMismatch}
+        onDismiss={() => setShowVersionMismatch(false)}
+        onStartFresh={handleReloadWithLatestVersion}
+        onKeepEdits={() => setShowVersionMismatch(false)}
+        documentId={selectedDocument?.id}
+      />
+      
       <EditorToolbar
         schema={schema}
         schemaType={schemaType}
