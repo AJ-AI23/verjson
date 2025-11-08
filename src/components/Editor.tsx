@@ -100,6 +100,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
 
   // Update editor state when initialSchema changes (document selection)
   const lastLoadedSchemaRef = React.useRef<any>(null);
+  const lastLoadedContentRef = React.useRef<string>('');
   const currentSchemaRef = React.useRef<string>(schema);
   
   // Track current schema value
@@ -109,21 +110,39 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
   
   React.useEffect(() => {
     if (initialSchema && typeof initialSchema === 'object' && initialSchema !== lastLoadedSchemaRef.current) {
-      // Don't overwrite unsaved changes when tab regains focus or component re-renders
-      if (isModified) {
-        // Update the ref so we don't keep triggering this
+      const incomingSchemaString = JSON.stringify(initialSchema, null, 2);
+      
+      // Check if this is actually the same content we already loaded
+      // This prevents unnecessary reloads when the same object reference changes
+      if (incomingSchemaString === lastLoadedContentRef.current) {
         lastLoadedSchemaRef.current = initialSchema;
         return;
       }
       
-      // Also check if current editor content differs from what would be loaded
-      // This catches cases where diagram changes haven't updated isModified yet
-      const incomingSchemaString = JSON.stringify(initialSchema, null, 2);
-      if (currentSchemaRef.current !== savedSchema && currentSchemaRef.current !== incomingSchemaString) {
-        console.log('🛡️ Preventing schema reload - editor has uncommitted changes');
+      // Don't overwrite unsaved changes when tab regains focus or component re-renders
+      if (isModified) {
+        console.log('🛡️ Preventing schema reload - document is modified (isModified=true)');
         lastLoadedSchemaRef.current = initialSchema;
         return;
       }
+      
+      // Additional protection: check if current editor content differs from both saved and incoming
+      // This catches cases where diagram changes haven't updated isModified flag yet
+      if (currentSchemaRef.current !== savedSchema && currentSchemaRef.current !== incomingSchemaString) {
+        console.log('🛡️ Preventing schema reload - editor has uncommitted changes that differ from incoming schema');
+        lastLoadedSchemaRef.current = initialSchema;
+        return;
+      }
+      
+      // Final protection: if current content is different from saved content, don't reload
+      // This is the most aggressive check to prevent any data loss
+      if (currentSchemaRef.current.trim() !== '' && currentSchemaRef.current !== savedSchema) {
+        console.log('🛡️ Preventing schema reload - current schema differs from saved schema');
+        lastLoadedSchemaRef.current = initialSchema;
+        return;
+      }
+      
+      console.log('✅ Loading schema - all safety checks passed');
       
       // Detect the schema type and update it
       const detectedType = detectSchemaType(initialSchema);
@@ -135,6 +154,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
       setSavedSchema(incomingSchemaString);
       setCollapsedPaths({ root: true });
       lastLoadedSchemaRef.current = initialSchema;
+      lastLoadedContentRef.current = incomingSchemaString;
     }
   }, [initialSchema, setSchema, setSavedSchema, setCollapsedPaths, schemaType, handleSchemaTypeChange, isModified, savedSchema]);
   
