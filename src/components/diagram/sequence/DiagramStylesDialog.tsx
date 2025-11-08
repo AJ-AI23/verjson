@@ -343,8 +343,8 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
                         {lifelines.map((lifeline) => {
                           const lifelineColors = currentTheme.lifelineColors?.[lifeline.id];
                           
-                          // Use theme-specific default colors
-                          const defaultBg = activeTab === 'dark' ? '#0a1628' : '#e0f2fe';
+                          // Use theme-specific default colors - much lighter for dark theme
+                          const defaultBg = activeTab === 'dark' ? '#475569' : '#e0f2fe';
                           const bgColor = lifelineColors?.background || lifeline.color || defaultBg;
                           
                           // Calculate default anchor colors based on background

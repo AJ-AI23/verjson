@@ -21,7 +21,8 @@ export const AnchorNode: React.FC<AnchorNodeProps> = ({ data }) => {
   
   // Get colors from theme first, then fall back to custom styles or defaults
   const lifelineColors = styles?.lifelineColors?.[lifelineId];
-  const lifelineColor = lifelineColors?.background || customStyles?.customNodeStyles?.[`lifeline-${lifelineId}`]?.backgroundColor || lifeline?.color || '#e0f2fe';
+  const defaultLifelineBg = styles?.id === 'dark' ? '#475569' : '#e0f2fe';
+  const lifelineColor = lifelineColors?.background || customStyles?.customNodeStyles?.[`lifeline-${lifelineId}`]?.backgroundColor || lifeline?.color || defaultLifelineBg;
   
   // Calculate default anchor colors as 50% lighter than lifeline background
   const defaultAnchorColor = lightenColor(lifelineColor, 50);

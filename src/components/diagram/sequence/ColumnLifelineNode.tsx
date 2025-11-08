@@ -56,8 +56,9 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
     setHoverPosition(null);
   };
 
-  // Get custom color for this lifeline from theme, fallback to lifeline.color, then to default
-  const lifelineColor = styles?.lifelineColors?.[lifeline.id]?.background || customLifelineColors?.[`lifeline-${lifeline.id}`] || lifeline.color || '#e0f2fe';
+  // Get custom color for this lifeline from theme, fallback to lifeline.color, then to theme-specific default
+  const defaultLifelineBg = styles?.id === 'dark' ? '#475569' : '#e0f2fe';
+  const lifelineColor = styles?.lifelineColors?.[lifeline.id]?.background || customLifelineColors?.[`lifeline-${lifeline.id}`] || lifeline.color || defaultLifelineBg;
 
   return (
     <div
