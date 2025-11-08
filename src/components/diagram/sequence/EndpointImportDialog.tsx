@@ -52,10 +52,29 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
     if (!selectedDocumentId) return [];
 
     const document = openApiDocuments.find(doc => doc.id === selectedDocumentId);
-    if (!document || !document.content) return [];
+    if (!document || !document.content) {
+      console.log('[EndpointImport] No document or content found');
+      return [];
+    }
+
+    console.log('[EndpointImport] Document content type:', typeof document.content);
+    console.log('[EndpointImport] Document content:', document.content);
+
+    // Handle both parsed JSON objects and JSON strings
+    let content = document.content;
+    if (typeof content === 'string') {
+      try {
+        content = JSON.parse(content);
+      } catch (e) {
+        console.error('[EndpointImport] Failed to parse document content:', e);
+        return [];
+      }
+    }
 
     const extractedEndpoints: EndpointInfo[] = [];
-    const paths = document.content.paths || {};
+    const paths = content.paths || {};
+
+    console.log('[EndpointImport] Paths found:', Object.keys(paths).length);
 
     Object.entries(paths).forEach(([path, pathItem]: [string, any]) => {
       const methods = ['get', 'post', 'put', 'patch', 'delete', 'options', 'head'];
@@ -75,6 +94,7 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
       });
     });
 
+    console.log('[EndpointImport] Extracted endpoints:', extractedEndpoints.length);
     return extractedEndpoints;
   }, [selectedDocumentId, openApiDocuments]);
 
