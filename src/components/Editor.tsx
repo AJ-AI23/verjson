@@ -107,28 +107,30 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
 
   // Handle reloading editor with latest version
   const handleReloadWithLatestVersion = React.useCallback(() => {
-    if (!initialSchema) return;
+    const selectedVersion = versions.find(v => v.is_selected);
+    if (!selectedVersion?.full_document) {
+      console.warn('🔄 Cannot reload - no selected version with full_document');
+      return;
+    }
     
-    console.log('🔄 Reloading editor with latest version');
+    console.log('🔄 Reloading editor with latest version from version.full_document:', selectedVersion.id);
     
-    const detectedType = detectSchemaType(initialSchema);
+    // Use the full_document from the selected version, NOT initialSchema
+    const versionContent = selectedVersion.full_document;
+    const detectedType = detectSchemaType(versionContent);
     if (detectedType !== schemaType) {
       handleSchemaTypeChange(detectedType);
     }
     
-    const schemaString = JSON.stringify(initialSchema, null, 2);
+    const schemaString = JSON.stringify(versionContent, null, 2);
     setSchema(schemaString);
     setSavedSchema(schemaString);
     setCollapsedPaths({ root: true });
-    
-    // Update tracked version
-    const selectedVersion = versions.find(v => v.is_selected);
-    if (selectedVersion) {
-      setLoadedVersionId(selectedVersion.id);
-    }
-    
+    setLoadedVersionId(selectedVersion.id);
     setShowVersionMismatch(false);
-  }, [initialSchema, schemaType, handleSchemaTypeChange, setSchema, setSavedSchema, setCollapsedPaths, versions]);
+    
+    console.log('✅ Editor reloaded with version:', selectedVersion.id);
+  }, [versions, schemaType, handleSchemaTypeChange, setSchema, setSavedSchema, setCollapsedPaths]);
 
   // Check for version mismatches
   React.useEffect(() => {
