@@ -238,7 +238,7 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
         </DialogHeader>
 
         <div className="flex-1 overflow-auto min-h-0">
-          <ScrollArea className="h-full max-h-[calc(85vh-200px)]">
+          <ScrollArea className="h-[450px]">
             <div className="space-y-4 pr-4">
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
