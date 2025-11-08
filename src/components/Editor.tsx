@@ -113,7 +113,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
       return;
     }
     
-    console.log('🔄 Reloading editor with latest version from version.full_document:', selectedVersion.id);
+    console.log('📝 EDITOR CHANGE from handleReloadWithLatestVersion - reloading with version:', selectedVersion.id);
     
     // Use the full_document from the selected version, NOT initialSchema
     const versionContent = selectedVersion.full_document;
@@ -206,7 +206,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     
     // Safe to load only on document switch
     if (isDocumentSwitch && initialSchema && typeof initialSchema === 'object') {
-      console.log('✅ Loading schema for new document');
+      console.log('📝 EDITOR CHANGE from document switch - loading new document');
       
       const detectedType = detectSchemaType(initialSchema);
       if (detectedType !== schemaType) {

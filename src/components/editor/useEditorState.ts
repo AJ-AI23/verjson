@@ -9,7 +9,22 @@ import { useDebug } from '@/contexts/DebugContext';
 
 export const useEditorState = (defaultSchema: string, documentId?: string) => {
   const { debugToast } = useDebug();
-  const [schema, setSchema] = useState(defaultSchema);
+  
+  // Wrapped setSchema with logging
+  const [internalSchema, setInternalSchema] = useState(defaultSchema);
+  const setSchema = useCallback((value: string | ((prev: string) => string)) => {
+    const newValue = typeof value === 'function' ? value(internalSchema) : value;
+    console.log('📝 EDITOR CONTENT UPDATE:', {
+      source: new Error().stack?.split('\n')[2]?.trim(),
+      preview: newValue.substring(0, 100) + '...',
+      length: newValue.length,
+      documentId
+    });
+    setInternalSchema(newValue);
+  }, [internalSchema, documentId]);
+  
+  const schema = internalSchema;
+  
   const [savedSchema, setSavedSchema] = useState(defaultSchema);
   const [parsedSchema, setParsedSchema] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -178,6 +193,7 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
   }, [parsedSchema, debugToast]);
 
   const handleEditorChange = (value: string) => {
+    console.log('📝 EDITOR CHANGE from user input');
     debugToast('Editor content changed');
     setSchema(value);
   };
@@ -191,6 +207,7 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
 
   const handleAddNotation = useCallback((nodeId: string, user: string, message: string) => {
     try {
+      console.log('📝 EDITOR CHANGE from adding notation');
       const path = getPropertyPathFromNodeId(nodeId);
       const currentParsedSchema = parsedSchema || JSON.parse(schema);
       
@@ -216,6 +233,7 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
 
   // Clear all editor state when document is deleted
   const clearEditorState = useCallback(() => {
+    console.log('📝 EDITOR CHANGE from clearEditorState');
     debugToast('🧹 Editor: Clearing all editor and version state');
     setSchema(defaultSchema);
     setSavedSchema(defaultSchema);
@@ -225,7 +243,7 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
     setCollapsedPaths({ root: true });
     setExpandedNotationPaths(new Set());
     clearVersionState(); // Also clear version history state
-  }, [defaultSchema, clearVersionState, debugToast]);
+  }, [defaultSchema, clearVersionState, debugToast, setSchema]);
 
   return {
     schema,
