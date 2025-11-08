@@ -237,8 +237,9 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 h-0">
-          <div className="space-y-4 pr-4">
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <ScrollArea className="h-full">
+            <div className="space-y-4 pr-4">
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-2">
@@ -382,8 +383,9 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
             </TabsContent>
           </Tabs>
 
+            </div>
+          </ScrollArea>
         </div>
-        </ScrollArea>
 
         <div className="flex justify-end gap-2 pt-4 border-t mt-4">
           <Button onClick={onClose}>
