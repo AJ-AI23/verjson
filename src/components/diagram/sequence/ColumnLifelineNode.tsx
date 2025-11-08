@@ -109,14 +109,14 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
           className="absolute"
           style={{
             left: '30px',
-            width: '2px',
+            width: '4px',
             height: '100%',
             background: `repeating-linear-gradient(
               to bottom,
               ${styles?.colors.nodeBorder || '#cbd5e1'} 0px,
-              ${styles?.colors.nodeBorder || '#cbd5e1'} 8px,
-              transparent 8px,
-              transparent 16px
+              ${styles?.colors.nodeBorder || '#cbd5e1'} 10px,
+              transparent 10px,
+              transparent 20px
             )`,
             pointerEvents: 'none'
           }}
