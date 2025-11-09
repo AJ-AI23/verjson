@@ -93,6 +93,8 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const { lifelines = [], nodes: diagramNodes } = data;
   const { settings } = useEditorSettings();
   
+  console.log('🎯 [SequenceRenderer] readOnly:', readOnly, 'diagramNodes count:', diagramNodes.length);
+  
   const [currentTheme, setCurrentTheme] = useState(initialTheme);
   
   // Update local theme state when initialTheme prop changes
@@ -503,6 +505,7 @@ const MousePositionTracker: React.FC<{
       if (node.type === 'sequenceNode') {
         return {
           ...node,
+          draggable: !readOnly, // Explicitly set draggable for sequence nodes
           data: {
             ...node.data,
             onHeightChange: handleNodeHeightChange,
@@ -512,7 +515,7 @@ const MousePositionTracker: React.FC<{
       }
       return node;
     });
-  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, styles?.customNodeStyles]);
+  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, styles?.customNodeStyles, nodeHeights, lifelineHeight]);
 
   const [nodes, setNodes, handleNodesChange] = useNodesState(nodesWithHandlers);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
