@@ -610,10 +610,16 @@ const MousePositionTracker: React.FC<{
         };
         
         // Create slot assignments: convert visual Y positions to slot indices
+        // IMPORTANT: visual Y is top of node, but we need to convert to center Y for document
         const nodeToSlot = new Map<string, number>();
         sequenceNodes.forEach(n => {
-          const visualY = n.position.y;
-          const slot = Math.round(visualY / SLOT_HEIGHT);
+          const diagramNode = diagramNodes.find(dn => dn.id === n.id);
+          const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
+          const nodeHeight = nodeHeights.get(n.id) || nodeConfig?.defaultHeight || 70;
+          
+          const visualTopY = n.position.y;
+          const centerY = visualTopY + (nodeHeight / 2); // Convert top Y to center Y
+          const slot = Math.round(centerY / SLOT_HEIGHT);
           nodeToSlot.set(n.id, slot);
         });
         
@@ -621,12 +627,18 @@ const MousePositionTracker: React.FC<{
         let draggedNodeId: string | null = null;
         let maxDelta = 0;
         diagramNodes.forEach(node => {
-          const originalY = node.yPosition || 0;
-          const visualY = nodes.find(n => n.id === node.id)?.position.y || 0;
-          const delta = Math.abs(visualY - originalY);
-          if (delta > maxDelta) {
-            maxDelta = delta;
-            draggedNodeId = node.id;
+          const originalCenterY = node.yPosition || 0;
+          const flowNode = nodes.find(n => n.id === node.id);
+          if (flowNode) {
+            const nodeConfig = getNodeTypeConfig(node.type);
+            const nodeHeight = nodeHeights.get(node.id) || nodeConfig?.defaultHeight || 70;
+            const visualTopY = flowNode.position.y;
+            const currentCenterY = visualTopY + (nodeHeight / 2);
+            const delta = Math.abs(currentCenterY - originalCenterY);
+            if (delta > maxDelta) {
+              maxDelta = delta;
+              draggedNodeId = node.id;
+            }
           }
         });
         
