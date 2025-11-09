@@ -86,12 +86,27 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     };
   });
 
-  // Build a dependency graph to determine node order
-  const nodeOrder = calculateNodeSequence(nodes);
+  // Ensure all nodes have yPositions before layout calculation
+  // Assign default positions to new nodes or dragged nodes that don't have yPosition yet
+  const nodesWithPositions = nodes.map((node, index) => {
+    if (node.yPosition === undefined) {
+      // Assign a default yPosition based on array order
+      // This ensures new nodes get positioned at the end in order
+      const maxYPosition = nodes.reduce((max, n) => 
+        n.yPosition !== undefined ? Math.max(max, n.yPosition) : max, 
+        LIFELINE_HEADER_HEIGHT + 40
+      );
+      return {
+        ...node,
+        yPosition: maxYPosition + (index * 120)
+      };
+    }
+    return node;
+  });
 
   // Auto-align all nodes with even vertical spacing based on actual heights
   // Allow nodes to share Y positions when they connect to non-overlapping lifelines
-  const alignedNodePositions = calculateEvenSpacing(nodes, nodeOrder, nodeHeights, lifelines);
+  const alignedNodePositions = calculateEvenSpacing(nodesWithPositions, nodeHeights, lifelines);
   
   // Create a map to store calculated yPosition values (center Y)
   const calculatedYPositions = new Map<string, number>();
@@ -101,7 +116,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     const xPos = lifelineXPositions.get(anchor.lifelineId) || 0;
     
     // Find the connected node to get its Y position and height
-    const connectedNode = nodes.find(n => 
+    const connectedNode = nodesWithPositions.find(n => 
       n.anchors?.some(a => a.id === anchor.id)
     );
     
@@ -137,8 +152,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     };
   });
 
-  // Calculate positions for each node
-  const layoutNodes: Node[] = nodes.map((node, index) => {
+  // Calculate positions for each node (use nodesWithPositions for consistency)
+  const layoutNodes: Node[] = nodesWithPositions.map((node, index) => {
     const config = getNodeTypeConfig(node.type);
     
     // Get anchors for this node directly
@@ -202,7 +217,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   
   // Create edges between anchors and their nodes
   anchors.forEach(anchor => {
-    const node = nodes.find(n => 
+    const node = nodesWithPositions.find(n => 
       n.anchors?.some(a => a.id === anchor.id)
     );
     
@@ -270,11 +285,11 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   });
   
   // Final validation
-  if (layoutEdges.length === 0 && nodes.length > 0) {
+  if (layoutEdges.length === 0 && nodesWithPositions.length > 0) {
     console.error('❌ [SequenceLayout] NO EDGES CREATED despite having nodes!', {
-      nodeCount: nodes.length,
+      nodeCount: nodesWithPositions.length,
       anchorCount: anchors.length,
-      nodesWithAnchors: nodes.filter(n => n.anchors && n.anchors.length === 2).length
+      nodesWithAnchors: nodesWithPositions.filter(n => n.anchors && n.anchors.length === 2).length
     });
   }
 
@@ -285,19 +300,6 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   };
 };
 
-// Calculate the vertical order of nodes based on stored yPosition or array order
-function calculateNodeSequence(nodes: DiagramNode[]): string[] {
-  // If nodes have yPosition, use those for sorting, otherwise use array order
-  const nodesWithPosition = nodes.map((node, index) => {
-    const yPos = node.yPosition !== undefined ? node.yPosition : index * 120;
-    return { id: node.id, yPosition: yPos };
-  });
-  
-  // Sort by Y position
-  nodesWithPosition.sort((a, b) => a.yPosition - b.yPosition);
-  
-  return nodesWithPosition.map(n => n.id);
-}
 
 // Helper to check if two lifeline ranges overlap
 function lifelineRangesOverlap(range1: [string, string], range2: [string, string], lifelinePositions: Map<string, number>): boolean {
@@ -316,7 +318,7 @@ function lifelineRangesOverlap(range1: [string, string], range2: [string, string
 }
 
 // Calculate spacing that allows nodes to share Y positions when they don't overlap horizontally
-function calculateEvenSpacing(nodes: DiagramNode[], nodeOrder: string[], nodeHeights?: Map<string, number>, lifelines?: Lifeline[]): Map<string, number> {
+function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, number>, lifelines?: Lifeline[]): Map<string, number> {
   const positions = new Map<string, number>();
   
   if (nodes.length === 0) {
@@ -343,10 +345,11 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeOrder: string[], nodeHei
   }
   const yLevels: YLevel[] = [];
   
-  // Sort nodes by yPosition to ensure correct sequence order
+  // Sort nodes by yPosition (all nodes should have yPosition at this point)
+  // Use array index as fallback for safety
   const sortedNodes = [...nodes].sort((a, b) => {
-    const aPos = a.yPosition !== undefined ? a.yPosition : Infinity;
-    const bPos = b.yPosition !== undefined ? b.yPosition : Infinity;
+    const aPos = a.yPosition !== undefined ? a.yPosition : nodes.indexOf(a) * 120;
+    const bPos = b.yPosition !== undefined ? b.yPosition : nodes.indexOf(b) * 120;
     return aPos - bPos;
   });
   
