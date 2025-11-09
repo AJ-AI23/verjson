@@ -32,17 +32,18 @@ export function WorkspaceSidebar({ onDocumentSelect, onDocumentDeleted, selected
       side="left"
     >
       <SidebarContent className="flex flex-col h-full bg-card">
-        <div className={`transition-all duration-300 ${isCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'} flex-1`}>
-          <WorkspacePanel 
-            onDocumentSelect={handleDocumentSelect}
-            onDocumentDeleted={onDocumentDeleted}
-            selectedDocument={selectedDocument}
-            isCollapsed={isCollapsed}
-          />
-        </div>
-        
-        {/* Mini state - just show workspace icon */}
-        {isCollapsed && (
+        {/* On mobile (offcanvas), always show content when open. On desktop, respect collapsed state */}
+        {(!isCollapsed || isMobile) ? (
+          <div className="flex-1">
+            <WorkspacePanel 
+              onDocumentSelect={handleDocumentSelect}
+              onDocumentDeleted={onDocumentDeleted}
+              selectedDocument={selectedDocument}
+              isCollapsed={isCollapsed}
+            />
+          </div>
+        ) : (
+          /* Mini state - just show workspace icon on desktop when collapsed */
           <div className="flex flex-col items-center justify-center flex-1 p-4">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
               <span className="text-sm font-bold text-primary">W</span>
