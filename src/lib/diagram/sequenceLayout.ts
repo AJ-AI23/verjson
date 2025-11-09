@@ -208,7 +208,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         styles,
         width: width > 180 ? width : undefined,
         calculatedYPosition: centerY // Pass the calculated yPosition via data
-      }
+      },
+      draggable: true // Enable dragging for sequence nodes
     };
   });
 
