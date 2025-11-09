@@ -343,16 +343,22 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeOrder: string[], nodeHei
   }
   const yLevels: YLevel[] = [];
   
-  // Assign Y positions based on node order, allowing sharing when no overlap
-  nodeOrder.forEach((nodeId) => {
-    const node = nodes.find(n => n.id === nodeId);
+  // Sort nodes by yPosition to ensure correct sequence order
+  const sortedNodes = [...nodes].sort((a, b) => {
+    const aPos = a.yPosition !== undefined ? a.yPosition : Infinity;
+    const bPos = b.yPosition !== undefined ? b.yPosition : Infinity;
+    return aPos - bPos;
+  });
+  
+  // Assign Y positions based on sorted nodes, allowing sharing when no overlap
+  sortedNodes.forEach((node) => {
     if (!node || !node.anchors || node.anchors.length !== 2) {
-      positions.set(nodeId, startY);
+      positions.set(node.id, startY);
       return;
     }
     
     const nodeConfig = getNodeTypeConfig(node.type);
-    const measuredHeight = nodeHeights?.get(nodeId);
+    const measuredHeight = nodeHeights?.get(node.id);
     const nodeHeight = measuredHeight || nodeConfig?.defaultHeight || 70;
     
     // Get the lifeline range this node spans
@@ -374,7 +380,7 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeOrder: string[], nodeHei
         assignedLevel = level;
         // Update level height if this node is taller
         level.height = Math.max(level.height, nodeHeight);
-        level.nodesWithRanges.push({ nodeId, range: nodeRange });
+        level.nodesWithRanges.push({ nodeId: node.id, range: nodeRange });
         break;
       }
     }
@@ -388,12 +394,12 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeOrder: string[], nodeHei
       assignedLevel = {
         y: newY,
         height: nodeHeight,
-        nodesWithRanges: [{ nodeId, range: nodeRange }]
+        nodesWithRanges: [{ nodeId: node.id, range: nodeRange }]
       };
       yLevels.push(assignedLevel);
     }
     
-    positions.set(nodeId, assignedLevel.y);
+    positions.set(node.id, assignedLevel.y);
   });
   
   return positions;
