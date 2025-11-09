@@ -68,6 +68,13 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   const hasSharedDocuments = sharedDocuments.length > 0;
   const isVirtualSharedWorkspace = selectedWorkspace === VIRTUAL_SHARED_WORKSPACE_ID;
   
+  // Auto-select first available workspace on mount
+  useEffect(() => {
+    if (!selectedWorkspace && workspaces.length > 0) {
+      setSelectedWorkspace(workspaces[0].id);
+    }
+  }, [workspaces, selectedWorkspace]);
+  
   // Clear virtual workspace selection if no shared documents
   useEffect(() => {
     if (!hasSharedDocuments && selectedWorkspace === VIRTUAL_SHARED_WORKSPACE_ID) {
