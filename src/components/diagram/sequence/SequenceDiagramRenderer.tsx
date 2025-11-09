@@ -559,9 +559,21 @@ const MousePositionTracker: React.FC<{
   }, [nodeHeights, setNodes]);
 
   const onNodesChangeHandler = useCallback((changes: any) => {
+    // Log all position changes for debugging
+    const positionChanges = changes.filter((c: any) => c.type === 'position');
+    if (positionChanges.length > 0) {
+      console.log('📍 [POSITION CHANGES]:', positionChanges.map((c: any) => ({
+        id: c.id,
+        dragging: c.dragging,
+        hasPosition: !!c.position,
+        position: c.position
+      })));
+    }
+    
     // Store initial positions when drag starts
     const dragStartChange = changes.find((c: any) => c.type === 'position' && c.dragging === true);
     if (dragStartChange) {
+      console.log('🟢 [DRAG START]', dragStartChange.id);
       isDraggingRef.current = true;
       setIsDragging(true);
       
