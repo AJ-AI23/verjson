@@ -70,53 +70,73 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     lifelineXPositions.set(lifeline.id, xPos);
   });
 
+  // Helper function to get anchor center Y position
+  const getAnchorCenterY = (anchorId: string): number | null => {
+    const node = nodesWithPositions.find(n => n.anchors?.some(a => a.id === anchorId));
+    if (!node || node.yPosition === undefined) return null;
+    
+    const nodeConfig = node ? getNodeTypeConfig(node.type) : null;
+    const measuredHeight = nodeHeights ? nodeHeights.get(node.id) : undefined;
+    const nodeHeight = measuredHeight || nodeConfig?.defaultHeight || 70;
+    
+    return node.yPosition + (nodeHeight / 2);
+  };
+
   // Helper function to calculate process margin for a lifeline
-  const getProcessMargin = (lifelineId: string, nodeY: number): number => {
+  const getProcessMargin = (lifelineId: string, nodeY: number, nodeHeight: number): number => {
     if (!options.processes || options.processes.length === 0) return 0;
     
     const PROCESS_BOX_WIDTH = 50;
     const MARGIN_GAP = 10; // Gap between process box and lifeline
+    const ANCHOR_MARGIN = 25; // Margin that process boxes have above/below anchors
+    
+    // Calculate this node's center Y and its range
+    const nodeCenterY = nodeY + (nodeHeight / 2);
+    const nodeTopY = nodeY;
+    const nodeBottomY = nodeY + nodeHeight;
     
     // Find processes on this lifeline that overlap with this node's Y position
     const overlappingProcesses = options.processes.filter(process => {
       if (process.lifelineId !== lifelineId) return false;
       
-      // Get Y range of the process by checking its anchors
-      const processAnchors = process.anchorIds
-        .map(anchorId => anchors.find(a => a.id === anchorId))
-        .filter(a => a !== undefined);
+      // Get Y range of the process by checking anchor centers
+      const anchorYPositions: number[] = [];
+      process.anchorIds.forEach(anchorId => {
+        const anchorY = getAnchorCenterY(anchorId);
+        if (anchorY !== null) {
+          anchorYPositions.push(anchorY);
+        }
+      });
       
-      if (processAnchors.length === 0) return false;
+      if (anchorYPositions.length === 0) return false;
       
-      const processNodes = processAnchors
-        .map(anchor => nodesWithPositions.find(n => n.anchors?.some(a => a.id === anchor.id)))
-        .filter(n => n !== undefined && n.yPosition !== undefined);
+      const minAnchorY = Math.min(...anchorYPositions);
+      const maxAnchorY = Math.max(...anchorYPositions);
       
-      if (processNodes.length === 0) return false;
+      // Process box extends ANCHOR_MARGIN above/below the anchors
+      const processTopY = minAnchorY - ANCHOR_MARGIN;
+      const processBottomY = maxAnchorY + ANCHOR_MARGIN;
       
-      const minProcessY = Math.min(...processNodes.map(n => n.yPosition!));
-      const maxProcessY = Math.max(...processNodes.map(n => n.yPosition!));
-      
-      // Check if node Y overlaps with process Y range (with some tolerance)
-      return nodeY >= minProcessY - 50 && nodeY <= maxProcessY + 50;
+      // Check if node overlaps with process Y range
+      return !(nodeBottomY < processTopY || nodeTopY > processBottomY);
     });
     
     if (overlappingProcesses.length === 0) return 0;
     
     // Group by Y range to find parallel processes
-    const yGroup = Math.floor(nodeY / 200) * 200;
+    const yGroup = Math.floor(nodeCenterY / 200) * 200;
     const parallelProcesses = overlappingProcesses.filter(process => {
-      const processAnchors = process.anchorIds
-        .map(anchorId => anchors.find(a => a.id === anchorId))
-        .filter(a => a !== undefined);
+      const anchorYPositions: number[] = [];
+      process.anchorIds.forEach(anchorId => {
+        const anchorY = getAnchorCenterY(anchorId);
+        if (anchorY !== null) {
+          anchorYPositions.push(anchorY);
+        }
+      });
       
-      const processNodes = processAnchors
-        .map(anchor => nodesWithPositions.find(n => n.anchors?.some(a => a.id === anchor.id)))
-        .filter(n => n !== undefined && n.yPosition !== undefined);
+      if (anchorYPositions.length === 0) return false;
       
-      if (processNodes.length === 0) return false;
-      
-      const avgY = processNodes.reduce((sum, n) => sum + n.yPosition!, 0) / processNodes.length;
+      const avgY = anchorYPositions.reduce((sum, y) => sum + y, 0) / anchorYPositions.length;
       const processYGroup = Math.floor(avgY / 200) * 200;
       
       return processYGroup === yGroup;
@@ -308,8 +328,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const targetX = lifelineXPositions.get(targetAnchor.lifelineId) || 0;
       
       // Calculate process margins for both lifelines at this node's Y position
-      const sourceProcessMargin = getProcessMargin(sourceAnchor.lifelineId, centerY);
-      const targetProcessMargin = getProcessMargin(targetAnchor.lifelineId, centerY);
+      const sourceProcessMargin = getProcessMargin(sourceAnchor.lifelineId, topY, nodeHeight);
+      const targetProcessMargin = getProcessMargin(targetAnchor.lifelineId, topY, nodeHeight);
       
       const leftX = Math.min(sourceX, targetX);
       const rightX = Math.max(sourceX, targetX);
@@ -441,7 +461,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         anchors,
         nodesWithPositions,
         lifelineXPositions,
-        styles
+        styles,
+        nodeHeights
       );
       processNodes.push(...processLayout);
     } catch (error) {
@@ -610,13 +631,26 @@ const calculateProcessLayout = (
   anchors: AnchorNode[],
   nodes: DiagramNode[],
   lifelinePositions: Map<string, number>,
-  styles?: DiagramStyleTheme
+  styles?: DiagramStyleTheme,
+  nodeHeights?: Map<string, number>
 ): Node[] => {
   if (!processes || processes.length === 0) {
     return [];
   }
 
   const processNodes: Node[] = [];
+
+  // Helper to get actual anchor Y position (center of node)
+  const getAnchorCenterY = (anchorId: string): number | null => {
+    const node = nodes.find(n => n && n.anchors?.some(a => a && a.id === anchorId));
+    if (!node || node.yPosition === undefined) return null;
+    
+    const nodeConfig = node ? getNodeTypeConfig(node.type) : null;
+    const measuredHeight = nodeHeights?.get(node.id);
+    const nodeHeight = measuredHeight || nodeConfig?.defaultHeight || 70;
+    
+    return node.yPosition + (nodeHeight / 2);
+  };
 
   // Group processes by lifeline and Y range to determine parallel positioning
   const processGroups = new Map<string, Map<number, ProcessNode[]>>();
@@ -627,32 +661,23 @@ const calculateProcessLayout = (
       return;
     }
 
-    // Get all anchor positions for this process
-    const processAnchorPositions: { anchor: AnchorNode; node: DiagramNode; y: number }[] = [];
+    // Get all anchor center positions for this process
+    const anchorYPositions: number[] = [];
     
     process.anchorIds.forEach(anchorId => {
-      const anchor = anchors.find(a => a && a.id === anchorId);
-      if (!anchor) {
-        console.warn('Anchor not found for process:', anchorId);
-        return;
+      const anchorY = getAnchorCenterY(anchorId);
+      if (anchorY !== null) {
+        anchorYPositions.push(anchorY);
       }
-      
-      const node = nodes.find(n => n && n.anchors?.some(a => a && a.id === anchorId));
-      if (!node || node.yPosition === undefined) {
-        console.warn('Node not found or missing yPosition for anchor:', anchorId);
-        return;
-      }
-      
-      processAnchorPositions.push({ anchor, node, y: node.yPosition });
     });
 
-    if (processAnchorPositions.length === 0) {
+    if (anchorYPositions.length === 0) {
       console.warn('No valid anchor positions found for process:', process.id);
       return;
     }
 
     // Calculate average Y position for this process (for grouping)
-    const avgY = processAnchorPositions.reduce((sum, p) => sum + p.y, 0) / processAnchorPositions.length;
+    const avgY = anchorYPositions.reduce((sum, y) => sum + y, 0) / anchorYPositions.length;
     const yGroup = Math.floor(avgY / 200) * 200; // Group by Y range (every 200px)
 
     if (!processGroups.has(process.lifelineId)) {
@@ -673,25 +698,28 @@ const calculateProcessLayout = (
       return;
     }
 
-    // Get all anchor positions for this process
-    const processAnchorPositions: { anchor: AnchorNode; node: DiagramNode; y: number }[] = [];
+    // Get all anchor center positions for this process
+    const anchorYPositions: number[] = [];
     
     process.anchorIds.forEach(anchorId => {
-      const anchor = anchors.find(a => a && a.id === anchorId);
-      if (!anchor) return;
-      
-      const node = nodes.find(n => n && n.anchors?.some(a => a && a.id === anchorId));
-      if (!node || node.yPosition === undefined) return;
-      
-      processAnchorPositions.push({ anchor, node, y: node.yPosition });
+      const anchorY = getAnchorCenterY(anchorId);
+      if (anchorY !== null) {
+        anchorYPositions.push(anchorY);
+      }
     });
 
-    if (processAnchorPositions.length === 0) return;
+    if (anchorYPositions.length === 0) return;
 
-    // Calculate bounds
-    const minY = Math.min(...processAnchorPositions.map(p => p.y));
-    const maxY = Math.max(...processAnchorPositions.map(p => p.y));
-    const avgY = (minY + maxY) / 2;
+    // Calculate bounds based on actual anchor center positions
+    const ANCHOR_MARGIN = 25; // Margin above/below anchors
+    const minAnchorY = Math.min(...anchorYPositions);
+    const maxAnchorY = Math.max(...anchorYPositions);
+    
+    // Process box should start above the topmost anchor and end below the bottommost anchor
+    const yPosition = minAnchorY - ANCHOR_MARGIN;
+    const height = Math.max(maxAnchorY - minAnchorY + (ANCHOR_MARGIN * 2), 60); // Minimum 60px height
+    
+    const avgY = (minAnchorY + maxAnchorY) / 2;
     const yGroup = Math.floor(avgY / 200) * 200;
 
     const lifelineX = lifelinePositions.get(process.lifelineId);
@@ -711,8 +739,6 @@ const calculateProcessLayout = (
     // Calculate dimensions
     const PROCESS_BOX_WIDTH = 50; // Width per process box
     const PROCESS_CONTAINER_WIDTH = PROCESS_BOX_WIDTH * parallelCount;
-    const height = Math.max(maxY - minY + 40, 80); // Minimum 80px height
-    const yPosition = minY - 20; // Add padding above
     
     // Position process container to the left of the lifeline
     const processContainerX = lifelineX - PROCESS_CONTAINER_WIDTH - 10; // 10px gap from lifeline
