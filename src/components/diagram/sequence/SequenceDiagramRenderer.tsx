@@ -1340,6 +1340,18 @@ const MousePositionTracker: React.FC<{
     }
   }, [selectedAnchorId]);
 
+  const handleRemoveFromProcess = useCallback(() => {
+    if (selectedAnchorId) {
+      // Find which process this anchor belongs to
+      const process = data.processes?.find(p => p.anchorIds.includes(selectedAnchorId));
+      if (process) {
+        processManagement.removeAnchorFromProcess(selectedAnchorId, process.id);
+      }
+      setSelectedAnchorId(null);
+      setAnchorTooltipPosition(null);
+    }
+  }, [selectedAnchorId, processManagement, data.processes]);
+
   // Close toolbar and tooltips when clicking outside
   const onPaneClick = useCallback(() => {
     setSelectedNodeIds([]);
@@ -1499,6 +1511,7 @@ const MousePositionTracker: React.FC<{
                   hasNearbyProcesses={true}
                   onCreateProcess={handleCreateProcess}
                   onAddToExisting={handleAddToExistingProcess}
+                  onRemoveFromProcess={handleRemoveFromProcess}
                   position={anchorTooltipPosition}
                   open={true}
                   onOpenChange={(open) => {
