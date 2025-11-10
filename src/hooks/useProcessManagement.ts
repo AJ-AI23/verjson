@@ -98,7 +98,7 @@ export const useProcessManagement = ({
     const parallelIndex = getNextParallelIndex(lifelineId, anchorY);
 
     const newProcess: ProcessNode = {
-      id: `process-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type: 'lifelineProcess',
       lifelineId,
       anchorIds: [anchorId],
