@@ -38,14 +38,6 @@ export const useSequenceDiagramSync = ({
     });
   }, [document, debouncedUpdate]);
 
-  const updateEdge = useCallback((edgeId: string, updates: Partial<DiagramEdge>) => {
-    // Edges are auto-generated, no manual updates supported
-  }, []);
-
-  const updateNodePosition = useCallback((nodeId: string, yPosition: number) => {
-    updateNode(nodeId, { yPosition });
-  }, [updateNode]);
-
   const addNode = useCallback((node: DiagramNode) => {
     const data = document.data as SequenceDiagramData;
     const nodes = [...data.nodes, node];
@@ -60,11 +52,56 @@ export const useSequenceDiagramSync = ({
     const data = document.data as SequenceDiagramData;
     const nodes = data.nodes.filter(n => n.id !== nodeId);
     
+    // Remove anchors from processes when node is deleted
+    const processes = (data.processes || []).map(process => ({
+      ...process,
+      anchorIds: process.anchorIds.filter(anchorId => {
+        const deletedNode = data.nodes.find(n => n.id === nodeId);
+        return !deletedNode?.anchors?.some(a => a.id === anchorId);
+      })
+    })).filter(process => process.anchorIds.length > 0); // Remove processes with no anchors
+    
     onDocumentChange({
       ...document,
-      data: { ...data, nodes }
+      data: { ...data, nodes, processes }
     });
   }, [document, onDocumentChange]);
+
+  const updateProcesses = useCallback((processes: any[]) => {
+    const data = document.data as SequenceDiagramData;
+    onDocumentChange({
+      ...document,
+      data: { ...data, processes }
+    });
+  }, [document, onDocumentChange]);
+
+  const addProcess = useCallback((process: any) => {
+    const data = document.data as SequenceDiagramData;
+    const processes = [...(data.processes || []), process];
+    
+    onDocumentChange({
+      ...document,
+      data: { ...data, processes }
+    });
+  }, [document, onDocumentChange]);
+
+  const deleteProcess = useCallback((processId: string) => {
+    const data = document.data as SequenceDiagramData;
+    const processes = (data.processes || []).filter(p => p.id !== processId);
+    
+    onDocumentChange({
+      ...document,
+      data: { ...data, processes }
+    });
+  }, [document, onDocumentChange]);
+
+  const updateEdge = useCallback((edgeId: string, updates: Partial<DiagramEdge>) => {
+    // Edges are auto-generated, no manual updates supported
+  }, []);
+
+  const updateNodePosition = useCallback((nodeId: string, yPosition: number) => {
+    updateNode(nodeId, { yPosition });
+  }, [updateNode]);
 
   const addEdge = useCallback((edge: DiagramEdge) => {
     // Edges are auto-generated, no manual additions supported
@@ -101,6 +138,9 @@ export const useSequenceDiagramSync = ({
     deleteNode,
     addEdge,
     deleteEdge,
-    syncNodesFromFlow
+    syncNodesFromFlow,
+    updateProcesses,
+    addProcess,
+    deleteProcess
   };
 };

@@ -10,11 +10,13 @@ interface AnchorNodeProps {
     lifelines?: Lifeline[];
     styles?: DiagramStyleTheme;
     customStyles?: DiagramStyles;
+    isInProcess?: boolean;
   };
+  selected?: boolean;
 }
 
-export const AnchorNode: React.FC<AnchorNodeProps> = ({ data }) => {
-  const { lifelineId, lifelines, styles, customStyles } = data;
+export const AnchorNode: React.FC<AnchorNodeProps> = ({ data, selected }) => {
+  const { lifelineId, lifelines, styles, customStyles, isInProcess } = data;
   
   // Find the lifeline for this anchor
   const lifeline = lifelines?.find(l => l.id === lifelineId);

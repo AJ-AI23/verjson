@@ -20,6 +20,7 @@ export interface DiagramStyleTheme {
     background: string;
     anchorColor: string;
     anchorBorder: string;
+    processColor?: string; // Less vibrant than anchor color
   }>;
   fonts: {
     nodeFont: string;

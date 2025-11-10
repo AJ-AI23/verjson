@@ -1,11 +1,12 @@
 import { Node, Edge, MarkerType } from '@xyflow/react';
-import { DiagramNode, DiagramEdge, Lifeline, AnchorNode } from '@/types/diagram';
+import { DiagramNode, DiagramEdge, Lifeline, AnchorNode, ProcessNode } from '@/types/diagram';
 import { DiagramStyleTheme, DiagramStyles } from '@/types/diagramStyles';
 import { getNodeTypeConfig } from './sequenceNodeTypes';
 
 interface LayoutOptions {
   lifelines: Lifeline[];
   nodes: DiagramNode[];
+  processes?: ProcessNode[];
   horizontalSpacing?: number;
   styles?: DiagramStyleTheme;
   fullStyles?: DiagramStyles;
@@ -294,8 +295,21 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     });
   }
 
+  // Calculate process nodes if processes exist
+  const processNodes: Node[] = [];
+  if (options.processes && options.processes.length > 0) {
+    const processLayout = calculateProcessLayout(
+      options.processes,
+      anchors,
+      nodesWithPositions,
+      lifelineXPositions,
+      styles
+    );
+    processNodes.push(...processLayout);
+  }
+
   return {
-    nodes: [...lifelineNodes, ...anchorNodes, ...layoutNodes],
+    nodes: [...lifelineNodes, ...processNodes, ...anchorNodes, ...layoutNodes],
     edges: layoutEdges,
     calculatedYPositions // Return the map of calculated yPosition values
   };
@@ -447,4 +461,108 @@ export const calculateLifelineLayout = (lifelines: Lifeline[], horizontalSpacing
     ...lifeline,
     x: index * (LIFELINE_WIDTH + horizontalSpacing) + NODE_HORIZONTAL_PADDING
   }));
+};
+
+// Calculate layout for process nodes
+const calculateProcessLayout = (
+  processes: ProcessNode[],
+  anchors: AnchorNode[],
+  nodes: DiagramNode[],
+  lifelinePositions: Map<string, number>,
+  styles?: DiagramStyleTheme
+): Node[] => {
+  const processNodes: Node[] = [];
+
+  // Group processes by lifeline and Y range to determine parallel positioning
+  const processGroups = new Map<string, Map<number, ProcessNode[]>>();
+
+  processes.forEach(process => {
+    // Get all anchor positions for this process
+    const processAnchorPositions: { anchor: AnchorNode; node: DiagramNode; y: number }[] = [];
+    
+    process.anchorIds.forEach(anchorId => {
+      const anchor = anchors.find(a => a.id === anchorId);
+      if (!anchor) return;
+      
+      const node = nodes.find(n => n.anchors?.some(a => a.id === anchorId));
+      if (!node || node.yPosition === undefined) return;
+      
+      processAnchorPositions.push({ anchor, node, y: node.yPosition });
+    });
+
+    if (processAnchorPositions.length === 0) return;
+
+    // Calculate average Y position for this process (for grouping)
+    const avgY = processAnchorPositions.reduce((sum, p) => sum + p.y, 0) / processAnchorPositions.length;
+    const yGroup = Math.floor(avgY / 200) * 200; // Group by Y range (every 200px)
+
+    if (!processGroups.has(process.lifelineId)) {
+      processGroups.set(process.lifelineId, new Map());
+    }
+    
+    const lifelineGroups = processGroups.get(process.lifelineId)!;
+    if (!lifelineGroups.has(yGroup)) {
+      lifelineGroups.set(yGroup, []);
+    }
+    
+    lifelineGroups.get(yGroup)!.push(process);
+  });
+
+  // Now create process nodes with proper parallel positioning
+  processes.forEach(process => {
+    // Get all anchor positions for this process
+    const processAnchorPositions: { anchor: AnchorNode; node: DiagramNode; y: number }[] = [];
+    
+    process.anchorIds.forEach(anchorId => {
+      const anchor = anchors.find(a => a.id === anchorId);
+      if (!anchor) return;
+      
+      const node = nodes.find(n => n.anchors?.some(a => a.id === anchorId));
+      if (!node || node.yPosition === undefined) return;
+      
+      processAnchorPositions.push({ anchor, node, y: node.yPosition });
+    });
+
+    if (processAnchorPositions.length === 0) return;
+
+    // Calculate bounds
+    const minY = Math.min(...processAnchorPositions.map(p => p.y));
+    const maxY = Math.max(...processAnchorPositions.map(p => p.y));
+    const avgY = (minY + maxY) / 2;
+    const yGroup = Math.floor(avgY / 200) * 200;
+
+    const lifelineX = lifelinePositions.get(process.lifelineId) || 0;
+
+    // Determine parallel count for this group
+    const lifelineGroups = processGroups.get(process.lifelineId);
+    const parallelProcesses = lifelineGroups?.get(yGroup) || [];
+    const parallelCount = parallelProcesses.length;
+    
+    // Find this process's index in the parallel group
+    const parallelIndex = parallelProcesses.findIndex(p => p.id === process.id);
+
+    // Calculate dimensions
+    const height = Math.max(maxY - minY + 40, 80); // Minimum 80px height
+    const yPosition = minY - 20; // Add padding above
+
+    processNodes.push({
+      id: `process-${process.id}`,
+      type: 'processNode',
+      position: { x: lifelineX - (LIFELINE_WIDTH / 2), y: yPosition },
+      data: {
+        processNode: process,
+        theme: styles,
+        parallelCount
+      },
+      style: {
+        width: LIFELINE_WIDTH,
+        height: height,
+        zIndex: 50 // Behind anchors (1000) but in front of lifelines
+      },
+      draggable: false,
+      selectable: true
+    });
+  });
+
+  return processNodes;
 };

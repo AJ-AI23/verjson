@@ -18,6 +18,7 @@ export interface DiagramDocument {
 export interface SequenceDiagramData {
   lifelines: Lifeline[];
   nodes: DiagramNode[];
+  processes?: ProcessNode[];
 }
 
 export interface FlowchartData {
@@ -60,6 +61,17 @@ export interface AnchorNode {
   id: string;
   lifelineId: string;
   anchorType: 'source' | 'target';
+  processId?: string; // ID of the process this anchor belongs to (if any)
+}
+
+export interface ProcessNode {
+  id: string;
+  type: 'lifelineProcess';
+  lifelineId: string;
+  anchorIds: string[]; // Array of anchor IDs connected to this process
+  description: string;
+  parallelIndex?: number; // 0, 1, or 2 for positioning (max 3 parallel)
+  color?: string; // Optional custom color
 }
 
 export interface DiagramEdge {

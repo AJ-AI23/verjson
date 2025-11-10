@@ -22,6 +22,8 @@ import { SequenceNode } from './SequenceNode';
 import { SequenceEdge } from './SequenceEdge';
 import { ColumnLifelineNode } from './ColumnLifelineNode';
 import { AnchorNode } from './AnchorNode';
+import { ProcessNode } from './ProcessNode';
+import { AnchorTooltip } from './AnchorTooltip';
 import { NodeEditor } from './NodeEditor';
 import { EdgeEditor } from './EdgeEditor';
 import { NodeToolbarWrapper } from './NodeToolbarWrapper';
@@ -29,6 +31,7 @@ import { DiagramStylesDialog } from './DiagramStylesDialog';
 import { OpenApiImportDialog } from './OpenApiImportDialog';
 import { DiagramHeader } from '../DiagramHeader';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
+import { useProcessManagement } from '@/hooks/useProcessManagement';
 import '@xyflow/react/dist/style.css';
 
 interface SequenceDiagramRendererProps {
@@ -60,6 +63,7 @@ const nodeTypes: NodeTypes = {
   sequenceNode: SequenceNode,
   columnLifeline: ColumnLifelineNode,
   anchorNode: AnchorNode,
+  processNode: ProcessNode
 };
 
 const edgeTypes: EdgeTypes = {
@@ -122,6 +126,21 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const previousLayoutRef = useRef<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
   const [mousePosition, setMousePosition] = useState<{ viewport: { x: number; y: number }; flow: { x: number; y: number } } | null>(null);
+
+  // Process management state
+  const [selectedAnchorId, setSelectedAnchorId] = useState<string | null>(null);
+  const [anchorTooltipPosition, setAnchorTooltipPosition] = useState<{ x: number; y: number } | null>(null);
+  const [processCreationMode, setProcessCreationMode] = useState<'none' | 'selecting-process'>('none');
+
+  const processManagement = useProcessManagement({
+    processes: data.processes || [],
+    nodes: diagramNodes,
+    onProcessesChange: (processes) => {
+      if (onDataChange) {
+        onDataChange({ ...data, processes });
+      }
+    }
+  });
 
   const activeTheme = styles?.themes?.[currentTheme] || styles?.themes?.light || defaultLightTheme;
   
@@ -374,6 +393,7 @@ const MousePositionTracker: React.FC<{
     const layout = calculateSequenceLayout({
       lifelines,
       nodes: diagramNodes,
+      processes: data.processes || [],
       styles: activeTheme,
       fullStyles: styles,
       nodeHeights
@@ -1146,6 +1166,36 @@ const MousePositionTracker: React.FC<{
   const onNodeClick = useCallback((event: any, node: Node) => {
     if (readOnly) return;
     
+    // Handle anchor node clicks for process creation
+    if (node.type === 'anchorNode') {
+      const anchorId = node.id;
+      const isInProcess = processManagement.isAnchorInProcess(anchorId);
+      
+      // If in process selection mode, add anchor to selected process
+      if (processCreationMode === 'selecting-process' && selectedAnchorId) {
+        // User should click on a process, not another anchor
+        return;
+      }
+      
+      // Show tooltip for anchor selection
+      setSelectedAnchorId(anchorId);
+      setAnchorTooltipPosition({
+        x: node.position.x + 10,
+        y: node.position.y
+      });
+      return;
+    }
+    
+    // Handle process node clicks
+    if (node.type === 'processNode' && processCreationMode === 'selecting-process' && selectedAnchorId) {
+      const processId = node.id.replace('process-', '');
+      processManagement.addAnchorToProcess(selectedAnchorId, processId);
+      setProcessCreationMode('none');
+      setSelectedAnchorId(null);
+      setAnchorTooltipPosition(null);
+      return;
+    }
+    
     // Only show toolbar for sequence nodes
     if (node.type !== 'sequenceNode') return;
     
@@ -1205,7 +1255,7 @@ const MousePositionTracker: React.FC<{
         }
       }
     }
-  }, [diagramNodes, readOnly, selectedNodeIds, nodes]);
+  }, [diagramNodes, readOnly, selectedNodeIds, nodes, processManagement, processCreationMode, selectedAnchorId]);
   
   const handleEditNode = useCallback(() => {
     // Only edit if single node is selected
@@ -1228,16 +1278,34 @@ const MousePositionTracker: React.FC<{
         ...data,
         nodes: updatedNodes
       });
-      
+
       setSelectedNodeIds([]);
       setToolbarPosition(null);
     }
   }, [selectedNodeIds, diagramNodes, data, onDataChange]);
-  
-  // Close toolbar when clicking outside
+
+  // Process creation handlers
+  const handleCreateProcess = useCallback(() => {
+    if (selectedAnchorId) {
+      processManagement.createProcess(selectedAnchorId);
+      setSelectedAnchorId(null);
+      setAnchorTooltipPosition(null);
+    }
+  }, [selectedAnchorId, processManagement]);
+
+  const handleAddToExistingProcess = useCallback(() => {
+    if (selectedAnchorId) {
+      setProcessCreationMode('selecting-process');
+    }
+  }, [selectedAnchorId]);
+
+  // Close toolbar and tooltips when clicking outside
   const onPaneClick = useCallback(() => {
     setSelectedNodeIds([]);
     setToolbarPosition(null);
+    setSelectedAnchorId(null);
+    setAnchorTooltipPosition(null);
+    setProcessCreationMode('none');
   }, []);
 
   const onEdgeClick = useCallback((_: any, edge: Edge) => {
@@ -1367,13 +1435,37 @@ const MousePositionTracker: React.FC<{
           />
           
           {/* Node selection toolbar */}
-          {!isRenderMode && selectedNodeIds.length > 0 && toolbarPosition && (
-            <NodeToolbarWrapper
-              diagramPosition={toolbarPosition}
-              selectedCount={selectedNodeIds.length}
-              onEdit={handleEditNode}
-              onDelete={handleDeleteNode}
-            />
+          {!isRenderMode && (
+            <>
+              {selectedNodeIds.length > 0 && toolbarPosition && (
+                <NodeToolbarWrapper
+                  diagramPosition={toolbarPosition}
+                  selectedCount={selectedNodeIds.length}
+                  onEdit={handleEditNode}
+                  onDelete={handleDeleteNode}
+                />
+              )}
+              
+              {selectedAnchorId && anchorTooltipPosition && (
+                <AnchorTooltip
+                  anchorId={selectedAnchorId}
+                  isInProcess={processManagement.isAnchorInProcess(selectedAnchorId)}
+                  canAddProcess={!processManagement.isAnchorInProcess(selectedAnchorId)}
+                  hasNearbyProcesses={true}
+                  onCreateProcess={handleCreateProcess}
+                  onAddToExisting={handleAddToExistingProcess}
+                  position={anchorTooltipPosition}
+                  open={true}
+                  onOpenChange={(open) => {
+                    if (!open) {
+                      setSelectedAnchorId(null);
+                      setAnchorTooltipPosition(null);
+                      setProcessCreationMode('none');
+                    }
+                  }}
+                />
+              )}
+            </>
           )}
           
           {/* Mouse position tooltip for debugging */}
