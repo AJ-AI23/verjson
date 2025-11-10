@@ -1214,12 +1214,16 @@ const MousePositionTracker: React.FC<{
         return;
       }
       
-      // Show tooltip for anchor selection
-      setSelectedAnchorId(anchorId);
-      setAnchorTooltipPosition({
-        x: event.clientX,
-        y: event.clientY
-      });
+      // Show tooltip for anchor selection - get the actual DOM element position
+      const anchorElement = event.target.closest('.react-flow__node');
+      if (anchorElement) {
+        const rect = anchorElement.getBoundingClientRect();
+        setSelectedAnchorId(anchorId);
+        setAnchorTooltipPosition({
+          x: rect.left + rect.width / 2,
+          y: rect.top
+        });
+      }
       return;
     }
     

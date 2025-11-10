@@ -36,7 +36,7 @@ export const AnchorTooltip: React.FC<AnchorTooltipProps> = ({
 
   return (
     <div
-      className="absolute z-[2000] pointer-events-none"
+      className="fixed z-[2000] pointer-events-none"
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
