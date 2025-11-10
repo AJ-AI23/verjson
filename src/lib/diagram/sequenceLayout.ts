@@ -502,7 +502,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         nodesWithPositions,
         lifelineXPositions,
         styles,
-        nodeHeights
+        nodeHeights,
+        alignedNodePositions // Pass calculated Y positions (top Y)
       );
       processNodes.push(...processLayout);
     } catch (error) {
@@ -672,7 +673,8 @@ const calculateProcessLayout = (
   nodes: DiagramNode[],
   lifelinePositions: Map<string, number>,
   styles?: DiagramStyleTheme,
-  nodeHeights?: Map<string, number>
+  nodeHeights?: Map<string, number>,
+  calculatedYPositions?: Map<string, number>
 ): Node[] => {
   if (!processes || processes.length === 0) {
     return [];
@@ -680,16 +682,20 @@ const calculateProcessLayout = (
 
   const processNodes: Node[] = [];
 
-  // Helper to get actual anchor Y position (center of node)
+  // Helper to get actual anchor Y position (center of node) using calculated layout positions
   const getAnchorCenterY = (anchorId: string): number | null => {
     const node = nodes.find(n => n && n.anchors?.some(a => a && a.id === anchorId));
-    if (!node || node.yPosition === undefined) return null;
+    if (!node) return null;
+    
+    // Use calculated Y position from layout if available, otherwise fall back to node.yPosition
+    const nodeY = calculatedYPositions?.get(node.id) ?? node.yPosition;
+    if (nodeY === undefined) return null;
     
     const nodeConfig = node ? getNodeTypeConfig(node.type) : null;
     const measuredHeight = nodeHeights?.get(node.id);
     const nodeHeight = measuredHeight || nodeConfig?.defaultHeight || 70;
     
-    return node.yPosition + (nodeHeight / 2);
+    return nodeY + (nodeHeight / 2);
   };
 
   // Group processes by lifeline-anchorType-Y range to determine parallel positioning
