@@ -838,6 +838,7 @@ const calculateProcessLayout = (
         position: { x: processX, y: yPosition },
         data: {
           processNode: process,
+          processId: process.id,
           theme: styles,
           parallelCount
         },
