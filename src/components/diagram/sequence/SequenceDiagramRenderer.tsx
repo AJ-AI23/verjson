@@ -1217,8 +1217,8 @@ const MousePositionTracker: React.FC<{
       // Show tooltip for anchor selection
       setSelectedAnchorId(anchorId);
       setAnchorTooltipPosition({
-        x: node.position.x + 10,
-        y: node.position.y
+        x: event.clientX,
+        y: event.clientY
       });
       return;
     }
