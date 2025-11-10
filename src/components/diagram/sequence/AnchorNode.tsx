@@ -31,8 +31,19 @@ export const AnchorNode: React.FC<AnchorNodeProps> = ({ data, selected }) => {
   const defaultAnchorBorderColor = lightenColor(lifelineColor, 30);
   
   // Use theme colors first, then custom styles, then calculated defaults
-  const anchorColor = lifelineColors?.anchorColor || customStyles?.customNodeStyles?.[`lifeline-${lifelineId}-anchor`]?.backgroundColor || lifeline?.anchorColor || defaultAnchorColor;
-  const anchorBorderColor = lifelineColors?.anchorBorder || customStyles?.customNodeStyles?.[`lifeline-${lifelineId}-anchor`]?.borderColor || defaultAnchorBorderColor;
+  let anchorColor = lifelineColors?.anchorColor || customStyles?.customNodeStyles?.[`lifeline-${lifelineId}-anchor`]?.backgroundColor || lifeline?.anchorColor || defaultAnchorColor;
+  let anchorBorderColor = lifelineColors?.anchorBorder || customStyles?.customNodeStyles?.[`lifeline-${lifelineId}-anchor`]?.borderColor || defaultAnchorBorderColor;
+  
+  // Visual feedback when anchor is in a process
+  if (isInProcess) {
+    anchorColor = lightenColor(anchorColor, -10); // Slightly darker
+    anchorBorderColor = lightenColor(anchorBorderColor, -15);
+  }
+  
+  // Visual feedback when selected
+  const isSelected = selected;
+  const borderWidth = isSelected ? '3px' : '2px';
+  const selectedBorderColor = isSelected ? '#3b82f6' : anchorBorderColor;
   
   return (
     <div
@@ -57,10 +68,13 @@ export const AnchorNode: React.FC<AnchorNodeProps> = ({ data, selected }) => {
       />
       
       <div
-        className="w-full h-full rounded-full border-2 shadow-md cursor-move transition-all hover:scale-125 hover:shadow-lg"
+        className="w-full h-full rounded-full shadow-md cursor-move transition-all hover:scale-125 hover:shadow-lg"
         style={{
           backgroundColor: anchorColor,
-          borderColor: anchorBorderColor,
+          borderColor: selectedBorderColor,
+          borderWidth: borderWidth,
+          borderStyle: 'solid',
+          boxShadow: isSelected ? '0 0 0 3px rgba(59, 130, 246, 0.2)' : undefined,
         }}
       />
       

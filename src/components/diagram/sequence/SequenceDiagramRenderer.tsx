@@ -142,6 +142,22 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
     }
   });
 
+  // Keyboard shortcuts for process creation
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (selectedAnchorId || processCreationMode === 'selecting-process') {
+          setSelectedAnchorId(null);
+          setAnchorTooltipPosition(null);
+          setProcessCreationMode('none');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedAnchorId, processCreationMode]);
+
   const activeTheme = styles?.themes?.[currentTheme] || styles?.themes?.light || defaultLightTheme;
   
   // Calculate dynamic lifeline height based on nodes
@@ -522,10 +538,11 @@ const MousePositionTracker: React.FC<{
           }
         };
       }
+      
       if (node.type === 'sequenceNode') {
         return {
           ...node,
-          draggable: !readOnly, // Explicitly set draggable for sequence nodes
+          draggable: !readOnly,
           data: {
             ...node.data,
             onHeightChange: handleNodeHeightChange,
@@ -533,9 +550,45 @@ const MousePositionTracker: React.FC<{
           }
         };
       }
+      
+      // Make anchor nodes selectable and pass isInProcess status
+      if (node.type === 'anchorNode') {
+        const anchorId = node.id;
+        const isInProcess = processManagement.isAnchorInProcess(anchorId);
+        
+        return {
+          ...node,
+          selectable: !readOnly,
+          selected: node.id === selectedAnchorId,
+          data: {
+            ...node.data,
+            isInProcess
+          }
+        };
+      }
+      
+      // Process nodes - make selectable in process creation mode with visual feedback
+      if (node.type === 'processNode') {
+        const isHighlighted = processCreationMode === 'selecting-process';
+        return {
+          ...node,
+          selectable: isHighlighted && !readOnly,
+          style: {
+            ...node.style,
+            opacity: isHighlighted ? 1 : undefined,
+            cursor: isHighlighted ? 'pointer' : 'default',
+            boxShadow: isHighlighted ? '0 0 0 2px rgba(59, 130, 246, 0.5)' : undefined,
+          },
+          data: {
+            ...node.data,
+            theme: activeTheme
+          }
+        };
+      }
+      
       return node;
     });
-  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, styles?.customNodeStyles, nodeHeights, lifelineHeight]);
+  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, styles?.customNodeStyles, nodeHeights, lifelineHeight, selectedAnchorId, processManagement, processCreationMode, activeTheme]);
 
   const [nodes, setNodes, handleNodesChange] = useNodesState(nodesWithHandlers);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
@@ -1404,6 +1457,10 @@ const MousePositionTracker: React.FC<{
           elementsSelectable={!readOnly}
           defaultEdgeOptions={{
             type: 'smoothstep',
+          }}
+          className={processCreationMode === 'selecting-process' ? 'process-selection-mode' : ''}
+          style={{
+            filter: processCreationMode === 'selecting-process' ? 'brightness(0.95)' : undefined
           }}
         >
           <Background />
