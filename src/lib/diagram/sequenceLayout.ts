@@ -700,24 +700,38 @@ const calculateProcessLayout = (
 
     // Get all anchor center positions for this process
     const anchorYPositions: number[] = [];
+    const connectedAnchors: string[] = [];
     
     process.anchorIds.forEach(anchorId => {
       const anchorY = getAnchorCenterY(anchorId);
       if (anchorY !== null) {
         anchorYPositions.push(anchorY);
+        connectedAnchors.push(anchorId);
       }
     });
 
     if (anchorYPositions.length === 0) return;
 
-    // Calculate bounds based on actual anchor center positions
+    // Calculate bounds based on actual anchor positions with node heights
     const ANCHOR_MARGIN = 25; // Margin above/below anchors
+    const NODE_HEIGHT = 70; // Default node height
     const minAnchorY = Math.min(...anchorYPositions);
     const maxAnchorY = Math.max(...anchorYPositions);
     
-    // Process box should start above the topmost anchor and end below the bottommost anchor
-    const yPosition = minAnchorY - ANCHOR_MARGIN;
-    const height = Math.max(maxAnchorY - minAnchorY + (ANCHOR_MARGIN * 2), 60); // Minimum 60px height
+    // Get heights of top and bottom anchors' nodes
+    const topAnchorId = connectedAnchors[anchorYPositions.indexOf(minAnchorY)];
+    const bottomAnchorId = connectedAnchors[anchorYPositions.indexOf(maxAnchorY)];
+    
+    const topNode = nodes.find(n => n.anchors?.some(a => a.id === topAnchorId));
+    const bottomNode = nodes.find(n => n.anchors?.some(a => a.id === bottomAnchorId));
+    
+    const topNodeHeight = topNode ? (nodeHeights?.get(topNode.id) || getNodeTypeConfig(topNode.type)?.defaultHeight || NODE_HEIGHT) : NODE_HEIGHT;
+    const bottomNodeHeight = bottomNode ? (nodeHeights?.get(bottomNode.id) || getNodeTypeConfig(bottomNode.type)?.defaultHeight || NODE_HEIGHT) : NODE_HEIGHT;
+    
+    // Process box should start above the topmost anchor's top edge and end below the bottommost anchor's bottom edge
+    const yPosition = minAnchorY - (topNodeHeight / 2) - ANCHOR_MARGIN;
+    const bottomY = maxAnchorY + (bottomNodeHeight / 2) + ANCHOR_MARGIN;
+    const height = Math.max(bottomY - yPosition, 60); // Minimum 60px height
     
     const avgY = (minAnchorY + maxAnchorY) / 2;
     const yGroup = Math.floor(avgY / 200) * 200;
