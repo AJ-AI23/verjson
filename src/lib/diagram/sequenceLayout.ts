@@ -750,19 +750,22 @@ const calculateProcessLayout = (
     const PROCESS_CONTAINER_WIDTH = PROCESS_BOX_WIDTH * parallelCount;
     
     // Position process container to the left of the lifeline
-    const processContainerX = lifelineX - PROCESS_CONTAINER_WIDTH - 10; // 10px gap from lifeline
+    const baseContainerX = lifelineX - PROCESS_CONTAINER_WIDTH - 10; // 10px gap from lifeline
+    
+    // Offset each parallel process horizontally based on its index
+    const processX = baseContainerX + (parallelIndex * PROCESS_BOX_WIDTH);
 
     processNodes.push({
       id: `process-${process.id}`,
       type: 'processNode',
-      position: { x: processContainerX, y: yPosition },
+      position: { x: processX, y: yPosition },
       data: {
         processNode: process,
         theme: styles,
         parallelCount
       },
       style: {
-        width: PROCESS_CONTAINER_WIDTH,
+        width: PROCESS_BOX_WIDTH,
         height: height,
         zIndex: 50 // Behind anchors (1000) but in front of lifelines
       },
