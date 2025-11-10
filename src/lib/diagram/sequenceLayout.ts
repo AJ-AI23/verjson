@@ -70,6 +70,64 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     lifelineXPositions.set(lifeline.id, xPos);
   });
 
+  // Helper function to calculate process margin for a lifeline
+  const getProcessMargin = (lifelineId: string, nodeY: number): number => {
+    if (!options.processes || options.processes.length === 0) return 0;
+    
+    const PROCESS_BOX_WIDTH = 50;
+    const MARGIN_GAP = 10; // Gap between process box and lifeline
+    
+    // Find processes on this lifeline that overlap with this node's Y position
+    const overlappingProcesses = options.processes.filter(process => {
+      if (process.lifelineId !== lifelineId) return false;
+      
+      // Get Y range of the process by checking its anchors
+      const processAnchors = process.anchorIds
+        .map(anchorId => anchors.find(a => a.id === anchorId))
+        .filter(a => a !== undefined);
+      
+      if (processAnchors.length === 0) return false;
+      
+      const processNodes = processAnchors
+        .map(anchor => nodesWithPositions.find(n => n.anchors?.some(a => a.id === anchor.id)))
+        .filter(n => n !== undefined && n.yPosition !== undefined);
+      
+      if (processNodes.length === 0) return false;
+      
+      const minProcessY = Math.min(...processNodes.map(n => n.yPosition!));
+      const maxProcessY = Math.max(...processNodes.map(n => n.yPosition!));
+      
+      // Check if node Y overlaps with process Y range (with some tolerance)
+      return nodeY >= minProcessY - 50 && nodeY <= maxProcessY + 50;
+    });
+    
+    if (overlappingProcesses.length === 0) return 0;
+    
+    // Group by Y range to find parallel processes
+    const yGroup = Math.floor(nodeY / 200) * 200;
+    const parallelProcesses = overlappingProcesses.filter(process => {
+      const processAnchors = process.anchorIds
+        .map(anchorId => anchors.find(a => a.id === anchorId))
+        .filter(a => a !== undefined);
+      
+      const processNodes = processAnchors
+        .map(anchor => nodesWithPositions.find(n => n.anchors?.some(a => a.id === anchor.id)))
+        .filter(n => n !== undefined && n.yPosition !== undefined);
+      
+      if (processNodes.length === 0) return false;
+      
+      const avgY = processNodes.reduce((sum, n) => sum + n.yPosition!, 0) / processNodes.length;
+      const processYGroup = Math.floor(avgY / 200) * 200;
+      
+      return processYGroup === yGroup;
+    });
+    
+    const parallelCount = parallelProcesses.length;
+    const totalProcessWidth = PROCESS_BOX_WIDTH * parallelCount;
+    
+    return totalProcessWidth + MARGIN_GAP + 15; // Total margin including gap and extra space
+  };
+
   // Create lifeline nodes
   const lifelineNodes: Node[] = sortedLifelines.map((lifeline, index) => {
     const xPos = index * (LIFELINE_WIDTH + horizontalSpacing) + NODE_HORIZONTAL_PADDING;
@@ -173,7 +231,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     calculatedYPositions.set(node.id, centerY);
 
     // Determine horizontal positioning based on connected anchors
-    const MARGIN = 40; // Margin from lifeline for edges
+    const MARGIN = 40; // Base margin from lifeline for edges
     let startX = 0;
     let width = 180; // Default width
 
@@ -182,12 +240,24 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const sourceX = lifelineXPositions.get(sourceAnchor.lifelineId) || 0;
       const targetX = lifelineXPositions.get(targetAnchor.lifelineId) || 0;
       
+      // Calculate process margins for both lifelines at this node's Y position
+      const sourceProcessMargin = getProcessMargin(sourceAnchor.lifelineId, centerY);
+      const targetProcessMargin = getProcessMargin(targetAnchor.lifelineId, centerY);
+      
       const leftX = Math.min(sourceX, targetX);
       const rightX = Math.max(sourceX, targetX);
       
-      // Add margins to accommodate edges
-      startX = leftX + MARGIN;
-      width = Math.abs(rightX - leftX) - (MARGIN * 2);
+      // Determine which side has processes and add extra margin
+      const leftIsSource = sourceX < targetX;
+      const leftProcessMargin = leftIsSource ? sourceProcessMargin : targetProcessMargin;
+      const rightProcessMargin = leftIsSource ? targetProcessMargin : sourceProcessMargin;
+      
+      // Add margins to accommodate edges and process boxes
+      const totalLeftMargin = MARGIN + leftProcessMargin;
+      const totalRightMargin = MARGIN + rightProcessMargin;
+      
+      startX = leftX + totalLeftMargin;
+      width = Math.abs(rightX - leftX) - totalLeftMargin - totalRightMargin;
       
       // Ensure minimum width
       if (width < 180) {
@@ -572,20 +642,25 @@ const calculateProcessLayout = (
     const parallelIndex = parallelProcesses.findIndex(p => p.id === process.id);
 
     // Calculate dimensions
+    const PROCESS_BOX_WIDTH = 50; // Width per process box
+    const PROCESS_CONTAINER_WIDTH = PROCESS_BOX_WIDTH * parallelCount;
     const height = Math.max(maxY - minY + 40, 80); // Minimum 80px height
     const yPosition = minY - 20; // Add padding above
+    
+    // Position process container to the left of the lifeline
+    const processContainerX = lifelineX - PROCESS_CONTAINER_WIDTH - 10; // 10px gap from lifeline
 
     processNodes.push({
       id: `process-${process.id}`,
       type: 'processNode',
-      position: { x: lifelineX - (LIFELINE_WIDTH / 2), y: yPosition },
+      position: { x: processContainerX, y: yPosition },
       data: {
         processNode: process,
         theme: styles,
         parallelCount
       },
       style: {
-        width: LIFELINE_WIDTH,
+        width: PROCESS_CONTAINER_WIDTH,
         height: height,
         zIndex: 50 // Behind anchors (1000) but in front of lifelines
       },

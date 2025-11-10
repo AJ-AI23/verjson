@@ -41,9 +41,9 @@ export const ProcessNode: React.FC<ProcessNodeProps> = ({ data, selected }) => {
   const borderColor = theme?.colors.nodeBorder || '#94a3b8';
   const textColor = theme?.colors.nodeText || '#0f172a';
 
-  // Calculate width based on parallel processes
-  const widthPercentage = 100 / parallelCount;
-  const leftOffset = widthPercentage * parallelIndex;
+  // Fixed width per process box (thin boxes)
+  const PROCESS_BOX_WIDTH = 50; // 50px per process box
+  const leftOffset = PROCESS_BOX_WIDTH * parallelIndex;
 
   return (
     <div
@@ -59,13 +59,13 @@ export const ProcessNode: React.FC<ProcessNodeProps> = ({ data, selected }) => {
         className="process-box"
         style={{
           position: 'absolute',
-          left: `${leftOffset}%`,
-          width: `${widthPercentage}%`,
+          left: `${leftOffset}px`,
+          width: `${PROCESS_BOX_WIDTH}px`,
           height: '100%',
           backgroundColor: processColor,
           border: selected ? `2px solid #3b82f6` : `1px solid ${borderColor}`,
-          borderRadius: '8px',
-          padding: '12px',
+          borderRadius: '6px',
+          padding: '8px 4px',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
@@ -79,27 +79,31 @@ export const ProcessNode: React.FC<ProcessNodeProps> = ({ data, selected }) => {
           className="process-description"
           style={{
             color: textColor,
-            fontSize: '13px',
+            fontSize: '11px',
             fontWeight: 500,
             textAlign: 'center',
             wordBreak: 'break-word',
-            opacity: 0.9
+            opacity: 0.9,
+            lineHeight: '1.3',
+            maxWidth: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
           }}
         >
           {description || 'Process'}
         </div>
         
-        {parallelCount > 1 && parallelIndex < parallelCount - 1 && (
+        {parallelIndex < parallelCount - 1 && (
           <div
             className="process-divider"
             style={{
               position: 'absolute',
-              right: 0,
+              right: '-2px',
               top: '8px',
               bottom: '8px',
               width: '1px',
               backgroundColor: borderColor,
-              opacity: 0.3
+              opacity: 0.2
             }}
           />
         )}
