@@ -119,6 +119,12 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [toolbarPosition, setToolbarPosition] = useState<{ x: number; y: number } | null>(null);
   const [dragStartPositions, setDragStartPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
   const [nodeHeights, setNodeHeights] = useState<Map<string, number>>(new Map());
+  const nodeHeightsRef = useRef<Map<string, number>>(new Map());
+  
+  // Update ref when nodeHeights changes
+  useEffect(() => {
+    nodeHeightsRef.current = nodeHeights;
+  }, [nodeHeights]);
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -174,7 +180,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
     // Find the maximum Y position considering node heights
     const maxY = diagramNodes.reduce((max, node) => {
       const nodeConfig = getNodeTypeConfig(node.type);
-      const nodeHeight = nodeHeights.get(node.id) || nodeConfig?.defaultHeight || 70;
+      const nodeHeight = nodeHeightsRef.current.get(node.id) || nodeConfig?.defaultHeight || 70;
       const nodeY = node.yPosition || 0;
       const nodeBottom = nodeY + (nodeHeight / 2); // yPosition is center, add half height
       return Math.max(max, nodeBottom);
@@ -183,7 +189,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
     // Total height = header + max node bottom + bottom margin
     const calculatedHeight = maxY + BOTTOM_MARGIN;
     return Math.max(calculatedHeight, MIN_HEIGHT);
-  }, [diagramNodes, nodeHeights]);
+  }, [diagramNodes]);
   
   const lifelineHeight = useMemo(() => calculateLifelineHeight(), [calculateLifelineHeight]);
 
@@ -413,7 +419,7 @@ const MousePositionTracker: React.FC<{
       processes: data.processes || [],
       styles: activeTheme,
       fullStyles: styles,
-      nodeHeights
+      nodeHeights: nodeHeightsRef.current
     });
     
     // Validate edge creation and attempt recovery if needed
@@ -481,7 +487,7 @@ const MousePositionTracker: React.FC<{
     // Store layout for use during drag
     previousLayoutRef.current = layout;
     return layout;
-  }, [lifelines, diagramNodes, activeTheme, isRenderMode, nodeHeights, onDataChange, data, isDragging]);
+  }, [lifelines, diagramNodes, activeTheme, isRenderMode, onDataChange, data, isDragging]);
 
   // Handle node height changes
   const handleNodeHeightChange = useCallback((nodeId: string, height: number) => {
@@ -528,7 +534,7 @@ const MousePositionTracker: React.FC<{
           data: {
             ...node.data,
             onHeightChange: handleNodeHeightChange,
-            calculatedHeight: nodeHeights.get(node.id)
+            calculatedHeight: nodeHeightsRef.current.get(node.id)
           }
         };
       }
@@ -570,51 +576,47 @@ const MousePositionTracker: React.FC<{
       
       return node;
     });
-  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, customLifelineColors, nodeHeights, lifelineHeight, selectedAnchorId, processManagement, processCreationMode, activeTheme]);
+  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, customLifelineColors, lifelineHeight, selectedAnchorId, processManagement, processCreationMode, activeTheme]);
 
   const [nodes, setNodes, handleNodesChange] = useNodesState(nodesWithHandlers);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
+  
+  // Track previous values to prevent unnecessary updates
+  const prevNodesRef = useRef<Node[]>([]);
+  const prevEdgesRef = useRef<Edge[]>([]);
 
-  // Update nodes when layout changes and apply handlers
+  // Update nodes when layout changes and apply handlers - with deduplication
   useEffect(() => {
-    setNodes(nodesWithHandlers);
+    // Skip if nodes haven't actually changed (deep comparison of IDs and positions)
+    const nodesChanged = nodesWithHandlers.length !== prevNodesRef.current.length ||
+      nodesWithHandlers.some((node, i) => {
+        const prev = prevNodesRef.current[i];
+        return !prev || 
+          node.id !== prev.id || 
+          node.type !== prev.type ||
+          node.position.x !== prev.position.x ||
+          node.position.y !== prev.position.y;
+      });
+    
+    if (nodesChanged) {
+      prevNodesRef.current = nodesWithHandlers;
+      setNodes(nodesWithHandlers);
+    }
   }, [nodesWithHandlers, setNodes]);
 
-  // Update edges when layout changes
+  // Update edges when layout changes - with deduplication
   useEffect(() => {
-    setEdges(layoutEdges);
+    const edgesChanged = layoutEdges.length !== prevEdgesRef.current.length ||
+      layoutEdges.some((edge, i) => {
+        const prev = prevEdgesRef.current[i];
+        return !prev || edge.id !== prev.id || edge.source !== prev.source || edge.target !== prev.target;
+      });
+    
+    if (edgesChanged) {
+      prevEdgesRef.current = layoutEdges;
+      setEdges(layoutEdges);
+    }
   }, [layoutEdges, setEdges]);
-
-  // Update anchor positions when node heights change
-  useEffect(() => {
-    if (nodeHeights.size === 0) return;
-
-    setNodes(currentNodes =>
-      currentNodes.map(n => {
-        if (n.type === 'anchorNode') {
-          const anchorData = n.data as any;
-          const connectedNodeId = anchorData?.connectedNodeId;
-          if (!connectedNodeId) return n;
-
-          const actualHeight = nodeHeights.get(connectedNodeId);
-          if (!actualHeight) return n;
-
-          // Find the connected node's Y position
-          const connectedNode = currentNodes.find(node => node.id === connectedNodeId);
-          if (!connectedNode) return n;
-
-          // Position anchor at the vertical center of the actual rendered node
-          const anchorY = connectedNode.position.y + (actualHeight / 2) - 8;
-
-          return {
-            ...n,
-            position: { x: n.position.x, y: anchorY }
-          };
-        }
-        return n;
-      })
-    );
-  }, [nodeHeights, setNodes]);
 
   const onNodesChangeHandler = useCallback((changes: any) => {
     // Log all position changes for debugging
