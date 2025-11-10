@@ -1229,7 +1229,8 @@ const MousePositionTracker: React.FC<{
     
     // Handle process node clicks
     if (node.type === 'processNode' && processCreationMode === 'selecting-process' && selectedAnchorId) {
-      const processId = node.id.replace('process-', '');
+      // Extract process ID from node ID format: process-{processId}-{lifelineId}-{anchorType}
+      const processId = node.id.replace('process-', '').split('-')[0];
       processManagement.addAnchorToProcess(selectedAnchorId, processId);
       setProcessCreationMode('none');
       setSelectedAnchorId(null);
