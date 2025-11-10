@@ -215,14 +215,18 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Create a map to store calculated yPosition values (center Y)
   const calculatedYPositions = new Map<string, number>();
 
-  // Helper function to find process and parallel index for an anchor
-  const getAnchorProcessInfo = (anchorId: string): { processId: string; parallelIndex: number; parallelCount: number } | null => {
+  // Helper function to find process and parallel index for an anchor on its specific lifeline
+  const getAnchorProcessInfo = (anchorId: string, anchorLifelineId: string): { processId: string; parallelIndex: number; parallelCount: number } | null => {
     if (!options.processes) return null;
     
     const process = options.processes.find(p => p.anchorIds.includes(anchorId));
     if (!process) return null;
     
-    // Find parallel processes in the same Y range and lifeline
+    // Get the anchor to determine its type
+    const currentAnchor = anchors.find(a => a.id === anchorId);
+    if (!currentAnchor) return null;
+    
+    // Find parallel processes in the same Y range that have anchors on this lifeline with the same type
     const processAnchorPositions = process.anchorIds
       .map(id => {
         const anchor = anchors.find(a => a.id === id);
@@ -236,9 +240,15 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     const avgY = processAnchorPositions.reduce((sum, y) => sum + y!, 0) / processAnchorPositions.length;
     const yGroup = Math.floor(avgY / 200) * 200;
     
-    // Find all processes in same lifeline and Y group
+    // Find all processes in same Y group that have anchors on this lifeline with the same type
     const parallelProcesses = options.processes.filter(p => {
-      if (p.lifelineId !== process.lifelineId) return false;
+      // Check if this process has any anchor on the target lifeline with matching type
+      const hasMatchingAnchor = p.anchorIds.some(id => {
+        const anchor = anchors.find(a => a.id === id);
+        return anchor?.lifelineId === anchorLifelineId && anchor?.anchorType === currentAnchor.anchorType;
+      });
+      
+      if (!hasMatchingAnchor) return false;
       
       const pAnchorPositions = p.anchorIds
         .map(id => {
@@ -269,8 +279,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   const anchorNodes: Node[] = anchors.map(anchor => {
     const lifelineX = lifelineXPositions.get(anchor.lifelineId) || 0;
     
-    // Check if anchor is in a process
-    const processInfo = getAnchorProcessInfo(anchor.id);
+    // Check if anchor is in a process (pass lifeline ID for proper filtering)
+    const processInfo = getAnchorProcessInfo(anchor.id, anchor.lifelineId);
     
     // Calculate X position - either centered in process box or on lifeline
     let xPos: number;
@@ -682,132 +692,163 @@ const calculateProcessLayout = (
     return node.yPosition + (nodeHeight / 2);
   };
 
-  // Group processes by lifeline and Y range to determine parallel positioning
+  // Group processes by lifeline-anchorType-Y range to determine parallel positioning
   const processGroups = new Map<string, Map<number, ProcessNode[]>>();
 
+  // Create entries for each lifeline-anchorType combination per process
   processes.forEach(process => {
     if (!process || !process.anchorIds || process.anchorIds.length === 0) {
       console.warn('Process missing anchorIds:', process);
       return;
     }
 
-    // Get all anchor center positions for this process
-    const anchorYPositions: number[] = [];
+    // Get all anchors for this process and group by lifeline-anchorType
+    const lifelineAnchorGroups = new Map<string, string[]>();
     
     process.anchorIds.forEach(anchorId => {
-      const anchorY = getAnchorCenterY(anchorId);
-      if (anchorY !== null) {
-        anchorYPositions.push(anchorY);
+      const anchor = anchors.find(a => a.id === anchorId);
+      if (!anchor) return;
+      
+      const key = `${anchor.lifelineId}-${anchor.anchorType}`;
+      if (!lifelineAnchorGroups.has(key)) {
+        lifelineAnchorGroups.set(key, []);
       }
+      lifelineAnchorGroups.get(key)!.push(anchorId);
     });
 
-    if (anchorYPositions.length === 0) {
-      console.warn('No valid anchor positions found for process:', process.id);
-      return;
-    }
+    // For each lifeline-anchorType group, add to processGroups
+    lifelineAnchorGroups.forEach((anchorIds, key) => {
+      const anchorYPositions: number[] = [];
+      
+      anchorIds.forEach(anchorId => {
+        const anchorY = getAnchorCenterY(anchorId);
+        if (anchorY !== null) {
+          anchorYPositions.push(anchorY);
+        }
+      });
 
-    // Calculate average Y position for this process (for grouping)
-    const avgY = anchorYPositions.reduce((sum, y) => sum + y, 0) / anchorYPositions.length;
-    const yGroup = Math.floor(avgY / 200) * 200; // Group by Y range (every 200px)
+      if (anchorYPositions.length === 0) return;
 
-    if (!processGroups.has(process.lifelineId)) {
-      processGroups.set(process.lifelineId, new Map());
-    }
-    
-    const lifelineGroups = processGroups.get(process.lifelineId)!;
-    if (!lifelineGroups.has(yGroup)) {
-      lifelineGroups.set(yGroup, []);
-    }
-    
-    lifelineGroups.get(yGroup)!.push(process);
+      // Calculate average Y position for grouping
+      const avgY = anchorYPositions.reduce((sum, y) => sum + y, 0) / anchorYPositions.length;
+      const yGroup = Math.floor(avgY / 200) * 200;
+
+      if (!processGroups.has(key)) {
+        processGroups.set(key, new Map());
+      }
+      
+      const lifelineGroups = processGroups.get(key)!;
+      if (!lifelineGroups.has(yGroup)) {
+        lifelineGroups.set(yGroup, []);
+      }
+      
+      lifelineGroups.get(yGroup)!.push(process);
+    });
   });
 
-  // Now create process nodes with proper parallel positioning
+  // Now create process nodes for each lifeline-anchorType combination
   processes.forEach(process => {
     if (!process || !process.anchorIds || process.anchorIds.length === 0) {
       return;
     }
 
-    // Get all anchor center positions for this process
-    const anchorYPositions: number[] = [];
-    const connectedAnchors: string[] = [];
+    // Group anchors by lifeline-anchorType
+    const lifelineAnchorGroups = new Map<string, { lifelineId: string; anchorType: string; anchorIds: string[] }>();
     
     process.anchorIds.forEach(anchorId => {
-      const anchorY = getAnchorCenterY(anchorId);
-      if (anchorY !== null) {
-        anchorYPositions.push(anchorY);
-        connectedAnchors.push(anchorId);
+      const anchor = anchors.find(a => a.id === anchorId);
+      if (!anchor) return;
+      
+      const key = `${anchor.lifelineId}-${anchor.anchorType}`;
+      if (!lifelineAnchorGroups.has(key)) {
+        lifelineAnchorGroups.set(key, {
+          lifelineId: anchor.lifelineId,
+          anchorType: anchor.anchorType,
+          anchorIds: []
+        });
       }
+      lifelineAnchorGroups.get(key)!.anchorIds.push(anchorId);
     });
 
-    if (anchorYPositions.length === 0) return;
+    // Create a process box for each lifeline-anchorType combination
+    lifelineAnchorGroups.forEach((group, key) => {
+      // Get all anchor center positions for this group
+      const anchorYPositions: number[] = [];
+      const connectedAnchors: string[] = [];
+      
+      group.anchorIds.forEach(anchorId => {
+        const anchorY = getAnchorCenterY(anchorId);
+        if (anchorY !== null) {
+          anchorYPositions.push(anchorY);
+          connectedAnchors.push(anchorId);
+        }
+      });
 
-    // Calculate bounds based on actual anchor positions with node heights
-    const ANCHOR_MARGIN = 25; // Margin above/below anchors
-    const NODE_HEIGHT = 70; // Default node height
-    const minAnchorY = Math.min(...anchorYPositions);
-    const maxAnchorY = Math.max(...anchorYPositions);
-    
-    // Get height of bottom anchor's node to extend below it
-    const bottomAnchorId = connectedAnchors[anchorYPositions.indexOf(maxAnchorY)];
-    const bottomNode = nodes.find(n => n.anchors?.some(a => a.id === bottomAnchorId));
-    const bottomNodeHeight = bottomNode ? (nodeHeights?.get(bottomNode.id) || getNodeTypeConfig(bottomNode.type)?.defaultHeight || NODE_HEIGHT) : NODE_HEIGHT;
-    
-    // Process box: top margin from top anchor center, bottom margin from bottom anchor's bottom edge
-    const yPosition = minAnchorY - ANCHOR_MARGIN;
-    const bottomY = maxAnchorY + (bottomNodeHeight / 2) + ANCHOR_MARGIN;
-    const height = Math.max(bottomY - yPosition, 60); // Minimum 60px height
-    
-    const avgY = (minAnchorY + maxAnchorY) / 2;
-    const yGroup = Math.floor(avgY / 200) * 200;
+      if (anchorYPositions.length === 0) return;
 
-    const lifelineX = lifelinePositions.get(process.lifelineId);
-    if (lifelineX === undefined) {
-      console.warn('Lifeline position not found for process:', process.lifelineId);
-      return;
-    }
+      // Calculate bounds based on actual anchor positions with node heights
+      const ANCHOR_MARGIN = 25;
+      const NODE_HEIGHT = 70;
+      const minAnchorY = Math.min(...anchorYPositions);
+      const maxAnchorY = Math.max(...anchorYPositions);
+      
+      // Get height of bottom anchor's node to extend below it
+      const bottomAnchorId = connectedAnchors[anchorYPositions.indexOf(maxAnchorY)];
+      const bottomNode = nodes.find(n => n.anchors?.some(a => a.id === bottomAnchorId));
+      const bottomNodeHeight = bottomNode ? (nodeHeights?.get(bottomNode.id) || getNodeTypeConfig(bottomNode.type)?.defaultHeight || NODE_HEIGHT) : NODE_HEIGHT;
+      
+      // Process box: top margin from top anchor center, bottom margin from bottom anchor's bottom edge
+      const yPosition = minAnchorY - ANCHOR_MARGIN;
+      const bottomY = maxAnchorY + (bottomNodeHeight / 2) + ANCHOR_MARGIN;
+      const height = Math.max(bottomY - yPosition, 60);
+      
+      const avgY = (minAnchorY + maxAnchorY) / 2;
+      const yGroup = Math.floor(avgY / 200) * 200;
 
-    // Determine parallel count for this group
-    const lifelineGroups = processGroups.get(process.lifelineId);
-    const parallelProcesses = lifelineGroups?.get(yGroup) || [];
-    const parallelCount = parallelProcesses.length;
-    
-    // Find this process's index in the parallel group
-    const parallelIndex = parallelProcesses.findIndex(p => p.id === process.id);
+      const lifelineX = lifelinePositions.get(group.lifelineId);
+      if (lifelineX === undefined) {
+        console.warn('Lifeline position not found for process:', group.lifelineId);
+        return;
+      }
 
-    // Calculate dimensions
-    const PROCESS_BOX_WIDTH = 50; // Width per process box
-    const PROCESS_CONTAINER_WIDTH = PROCESS_BOX_WIDTH * parallelCount;
-    
-    // Determine side based on first anchor type
-    const firstAnchorId = connectedAnchors[0];
-    const firstAnchor = anchors.find(a => a.id === firstAnchorId);
-    const isSourceSide = firstAnchor?.anchorType === 'source';
-    
-    // Position process container on the appropriate side of the lifeline
-    const baseContainerX = isSourceSide
-      ? lifelineX - PROCESS_CONTAINER_WIDTH - 10  // Left side for source anchors
-      : lifelineX + 10;                            // Right side for target anchors
-    
-    // Offset each parallel process horizontally based on its index
-    const processX = baseContainerX + (parallelIndex * PROCESS_BOX_WIDTH);
+      // Determine parallel count for this lifeline-anchorType-Y group
+      const lifelineGroups = processGroups.get(key);
+      const parallelProcesses = lifelineGroups?.get(yGroup) || [];
+      const parallelCount = parallelProcesses.length;
+      
+      // Find this process's index in the parallel group
+      const parallelIndex = parallelProcesses.findIndex(p => p.id === process.id);
 
-    processNodes.push({
-      id: `process-${process.id}`,
-      type: 'processNode',
-      position: { x: processX, y: yPosition },
-      data: {
-        processNode: process,
-        theme: styles,
-        parallelCount
-      },
-      style: {
-        width: PROCESS_BOX_WIDTH,
-        height: height,
-        zIndex: 50 // Behind anchors (1000) but in front of lifelines
-      },
-      draggable: false,
-      selectable: true
+      // Calculate dimensions
+      const PROCESS_BOX_WIDTH = 50;
+      const PROCESS_CONTAINER_WIDTH = PROCESS_BOX_WIDTH * parallelCount;
+      
+      // Position based on anchor type
+      const isSourceSide = group.anchorType === 'source';
+      const baseContainerX = isSourceSide
+        ? lifelineX - PROCESS_CONTAINER_WIDTH - 10  // Left side for source
+        : lifelineX + 10;                            // Right side for target
+      
+      // Offset each parallel process horizontally based on its index
+      const processX = baseContainerX + (parallelIndex * PROCESS_BOX_WIDTH);
+
+      processNodes.push({
+        id: `process-${process.id}-${key}`,
+        type: 'processNode',
+        position: { x: processX, y: yPosition },
+        data: {
+          processNode: process,
+          theme: styles,
+          parallelCount
+        },
+        style: {
+          width: PROCESS_BOX_WIDTH,
+          height: height,
+          zIndex: 50
+        },
+        draggable: false,
+        selectable: true
+      });
     });
   });
 
