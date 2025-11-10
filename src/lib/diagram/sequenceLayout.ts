@@ -175,7 +175,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
 
   // Create lifeline nodes
   const lifelineNodes: Node[] = sortedLifelines.map((lifeline, index) => {
-    const xPos = index * (LIFELINE_WIDTH + horizontalSpacing) + NODE_HORIZONTAL_PADDING;
+    const xPos = lifelineXPositions.get(lifeline.id) || (index * (LIFELINE_WIDTH + horizontalSpacing) + NODE_HORIZONTAL_PADDING);
     return {
       id: `lifeline-${lifeline.id}`,
       type: 'columnLifeline',
