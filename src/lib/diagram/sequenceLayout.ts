@@ -63,10 +63,30 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Sort lifelines by order
   const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
 
+  // Calculate max process boxes for spacing adjustment
+  const maxParallelProcesses = options.processes ? Math.max(
+    ...sortedLifelines.map(lifeline => {
+      const lifelineProcesses = options.processes!.filter(p => p.lifelineId === lifeline.id);
+      // Group by Y range to find max parallel processes
+      const yGroups = new Map<number, number>();
+      lifelineProcesses.forEach(p => {
+        const avgY = 100; // placeholder, will be calculated properly
+        const yGroup = Math.floor(avgY / 200) * 200;
+        yGroups.set(yGroup, (yGroups.get(yGroup) || 0) + 1);
+      });
+      return yGroups.size > 0 ? Math.max(...yGroups.values()) : 0;
+    })
+  ) : 0;
+
+  // Adjust spacing to account for process boxes (50px per box + 10px gap on each side)
+  const PROCESS_BOX_WIDTH = 50;
+  const extraSpacing = maxParallelProcesses > 0 ? (PROCESS_BOX_WIDTH * maxParallelProcesses + 20) * 2 : 0; // Both sides
+  const adjustedSpacing = horizontalSpacing + extraSpacing;
+
   // Create a map of lifeline positions
   const lifelineXPositions = new Map<string, number>();
   sortedLifelines.forEach((lifeline, index) => {
-    const xPos = index * (LIFELINE_WIDTH + horizontalSpacing) + NODE_HORIZONTAL_PADDING;
+    const xPos = index * (LIFELINE_WIDTH + adjustedSpacing) + NODE_HORIZONTAL_PADDING;
     lifelineXPositions.set(lifeline.id, xPos);
   });
 
@@ -252,7 +272,12 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     if (processInfo) {
       const PROCESS_BOX_WIDTH = 50;
       const PROCESS_CONTAINER_WIDTH = PROCESS_BOX_WIDTH * processInfo.parallelCount;
-      const processContainerX = lifelineX - PROCESS_CONTAINER_WIDTH - 10;
+      
+      // Determine side based on anchor type
+      const isSourceAnchor = anchor.anchorType === 'source';
+      const processContainerX = isSourceAnchor 
+        ? lifelineX - PROCESS_CONTAINER_WIDTH - 10  // Left side for source
+        : lifelineX + 10;                            // Right side for target
       
       // Center anchor in its process box
       xPos = processContainerX + (processInfo.parallelIndex * PROCESS_BOX_WIDTH) + (PROCESS_BOX_WIDTH / 2);
@@ -749,8 +774,15 @@ const calculateProcessLayout = (
     const PROCESS_BOX_WIDTH = 50; // Width per process box
     const PROCESS_CONTAINER_WIDTH = PROCESS_BOX_WIDTH * parallelCount;
     
-    // Position process container to the left of the lifeline
-    const baseContainerX = lifelineX - PROCESS_CONTAINER_WIDTH - 10; // 10px gap from lifeline
+    // Determine side based on first anchor type
+    const firstAnchorId = connectedAnchors[0];
+    const firstAnchor = anchors.find(a => a.id === firstAnchorId);
+    const isSourceSide = firstAnchor?.anchorType === 'source';
+    
+    // Position process container on the appropriate side of the lifeline
+    const baseContainerX = isSourceSide
+      ? lifelineX - PROCESS_CONTAINER_WIDTH - 10  // Left side for source anchors
+      : lifelineX + 10;                            // Right side for target anchors
     
     // Offset each parallel process horizontally based on its index
     const processX = baseContainerX + (parallelIndex * PROCESS_BOX_WIDTH);
