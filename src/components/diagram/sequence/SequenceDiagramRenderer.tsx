@@ -156,7 +156,10 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedAnchorId, processCreationMode]);
 
-  const activeTheme = styles?.themes?.[currentTheme] || styles?.themes?.light || defaultLightTheme;
+  const activeTheme = useMemo(
+    () => styles?.themes?.[currentTheme] || styles?.themes?.light || defaultLightTheme,
+    [styles?.themes, currentTheme]
+  );
   
   // Calculate dynamic lifeline height based on nodes
   const calculateLifelineHeight = useCallback(() => {
@@ -489,18 +492,21 @@ const MousePositionTracker: React.FC<{
     });
   }, []);
 
-  // Attach handlers to nodes
-  const nodesWithHandlers = useMemo(() => {
-    // Extract custom lifeline colors from styles
-    const customLifelineColors: Record<string, string> = {};
+  // Memoize custom lifeline colors extraction
+  const customLifelineColors = useMemo(() => {
+    const colors: Record<string, string> = {};
     if (styles?.customNodeStyles) {
       Object.entries(styles.customNodeStyles).forEach(([key, value]) => {
         if (key.startsWith('lifeline-') && value.backgroundColor) {
-          customLifelineColors[key] = value.backgroundColor;
+          colors[key] = value.backgroundColor;
         }
       });
     }
+    return colors;
+  }, [styles?.customNodeStyles]);
 
+  // Attach handlers to nodes
+  const nodesWithHandlers = useMemo(() => {
     return layoutNodes.map(node => {
       if (node.type === 'columnLifeline') {
         return {
@@ -564,7 +570,7 @@ const MousePositionTracker: React.FC<{
       
       return node;
     });
-  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, styles?.customNodeStyles, nodeHeights, lifelineHeight, selectedAnchorId, processManagement, processCreationMode, activeTheme]);
+  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, customLifelineColors, nodeHeights, lifelineHeight, selectedAnchorId, processManagement, processCreationMode, activeTheme]);
 
   const [nodes, setNodes, handleNodesChange] = useNodesState(nodesWithHandlers);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);

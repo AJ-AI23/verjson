@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { ProcessNode, AnchorNode, DiagramNode } from '@/types/diagram';
 import { toast } from 'sonner';
 
@@ -208,7 +208,8 @@ export const useProcessManagement = ({
     return true;
   }, [processes]);
 
-  return {
+  // Memoize the return object to prevent unnecessary re-renders
+  return useMemo(() => ({
     createProcess,
     addAnchorToProcess,
     removeAnchorFromProcess,
@@ -218,5 +219,15 @@ export const useProcessManagement = ({
     getParallelProcessCount,
     isAnchorInProcess,
     validateProcessConstraints
-  };
+  }), [
+    createProcess,
+    addAnchorToProcess,
+    removeAnchorFromProcess,
+    deleteProcess,
+    updateProcessDescription,
+    getProcessesForLifeline,
+    getParallelProcessCount,
+    isAnchorInProcess,
+    validateProcessConstraints
+  ]);
 };
