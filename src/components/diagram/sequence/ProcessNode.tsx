@@ -12,9 +12,18 @@ interface ProcessNodeProps {
 }
 
 export const ProcessNode: React.FC<ProcessNodeProps> = ({ data, selected }) => {
-  if (!data?.processNode) return null;
+  if (!data?.processNode) {
+    console.warn('ProcessNode rendered without processNode data');
+    return null;
+  }
   
   const { processNode, theme, parallelCount = 1 } = data;
+  
+  if (!processNode.lifelineId || !processNode.description) {
+    console.warn('ProcessNode missing required fields:', processNode);
+    return null;
+  }
+  
   const { description, parallelIndex = 0, lifelineId, color } = processNode;
 
   // Get process color from theme or use default

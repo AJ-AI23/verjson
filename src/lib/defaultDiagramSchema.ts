@@ -121,6 +121,24 @@ export const defaultDiagramSchema: DiagramDocument = {
           description: 'Exchange code for token'
         }
       }
+    ],
+    processes: [
+      {
+        id: 'process-1',
+        type: 'lifelineProcess',
+        lifelineId: 'lifeline-1',
+        anchorIds: ['anchor-1-source', 'anchor-4-source'],
+        description: 'User Authentication Flow',
+        parallelIndex: 0
+      },
+      {
+        id: 'process-2',
+        type: 'lifelineProcess',
+        lifelineId: 'lifeline-3',
+        anchorIds: ['anchor-2-target', 'anchor-6-target'],
+        description: 'OAuth Authorization',
+        parallelIndex: 0
+      }
     ]
   },
   styles: {
@@ -131,22 +149,26 @@ export const defaultDiagramSchema: DiagramDocument = {
           'lifeline-1': {
             background: '#dbeafe',
             anchorColor: '#93c5fd',
-            anchorBorder: '#60a5fa'
+            anchorBorder: '#60a5fa',
+            processColor: 'rgba(147, 197, 253, 0.3)'
           },
           'lifeline-2': {
             background: '#d1fae5',
             anchorColor: '#6ee7b7',
-            anchorBorder: '#34d399'
+            anchorBorder: '#34d399',
+            processColor: 'rgba(110, 231, 183, 0.3)'
           },
           'lifeline-3': {
             background: '#ede9fe',
             anchorColor: '#c4b5fd',
-            anchorBorder: '#a78bfa'
+            anchorBorder: '#a78bfa',
+            processColor: 'rgba(196, 181, 253, 0.3)'
           },
           'lifeline-4': {
             background: '#fed7aa',
             anchorColor: '#fdba74',
-            anchorBorder: '#fb923c'
+            anchorBorder: '#fb923c',
+            processColor: 'rgba(253, 186, 116, 0.3)'
           }
         }
       },
@@ -156,22 +178,26 @@ export const defaultDiagramSchema: DiagramDocument = {
           'lifeline-1': {
             background: '#1e3a8a',
             anchorColor: '#3b82f6',
-            anchorBorder: '#60a5fa'
+            anchorBorder: '#60a5fa',
+            processColor: 'rgba(59, 130, 246, 0.3)'
           },
           'lifeline-2': {
             background: '#065f46',
             anchorColor: '#10b981',
-            anchorBorder: '#34d399'
+            anchorBorder: '#34d399',
+            processColor: 'rgba(16, 185, 129, 0.3)'
           },
           'lifeline-3': {
             background: '#5b21b6',
             anchorColor: '#8b5cf6',
-            anchorBorder: '#a78bfa'
+            anchorBorder: '#a78bfa',
+            processColor: 'rgba(139, 92, 246, 0.3)'
           },
           'lifeline-4': {
             background: '#92400e',
             anchorColor: '#f59e0b',
-            anchorBorder: '#fb923c'
+            anchorBorder: '#fb923c',
+            processColor: 'rgba(245, 158, 11, 0.3)'
           }
         }
       }

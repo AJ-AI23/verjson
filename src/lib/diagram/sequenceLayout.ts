@@ -471,26 +471,44 @@ const calculateProcessLayout = (
   lifelinePositions: Map<string, number>,
   styles?: DiagramStyleTheme
 ): Node[] => {
+  if (!processes || processes.length === 0) {
+    return [];
+  }
+
   const processNodes: Node[] = [];
 
   // Group processes by lifeline and Y range to determine parallel positioning
   const processGroups = new Map<string, Map<number, ProcessNode[]>>();
 
   processes.forEach(process => {
+    if (!process || !process.anchorIds || process.anchorIds.length === 0) {
+      console.warn('Process missing anchorIds:', process);
+      return;
+    }
+
     // Get all anchor positions for this process
     const processAnchorPositions: { anchor: AnchorNode; node: DiagramNode; y: number }[] = [];
     
     process.anchorIds.forEach(anchorId => {
-      const anchor = anchors.find(a => a.id === anchorId);
-      if (!anchor) return;
+      const anchor = anchors.find(a => a && a.id === anchorId);
+      if (!anchor) {
+        console.warn('Anchor not found for process:', anchorId);
+        return;
+      }
       
-      const node = nodes.find(n => n.anchors?.some(a => a.id === anchorId));
-      if (!node || node.yPosition === undefined) return;
+      const node = nodes.find(n => n && n.anchors?.some(a => a && a.id === anchorId));
+      if (!node || node.yPosition === undefined) {
+        console.warn('Node not found or missing yPosition for anchor:', anchorId);
+        return;
+      }
       
       processAnchorPositions.push({ anchor, node, y: node.yPosition });
     });
 
-    if (processAnchorPositions.length === 0) return;
+    if (processAnchorPositions.length === 0) {
+      console.warn('No valid anchor positions found for process:', process.id);
+      return;
+    }
 
     // Calculate average Y position for this process (for grouping)
     const avgY = processAnchorPositions.reduce((sum, p) => sum + p.y, 0) / processAnchorPositions.length;
@@ -510,14 +528,18 @@ const calculateProcessLayout = (
 
   // Now create process nodes with proper parallel positioning
   processes.forEach(process => {
+    if (!process || !process.anchorIds || process.anchorIds.length === 0) {
+      return;
+    }
+
     // Get all anchor positions for this process
     const processAnchorPositions: { anchor: AnchorNode; node: DiagramNode; y: number }[] = [];
     
     process.anchorIds.forEach(anchorId => {
-      const anchor = anchors.find(a => a.id === anchorId);
+      const anchor = anchors.find(a => a && a.id === anchorId);
       if (!anchor) return;
       
-      const node = nodes.find(n => n.anchors?.some(a => a.id === anchorId));
+      const node = nodes.find(n => n && n.anchors?.some(a => a && a.id === anchorId));
       if (!node || node.yPosition === undefined) return;
       
       processAnchorPositions.push({ anchor, node, y: node.yPosition });
@@ -531,7 +553,11 @@ const calculateProcessLayout = (
     const avgY = (minY + maxY) / 2;
     const yGroup = Math.floor(avgY / 200) * 200;
 
-    const lifelineX = lifelinePositions.get(process.lifelineId) || 0;
+    const lifelineX = lifelinePositions.get(process.lifelineId);
+    if (lifelineX === undefined) {
+      console.warn('Lifeline position not found for process:', process.lifelineId);
+      return;
+    }
 
     // Determine parallel count for this group
     const lifelineGroups = processGroups.get(process.lifelineId);
