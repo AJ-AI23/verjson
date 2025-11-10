@@ -718,18 +718,13 @@ const calculateProcessLayout = (
     const minAnchorY = Math.min(...anchorYPositions);
     const maxAnchorY = Math.max(...anchorYPositions);
     
-    // Get heights of top and bottom anchors' nodes
-    const topAnchorId = connectedAnchors[anchorYPositions.indexOf(minAnchorY)];
+    // Get height of bottom anchor's node to extend below it
     const bottomAnchorId = connectedAnchors[anchorYPositions.indexOf(maxAnchorY)];
-    
-    const topNode = nodes.find(n => n.anchors?.some(a => a.id === topAnchorId));
     const bottomNode = nodes.find(n => n.anchors?.some(a => a.id === bottomAnchorId));
-    
-    const topNodeHeight = topNode ? (nodeHeights?.get(topNode.id) || getNodeTypeConfig(topNode.type)?.defaultHeight || NODE_HEIGHT) : NODE_HEIGHT;
     const bottomNodeHeight = bottomNode ? (nodeHeights?.get(bottomNode.id) || getNodeTypeConfig(bottomNode.type)?.defaultHeight || NODE_HEIGHT) : NODE_HEIGHT;
     
-    // Process box should start above the topmost anchor's top edge and end below the bottommost anchor's bottom edge
-    const yPosition = minAnchorY - (topNodeHeight / 2) - ANCHOR_MARGIN;
+    // Process box: top margin from top anchor center, bottom margin from bottom anchor's bottom edge
+    const yPosition = minAnchorY - ANCHOR_MARGIN;
     const bottomY = maxAnchorY + (bottomNodeHeight / 2) + ANCHOR_MARGIN;
     const height = Math.max(bottomY - yPosition, 60); // Minimum 60px height
     
