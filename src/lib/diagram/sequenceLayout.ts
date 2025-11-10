@@ -63,30 +63,35 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Sort lifelines by order
   const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
 
-  // Calculate max process boxes for spacing adjustment
-  const maxParallelProcesses = options.processes ? Math.max(
-    ...sortedLifelines.map(lifeline => {
+  // Calculate max parallel processes per lifeline for spacing adjustment
+  const PROCESS_BOX_WIDTH = 50;
+  let maxParallelProcesses = 0;
+  
+  if (options.processes && options.processes.length > 0) {
+    sortedLifelines.forEach(lifeline => {
       const lifelineProcesses = options.processes!.filter(p => p.lifelineId === lifeline.id);
-      // Group by Y range to find max parallel processes
       const yGroups = new Map<number, number>();
-      lifelineProcesses.forEach(p => {
-        const avgY = 100; // placeholder, will be calculated properly
-        const yGroup = Math.floor(avgY / 200) * 200;
+      
+      lifelineProcesses.forEach(process => {
+        // Count processes per Y group
+        const yGroup = Math.floor(process.anchorIds.length * 100 / 200) * 200;
         yGroups.set(yGroup, (yGroups.get(yGroup) || 0) + 1);
       });
-      return yGroups.size > 0 ? Math.max(...yGroups.values()) : 0;
-    })
-  ) : 0;
+      
+      if (yGroups.size > 0) {
+        const maxForThisLifeline = Math.max(...yGroups.values());
+        maxParallelProcesses = Math.max(maxParallelProcesses, maxForThisLifeline);
+      }
+    });
+  }
 
-  // Adjust spacing to account for process boxes (50px per box + 10px gap on each side)
-  const PROCESS_BOX_WIDTH = 50;
-  const extraSpacing = maxParallelProcesses > 0 ? (PROCESS_BOX_WIDTH * maxParallelProcesses + 20) * 2 : 0; // Both sides
-  const adjustedSpacing = horizontalSpacing + extraSpacing;
+  // Add extra spacing for process boxes on both sides (source and target)
+  const processSpacing = maxParallelProcesses > 0 ? (PROCESS_BOX_WIDTH * maxParallelProcesses + 20) * 2 : 0;
 
-  // Create a map of lifeline positions
+  // Create a map of lifeline positions with adjusted spacing
   const lifelineXPositions = new Map<string, number>();
   sortedLifelines.forEach((lifeline, index) => {
-    const xPos = index * (LIFELINE_WIDTH + adjustedSpacing) + NODE_HORIZONTAL_PADDING;
+    const xPos = index * (LIFELINE_WIDTH + horizontalSpacing + processSpacing) + NODE_HORIZONTAL_PADDING;
     lifelineXPositions.set(lifeline.id, xPos);
   });
 
