@@ -170,9 +170,76 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Create a map to store calculated yPosition values (center Y)
   const calculatedYPositions = new Map<string, number>();
 
+  // Helper function to find process and parallel index for an anchor
+  const getAnchorProcessInfo = (anchorId: string): { processId: string; parallelIndex: number; parallelCount: number } | null => {
+    if (!options.processes) return null;
+    
+    const process = options.processes.find(p => p.anchorIds.includes(anchorId));
+    if (!process) return null;
+    
+    // Find parallel processes in the same Y range and lifeline
+    const processAnchorPositions = process.anchorIds
+      .map(id => {
+        const anchor = anchors.find(a => a.id === id);
+        const node = anchor ? nodesWithPositions.find(n => n.anchors?.some(a => a.id === id)) : null;
+        return node?.yPosition;
+      })
+      .filter(y => y !== undefined);
+    
+    if (processAnchorPositions.length === 0) return null;
+    
+    const avgY = processAnchorPositions.reduce((sum, y) => sum + y!, 0) / processAnchorPositions.length;
+    const yGroup = Math.floor(avgY / 200) * 200;
+    
+    // Find all processes in same lifeline and Y group
+    const parallelProcesses = options.processes.filter(p => {
+      if (p.lifelineId !== process.lifelineId) return false;
+      
+      const pAnchorPositions = p.anchorIds
+        .map(id => {
+          const anchor = anchors.find(a => a.id === id);
+          const node = anchor ? nodesWithPositions.find(n => n.anchors?.some(a => a.id === id)) : null;
+          return node?.yPosition;
+        })
+        .filter(y => y !== undefined);
+      
+      if (pAnchorPositions.length === 0) return false;
+      
+      const pAvgY = pAnchorPositions.reduce((sum, y) => sum + y!, 0) / pAnchorPositions.length;
+      const pYGroup = Math.floor(pAvgY / 200) * 200;
+      
+      return pYGroup === yGroup;
+    });
+    
+    const parallelIndex = parallelProcesses.findIndex(p => p.id === process.id);
+    
+    return {
+      processId: process.id,
+      parallelIndex,
+      parallelCount: parallelProcesses.length
+    };
+  };
+
   // Create anchor nodes - positioned at the same Y as their connected node's center
   const anchorNodes: Node[] = anchors.map(anchor => {
-    const xPos = lifelineXPositions.get(anchor.lifelineId) || 0;
+    const lifelineX = lifelineXPositions.get(anchor.lifelineId) || 0;
+    
+    // Check if anchor is in a process
+    const processInfo = getAnchorProcessInfo(anchor.id);
+    
+    // Calculate X position - either centered in process box or on lifeline
+    let xPos: number;
+    if (processInfo) {
+      const PROCESS_BOX_WIDTH = 50;
+      const PROCESS_CONTAINER_WIDTH = PROCESS_BOX_WIDTH * processInfo.parallelCount;
+      const processContainerX = lifelineX - PROCESS_CONTAINER_WIDTH - 10;
+      
+      // Center anchor in its process box
+      xPos = processContainerX + (processInfo.parallelIndex * PROCESS_BOX_WIDTH) + (PROCESS_BOX_WIDTH / 2);
+    } else {
+      // Position on lifeline
+      xPos = lifelineX;
+    }
     
     // Find the connected node to get its Y position and height
     const connectedNode = nodesWithPositions.find(n => 
