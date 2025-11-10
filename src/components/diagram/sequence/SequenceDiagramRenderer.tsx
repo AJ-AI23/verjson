@@ -97,8 +97,6 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const { lifelines = [], nodes: diagramNodes } = data;
   const { settings } = useEditorSettings();
   
-  console.log('🎯 [SequenceRenderer] readOnly:', readOnly, 'diagramNodes count:', diagramNodes.length);
-  
   const [currentTheme, setCurrentTheme] = useState(initialTheme);
   
   // Update local theme state when initialTheme prop changes
@@ -414,28 +412,6 @@ const MousePositionTracker: React.FC<{
       fullStyles: styles,
       nodeHeights
     });
-    
-    // Extract calculated yPosition values and persist them if they changed
-    if (layout.calculatedYPositions && layout.calculatedYPositions.size > 0 && onDataChange && !isDraggingRef.current) {
-      const hasChanges = diagramNodes.some(node => {
-        const calculatedY = layout.calculatedYPositions?.get(node.id);
-        return calculatedY !== undefined && calculatedY !== node.yPosition;
-      });
-      
-      if (hasChanges) {
-        const updatedNodes = diagramNodes.map(node => {
-          const calculatedY = layout.calculatedYPositions?.get(node.id);
-          if (calculatedY !== undefined) {
-            return { ...node, yPosition: calculatedY };
-          }
-          return node;
-        });
-        
-        setTimeout(() => {
-          onDataChange({ ...data, nodes: updatedNodes });
-        }, 100);
-      }
-    }
     
     // Validate edge creation and attempt recovery if needed
     if (layout.edges.length === 0 && diagramNodes.length > 0) {

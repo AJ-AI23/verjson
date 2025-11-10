@@ -296,12 +296,6 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   }
 
   // Calculate process nodes if processes exist
-  console.log('🔷 [SequenceLayout] Processing processes:', {
-    hasProcesses: !!options.processes,
-    processCount: options.processes?.length || 0,
-    processes: options.processes
-  });
-
   const processNodes: Node[] = [];
   if (options.processes && options.processes.length > 0) {
     try {
@@ -312,10 +306,9 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         lifelineXPositions,
         styles
       );
-      console.log('🔷 [SequenceLayout] Process layout created:', processLayout.length, 'nodes');
       processNodes.push(...processLayout);
     } catch (error) {
-      console.error('❌ [SequenceLayout] Error creating process layout:', error);
+      console.error('Error creating process layout:', error);
     }
   }
 
@@ -482,14 +475,7 @@ const calculateProcessLayout = (
   lifelinePositions: Map<string, number>,
   styles?: DiagramStyleTheme
 ): Node[] => {
-  console.log('🔷 [calculateProcessLayout] Starting:', {
-    processCount: processes.length,
-    anchorCount: anchors.length,
-    nodeCount: nodes.length
-  });
-
   if (!processes || processes.length === 0) {
-    console.log('🔷 [calculateProcessLayout] No processes to layout');
     return [];
   }
 

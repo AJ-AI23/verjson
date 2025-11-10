@@ -12,34 +12,17 @@ interface ProcessNodeProps {
 }
 
 export const ProcessNode: React.FC<ProcessNodeProps> = ({ data, selected }) => {
-  console.log('🔷 [ProcessNode] Rendering:', { 
-    hasData: !!data,
-    hasProcessNode: !!data?.processNode,
-    processNode: data?.processNode,
-    selected 
-  });
-
   if (!data?.processNode) {
-    console.warn('⚠️ ProcessNode rendered without processNode data');
     return null;
   }
   
   const { processNode, theme, parallelCount = 1 } = data;
   
   if (!processNode.lifelineId || !processNode.description) {
-    console.error('❌ ProcessNode missing required fields:', processNode);
     return null;
   }
   
   const { description, parallelIndex = 0, lifelineId, color } = processNode;
-
-  console.log('🔷 [ProcessNode] Valid process:', { 
-    id: processNode.id,
-    description, 
-    parallelIndex, 
-    parallelCount,
-    lifelineId 
-  });
 
   // Get process color from theme or use default
   const getProcessColor = () => {
