@@ -12,19 +12,34 @@ interface ProcessNodeProps {
 }
 
 export const ProcessNode: React.FC<ProcessNodeProps> = ({ data, selected }) => {
+  console.log('🔷 [ProcessNode] Rendering:', { 
+    hasData: !!data,
+    hasProcessNode: !!data?.processNode,
+    processNode: data?.processNode,
+    selected 
+  });
+
   if (!data?.processNode) {
-    console.warn('ProcessNode rendered without processNode data');
+    console.warn('⚠️ ProcessNode rendered without processNode data');
     return null;
   }
   
   const { processNode, theme, parallelCount = 1 } = data;
   
   if (!processNode.lifelineId || !processNode.description) {
-    console.warn('ProcessNode missing required fields:', processNode);
+    console.error('❌ ProcessNode missing required fields:', processNode);
     return null;
   }
   
   const { description, parallelIndex = 0, lifelineId, color } = processNode;
+
+  console.log('🔷 [ProcessNode] Valid process:', { 
+    id: processNode.id,
+    description, 
+    parallelIndex, 
+    parallelCount,
+    lifelineId 
+  });
 
   // Get process color from theme or use default
   const getProcessColor = () => {
@@ -51,9 +66,8 @@ export const ProcessNode: React.FC<ProcessNodeProps> = ({ data, selected }) => {
     <div
       className="process-node-container"
       style={{
-        position: 'absolute',
-        left: `${leftOffset}%`,
-        width: `${widthPercentage}%`,
+        position: 'relative',
+        width: '100%',
         height: '100%',
         pointerEvents: 'all'
       }}
@@ -61,7 +75,9 @@ export const ProcessNode: React.FC<ProcessNodeProps> = ({ data, selected }) => {
       <div
         className="process-box"
         style={{
-          width: '100%',
+          position: 'absolute',
+          left: `${leftOffset}%`,
+          width: `${widthPercentage}%`,
           height: '100%',
           backgroundColor: processColor,
           border: selected ? `2px solid #3b82f6` : `1px solid ${borderColor}`,
