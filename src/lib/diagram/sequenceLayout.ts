@@ -512,32 +512,33 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     }
   }
 
-  // Calculate required lifeline height based on ALL final node positions
-  let maxNodeBottomY = LIFELINE_HEADER_HEIGHT + 40; // Start with minimum height
+  // Calculate required lifeline height based on the LOWEST anchor position
+  // Anchors are the connection points on lifelines, so lifelines must extend below them
+  let maxBottomY = LIFELINE_HEADER_HEIGHT + 40; // Start with minimum height
   
-  // Check all layout nodes
+  // Check all anchor nodes - these are positioned on the lifelines and are the critical points
+  anchorNodes.forEach(node => {
+    const anchorBottomY = node.position.y + 16; // Anchor height is 16px
+    maxBottomY = Math.max(maxBottomY, anchorBottomY);
+  });
+  
+  // Also check layout nodes for safety
   layoutNodes.forEach(node => {
     const measuredHeight = nodeHeights?.get(node.id);
-    const nodeHeight = measuredHeight || 70; // Use measured height or default
+    const nodeHeight = measuredHeight || 70;
     const bottomY = node.position.y + nodeHeight;
-    maxNodeBottomY = Math.max(maxNodeBottomY, bottomY);
+    maxBottomY = Math.max(maxBottomY, bottomY);
   });
   
-  // Check all anchor nodes
-  anchorNodes.forEach(node => {
-    const bottomY = node.position.y + 16; // Anchor height
-    maxNodeBottomY = Math.max(maxNodeBottomY, bottomY);
-  });
-  
-  // Check all process nodes (they store height in data)
+  // Check process nodes (they store height in data)
   processNodes.forEach(node => {
     const processHeight = (node.data as any).height || 100;
     const bottomY = node.position.y + processHeight;
-    maxNodeBottomY = Math.max(maxNodeBottomY, bottomY);
+    maxBottomY = Math.max(maxBottomY, bottomY);
   });
   
-  // Add padding at the bottom
-  const calculatedLifelineHeight = maxNodeBottomY + 200;
+  // Add generous padding at the bottom to ensure lifeline extends well beyond last anchor
+  const calculatedLifelineHeight = maxBottomY + 300;
   
   // Update lifeline nodes with calculated height
   lifelineNodes.forEach(lifelineNode => {
