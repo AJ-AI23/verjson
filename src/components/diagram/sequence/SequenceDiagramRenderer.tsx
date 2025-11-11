@@ -578,6 +578,9 @@ const MousePositionTracker: React.FC<{
       if (node.type === 'columnLifeline') {
         const lifelineData = node.data as any;
         const isSelected = lifelineData?.column?.id === selectedLifelineId;
+        const lifeline = lifelines.find(l => l.id === lifelineData?.column?.id);
+        // Create dataVersion from lifeline properties to force re-render on changes
+        const dataVersion = lifeline ? `${lifeline.name}-${lifeline.description}-${lifeline.color}-${lifeline.anchorColor}` : '';
         return {
           ...node,
           selectable: true,
@@ -587,7 +590,8 @@ const MousePositionTracker: React.FC<{
             customLifelineColors,
             onAddNode: (lifelineId: string, yPosition: number) => handleAddNodeOnLifeline(lifelineId, yPosition, lifelineHeight),
             readOnly,
-            lifelineHeight: lifelineHeight
+            lifelineHeight: lifelineHeight,
+            dataVersion
           }
         };
       }
@@ -668,11 +672,11 @@ const MousePositionTracker: React.FC<{
           return true;
         }
         
-        // Check data changes (especially for process nodes)
-        if (node.type === 'processNode') {
+        // Check data changes (especially for process and lifeline nodes)
+        if (node.type === 'processNode' || node.type === 'columnLifeline') {
           const nodeData = node.data as any;
           const prevData = prev.data as any;
-          // Compare dataVersion which changes when process description/color changes
+          // Compare dataVersion which changes when process/lifeline properties change
           if (nodeData?.dataVersion !== prevData?.dataVersion) {
             return true;
           }
