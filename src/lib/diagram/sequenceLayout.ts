@@ -540,6 +540,16 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Add generous padding at the bottom to ensure lifeline extends well beyond last anchor
   const calculatedLifelineHeight = maxBottomY + 300;
   
+  console.log('🔍 [Lifeline Height Calculation]:', {
+    anchorCount: anchorNodes.length,
+    layoutNodesCount: layoutNodes.length,
+    processNodesCount: processNodes.length,
+    maxBottomY,
+    calculatedLifelineHeight,
+    sampleAnchorPositions: anchorNodes.slice(0, 3).map(n => ({ id: n.id, y: n.position.y })),
+    lastThreeAnchors: anchorNodes.slice(-3).map(n => ({ id: n.id, y: n.position.y }))
+  });
+  
   // Update lifeline nodes with calculated height
   lifelineNodes.forEach(lifelineNode => {
     lifelineNode.data.lifelineHeight = calculatedLifelineHeight;
