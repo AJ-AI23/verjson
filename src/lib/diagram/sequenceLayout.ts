@@ -423,9 +423,25 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const sourceX = lifelineXPositions.get(sourceAnchor.lifelineId) || 0;
       const targetX = lifelineXPositions.get(targetAnchor.lifelineId) || 0;
       
-      // Calculate dynamic margins based on actual processes at this node's Y position
+      // Calculate dynamic margin only for processes that THIS node is connected to
       const leftLifelineId = sourceX < targetX ? sourceAnchor.lifelineId : targetAnchor.lifelineId;
-      const leftProcessMargin = getProcessMargin(leftLifelineId, topY, nodeHeight);
+      
+      // Find anchors of this node that connect to the left lifeline
+      const leftAnchors = node.anchors?.filter(a => a.lifelineId === leftLifelineId) || [];
+      
+      // Get processes connected to this node's anchors on the left lifeline
+      const connectedProcesses = options.processes?.filter(process => {
+        return leftAnchors.some(anchor => process.anchorIds.includes(anchor.id));
+      }) || [];
+      
+      // Calculate margin based on number of connected processes
+      const PROCESS_BOX_WIDTH = 50;
+      const PROCESS_HORIZONTAL_GAP = 8;
+      const MARGIN_GAP = 10;
+      const parallelCount = connectedProcesses.length;
+      const leftProcessMargin = parallelCount > 0 
+        ? (PROCESS_BOX_WIDTH * parallelCount) + (PROCESS_HORIZONTAL_GAP * (parallelCount - 1)) + MARGIN_GAP + 30
+        : 0;
       
       const leftX = Math.min(sourceX, targetX);
       const rightX = Math.max(sourceX, targetX);
