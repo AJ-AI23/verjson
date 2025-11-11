@@ -21,7 +21,7 @@ export const useSequenceDiagramSync = ({
     updateTimeoutRef.current = setTimeout(() => {
       const updated = updater();
       onDocumentChange(updated);
-    }, 300);
+    }, 100);
   }, [onDocumentChange]);
 
   const updateNode = useCallback((nodeId: string, updates: Partial<DiagramNode>) => {
@@ -113,16 +113,24 @@ export const useSequenceDiagramSync = ({
 
   const syncNodesFromFlow = useCallback((flowNodes: Node[]) => {
     const data = document.data as SequenceDiagramData;
+    let hasChanges = false;
+    
     const updatedNodes = data.nodes.map(node => {
       const flowNode = flowNodes.find(fn => fn.id === node.id);
       if (flowNode && flowNode.position) {
-        // Only update yPosition, ignore x since it's calculated from lifelines
-        return { ...node, yPosition: flowNode.position.y };
+        const newY = Math.round(flowNode.position.y);
+        const oldY = Math.round(node.yPosition || 0);
+        
+        // Only update if there's a meaningful difference (more than 1px)
+        if (Math.abs(newY - oldY) > 1) {
+          hasChanges = true;
+          return { ...node, yPosition: newY };
+        }
       }
       return node;
     });
     
-    if (JSON.stringify(updatedNodes) !== JSON.stringify(data.nodes)) {
+    if (hasChanges) {
       debouncedUpdate(() => ({
         ...document,
         data: { ...data, nodes: updatedNodes }
