@@ -426,6 +426,8 @@ const MousePositionTracker: React.FC<{
       lifelineCount: lifelines.length,
       isDragging,
       layoutVersion,
+      nodeHeightsCount: nodeHeights.size,
+      nodeHeightsEntries: Array.from(nodeHeights.entries()).map(([id, h]) => ({ id, height: h })),
       sampleNode: diagramNodes[0] ? {
         id: diagramNodes[0].id,
         label: diagramNodes[0].label,
@@ -536,7 +538,12 @@ const MousePositionTracker: React.FC<{
 
   // Handle node height changes
   const handleNodeHeightChange = useCallback((nodeId: string, height: number) => {
+    console.log('📏 [handleNodeHeightChange] Node height measured:', { nodeId, height });
     setNodeHeights(prev => {
+      const oldHeight = prev.get(nodeId);
+      if (oldHeight !== height) {
+        console.log('📏 [handleNodeHeightChange] Height changed, updating:', { nodeId, oldHeight, newHeight: height });
+      }
       const newHeights = new Map(prev);
       newHeights.set(nodeId, height);
       return newHeights;
@@ -1667,9 +1674,12 @@ const MousePositionTracker: React.FC<{
     }
     
     // Clear height cache for this node to force remeasurement
+    console.log('🗑️ [handleNodeUpdate] Clearing height cache for node:', nodeId);
     setNodeHeights(prev => {
       const newHeights = new Map(prev);
+      const hadHeight = newHeights.has(nodeId);
       newHeights.delete(nodeId);
+      console.log('🗑️ [handleNodeUpdate] Height cache cleared:', { nodeId, hadHeight, remainingHeights: newHeights.size });
       return newHeights;
     });
     
