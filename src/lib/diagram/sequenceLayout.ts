@@ -474,9 +474,9 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const sourceX = lifelineXPositions.get(sourceAnchor.lifelineId) || 0;
       const targetX = lifelineXPositions.get(targetAnchor.lifelineId) || 0;
       
-      // Use global maximum process margins for consistent spacing across ALL nodes
-      const sourceProcessMargin = globalMaxMargins.source;
-      const targetProcessMargin = globalMaxMargins.target;
+      // Calculate actual process margins at this specific node's Y position
+      const sourceProcessMargin = getProcessMargin(sourceAnchor.lifelineId, topY, nodeHeight, 'source');
+      const targetProcessMargin = getProcessMargin(targetAnchor.lifelineId, topY, nodeHeight, 'target');
       
       const leftX = Math.min(sourceX, targetX);
       const rightX = Math.max(sourceX, targetX);
