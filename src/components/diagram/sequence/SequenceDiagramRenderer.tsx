@@ -598,6 +598,12 @@ const MousePositionTracker: React.FC<{
       }
       
       if (node.type === 'sequenceNode') {
+        const diagramNode = diagramNodes.find(n => n.id === node.id);
+        // Include theme and node properties in dataVersion for re-render on changes
+        const dataVersion = diagramNode 
+          ? `${currentTheme}-${diagramNode.label}-${diagramNode.type}-${JSON.stringify(diagramNode.data || {})}`
+          : currentTheme;
+        
         return {
           ...node,
           draggable: !readOnly,
@@ -606,7 +612,7 @@ const MousePositionTracker: React.FC<{
             onHeightChange: handleNodeHeightChange,
             calculatedHeight: nodeHeightsRef.current.get(node.id),
             styles: activeTheme,
-            dataVersion: currentTheme // Force re-render on theme change
+            dataVersion
           }
         };
       }
@@ -662,7 +668,7 @@ const MousePositionTracker: React.FC<{
       
       return node;
     });
-  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, customLifelineColors, lifelineHeight, selectedAnchorId, processManagement, processCreationMode, activeTheme, selectedProcessId, handleProcessSelect, selectedLifelineId, lifelines, currentTheme]);
+  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, customLifelineColors, lifelineHeight, selectedAnchorId, processManagement, processCreationMode, activeTheme, selectedProcessId, handleProcessSelect, selectedLifelineId, lifelines, currentTheme, diagramNodes]);
 
   const [nodes, setNodes, handleNodesChange] = useNodesState(nodesWithHandlers);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
