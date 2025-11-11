@@ -1617,6 +1617,8 @@ const MousePositionTracker: React.FC<{
   const handleNodeUpdate = useCallback((nodeId: string, updates: Partial<DiagramNode>) => {
     if (!onDataChange) return;
     
+    console.log('📝 [handleNodeUpdate] Updating node:', { nodeId, updates });
+    
     const updatedNodes = diagramNodes.map(n =>
       n.id === nodeId ? { ...n, ...updates } : n
     );
@@ -1627,6 +1629,14 @@ const MousePositionTracker: React.FC<{
       setSelectedNode(updatedNode);
     }
     
+    // Clear height cache for this node to force remeasurement
+    setNodeHeights(prev => {
+      const newHeights = new Map(prev);
+      newHeights.delete(nodeId);
+      return newHeights;
+    });
+    
+    console.log('📝 [handleNodeUpdate] Calling onDataChange with updated nodes');
     onDataChange({ ...data, nodes: updatedNodes });
   }, [diagramNodes, data, onDataChange]);
 
