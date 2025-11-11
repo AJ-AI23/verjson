@@ -1445,13 +1445,10 @@ const MousePositionTracker: React.FC<{
   const handleDeleteProcess = useCallback(() => {
     if (!selectedProcessId || !onDataChange) return;
     
-    const confirmDelete = confirm('Delete this process?');
-    if (confirmDelete) {
-      const updatedProcesses = (data.processes || []).filter(p => p.id !== selectedProcessId);
-      onDataChange({ ...data, processes: updatedProcesses });
-      setSelectedProcessId(null);
-      setProcessToolbarPosition(null);
-    }
+    const updatedProcesses = (data.processes || []).filter(p => p.id !== selectedProcessId);
+    onDataChange({ ...data, processes: updatedProcesses });
+    setSelectedProcessId(null);
+    setProcessToolbarPosition(null);
   }, [selectedProcessId, data, onDataChange]);
   
   const handleProcessUpdate = useCallback((processId: string, updates: Partial<any>) => {

@@ -28,10 +28,8 @@ export const ProcessEditor: React.FC<ProcessEditorProps> = ({
   };
 
   const handleDelete = () => {
-    if (confirm('Are you sure you want to delete this process?')) {
-      onDelete(process.id);
-      onClose();
-    }
+    onDelete(process.id);
+    onClose();
   };
 
   return (
