@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,18 +30,31 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
   currentWorkspaceId
 }) => {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [localNode, setLocalNode] = useState<DiagramNode | null>(node);
+  
+  // Update local state when node prop changes
+  useEffect(() => {
+    setLocalNode(node);
+  }, [node]);
 
-  if (!node) return null;
+  if (!localNode) return null;
 
   const handleUpdate = (field: string, value: any) => {
-    console.log('🔧 [NodeEditor] handleUpdate called:', { nodeId: node.id, field, value });
-    onUpdate(node.id, { [field]: value });
+    console.log('🔧 [NodeEditor] handleUpdate called:', { nodeId: localNode.id, field, value });
+    const updatedNode = { ...localNode, [field]: value };
+    setLocalNode(updatedNode);
+    onUpdate(localNode.id, { [field]: value });
   };
 
   const handleDataUpdate = (field: string, value: any) => {
-    console.log('🔧 [NodeEditor] handleDataUpdate called:', { nodeId: node.id, field, value });
-    onUpdate(node.id, {
-      data: { ...node.data, [field]: value }
+    console.log('🔧 [NodeEditor] handleDataUpdate called:', { nodeId: localNode.id, field, value });
+    const updatedNode = {
+      ...localNode,
+      data: { ...localNode.data, [field]: value }
+    };
+    setLocalNode(updatedNode);
+    onUpdate(localNode.id, {
+      data: { ...localNode.data, [field]: value }
     });
   };
 
@@ -52,10 +65,26 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
     description?: string;
     documentId: string;
   }) => {
-    onUpdate(node.id, {
+    const updatedNode = {
+      ...localNode,
       label: endpoint.summary || `${endpoint.method} ${endpoint.path}`,
       data: {
-        ...node.data,
+        ...localNode.data,
+        method: endpoint.method,
+        path: endpoint.path,
+        description: endpoint.description,
+        openApiRef: {
+          documentId: endpoint.documentId,
+          path: endpoint.path,
+          method: endpoint.method
+        }
+      }
+    };
+    setLocalNode(updatedNode);
+    onUpdate(localNode.id, {
+      label: endpoint.summary || `${endpoint.method} ${endpoint.path}`,
+      data: {
+        ...localNode.data,
         method: endpoint.method,
         path: endpoint.path,
         description: endpoint.description,
@@ -70,7 +99,7 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
 
   const handleDelete = () => {
     if (confirm('Are you sure you want to delete this node?')) {
-      onDelete(node.id);
+      onDelete(localNode.id);
       onClose();
     }
   };
@@ -86,7 +115,7 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
           <div className="space-y-2">
             <Label htmlFor="node-type">Node Type</Label>
             <Select
-              value={node.type}
+              value={localNode.type}
               onValueChange={(value) => handleUpdate('type', value as DiagramNodeType)}
             >
               <SelectTrigger id="node-type">
@@ -106,13 +135,13 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
             <Label htmlFor="node-label">Label</Label>
             <Input
               id="node-label"
-              value={node.label}
+              value={localNode.label}
               onChange={(e) => handleUpdate('label', e.target.value)}
               placeholder="Node label"
             />
           </div>
 
-          {node.type === 'endpoint' && (
+          {localNode.type === 'endpoint' && (
             <>
               <div className="flex items-center justify-between">
                 <Label>Endpoint Details</Label>
@@ -130,7 +159,7 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
               <div className="space-y-2">
                 <Label htmlFor="node-method">HTTP Method</Label>
                 <Select
-                  value={node.data?.method || 'GET'}
+                  value={localNode.data?.method || 'GET'}
                   onValueChange={(value) => handleDataUpdate('method', value)}
                 >
                   <SelectTrigger id="node-method">
@@ -152,7 +181,7 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
                 <Label htmlFor="node-path">API Path</Label>
                 <Input
                   id="node-path"
-                  value={node.data?.path || ''}
+                  value={localNode.data?.path || ''}
                   onChange={(e) => handleDataUpdate('path', e.target.value)}
                   placeholder="/api/endpoint"
                 />
@@ -164,7 +193,7 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
             <Label htmlFor="node-description">Description</Label>
             <Textarea
               id="node-description"
-              value={node.data?.description || ''}
+              value={localNode.data?.description || ''}
               onChange={(e) => handleDataUpdate('description', e.target.value)}
               placeholder="Optional description"
               rows={3}
@@ -176,29 +205,29 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
             <div className="text-sm text-slate-600 space-y-1">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-slate-500">Source:</span>
-                <span>{lifelines.find(l => l.id === node.anchors[0].lifelineId)?.name || 'Unknown'}</span>
+                <span>{lifelines.find(l => l.id === localNode.anchors[0].lifelineId)?.name || 'Unknown'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-slate-500">Target:</span>
-                <span>{lifelines.find(l => l.id === node.anchors[1].lifelineId)?.name || 'Unknown'}</span>
+                <span>{lifelines.find(l => l.id === localNode.anchors[1].lifelineId)?.name || 'Unknown'}</span>
               </div>
               <p className="text-xs text-slate-500 mt-2">Drag the anchor points on the diagram to change lifeline connections</p>
             </div>
           </div>
 
-          {node.data?.openApiRef && (
+          {localNode.data?.openApiRef && (
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
               <div className="text-xs font-semibold text-blue-900 mb-1">
                 OpenAPI Reference
               </div>
               <div className="text-xs text-blue-700 space-y-1">
-                <div>Document: {node.data.openApiRef.documentId.slice(0, 8)}...</div>
+                <div>Document: {localNode.data.openApiRef.documentId.slice(0, 8)}...</div>
                 <div>
                   <Badge variant="outline" className="text-xs">
-                    {node.data.openApiRef.method}
+                    {localNode.data.openApiRef.method}
                   </Badge>
                   {' '}
-                  {node.data.openApiRef.path}
+                  {localNode.data.openApiRef.path}
                 </div>
               </div>
             </div>
