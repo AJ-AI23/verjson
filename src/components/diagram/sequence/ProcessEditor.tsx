@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SketchPicker } from 'react-color';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -23,14 +23,41 @@ export const ProcessEditor: React.FC<ProcessEditorProps> = ({
   onUpdate,
   onDelete
 }) => {
-  if (!process) return null;
+  const [localProcess, setLocalProcess] = useState<ProcessNode | null>(process);
+  
+  // Update local state when dialog opens with new process
+  useEffect(() => {
+    if (isOpen && process) {
+      setLocalProcess(process);
+    }
+  }, [isOpen, process]);
+
+  if (!localProcess) return null;
 
   const handleUpdate = (field: string, value: any) => {
-    onUpdate(process.id, { [field]: value });
+    setLocalProcess(prev => prev ? { ...prev, [field]: value } : null);
+  };
+
+  const handleDone = () => {
+    if (localProcess && process) {
+      const hasChanges = 
+        localProcess.description !== process.description ||
+        localProcess.color !== process.color;
+      
+      if (hasChanges) {
+        onUpdate(localProcess.id, {
+          description: localProcess.description,
+          color: localProcess.color
+        });
+      }
+    }
+    onClose();
   };
 
   const handleDelete = () => {
-    onDelete(process.id);
+    if (localProcess) {
+      onDelete(localProcess.id);
+    }
     onClose();
   };
 
@@ -39,7 +66,7 @@ export const ProcessEditor: React.FC<ProcessEditorProps> = ({
     const [localValue, setLocalValue] = useState(value);
     
     // Update local value when prop changes (but not during picking)
-    React.useEffect(() => {
+    useEffect(() => {
       if (!isOpen) {
         setLocalValue(value);
       }
@@ -100,7 +127,7 @@ export const ProcessEditor: React.FC<ProcessEditorProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleDone()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Edit Process</DialogTitle>
@@ -111,7 +138,7 @@ export const ProcessEditor: React.FC<ProcessEditorProps> = ({
             <Label htmlFor="process-description">Description</Label>
             <Input
               id="process-description"
-              value={process.description || ''}
+              value={localProcess.description || ''}
               onChange={(e) => handleUpdate('description', e.target.value)}
               placeholder="Process description"
             />
@@ -119,7 +146,7 @@ export const ProcessEditor: React.FC<ProcessEditorProps> = ({
 
           <ColorInput
             label="Color (optional)"
-            value={process.color || '#94a3b8'}
+            value={localProcess.color || '#94a3b8'}
             onChange={(value) => handleUpdate('color', value)}
           />
 
@@ -132,7 +159,7 @@ export const ProcessEditor: React.FC<ProcessEditorProps> = ({
               Delete Process
             </Button>
             <Button
-              onClick={onClose}
+              onClick={handleDone}
               className="flex-1"
             >
               Done

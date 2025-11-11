@@ -254,6 +254,21 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
               </div>
             </div>
           )}
+          <div className="flex gap-2 pt-4">
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              className="flex-1"
+            >
+              Delete Node
+            </Button>
+            <Button
+              onClick={handleClose}
+              className="flex-1"
+            >
+              Done
+            </Button>
+          </div>
         </div>
       </DialogContent>
 

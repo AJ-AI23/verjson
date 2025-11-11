@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SketchPicker } from 'react-color';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -23,14 +23,45 @@ export const LifelineEditor: React.FC<LifelineEditorProps> = ({
   onUpdate,
   onDelete
 }) => {
-  if (!lifeline) return null;
+  const [localLifeline, setLocalLifeline] = useState<Lifeline | null>(lifeline);
+  
+  // Update local state when dialog opens with new lifeline
+  useEffect(() => {
+    if (isOpen && lifeline) {
+      setLocalLifeline(lifeline);
+    }
+  }, [isOpen, lifeline]);
+
+  if (!localLifeline) return null;
 
   const handleUpdate = (field: string, value: any) => {
-    onUpdate(lifeline.id, { [field]: value });
+    setLocalLifeline(prev => prev ? { ...prev, [field]: value } : null);
+  };
+
+  const handleDone = () => {
+    if (localLifeline && lifeline) {
+      const hasChanges = 
+        localLifeline.name !== lifeline.name ||
+        localLifeline.description !== lifeline.description ||
+        localLifeline.color !== lifeline.color ||
+        localLifeline.anchorColor !== lifeline.anchorColor;
+      
+      if (hasChanges) {
+        onUpdate(localLifeline.id, {
+          name: localLifeline.name,
+          description: localLifeline.description,
+          color: localLifeline.color,
+          anchorColor: localLifeline.anchorColor
+        });
+      }
+    }
+    onClose();
   };
 
   const handleDelete = () => {
-    onDelete(lifeline.id);
+    if (localLifeline) {
+      onDelete(localLifeline.id);
+    }
     onClose();
   };
 
@@ -38,7 +69,7 @@ export const LifelineEditor: React.FC<LifelineEditorProps> = ({
     const [isOpen, setIsOpen] = useState(false);
     const [localValue, setLocalValue] = useState(value);
     
-    React.useEffect(() => {
+    useEffect(() => {
       if (!isOpen) {
         setLocalValue(value);
       }
@@ -98,7 +129,7 @@ export const LifelineEditor: React.FC<LifelineEditorProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleDone()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Edit Lifeline</DialogTitle>
@@ -109,7 +140,7 @@ export const LifelineEditor: React.FC<LifelineEditorProps> = ({
             <Label htmlFor="lifeline-name">Name</Label>
             <Input
               id="lifeline-name"
-              value={lifeline.name || ''}
+              value={localLifeline.name || ''}
               onChange={(e) => handleUpdate('name', e.target.value)}
               placeholder="Lifeline name"
             />
@@ -119,7 +150,7 @@ export const LifelineEditor: React.FC<LifelineEditorProps> = ({
             <Label htmlFor="lifeline-description">Description (optional)</Label>
             <Textarea
               id="lifeline-description"
-              value={lifeline.description || ''}
+              value={localLifeline.description || ''}
               onChange={(e) => handleUpdate('description', e.target.value)}
               placeholder="Optional description"
               rows={3}
@@ -128,13 +159,13 @@ export const LifelineEditor: React.FC<LifelineEditorProps> = ({
 
           <ColorInput
             label="Background Color (optional)"
-            value={lifeline.color || '#f8fafc'}
+            value={localLifeline.color || '#f8fafc'}
             onChange={(value) => handleUpdate('color', value)}
           />
 
           <ColorInput
             label="Anchor Color (optional)"
-            value={lifeline.anchorColor || '#3b82f6'}
+            value={localLifeline.anchorColor || '#3b82f6'}
             onChange={(value) => handleUpdate('anchorColor', value)}
           />
 
@@ -147,7 +178,7 @@ export const LifelineEditor: React.FC<LifelineEditorProps> = ({
               Delete Lifeline
             </Button>
             <Button
-              onClick={onClose}
+              onClick={handleDone}
               className="flex-1"
             >
               Done
