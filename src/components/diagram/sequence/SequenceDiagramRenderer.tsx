@@ -1612,11 +1612,21 @@ const MousePositionTracker: React.FC<{
   const handleDeleteLifeline = useCallback(() => {
     if (!selectedLifelineId || !onDataChange) return;
     
+    // Remove lifeline and all connected nodes
     const updatedLifelines = lifelines.filter(l => l.id !== selectedLifelineId);
-    onDataChange({ ...data, lifelines: updatedLifelines });
+    const updatedNodes = diagramNodes.filter(node => 
+      !node.anchors?.some(anchor => anchor.lifelineId === selectedLifelineId)
+    );
+    
+    console.log('🗑️ [handleDeleteLifeline] Deleting lifeline and connected nodes:', {
+      lifelineId: selectedLifelineId,
+      deletedNodesCount: diagramNodes.length - updatedNodes.length
+    });
+    
+    onDataChange({ ...data, lifelines: updatedLifelines, nodes: updatedNodes });
     setSelectedLifelineId(null);
     setLifelineToolbarPosition(null);
-  }, [selectedLifelineId, lifelines, data, onDataChange]);
+  }, [selectedLifelineId, lifelines, diagramNodes, data, onDataChange]);
   
   const handleLifelineUpdate = useCallback((lifelineId: string, updates: Partial<Lifeline>) => {
     if (!onDataChange) return;
@@ -1631,9 +1641,19 @@ const MousePositionTracker: React.FC<{
   const handleLifelineDelete = useCallback((lifelineId: string) => {
     if (!onDataChange) return;
     
+    // Remove lifeline and all connected nodes
     const updatedLifelines = lifelines.filter(l => l.id !== lifelineId);
-    onDataChange({ ...data, lifelines: updatedLifelines });
-  }, [lifelines, data, onDataChange]);
+    const updatedNodes = diagramNodes.filter(node => 
+      !node.anchors?.some(anchor => anchor.lifelineId === lifelineId)
+    );
+    
+    console.log('🗑️ [handleLifelineDelete] Deleting lifeline and connected nodes:', {
+      lifelineId,
+      deletedNodesCount: diagramNodes.length - updatedNodes.length
+    });
+    
+    onDataChange({ ...data, lifelines: updatedLifelines, nodes: updatedNodes });
+  }, [lifelines, diagramNodes, data, onDataChange]);
 
   // Close toolbar and tooltips when clicking outside
   const onPaneClick = useCallback(() => {
