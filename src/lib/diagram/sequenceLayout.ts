@@ -122,6 +122,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     
     const nodeTopY = nodeY;
     const nodeBottomY = nodeY + nodeHeight;
+    const nodeCenterY = nodeY + (nodeHeight / 2);
     
     // Find processes on this lifeline that overlap with this node's Y position
     const overlappingProcesses = options.processes.filter(process => {
@@ -149,13 +150,24 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const processTopY = minAnchorY - ANCHOR_MARGIN;
       const processBottomY = maxAnchorY + ANCHOR_MARGIN;
       
-      return !(nodeBottomY < processTopY || nodeTopY > processBottomY);
+      const overlaps = !(nodeBottomY < processTopY || nodeTopY > processBottomY);
+      
+      // Debug log for problematic nodes
+      if (nodeCenterY > 200 && nodeCenterY < 400) {
+        console.log(`  Process ${process.id} check:`, {
+          processAnchors: processAnchorsOnLifeline,
+          processYRange: [processTopY, processBottomY],
+          nodeYRange: [nodeTopY, nodeBottomY],
+          overlaps
+        });
+      }
+      
+      return overlaps;
     });
     
     if (overlappingProcesses.length === 0) return 0;
     
     // Group by Y range to find parallel processes
-    const nodeCenterY = nodeY + (nodeHeight / 2);
     const yGroup = Math.floor(nodeCenterY / 200) * 200;
     const parallelProcesses = overlappingProcesses.filter(process => {
       const processAnchorsOnLifeline = process.anchorIds.filter(id => {
