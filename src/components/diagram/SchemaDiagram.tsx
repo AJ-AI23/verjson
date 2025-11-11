@@ -49,7 +49,12 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   // Check if this is a diagram document and migrate if needed
   const diagramDocument = useMemo(() => {
     if (!isDiagram || !schema) return null;
-    return migrateDiagramDocument(schema as DiagramDocument);
+    const migrated = migrateDiagramDocument(schema as DiagramDocument);
+    console.log('🔄 [SchemaDiagram] diagramDocument recalculated:', {
+      selectedTheme: migrated.selectedTheme,
+      hasSelectedTheme: 'selectedTheme' in migrated
+    });
+    return migrated;
   }, [isDiagram, schema]);
   
   const isSequenceDiagram = diagramDocument?.type === 'sequence';
@@ -94,14 +99,20 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
           onToggleFullscreen={onToggleFullscreen}
           onDataChange={(newData) => {
             if (onSchemaChange) {
+              console.log('📝 [SchemaDiagram] onDataChange called', {
+                currentTheme: diagramDocument.selectedTheme,
+                hasSelectedTheme: 'selectedTheme' in diagramDocument
+              });
               const updatedDocument = {
                 ...diagramDocument,
                 data: newData,
+                selectedTheme: diagramDocument.selectedTheme, // Explicitly preserve theme
                 metadata: {
                   ...diagramDocument.metadata,
                   modified: new Date().toISOString()
                 }
               };
+              console.log('📝 [SchemaDiagram] Calling onSchemaChange with theme:', updatedDocument.selectedTheme);
               onSchemaChange(updatedDocument);
             }
           }}
