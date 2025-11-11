@@ -89,7 +89,7 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
         <SequenceDiagramRenderer
           data={diagramDocument.data as SequenceDiagramData}
           styles={documentStyles}
-          theme={diagramDocument.selectedTheme}
+          theme={diagramDocument.selectedTheme || 'light'}
           workspaceId={workspaceId}
           isStylesDialogOpen={isStylesDialogOpen}
           onStylesDialogClose={onStylesDialogClose}
@@ -106,7 +106,7 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
               const updatedDocument = {
                 ...diagramDocument,
                 data: newData,
-                selectedTheme: diagramDocument.selectedTheme, // Explicitly preserve theme
+                selectedTheme: diagramDocument.selectedTheme || 'light', // Ensure theme is always set
                 metadata: {
                   ...diagramDocument.metadata,
                   modified: new Date().toISOString()
@@ -121,6 +121,7 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
               const updatedDocument = {
                 ...diagramDocument,
                 styles: newStyles,
+                selectedTheme: diagramDocument.selectedTheme || 'light', // Preserve theme
                 metadata: {
                   ...diagramDocument.metadata,
                   modified: new Date().toISOString()
