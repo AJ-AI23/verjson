@@ -1631,12 +1631,58 @@ const MousePositionTracker: React.FC<{
   const handleLifelineUpdate = useCallback((lifelineId: string, updates: Partial<Lifeline>) => {
     if (!onDataChange) return;
     
+    // Create a map of old lifeline orders
+    const oldOrderMap = new Map<string, number>();
+    lifelines.forEach(l => oldOrderMap.set(l.id, l.order));
+    
+    // Update the lifeline
     const updatedLifelines = lifelines.map(l =>
       l.id === lifelineId ? { ...l, ...updates } : l
     );
     
-    onDataChange({ ...data, lifelines: updatedLifelines });
-  }, [lifelines, data, onDataChange]);
+    // Create a map of new lifeline orders
+    const newOrderMap = new Map<string, number>();
+    updatedLifelines.forEach(l => newOrderMap.set(l.id, l.order));
+    
+    // Check if order changed
+    const orderChanged = updates.order !== undefined && 
+      oldOrderMap.get(lifelineId) !== newOrderMap.get(lifelineId);
+    
+    let updatedNodes = diagramNodes;
+    
+    if (orderChanged) {
+      // For each node, check if its anchors need to be swapped
+      updatedNodes = diagramNodes.map(node => {
+        const [anchor1, anchor2] = node.anchors;
+        const lifeline1Order = newOrderMap.get(anchor1.lifelineId) || 0;
+        const lifeline2Order = newOrderMap.get(anchor2.lifelineId) || 0;
+        
+        // Determine which anchor should be source/target based on lifeline order
+        // Left lifeline (lower order) should be source
+        const shouldSwap = 
+          (lifeline1Order > lifeline2Order && anchor1.anchorType === 'source') ||
+          (lifeline1Order < lifeline2Order && anchor1.anchorType === 'target');
+        
+        if (shouldSwap) {
+          return {
+            ...node,
+            anchors: [
+              { ...anchor1, anchorType: anchor1.anchorType === 'source' ? 'target' : 'source' } as AnchorNodeType,
+              { ...anchor2, anchorType: anchor2.anchorType === 'source' ? 'target' : 'source' } as AnchorNodeType
+            ]
+          };
+        }
+        
+        return node;
+      });
+    }
+    
+    onDataChange({ 
+      ...data, 
+      lifelines: updatedLifelines,
+      ...(orderChanged && { nodes: updatedNodes })
+    });
+  }, [lifelines, diagramNodes, data, onDataChange]);
   
   const handleLifelineDelete = useCallback((lifelineId: string) => {
     if (!onDataChange) return;

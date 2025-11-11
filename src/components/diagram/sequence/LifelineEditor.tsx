@@ -44,14 +44,16 @@ export const LifelineEditor: React.FC<LifelineEditorProps> = ({
         localLifeline.name !== lifeline.name ||
         localLifeline.description !== lifeline.description ||
         localLifeline.color !== lifeline.color ||
-        localLifeline.anchorColor !== lifeline.anchorColor;
+        localLifeline.anchorColor !== lifeline.anchorColor ||
+        localLifeline.order !== lifeline.order;
       
       if (hasChanges) {
         onUpdate(localLifeline.id, {
           name: localLifeline.name,
           description: localLifeline.description,
           color: localLifeline.color,
-          anchorColor: localLifeline.anchorColor
+          anchorColor: localLifeline.anchorColor,
+          order: localLifeline.order
         });
       }
     }
@@ -168,6 +170,18 @@ export const LifelineEditor: React.FC<LifelineEditorProps> = ({
             value={localLifeline.anchorColor || '#3b82f6'}
             onChange={(value) => handleUpdate('anchorColor', value)}
           />
+
+          <div className="space-y-2">
+            <Label htmlFor="lifeline-order">Order</Label>
+            <Input
+              id="lifeline-order"
+              type="number"
+              value={localLifeline.order}
+              onChange={(e) => handleUpdate('order', parseInt(e.target.value) || 0)}
+              placeholder="Order"
+              min={0}
+            />
+          </div>
 
           <div className="flex gap-2 pt-4">
             <Button
