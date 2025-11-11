@@ -606,7 +606,7 @@ const MousePositionTracker: React.FC<{
         const isSelected = lifelineData?.column?.id === selectedLifelineId;
         const lifeline = lifelines.find(l => l.id === lifelineData?.column?.id);
         // Create dataVersion from lifeline properties AND theme to force re-render on changes
-        const dataVersion = lifeline ? `${lifeline.name}-${lifeline.description}-${lifeline.color}-${lifeline.anchorColor}-${currentTheme}` : currentTheme;
+        const dataVersion = lifeline ? `${lifeline.name}-${lifeline.description}-${lifeline.color}-${lifeline.anchorColor}-${lifeline.order}-${currentTheme}` : currentTheme;
         return {
           ...node,
           selectable: true,
