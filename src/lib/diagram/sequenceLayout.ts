@@ -112,7 +112,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const PROCESS_BOX_WIDTH = 50;
       const MARGIN_GAP = 10; // Gap between process box and lifeline
       const PROCESS_HORIZONTAL_GAP = 8; // Gap between parallel process boxes
-      const ANCHOR_MARGIN = 35; // Vertical margin that process boxes have above/below anchors
+      const ANCHOR_MARGIN = 15; // Vertical margin that process boxes have above/below anchors
     
     // nodeY is the TOP Y position, calculate ranges
     const nodeCenterY = nodeY + (nodeHeight / 2);
@@ -255,7 +255,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     const bottomNode = nodesWithPositions.find(n => n.yPosition === maxAnchorY);
     const bottomNodeHeight = bottomNode ? (nodeHeights?.get(bottomNode.id) || getNodeTypeConfig(bottomNode.type)?.defaultHeight || 70) : 70;
     
-    const ANCHOR_MARGIN = 35; // Match process box margin
+    const ANCHOR_MARGIN = 15; // Match process box margin
     const thisYStart = minAnchorY - (topNodeHeight / 2) - ANCHOR_MARGIN;
     const thisYEnd = maxAnchorY + (bottomNodeHeight / 2) + ANCHOR_MARGIN;
     
@@ -294,8 +294,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const pBottomNode = nodesWithPositions.find(n => n.yPosition === pMaxY);
       const pBottomHeight = pBottomNode ? (nodeHeights?.get(pBottomNode.id) || getNodeTypeConfig(pBottomNode.type)?.defaultHeight || 70) : 70;
       
-      const pYStart = pMinY - (pTopHeight / 2) - 35; // Match ANCHOR_MARGIN
-      const pYEnd = pMaxY + (pBottomHeight / 2) + 35; // Match ANCHOR_MARGIN
+      const pYStart = pMinY - (pTopHeight / 2) - 15; // Match ANCHOR_MARGIN
+      const pYEnd = pMaxY + (pBottomHeight / 2) + 15; // Match ANCHOR_MARGIN
       
       return rangesOverlap(thisYStart, thisYEnd, pYStart, pYEnd);
     });
@@ -872,7 +872,7 @@ const calculateProcessLayout = (
       if (anchorYPositions.length === 0) return;
 
       // Calculate bounds based on actual anchor positions with node heights
-      const ANCHOR_MARGIN = 35; // Vertical margin above/below process boxes
+      const ANCHOR_MARGIN = 15; // Vertical margin above/below process boxes (reduced to prevent overlap)
       const NODE_HEIGHT = 70;
       const minAnchorY = Math.min(...anchorYPositions);
       const maxAnchorY = Math.max(...anchorYPositions);
@@ -925,8 +925,8 @@ const calculateProcessLayout = (
         const segBottomNode = nodes.find(n => n.anchors?.some(a => a.id === segBottomAnchor));
         const segBottomHeight = segBottomNode ? (nodeHeights?.get(segBottomNode.id) || getNodeTypeConfig(segBottomNode.type)?.defaultHeight || 70) : 70;
         
-        const segYStart = segMinY - (segTopHeight / 2) - 35; // Match ANCHOR_MARGIN
-        const segYEnd = segMaxY + (segBottomHeight / 2) + 35; // Match ANCHOR_MARGIN
+        const segYStart = segMinY - (segTopHeight / 2) - 15; // Match ANCHOR_MARGIN
+        const segYEnd = segMaxY + (segBottomHeight / 2) + 15; // Match ANCHOR_MARGIN
         
         return rangesOverlap(thisYStart, thisYEnd, segYStart, segYEnd);
       });
