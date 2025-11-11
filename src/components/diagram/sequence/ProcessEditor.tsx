@@ -24,7 +24,6 @@ export const ProcessEditor: React.FC<ProcessEditorProps> = ({
   if (!process) return null;
 
   const handleUpdate = (field: string, value: any) => {
-    console.log('🔄 [ProcessEditor] Updating process:', { processId: process.id, field, value });
     onUpdate(process.id, { [field]: value });
   };
 

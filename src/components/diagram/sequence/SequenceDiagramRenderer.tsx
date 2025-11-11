@@ -634,15 +634,31 @@ const MousePositionTracker: React.FC<{
 
   // Update nodes when layout changes and apply handlers - with deduplication
   useEffect(() => {
-    // Skip if nodes haven't actually changed (deep comparison of IDs and positions)
+    // Skip if nodes haven't actually changed (deep comparison of IDs, positions, and data)
     const nodesChanged = nodesWithHandlers.length !== prevNodesRef.current.length ||
       nodesWithHandlers.some((node, i) => {
         const prev = prevNodesRef.current[i];
-        return !prev || 
-          node.id !== prev.id || 
-          node.type !== prev.type ||
-          node.position.x !== prev.position.x ||
-          node.position.y !== prev.position.y;
+        if (!prev) return true;
+        
+        // Check basic properties
+        if (node.id !== prev.id || 
+            node.type !== prev.type ||
+            node.position.x !== prev.position.x ||
+            node.position.y !== prev.position.y) {
+          return true;
+        }
+        
+        // Check data changes (especially for process nodes)
+        if (node.type === 'processNode') {
+          const nodeData = node.data as any;
+          const prevData = prev.data as any;
+          // Compare dataVersion which changes when process description/color changes
+          if (nodeData?.dataVersion !== prevData?.dataVersion) {
+            return true;
+          }
+        }
+        
+        return false;
       });
     
     if (nodesChanged) {
@@ -1439,14 +1455,12 @@ const MousePositionTracker: React.FC<{
   }, [selectedProcessId, data, onDataChange]);
   
   const handleProcessUpdate = useCallback((processId: string, updates: Partial<any>) => {
-    console.log('🔄 [SequenceRenderer] handleProcessUpdate called:', { processId, updates, currentProcesses: data.processes });
     if (!onDataChange) return;
     
     const updatedProcesses = (data.processes || []).map(p =>
       p.id === processId ? { ...p, ...updates } : p
     );
     
-    console.log('🔄 [SequenceRenderer] Updating processes:', { updatedProcesses });
     onDataChange({ ...data, processes: updatedProcesses });
   }, [data, onDataChange]);
   

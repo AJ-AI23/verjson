@@ -971,10 +971,12 @@ const calculateProcessLayout = (
         type: 'processNode',
         position: { x: processX, y: yPosition },
         data: {
-          processNode: process,
+          processNode: { ...process }, // Spread to ensure new reference
           processId: process.id,
           theme: styles,
-          parallelCount
+          parallelCount,
+          // Add a data hash to force updates when process changes
+          dataVersion: `${process.description}-${process.color}`
         },
         style: {
           width: PROCESS_BOX_WIDTH,
