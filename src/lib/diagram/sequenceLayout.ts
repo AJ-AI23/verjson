@@ -63,12 +63,13 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Sort lifelines by order
   const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
 
-  // Calculate max process margin for right side of lifelines only (all processes on right)
+  // Calculate max parallel processes per lifeline for spacing
   const PROCESS_BOX_WIDTH = 50;
   const PROCESS_HORIZONTAL_GAP = 8;
   const MARGIN_GAP = 10;
   
-  let maxParallelProcesses = 0;
+  // Track which lifelines have processes
+  const lifelineProcessCounts = new Map<string, number>();
   if (options.processes && options.processes.length > 0) {
     sortedLifelines.forEach(lifeline => {
       const processesOnLifeline = options.processes!.filter(process => {
@@ -77,23 +78,26 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
           return anchor?.lifelineId === lifeline.id;
         });
       });
-      
-      if (processesOnLifeline.length > 0) {
-        maxParallelProcesses = Math.max(maxParallelProcesses, Math.min(processesOnLifeline.length, 3));
-      }
+      lifelineProcessCounts.set(lifeline.id, processesOnLifeline.length);
     });
   }
 
-  // Add extra spacing for process boxes on right side only
-  const processSpacing = maxParallelProcesses > 0 
-    ? (PROCESS_BOX_WIDTH * maxParallelProcesses) + (PROCESS_HORIZONTAL_GAP * (maxParallelProcesses - 1)) + 20
-    : 0;
-
-  // Create a map of lifeline positions with adjusted spacing
+  // Create a map of lifeline positions with dynamic spacing per lifeline
   const lifelineXPositions = new Map<string, number>();
+  let currentX = NODE_HORIZONTAL_PADDING;
+  
   sortedLifelines.forEach((lifeline, index) => {
-    const xPos = index * (LIFELINE_WIDTH + horizontalSpacing + processSpacing) + NODE_HORIZONTAL_PADDING;
-    lifelineXPositions.set(lifeline.id, xPos);
+    lifelineXPositions.set(lifeline.id, currentX);
+    
+    // Calculate spacing after this lifeline
+    const processCount = lifelineProcessCounts.get(lifeline.id) || 0;
+    const maxParallelOnThisLifeline = Math.min(processCount, 3);
+    const processSpacingForThisLifeline = maxParallelOnThisLifeline > 0 
+      ? (PROCESS_BOX_WIDTH * maxParallelOnThisLifeline) + (PROCESS_HORIZONTAL_GAP * (maxParallelOnThisLifeline - 1)) + 20
+      : 0;
+    
+    // Move to next lifeline position
+    currentX += LIFELINE_WIDTH + horizontalSpacing + processSpacingForThisLifeline;
   });
 
   // Helper function to get anchor center Y position
