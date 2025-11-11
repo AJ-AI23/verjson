@@ -418,14 +418,27 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const leftX = Math.min(sourceX, targetX);
       const rightX = Math.max(sourceX, targetX);
       
-      // Debug logging
-      if (index < 3) {
-        console.log(`Node ${node.id}: leftLifeline=${leftLifelineId}, leftProcessMargin=${leftProcessMargin}, topY=${topY}`);
-      }
-      
       // Add margins: dynamic left margin based on processes, fixed right margin
       const totalLeftMargin = BASE_MARGIN + leftProcessMargin;
       const totalRightMargin = RIGHT_MARGIN;
+      
+      // Debug logging - log all first 5 nodes
+      if (index < 5) {
+        console.log(`🔍 Node ${node.id} (index ${index}):`, {
+          leftLifeline: leftLifelineId,
+          leftProcessMargin,
+          topY,
+          nodeHeight,
+          totalLeftMargin,
+          overlappingProcessCount: options.processes?.filter(process => {
+            const processAnchorsOnLifeline = process.anchorIds.filter(id => {
+              const anchor = anchors.find(a => a.id === id);
+              return anchor?.lifelineId === leftLifelineId;
+            });
+            return processAnchorsOnLifeline.length > 0;
+          }).length || 0
+        });
+      }
       
       startX = leftX + totalLeftMargin;
       width = Math.abs(rightX - leftX) - totalLeftMargin - totalRightMargin;
