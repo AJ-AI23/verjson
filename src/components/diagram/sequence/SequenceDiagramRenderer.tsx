@@ -107,7 +107,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // Require 8px movement before drag starts
+        distance: 3, // Reduced distance for faster drag activation
       },
     })
   );
