@@ -53,13 +53,31 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
   };
   
   const handleClose = () => {
+    console.log('🚪 [NodeEditor] handleClose called:', {
+      hasLocalNode: !!localNode,
+      hasNode: !!node,
+      localNodeId: localNode?.id,
+      nodeId: node?.id
+    });
+    
     // Save all changes when closing
     if (localNode && node) {
       // Check if anything changed
-      const hasChanges = 
-        localNode.label !== node.label ||
-        localNode.type !== node.type ||
-        JSON.stringify(localNode.data) !== JSON.stringify(node.data);
+      const labelChanged = localNode.label !== node.label;
+      const typeChanged = localNode.type !== node.type;
+      const dataChanged = JSON.stringify(localNode.data) !== JSON.stringify(node.data);
+      const hasChanges = labelChanged || typeChanged || dataChanged;
+      
+      console.log('🔍 [NodeEditor] Checking for changes:', {
+        labelChanged,
+        typeChanged,
+        dataChanged,
+        hasChanges,
+        localLabel: localNode.label,
+        nodeLabel: node.label,
+        localData: localNode.data,
+        nodeData: node.data
+      });
       
       if (hasChanges) {
         console.log('💾 [NodeEditor] Saving changes on close:', { nodeId: localNode.id, localNode });
@@ -68,7 +86,11 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
           type: localNode.type,
           data: localNode.data
         });
+      } else {
+        console.log('⏭️ [NodeEditor] No changes detected, skipping save');
       }
+    } else {
+      console.log('⚠️ [NodeEditor] Missing localNode or node, cannot save');
     }
     onClose();
   };
