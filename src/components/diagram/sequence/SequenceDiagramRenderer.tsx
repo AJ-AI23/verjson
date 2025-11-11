@@ -103,11 +103,6 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   
   // Update local theme state when initialTheme prop changes
   React.useEffect(() => {
-    console.log('🎨 [SequenceDiagramRenderer] Theme prop changed:', {
-      from: currentTheme,
-      to: initialTheme,
-      propValue: initialTheme
-    });
     setCurrentTheme(initialTheme);
   }, [initialTheme]);
   

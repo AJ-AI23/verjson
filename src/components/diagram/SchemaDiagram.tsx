@@ -46,15 +46,26 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   onToggleFullscreen,
   diagramRef
 }) => {
+  // Theme preference stored in localStorage, not in document
+  const [selectedTheme, setSelectedTheme] = React.useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('diagram-viewer-theme') || 'light';
+    }
+    return 'light';
+  });
+
+  // Persist theme changes to localStorage
+  const handleThemeChange = React.useCallback((newTheme: string) => {
+    setSelectedTheme(newTheme);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('diagram-viewer-theme', newTheme);
+    }
+  }, []);
+
   // Check if this is a diagram document and migrate if needed
   const diagramDocument = useMemo(() => {
     if (!isDiagram || !schema) return null;
-    const migrated = migrateDiagramDocument(schema as DiagramDocument);
-    console.log('🔄 [SchemaDiagram] diagramDocument recalculated:', {
-      selectedTheme: migrated.selectedTheme,
-      hasSelectedTheme: 'selectedTheme' in migrated
-    });
-    return migrated;
+    return migrateDiagramDocument(schema as DiagramDocument);
   }, [isDiagram, schema]);
   
   const isSequenceDiagram = diagramDocument?.type === 'sequence';
@@ -89,7 +100,7 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
         <SequenceDiagramRenderer
           data={diagramDocument.data as SequenceDiagramData}
           styles={documentStyles}
-          theme={diagramDocument.selectedTheme || 'light'}
+          theme={selectedTheme}
           workspaceId={workspaceId}
           isStylesDialogOpen={isStylesDialogOpen}
           onStylesDialogClose={onStylesDialogClose}
@@ -99,20 +110,14 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
           onToggleFullscreen={onToggleFullscreen}
           onDataChange={(newData) => {
             if (onSchemaChange) {
-              console.log('📝 [SchemaDiagram] onDataChange called', {
-                currentTheme: diagramDocument.selectedTheme,
-                hasSelectedTheme: 'selectedTheme' in diagramDocument
-              });
               const updatedDocument = {
                 ...diagramDocument,
                 data: newData,
-                selectedTheme: diagramDocument.selectedTheme || 'light', // Ensure theme is always set
                 metadata: {
                   ...diagramDocument.metadata,
                   modified: new Date().toISOString()
                 }
               };
-              console.log('📝 [SchemaDiagram] Calling onSchemaChange with theme:', updatedDocument.selectedTheme);
               onSchemaChange(updatedDocument);
             }
           }}
@@ -121,7 +126,6 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
               const updatedDocument = {
                 ...diagramDocument,
                 styles: newStyles,
-                selectedTheme: diagramDocument.selectedTheme || 'light', // Preserve theme
                 metadata: {
                   ...diagramDocument.metadata,
                   modified: new Date().toISOString()
@@ -130,19 +134,7 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
               onSchemaChange(updatedDocument);
             }
           }}
-          onThemeChange={(newTheme: string) => {
-            if (onSchemaChange) {
-              const updatedDocument = {
-                ...diagramDocument,
-                selectedTheme: newTheme,
-                metadata: {
-                  ...diagramDocument.metadata,
-                  modified: new Date().toISOString()
-                }
-              };
-              onSchemaChange(updatedDocument);
-            }
-          }}
+          onThemeChange={handleThemeChange}
         />
       </div>
     );
