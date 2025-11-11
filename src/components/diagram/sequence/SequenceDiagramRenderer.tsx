@@ -1631,6 +1631,8 @@ const MousePositionTracker: React.FC<{
   const handleLifelineUpdate = useCallback((lifelineId: string, updates: Partial<Lifeline>) => {
     if (!onDataChange) return;
     
+    console.log('🔄 [handleLifelineUpdate] Updating lifeline:', { lifelineId, updates });
+    
     // Create a map of old lifeline orders
     const oldOrderMap = new Map<string, number>();
     lifelines.forEach(l => oldOrderMap.set(l.id, l.order));
@@ -1640,6 +1642,9 @@ const MousePositionTracker: React.FC<{
       l.id === lifelineId ? { ...l, ...updates } : l
     );
     
+    console.log('🔄 [handleLifelineUpdate] Old lifelines:', lifelines.map(l => ({ id: l.id, order: l.order })));
+    console.log('🔄 [handleLifelineUpdate] New lifelines:', updatedLifelines.map(l => ({ id: l.id, order: l.order })));
+    
     // Create a map of new lifeline orders
     const newOrderMap = new Map<string, number>();
     updatedLifelines.forEach(l => newOrderMap.set(l.id, l.order));
@@ -1647,6 +1652,8 @@ const MousePositionTracker: React.FC<{
     // Check if order changed
     const orderChanged = updates.order !== undefined && 
       oldOrderMap.get(lifelineId) !== newOrderMap.get(lifelineId);
+    
+    console.log('🔄 [handleLifelineUpdate] Order changed?', orderChanged);
     
     let updatedNodes = diagramNodes;
     
@@ -1664,6 +1671,7 @@ const MousePositionTracker: React.FC<{
           (lifeline1Order < lifeline2Order && anchor1.anchorType === 'target');
         
         if (shouldSwap) {
+          console.log('🔄 [handleLifelineUpdate] Swapping anchors for node:', node.id);
           return {
             ...node,
             anchors: [
@@ -1675,6 +1683,9 @@ const MousePositionTracker: React.FC<{
         
         return node;
       });
+      
+      // Force layout recalculation by incrementing version
+      setLayoutVersion(prev => prev + 1);
     }
     
     onDataChange({ 
