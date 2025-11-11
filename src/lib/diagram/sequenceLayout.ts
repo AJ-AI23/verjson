@@ -305,18 +305,14 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       n.anchors?.some(a => a.id === anchor.id)
     );
     
-    // Use the calculated aligned position for layout
+    // Use the calculated aligned position for layout (this is now the CENTER Y of the node)
     const connectedNodeYPos = connectedNode 
       ? (alignedNodePositions.get(connectedNode.id) || (LIFELINE_HEADER_HEIGHT + 40))
       : (LIFELINE_HEADER_HEIGHT + 40);
     
-    // Get node height - use measured height if available, otherwise use default from config
-    const measuredHeight = connectedNode && nodeHeights ? nodeHeights.get(connectedNode.id) : undefined;
-    const nodeConfig = connectedNode ? getNodeTypeConfig(connectedNode.type) : null;
-    const nodeHeight = measuredHeight || nodeConfig?.defaultHeight || 70;
-    
     // Position anchor at the vertical center of the node
-    const anchorY = connectedNodeYPos + (nodeHeight / 2) - 8; // Center 16px anchor on node center
+    // connectedNodeYPos is already the center Y, so just offset by half anchor height
+    const anchorY = connectedNodeYPos - 8; // Center 16px anchor on node center
     
     return {
       id: anchor.id,
