@@ -574,6 +574,18 @@ const MousePositionTracker: React.FC<{
 
   // Attach handlers to nodes
   const nodesWithHandlers = useMemo(() => {
+    console.log('🔄 [nodesWithHandlers] Recalculating with:', {
+      layoutNodesCount: layoutNodes.length,
+      diagramNodesCount: diagramNodes.length,
+      currentTheme,
+      sampleDiagramNode: diagramNodes[0] ? {
+        id: diagramNodes[0].id,
+        label: diagramNodes[0].label,
+        type: diagramNodes[0].type,
+        data: diagramNodes[0].data
+      } : null
+    });
+    
     return layoutNodes.map(node => {
       if (node.type === 'columnLifeline') {
         const lifelineData = node.data as any;
@@ -690,6 +702,11 @@ const MousePositionTracker: React.FC<{
             node.type !== prev.type ||
             node.position.x !== prev.position.x ||
             node.position.y !== prev.position.y) {
+          console.log('📝 [Node Change Detected] Basic properties changed:', { 
+            nodeId: node.id, 
+            type: node.type,
+            posChanged: node.position.y !== prev.position.y 
+          });
           return true;
         }
         
@@ -699,6 +716,12 @@ const MousePositionTracker: React.FC<{
           const prevData = prev.data as any;
           // Compare dataVersion which changes when properties or theme changes
           if (nodeData?.dataVersion !== prevData?.dataVersion) {
+            console.log('📝 [Node Change Detected] dataVersion changed:', { 
+              nodeId: node.id, 
+              type: node.type,
+              oldVersion: prevData?.dataVersion,
+              newVersion: nodeData?.dataVersion 
+            });
             return true;
           }
         }
@@ -707,6 +730,13 @@ const MousePositionTracker: React.FC<{
       });
     
     if (nodesChanged) {
+      console.log('📝 [Nodes Update] Updating nodes state:', {
+        count: nodesWithHandlers.length,
+        changedNodes: nodesWithHandlers.filter((node, i) => {
+          const prev = prevNodesRef.current[i];
+          return !prev || node.id !== prev.id || (node.data as any)?.dataVersion !== (prev.data as any)?.dataVersion;
+        }).map(n => ({ id: n.id, type: n.type }))
+      });
       prevNodesRef.current = nodesWithHandlers;
       setNodes(nodesWithHandlers);
     }
