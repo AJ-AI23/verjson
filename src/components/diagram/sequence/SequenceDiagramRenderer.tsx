@@ -1673,19 +1673,20 @@ const MousePositionTracker: React.FC<{
       setSelectedNode(updatedNode);
     }
     
-    // Clear height cache for this node to force remeasurement
-    // The ResizeObserver will remeasure and add it back, which will trigger layout recalc naturally
-    console.log('🗑️ [handleNodeUpdate] Clearing height cache for node:', nodeId);
-    setNodeHeights(prev => {
-      const newHeights = new Map(prev);
-      const hadHeight = newHeights.has(nodeId);
-      newHeights.delete(nodeId);
-      console.log('🗑️ [handleNodeUpdate] Height cache cleared:', { nodeId, hadHeight, remainingHeights: newHeights.size });
-      return newHeights;
-    });
-    
     console.log('📝 [handleNodeUpdate] Calling onDataChange with updated nodes');
     onDataChange({ ...data, nodes: updatedNodes });
+    
+    // Clear height cache AFTER a delay to let the node re-render and ResizeObserver measure
+    setTimeout(() => {
+      console.log('🗑️ [handleNodeUpdate] Clearing height cache for node after delay:', nodeId);
+      setNodeHeights(prev => {
+        const newHeights = new Map(prev);
+        const hadHeight = newHeights.has(nodeId);
+        newHeights.delete(nodeId);
+        console.log('🗑️ [handleNodeUpdate] Height cache cleared:', { nodeId, hadHeight, remainingHeights: newHeights.size });
+        return newHeights;
+      });
+    }, 50);
   }, [diagramNodes, data, onDataChange]);
 
   const handleNodeDelete = useCallback((nodeId: string) => {
