@@ -213,28 +213,6 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Allow nodes to share Y positions when they connect to non-overlapping lifelines
   const alignedNodePositions = calculateEvenSpacing(nodesWithPositions, nodeHeights, lifelines);
   
-  // Calculate required lifeline height based on actual node positions after alignment
-  let maxNodeBottomY = LIFELINE_HEADER_HEIGHT + 40; // Start with minimum height
-  
-  nodesWithPositions.forEach(node => {
-    const topY = alignedNodePositions.get(node.id);
-    if (topY !== undefined) {
-      const measuredHeight = nodeHeights?.get(node.id);
-      const nodeConfig = getNodeTypeConfig(node.type);
-      const nodeHeight = measuredHeight || nodeConfig?.defaultHeight || 70;
-      const bottomY = topY + nodeHeight;
-      maxNodeBottomY = Math.max(maxNodeBottomY, bottomY);
-    }
-  });
-  
-  // Add padding at the bottom
-  const calculatedLifelineHeight = maxNodeBottomY + 200;
-  
-  // Update lifeline nodes with calculated height
-  lifelineNodes.forEach(lifelineNode => {
-    lifelineNode.data.lifelineHeight = calculatedLifelineHeight;
-  });
-  
   // Create a map to store calculated yPosition values (center Y)
   const calculatedYPositions = new Map<string, number>();
 
@@ -533,6 +511,38 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       console.error('Error creating process layout:', error);
     }
   }
+
+  // Calculate required lifeline height based on ALL final node positions
+  let maxNodeBottomY = LIFELINE_HEADER_HEIGHT + 40; // Start with minimum height
+  
+  // Check all layout nodes
+  layoutNodes.forEach(node => {
+    const measuredHeight = nodeHeights?.get(node.id);
+    const nodeHeight = measuredHeight || 70; // Use measured height or default
+    const bottomY = node.position.y + nodeHeight;
+    maxNodeBottomY = Math.max(maxNodeBottomY, bottomY);
+  });
+  
+  // Check all anchor nodes
+  anchorNodes.forEach(node => {
+    const bottomY = node.position.y + 16; // Anchor height
+    maxNodeBottomY = Math.max(maxNodeBottomY, bottomY);
+  });
+  
+  // Check all process nodes (they store height in data)
+  processNodes.forEach(node => {
+    const processHeight = (node.data as any).height || 100;
+    const bottomY = node.position.y + processHeight;
+    maxNodeBottomY = Math.max(maxNodeBottomY, bottomY);
+  });
+  
+  // Add padding at the bottom
+  const calculatedLifelineHeight = maxNodeBottomY + 200;
+  
+  // Update lifeline nodes with calculated height
+  lifelineNodes.forEach(lifelineNode => {
+    lifelineNode.data.lifelineHeight = calculatedLifelineHeight;
+  });
 
   return {
     nodes: [...lifelineNodes, ...processNodes, ...anchorNodes, ...layoutNodes],
