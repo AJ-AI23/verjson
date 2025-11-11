@@ -215,6 +215,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   const calculatedYPositions = new Map<string, number>();
 
   // Helper function to find process and parallel index for an anchor on its specific lifeline
+  // Uses actual Y range overlap detection to match the process box positioning
   const getAnchorProcessInfo = (anchorId: string, anchorLifelineId: string): { processId: string; parallelIndex: number; parallelCount: number } | null => {
     if (!options.processes) return null;
     
@@ -225,52 +226,85 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     const currentAnchor = anchors.find(a => a.id === anchorId);
     if (!currentAnchor) return null;
     
-    // Find parallel processes in the same Y range that have anchors on this lifeline with the same type
-    const processAnchorPositions = process.anchorIds
+    // Get all anchor IDs for this process on this specific lifeline with this anchor type
+    const lifelineAnchorIds = process.anchorIds.filter(id => {
+      const anchor = anchors.find(a => a.id === id);
+      return anchor?.lifelineId === anchorLifelineId && anchor?.anchorType === currentAnchor.anchorType;
+    });
+    
+    if (lifelineAnchorIds.length === 0) return null;
+    
+    // Calculate the Y range for this process segment
+    const anchorYPositions = lifelineAnchorIds
       .map(id => {
-        const anchor = anchors.find(a => a.id === id);
-        const node = anchor ? nodesWithPositions.find(n => n.anchors?.some(a => a.id === id)) : null;
+        const node = nodesWithPositions.find(n => n.anchors?.some(a => a.id === id));
         return node?.yPosition;
       })
-      .filter(y => y !== undefined);
+      .filter(y => y !== undefined) as number[];
     
-    if (processAnchorPositions.length === 0) return null;
+    if (anchorYPositions.length === 0) return null;
     
-    const avgY = processAnchorPositions.reduce((sum, y) => sum + y!, 0) / processAnchorPositions.length;
-    const yGroup = Math.floor(avgY / 200) * 200;
+    const minAnchorY = Math.min(...anchorYPositions);
+    const maxAnchorY = Math.max(...anchorYPositions);
     
-    // Find all processes in same Y group that have anchors on this lifeline with the same type
-    const parallelProcesses = options.processes.filter(p => {
+    // Get node heights for accurate Y range calculation
+    const topNode = nodesWithPositions.find(n => n.yPosition === minAnchorY);
+    const topNodeHeight = topNode ? (nodeHeights?.get(topNode.id) || getNodeTypeConfig(topNode.type)?.defaultHeight || 70) : 70;
+    
+    const bottomNode = nodesWithPositions.find(n => n.yPosition === maxAnchorY);
+    const bottomNodeHeight = bottomNode ? (nodeHeights?.get(bottomNode.id) || getNodeTypeConfig(bottomNode.type)?.defaultHeight || 70) : 70;
+    
+    const ANCHOR_MARGIN = 25;
+    const thisYStart = minAnchorY - (topNodeHeight / 2) - ANCHOR_MARGIN;
+    const thisYEnd = maxAnchorY + (bottomNodeHeight / 2) + ANCHOR_MARGIN;
+    
+    // Helper to check if two Y ranges overlap
+    const rangesOverlap = (start1: number, end1: number, start2: number, end2: number): boolean => {
+      return !(end1 < start2 || end2 < start1);
+    };
+    
+    // Find all processes that have anchors on this lifeline with the same type and overlap Y range
+    const overlappingProcesses = options.processes.filter(p => {
       // Check if this process has any anchor on the target lifeline with matching type
-      const hasMatchingAnchor = p.anchorIds.some(id => {
+      const pLifelineAnchorIds = p.anchorIds.filter(id => {
         const anchor = anchors.find(a => a.id === id);
         return anchor?.lifelineId === anchorLifelineId && anchor?.anchorType === currentAnchor.anchorType;
       });
       
-      if (!hasMatchingAnchor) return false;
+      if (pLifelineAnchorIds.length === 0) return false;
       
-      const pAnchorPositions = p.anchorIds
+      // Get Y range for this process
+      const pAnchorYPositions = pLifelineAnchorIds
         .map(id => {
-          const anchor = anchors.find(a => a.id === id);
-          const node = anchor ? nodesWithPositions.find(n => n.anchors?.some(a => a.id === id)) : null;
+          const node = nodesWithPositions.find(n => n.anchors?.some(a => a.id === id));
           return node?.yPosition;
         })
-        .filter(y => y !== undefined);
+        .filter(y => y !== undefined) as number[];
       
-      if (pAnchorPositions.length === 0) return false;
+      if (pAnchorYPositions.length === 0) return false;
       
-      const pAvgY = pAnchorPositions.reduce((sum, y) => sum + y!, 0) / pAnchorPositions.length;
-      const pYGroup = Math.floor(pAvgY / 200) * 200;
+      const pMinY = Math.min(...pAnchorYPositions);
+      const pMaxY = Math.max(...pAnchorYPositions);
       
-      return pYGroup === yGroup;
+      // Get node heights for this process
+      const pTopNode = nodesWithPositions.find(n => n.yPosition === pMinY);
+      const pTopHeight = pTopNode ? (nodeHeights?.get(pTopNode.id) || getNodeTypeConfig(pTopNode.type)?.defaultHeight || 70) : 70;
+      
+      const pBottomNode = nodesWithPositions.find(n => n.yPosition === pMaxY);
+      const pBottomHeight = pBottomNode ? (nodeHeights?.get(pBottomNode.id) || getNodeTypeConfig(pBottomNode.type)?.defaultHeight || 70) : 70;
+      
+      const pYStart = pMinY - (pTopHeight / 2) - ANCHOR_MARGIN;
+      const pYEnd = pMaxY + (pBottomHeight / 2) + ANCHOR_MARGIN;
+      
+      return rangesOverlap(thisYStart, thisYEnd, pYStart, pYEnd);
     });
     
-    const parallelIndex = parallelProcesses.findIndex(p => p.id === process.id);
+    const parallelIndex = overlappingProcesses.findIndex(p => p.id === process.id);
     
     return {
       processId: process.id,
       parallelIndex,
-      parallelCount: parallelProcesses.length
+      parallelCount: overlappingProcesses.length
     };
   };
 
