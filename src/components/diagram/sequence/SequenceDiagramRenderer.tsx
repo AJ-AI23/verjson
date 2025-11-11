@@ -32,6 +32,7 @@ import { OpenApiImportDialog } from './OpenApiImportDialog';
 import { DiagramHeader } from '../DiagramHeader';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 import { useProcessManagement } from '@/hooks/useProcessManagement';
+import { ProcessEditor } from './ProcessEditor';
 import '@xyflow/react/dist/style.css';
 
 interface SequenceDiagramRendererProps {
@@ -117,6 +118,12 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [isEdgeEditorOpen, setIsEdgeEditorOpen] = useState(false);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [toolbarPosition, setToolbarPosition] = useState<{ x: number; y: number } | null>(null);
+  
+  // Process selection state
+  const [selectedProcessId, setSelectedProcessId] = useState<string | null>(null);
+  const [isProcessEditorOpen, setIsProcessEditorOpen] = useState(false);
+  const [processToolbarPosition, setProcessToolbarPosition] = useState<{ x: number; y: number } | null>(null);
+  
   const [dragStartPositions, setDragStartPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
   const [nodeHeights, setNodeHeights] = useState<Map<string, number>>(new Map());
   const nodeHeightsRef = useRef<Map<string, number>>(new Map());
@@ -522,6 +529,19 @@ const MousePositionTracker: React.FC<{
       return newHeights;
     });
   }, []);
+  
+  // Process selection and editing handlers
+  const handleProcessSelect = useCallback((processId: string) => {
+    if (readOnly) return;
+    
+    const process = (data.processes || []).find(p => p.id === processId);
+    if (!process) return;
+    
+    setSelectedProcessId(processId);
+    
+    // We'll set the toolbar position in the node click handler
+    // since we need the actual rendered position
+  }, [readOnly, data.processes]);
 
   // Memoize custom lifeline colors extraction
   const customLifelineColors = useMemo(() => {
@@ -580,28 +600,32 @@ const MousePositionTracker: React.FC<{
         };
       }
       
-      // Process nodes - make selectable in process creation mode with visual feedback
+      // Process nodes - make selectable with click handler
       if (node.type === 'processNode') {
+        const processNode = node.data as any;
         const isHighlighted = processCreationMode === 'selecting-process';
+        const isSelected = processNode?.processNode?.id === selectedProcessId;
         return {
           ...node,
-          selectable: isHighlighted && !readOnly,
+          selectable: !readOnly,
+          selected: isSelected,
           style: {
             ...node.style,
             opacity: isHighlighted ? 1 : undefined,
-            cursor: isHighlighted ? 'pointer' : 'default',
+            cursor: 'pointer',
             boxShadow: isHighlighted ? '0 0 0 2px rgba(59, 130, 246, 0.5)' : undefined,
           },
           data: {
             ...node.data,
-            theme: activeTheme
+            theme: activeTheme,
+            onSelect: handleProcessSelect
           }
         };
       }
       
       return node;
     });
-  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, customLifelineColors, lifelineHeight, selectedAnchorId, processManagement, processCreationMode, activeTheme]);
+  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, customLifelineColors, lifelineHeight, selectedAnchorId, processManagement, processCreationMode, activeTheme, selectedProcessId, handleProcessSelect]);
 
   const [nodes, setNodes, handleNodesChange] = useNodesState(nodesWithHandlers);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
@@ -1267,6 +1291,20 @@ const MousePositionTracker: React.FC<{
       return;
     }
     
+    // Handle process node clicks
+    if (node.type === 'processNode') {
+      const processNode = node.data as any;
+      const processId = processNode?.processNode?.id;
+      if (processId) {
+        handleProcessSelect(processId);
+        setProcessToolbarPosition({
+          x: node.position.x,
+          y: node.position.y
+        });
+      }
+      return;
+    }
+    
     // Only show toolbar for sequence nodes
     if (node.type !== 'sequenceNode') return;
     
@@ -1381,6 +1419,43 @@ const MousePositionTracker: React.FC<{
       setAnchorTooltipPosition(null);
     }
   }, [selectedAnchorId, processManagement, data.processes]);
+  
+  const handleEditProcess = useCallback(() => {
+    if (!selectedProcessId) return;
+    const process = (data.processes || []).find(p => p.id === selectedProcessId);
+    if (process) {
+      setIsProcessEditorOpen(true);
+    }
+  }, [selectedProcessId, data.processes]);
+  
+  const handleDeleteProcess = useCallback(() => {
+    if (!selectedProcessId || !onDataChange) return;
+    
+    const confirmDelete = confirm('Delete this process?');
+    if (confirmDelete) {
+      const updatedProcesses = (data.processes || []).filter(p => p.id !== selectedProcessId);
+      onDataChange({ ...data, processes: updatedProcesses });
+      setSelectedProcessId(null);
+      setProcessToolbarPosition(null);
+    }
+  }, [selectedProcessId, data, onDataChange]);
+  
+  const handleProcessUpdate = useCallback((processId: string, updates: Partial<any>) => {
+    if (!onDataChange) return;
+    
+    const updatedProcesses = (data.processes || []).map(p =>
+      p.id === processId ? { ...p, ...updates } : p
+    );
+    
+    onDataChange({ ...data, processes: updatedProcesses });
+  }, [data, onDataChange]);
+  
+  const handleProcessDelete = useCallback((processId: string) => {
+    if (!onDataChange) return;
+    
+    const updatedProcesses = (data.processes || []).filter(p => p.id !== processId);
+    onDataChange({ ...data, processes: updatedProcesses });
+  }, [data, onDataChange]);
 
   // Close toolbar and tooltips when clicking outside
   const onPaneClick = useCallback(() => {
@@ -1389,6 +1464,8 @@ const MousePositionTracker: React.FC<{
     setSelectedAnchorId(null);
     setAnchorTooltipPosition(null);
     setProcessCreationMode('none');
+    setSelectedProcessId(null);
+    setProcessToolbarPosition(null);
   }, []);
 
   const onEdgeClick = useCallback((_: any, edge: Edge) => {
@@ -1533,6 +1610,15 @@ const MousePositionTracker: React.FC<{
                 />
               )}
               
+              {selectedProcessId && processToolbarPosition && (
+                <NodeToolbarWrapper
+                  diagramPosition={processToolbarPosition}
+                  selectedCount={1}
+                  onEdit={handleEditProcess}
+                  onDelete={handleDeleteProcess}
+                />
+              )}
+              
               {selectedAnchorId && anchorTooltipPosition && (
                 <AnchorTooltip
                   anchorId={selectedAnchorId}
@@ -1596,6 +1682,18 @@ const MousePositionTracker: React.FC<{
             }}
             onUpdate={handleEdgeUpdate}
             onDelete={handleEdgeDelete}
+          />
+          
+          <ProcessEditor
+            process={(data.processes || []).find(p => p.id === selectedProcessId) || null}
+            isOpen={isProcessEditorOpen}
+            onClose={() => {
+              setIsProcessEditorOpen(false);
+              setSelectedProcessId(null);
+              setProcessToolbarPosition(null);
+            }}
+            onUpdate={handleProcessUpdate}
+            onDelete={handleProcessDelete}
           />
 
           <OpenApiImportDialog

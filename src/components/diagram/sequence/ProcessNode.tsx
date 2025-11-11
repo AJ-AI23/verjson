@@ -7,6 +7,7 @@ interface ProcessNodeProps {
     processNode: ProcessNodeType;
     theme?: DiagramStyleTheme;
     parallelCount?: number;
+    onSelect?: (processId: string) => void;
   };
   selected?: boolean;
 }
@@ -16,7 +17,7 @@ export const ProcessNode: React.FC<ProcessNodeProps> = ({ data, selected }) => {
     return null;
   }
   
-  const { processNode, theme, parallelCount = 1 } = data;
+  const { processNode, theme, parallelCount = 1, onSelect } = data;
   
   if (!processNode.lifelineId || !processNode.description) {
     return null;
@@ -57,6 +58,12 @@ export const ProcessNode: React.FC<ProcessNodeProps> = ({ data, selected }) => {
     >
       <div
         className="process-box"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (onSelect) {
+            onSelect(processNode.id);
+          }
+        }}
         style={{
           position: 'absolute',
           left: `${leftOffset}px`,
