@@ -507,7 +507,7 @@ const MousePositionTracker: React.FC<{
     // Store layout for use during drag
     previousLayoutRef.current = layout;
     return layout;
-  }, [lifelines, diagramNodes, activeTheme, isRenderMode, onDataChange, data, isDragging, layoutVersion]);
+  }, [lifelines, diagramNodes, activeTheme, isRenderMode, onDataChange, data, isDragging, layoutVersion, nodeHeights]);
 
   // Sync calculated positions back to document when they change
   useEffect(() => {
@@ -1675,12 +1675,6 @@ const MousePositionTracker: React.FC<{
     
     console.log('📝 [handleNodeUpdate] Calling onDataChange with updated nodes');
     onDataChange({ ...data, nodes: updatedNodes });
-    
-    // Force layout recalculation after a short delay to let the node re-render with new height
-    setTimeout(() => {
-      console.log('🔄 [handleNodeUpdate] Forcing layout recalculation');
-      setLayoutVersion(v => v + 1);
-    }, 100);
   }, [diagramNodes, data, onDataChange]);
 
   const handleNodeDelete = useCallback((nodeId: string) => {
