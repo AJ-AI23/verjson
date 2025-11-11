@@ -337,9 +337,10 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const leftX = Math.min(sourceX, targetX);
       const rightX = Math.max(sourceX, targetX);
       
-      // Add margins: base margin on left, reduced margin + process spacing on right
+      // Add margins: base margin on left, right margin on right (no processSpacing needed here)
+      // processSpacing is already factored into lifeline positions
       const totalLeftMargin = BASE_MARGIN;
-      const totalRightMargin = RIGHT_MARGIN + processSpacing;
+      const totalRightMargin = RIGHT_MARGIN;
       
       startX = leftX + totalLeftMargin;
       width = Math.abs(rightX - leftX) - totalLeftMargin - totalRightMargin;
