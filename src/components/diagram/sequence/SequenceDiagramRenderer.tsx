@@ -607,20 +607,18 @@ const MousePositionTracker: React.FC<{
         const isSelected = processNode?.processNode?.id === selectedProcessId;
         return {
           ...node,
-          selectable: !readOnly,
+          selectable: true,
           selected: isSelected,
           style: {
             ...node.style,
             opacity: isHighlighted ? 1 : undefined,
-            cursor: 'pointer',
-            boxShadow: isHighlighted ? '0 0 0 2px rgba(59, 130, 246, 0.5)' : undefined,
+            cursor: 'pointer'
           },
           data: {
             ...node.data,
-            theme: activeTheme,
-            onSelect: handleProcessSelect
+            theme: activeTheme
           }
-        };
+        } as Node;
       }
       
       return node;

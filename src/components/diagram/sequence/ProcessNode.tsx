@@ -58,12 +58,6 @@ export const ProcessNode: React.FC<ProcessNodeProps> = ({ data, selected }) => {
     >
       <div
         className="process-box"
-        onClick={(e) => {
-          e.stopPropagation();
-          if (onSelect) {
-            onSelect(processNode.id);
-          }
-        }}
         style={{
           position: 'absolute',
           left: `${leftOffset}px`,
