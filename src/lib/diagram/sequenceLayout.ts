@@ -63,65 +63,31 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Sort lifelines by order
   const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
 
-  // Pre-calculate maximum process margins globally for consistent spacing
-  // This ensures ALL nodes have the same spacing regardless of which lifeline they're on
-  const globalMaxMargins = { source: 0, target: 0 };
+  // Calculate max process margin for right side of lifelines only (all processes on right)
   const PROCESS_BOX_WIDTH = 50;
   const PROCESS_HORIZONTAL_GAP = 8;
   const MARGIN_GAP = 10;
   
+  let maxParallelProcesses = 0;
   if (options.processes && options.processes.length > 0) {
     sortedLifelines.forEach(lifeline => {
-      // Find max parallel processes for each anchor type on this lifeline
-      ['source', 'target'].forEach(anchorType => {
-        const processesOnSide = options.processes!.filter(process => {
-          const processAnchorsOnLifeline = process.anchorIds.filter(id => {
-            const anchor = anchors.find(a => a.id === id);
-            return anchor?.lifelineId === lifeline.id;
-          });
-          
-          if (processAnchorsOnLifeline.length === 0) return false;
-          
-          // Determine which side this process is on
-          const anchorTypes = processAnchorsOnLifeline.map(id => anchors.find(a => a.id === id)?.anchorType).filter(Boolean);
-          const sourceCount = anchorTypes.filter(t => t === 'source').length;
-          const targetCount = anchorTypes.filter(t => t === 'target').length;
-          const processIsSourceSide = sourceCount >= targetCount;
-          
-          return (anchorType === 'source' && processIsSourceSide) || 
-                 (anchorType === 'target' && !processIsSourceSide);
+      const processesOnLifeline = options.processes!.filter(process => {
+        return process.anchorIds.some(id => {
+          const anchor = anchors.find(a => a.id === id);
+          return anchor?.lifelineId === lifeline.id;
         });
-        
-        if (processesOnSide.length > 0) {
-          // Maximum possible parallel processes (conservative estimate)
-          const maxParallel = Math.min(processesOnSide.length, 3);
-          const totalProcessWidth = (PROCESS_BOX_WIDTH * maxParallel) + (PROCESS_HORIZONTAL_GAP * (maxParallel - 1));
-          const margin = totalProcessWidth + MARGIN_GAP + 30;
-          
-          // Update global max for this anchor type
-          globalMaxMargins[anchorType as 'source' | 'target'] = Math.max(
-            globalMaxMargins[anchorType as 'source' | 'target'],
-            margin
-          );
-        }
       });
+      
+      if (processesOnLifeline.length > 0) {
+        maxParallelProcesses = Math.max(maxParallelProcesses, Math.min(processesOnLifeline.length, 3));
+      }
     });
   }
-  
-  let maxParallelProcessesPerSide = 0;
-  ['source', 'target'].forEach(type => {
-    const margin = globalMaxMargins[type as 'source' | 'target'];
-    if (margin > 0) {
-      const estimatedParallel = Math.ceil((margin - MARGIN_GAP - 30) / (PROCESS_BOX_WIDTH + PROCESS_HORIZONTAL_GAP));
-      maxParallelProcessesPerSide = Math.max(maxParallelProcessesPerSide, estimatedParallel);
-    }
-  });
 
-  // Add extra spacing for process boxes on both sides
-  const processSpacingPerSide = maxParallelProcessesPerSide > 0 
-    ? (PROCESS_BOX_WIDTH * maxParallelProcessesPerSide) + (PROCESS_HORIZONTAL_GAP * (maxParallelProcessesPerSide - 1)) + 20
+  // Add extra spacing for process boxes on right side only
+  const processSpacing = maxParallelProcesses > 0 
+    ? (PROCESS_BOX_WIDTH * maxParallelProcesses) + (PROCESS_HORIZONTAL_GAP * (maxParallelProcesses - 1)) + 20
     : 0;
-  const processSpacing = processSpacingPerSide * 2; // Both left and right sides
 
   // Create a map of lifeline positions with adjusted spacing
   const lifelineXPositions = new Map<string, number>();
@@ -140,17 +106,12 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     return node.yPosition;
   };
 
-  // Helper function to calculate process margin for a lifeline
-  // Returns the width occupied by process boxes based on which side of the NODE the anchor is on
-  // Anchors on left side of node → processes on right side of lifeline
-  // Anchors on right side of node → processes on left side of lifeline
+  // Helper function to calculate process margin for a lifeline (right side only)
+  // All processes are always positioned on the right side of lifelines
   const getProcessMargin = (
     lifelineId: string, 
     nodeY: number, 
-    nodeHeight: number, 
-    anchorType: 'source' | 'target',
-    sourceLifelineId: string,
-    targetLifelineId: string
+    nodeHeight: number
   ): number => {
     if (!options.processes || options.processes.length === 0) return 0;
     
@@ -159,18 +120,10 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     const PROCESS_HORIZONTAL_GAP = 8;
     const ANCHOR_MARGIN = 15;
     
-    const nodeCenterY = nodeY + (nodeHeight / 2);
     const nodeTopY = nodeY;
     const nodeBottomY = nodeY + nodeHeight;
     
-    // Determine which side of the node this anchor is on
-    const sourceX = lifelineXPositions.get(sourceLifelineId) || 0;
-    const targetX = lifelineXPositions.get(targetLifelineId) || 0;
-    const anchorIsOnLeftOfNode = (anchorType === 'source' && sourceX < targetX) || 
-                                   (anchorType === 'target' && targetX < sourceX);
-    
     // Find processes on this lifeline that overlap with this node's Y position
-    // and are on the side we care about
     const overlappingProcesses = options.processes.filter(process => {
       const processAnchorsOnLifeline = process.anchorIds.filter(id => {
         const anchor = anchors.find(a => a.id === id);
@@ -178,20 +131,6 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       });
       
       if (processAnchorsOnLifeline.length === 0) return false;
-      
-      // Determine which side this process is on based on anchor types
-      const anchorTypes = processAnchorsOnLifeline.map(id => anchors.find(a => a.id === id)?.anchorType).filter(Boolean);
-      const sourceCount = anchorTypes.filter(t => t === 'source').length;
-      const targetCount = anchorTypes.filter(t => t === 'target').length;
-      const processIsSourceSide = sourceCount >= targetCount;
-      
-      // Process placement logic (reversed from original):
-      // Anchors on left of node → connect to RIGHT side of lifeline (source-side processes)
-      // Anchors on right of node → connect to LEFT side of lifeline (target-side processes)
-      const shouldInclude = (anchorIsOnLeftOfNode && processIsSourceSide) || 
-                            (!anchorIsOnLeftOfNode && !processIsSourceSide);
-      
-      if (!shouldInclude) return false;
       
       // Get Y range of the process
       const anchorYPositions: number[] = [];
@@ -216,6 +155,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     if (overlappingProcesses.length === 0) return 0;
     
     // Group by Y range to find parallel processes
+    const nodeCenterY = nodeY + (nodeHeight / 2);
     const yGroup = Math.floor(nodeCenterY / 200) * 200;
     const parallelProcesses = overlappingProcesses.filter(process => {
       const processAnchorsOnLifeline = process.anchorIds.filter(id => {
@@ -396,25 +336,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const PROCESS_HORIZONTAL_GAP = 8; // Match the gap used in process positioning
       const PROCESS_CONTAINER_WIDTH = (PROCESS_BOX_WIDTH * processInfo.parallelCount) + (PROCESS_HORIZONTAL_GAP * (processInfo.parallelCount - 1));
       
-      // Determine side based on which side of the node the anchor is on
-      // Get the node this anchor belongs to
-      const anchorNode = nodesWithPositions.find(n => n.anchors?.some(a => a.id === anchor.id));
-      let isSourceSide = true; // Default: place on right side of lifeline
-      
-      if (anchorNode && anchorNode.anchors && anchorNode.anchors.length === 2) {
-        const sourceLifelineX = lifelineXPositions.get(anchorNode.anchors[0].lifelineId) || 0;
-        const targetLifelineX = lifelineXPositions.get(anchorNode.anchors[1].lifelineId) || 0;
-        const anchorLifelineX = lifelineX;
-        const otherLifelineX = anchor.anchorType === 'source' ? targetLifelineX : sourceLifelineX;
-        
-        // If this anchor is on left side of node, process should be on right side of lifeline
-        const anchorIsOnLeftOfNode = anchorLifelineX < otherLifelineX;
-        isSourceSide = anchorIsOnLeftOfNode; // Left of node → right of lifeline (source side)
-      }
-      
-      const processContainerX = isSourceSide 
-        ? lifelineX + 10                             // Right side for anchors on left of node
-        : lifelineX - PROCESS_CONTAINER_WIDTH - 10;  // Left side for anchors on right of node
+      // Always position processes on the right side of lifelines
+      const processContainerX = lifelineX + 10;
       
       // Center anchor in its process box (including gaps)
       xPos = processContainerX + (processInfo.parallelIndex * (PROCESS_BOX_WIDTH + PROCESS_HORIZONTAL_GAP)) + (PROCESS_BOX_WIDTH / 2);
@@ -488,9 +411,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const targetX = lifelineXPositions.get(targetAnchor.lifelineId) || 0;
       
       // Calculate actual process margins at this specific node's Y position
-      // Pass both lifeline IDs so margin calculation knows which side of node the anchor is on
-      const sourceProcessMargin = getProcessMargin(sourceAnchor.lifelineId, topY, nodeHeight, 'source', sourceAnchor.lifelineId, targetAnchor.lifelineId);
-      const targetProcessMargin = getProcessMargin(targetAnchor.lifelineId, topY, nodeHeight, 'target', sourceAnchor.lifelineId, targetAnchor.lifelineId);
+      const sourceProcessMargin = getProcessMargin(sourceAnchor.lifelineId, topY, nodeHeight);
+      const targetProcessMargin = getProcessMargin(targetAnchor.lifelineId, topY, nodeHeight);
       
       const leftX = Math.min(sourceX, targetX);
       const rightX = Math.max(sourceX, targetX);
@@ -958,36 +880,8 @@ const calculateProcessLayout = (
 
       if (anchorYPositions.length === 0) return;
 
-      // Determine which side to place the process box based on which side of the node the anchors are on
-      // Anchors on left side of node → process on right side of lifeline
-      // Anchors on right side of node → process on left side of lifeline
-      let anchorsOnLeftOfNode = 0;
-      let anchorsOnRightOfNode = 0;
-      
-      group.anchorIds.forEach(anchorId => {
-        const anchor = anchors.find(a => a.id === anchorId);
-        if (!anchor) return;
-        
-        const node = nodes.find(n => n.anchors?.some(a => a.id === anchorId));
-        if (!node || !node.anchors || node.anchors.length < 2) return;
-        
-        // Determine which side of the node this anchor is on
-        const sourceLifelineX = lifelinePositions.get(node.anchors[0].lifelineId) || 0;
-        const targetLifelineX = lifelinePositions.get(node.anchors[1].lifelineId) || 0;
-        
-        const anchorLifelineX = lifelinePositions.get(anchor.lifelineId) || 0;
-        const otherLifelineX = anchor.anchorType === 'source' ? targetLifelineX : sourceLifelineX;
-        
-        if (anchorLifelineX < otherLifelineX) {
-          anchorsOnLeftOfNode++;
-        } else {
-          anchorsOnRightOfNode++;
-        }
-      });
-      
-      // Process placement: opposite side from where anchors are on node
-      // If anchors are mostly on left of nodes → place process on right of lifeline
-      const isSourceSide = anchorsOnLeftOfNode >= anchorsOnRightOfNode;
+      // Always place process boxes on the right side of lifelines
+      const isSourceSide = true;
 
       // Calculate bounds based on actual anchor positions with node heights
       const ANCHOR_MARGIN = 15; // Vertical margin above/below process boxes (reduced to prevent overlap)
@@ -1063,10 +957,8 @@ const calculateProcessLayout = (
       const PROCESS_HORIZONTAL_GAP = 8; // Gap between parallel process boxes
       const PROCESS_CONTAINER_WIDTH = (PROCESS_BOX_WIDTH * parallelCount) + (PROCESS_HORIZONTAL_GAP * (parallelCount - 1));
       
-      // Position based on anchor type (reversed: source on right, target on left)
-      const baseContainerX = isSourceSide
-        ? lifelineX + 10                             // Right side for source (reversed)
-        : lifelineX - PROCESS_CONTAINER_WIDTH - 10;  // Left side for target (reversed)
+      // Always position on right side of lifeline
+      const baseContainerX = lifelineX + 10;
       
       // Offset each parallel process horizontally based on its index (including gaps)
       const processX = baseContainerX + (parallelIndex * (PROCESS_BOX_WIDTH + PROCESS_HORIZONTAL_GAP));
