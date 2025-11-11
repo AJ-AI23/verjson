@@ -730,14 +730,12 @@ const calculateProcessLayout = (
     if (!node) return null;
     
     // Use calculated Y position from layout if available, otherwise fall back to node.yPosition
+    // Note: these positions now represent the CENTER Y of the node
     const nodeY = calculatedYPositions?.get(node.id) ?? node.yPosition;
     if (nodeY === undefined) return null;
     
-    const nodeConfig = node ? getNodeTypeConfig(node.type) : null;
-    const measuredHeight = nodeHeights?.get(node.id);
-    const nodeHeight = measuredHeight || nodeConfig?.defaultHeight || 70;
-    
-    return nodeY + (nodeHeight / 2);
+    // nodeY is already the center, so return it directly
+    return nodeY;
   };
 
   // Group processes by lifeline-anchorType-Y range to determine parallel positioning
@@ -845,8 +843,14 @@ const calculateProcessLayout = (
       const bottomNode = nodes.find(n => n.anchors?.some(a => a.id === bottomAnchorId));
       const bottomNodeHeight = bottomNode ? (nodeHeights?.get(bottomNode.id) || getNodeTypeConfig(bottomNode.type)?.defaultHeight || NODE_HEIGHT) : NODE_HEIGHT;
       
-      // Process box: top margin from top anchor center, bottom margin from bottom anchor's bottom edge
-      const yPosition = minAnchorY - ANCHOR_MARGIN;
+      // Get height of top anchor's node to extend above it
+      const topAnchorId = connectedAnchors[anchorYPositions.indexOf(minAnchorY)];
+      const topNode = nodes.find(n => n.anchors?.some(a => a.id === topAnchorId));
+      const topNodeHeight = topNode ? (nodeHeights?.get(topNode.id) || getNodeTypeConfig(topNode.type)?.defaultHeight || NODE_HEIGHT) : NODE_HEIGHT;
+      
+      // Process box: extends from above top anchor's top edge to below bottom anchor's bottom edge
+      // anchor Y positions are at the center of nodes
+      const yPosition = minAnchorY - (topNodeHeight / 2) - ANCHOR_MARGIN;
       const bottomY = maxAnchorY + (bottomNodeHeight / 2) + ANCHOR_MARGIN;
       const height = Math.max(bottomY - yPosition, 60);
       
