@@ -14,9 +14,10 @@ interface ColumnLifelineNodeProps {
     readOnly?: boolean;
     lifelineHeight?: number;
   };
+  selected?: boolean;
 }
 
-export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) => {
+export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, selected }) => {
   const { column: lifeline, styles, customLifelineColors, onAddNode, readOnly, lifelineHeight = 2000 } = data;
   const [hoverPosition, setHoverPosition] = useState<number | null>(null);
   const lifelineRef = useRef<HTMLDivElement>(null);
@@ -70,12 +71,13 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data }) 
     >
       {/* Column Header */}
       <div
-        className="rounded-lg shadow-sm px-4 py-3 mb-4 text-center w-full pointer-events-auto"
+        className="rounded-lg shadow-sm px-4 py-3 mb-4 text-center w-full pointer-events-auto transition-all"
         style={{
           backgroundColor: lifelineColor,
           borderWidth: '2px',
-          borderColor: styles?.colors.nodeBorder || '#64748b',
-          color: styles?.colors.nodeText || '#0f172a'
+          borderColor: selected ? '#3b82f6' : (styles?.colors.nodeBorder || '#64748b'),
+          color: styles?.colors.nodeText || '#0f172a',
+          boxShadow: selected ? '0 0 0 2px rgba(59, 130, 246, 0.3)' : undefined
         }}
       >
         <div className="font-semibold text-sm">

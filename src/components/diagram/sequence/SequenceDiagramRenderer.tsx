@@ -1334,6 +1334,12 @@ const MousePositionTracker: React.FC<{
       const processNode = node.data as any;
       const processId = processNode?.processNode?.id;
       if (processId) {
+        // Clear other selections
+        setSelectedNodeIds([]);
+        setToolbarPosition(null);
+        setSelectedLifelineId(null);
+        setLifelineToolbarPosition(null);
+        
         handleProcessSelect(processId);
         setProcessToolbarPosition({
           x: node.position.x,
@@ -1348,11 +1354,23 @@ const MousePositionTracker: React.FC<{
       const lifelineData = node.data as any;
       const lifelineId = lifelineData?.column?.id;
       if (lifelineId) {
-        handleLifelineSelect(lifelineId);
-        setLifelineToolbarPosition({
-          x: node.position.x + 150, // Center of lifeline
-          y: node.position.y + 40 // Below header
-        });
+        // Clear other selections
+        setSelectedNodeIds([]);
+        setToolbarPosition(null);
+        setSelectedProcessId(null);
+        setProcessToolbarPosition(null);
+        
+        // Toggle selection - clicking same lifeline deselects it
+        if (selectedLifelineId === lifelineId) {
+          setSelectedLifelineId(null);
+          setLifelineToolbarPosition(null);
+        } else {
+          handleLifelineSelect(lifelineId);
+          setLifelineToolbarPosition({
+            x: node.position.x,
+            y: node.position.y + 50 // Below header
+          });
+        }
       }
       return;
     }
@@ -1362,6 +1380,12 @@ const MousePositionTracker: React.FC<{
     
     const diagramNode = diagramNodes.find(n => n.id === node.id);
     if (diagramNode) {
+      // Clear other selections
+      setSelectedProcessId(null);
+      setProcessToolbarPosition(null);
+      setSelectedLifelineId(null);
+      setLifelineToolbarPosition(null);
+      
       // Check if Ctrl/Cmd key is pressed for multi-select
       const isMultiSelect = event.ctrlKey || event.metaKey;
       
@@ -1416,7 +1440,7 @@ const MousePositionTracker: React.FC<{
         }
       }
     }
-  }, [diagramNodes, readOnly, selectedNodeIds, nodes, processManagement, processCreationMode, selectedAnchorId]);
+  }, [diagramNodes, readOnly, selectedNodeIds, nodes, processManagement, processCreationMode, selectedAnchorId, handleProcessSelect, handleLifelineSelect, selectedLifelineId]);
   
   const handleEditNode = useCallback(() => {
     // Only edit if single node is selected
