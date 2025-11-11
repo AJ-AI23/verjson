@@ -120,10 +120,8 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
   };
 
   const handleDelete = () => {
-    if (confirm('Are you sure you want to delete this node?')) {
-      onDelete(localNode.id);
-      onClose();
-    }
+    onDelete(localNode.id);
+    onClose();
   };
 
   return (
