@@ -188,7 +188,10 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       },
       draggable: false,
       selectable: false,
-      focusable: false
+      focusable: false,
+      style: {
+        zIndex: -1
+      }
     };
   });
 
@@ -453,6 +456,9 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         width: width > 180 ? width : undefined,
         calculatedYPosition: centerY // Pass the calculated yPosition via data
       },
+      style: {
+        zIndex: 10
+      },
       draggable: true // Enable dragging for sequence nodes
     };
   });
@@ -507,6 +513,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         type: 'sequenceEdge',
         animated: false,
         style: edgeStyles,
+        zIndex: 5,
         markerEnd: { type: MarkerType.ArrowClosed },
         data: { edgeType: 'default', styles }
       };
@@ -522,6 +529,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         type: 'sequenceEdge',
         animated: false,
         style: edgeStyles,
+        zIndex: 5,
         markerEnd: { type: MarkerType.ArrowClosed },
         data: { edgeType: 'default', styles }
       };
@@ -981,7 +989,7 @@ const calculateProcessLayout = (
         style: {
           width: PROCESS_BOX_WIDTH,
           height: height,
-          zIndex: -1
+          zIndex: 0
         },
         draggable: false,
         selectable: true
