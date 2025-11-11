@@ -423,7 +423,12 @@ const MousePositionTracker: React.FC<{
     console.log('🔄 [Layout] Recalculating layout:', {
       nodeCount: diagramNodes.length,
       lifelineCount: lifelines.length,
-      isDragging
+      isDragging,
+      sampleNode: diagramNodes[0] ? {
+        id: diagramNodes[0].id,
+        label: diagramNodes[0].label,
+        data: diagramNodes[0].data
+      } : null
     });
     
     const layout = calculateSequenceLayout({
