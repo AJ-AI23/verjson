@@ -109,9 +109,10 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   const getProcessMargin = (lifelineId: string, nodeY: number, nodeHeight: number): number => {
     if (!options.processes || options.processes.length === 0) return 0;
     
-    const PROCESS_BOX_WIDTH = 50;
-    const MARGIN_GAP = 10; // Gap between process box and lifeline
-    const ANCHOR_MARGIN = 25; // Margin that process boxes have above/below anchors
+      const PROCESS_BOX_WIDTH = 50;
+      const MARGIN_GAP = 10; // Gap between process box and lifeline
+      const PROCESS_HORIZONTAL_GAP = 8; // Gap between parallel process boxes
+      const ANCHOR_MARGIN = 35; // Vertical margin that process boxes have above/below anchors
     
     // nodeY is the TOP Y position, calculate ranges
     const nodeCenterY = nodeY + (nodeHeight / 2);
@@ -144,10 +145,10 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       return !(nodeBottomY < processTopY || nodeTopY > processBottomY);
     });
     
-    if (overlappingProcesses.length === 0) return 0;
-    
-    // Group by Y range to find parallel processes
-    const yGroup = Math.floor(nodeCenterY / 200) * 200;
+      if (overlappingProcesses.length === 0) return 0;
+      
+      // Group by Y range to find parallel processes (use same logic as process box positioning)
+      const yGroup = Math.floor(nodeCenterY / 200) * 200;
     const parallelProcesses = overlappingProcesses.filter(process => {
       const anchorYPositions: number[] = [];
       process.anchorIds.forEach(anchorId => {
@@ -165,10 +166,10 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       return processYGroup === yGroup;
     });
     
-    const parallelCount = parallelProcesses.length;
-    const totalProcessWidth = PROCESS_BOX_WIDTH * parallelCount;
-    
-    return totalProcessWidth + MARGIN_GAP + 15; // Total margin including gap and extra space
+      const parallelCount = parallelProcesses.length;
+      const totalProcessWidth = (PROCESS_BOX_WIDTH * parallelCount) + (PROCESS_HORIZONTAL_GAP * (parallelCount - 1));
+      
+      return totalProcessWidth + MARGIN_GAP + 15; // Total margin including gap and extra space
   };
 
   // Create lifeline nodes (height will be updated after node positions are calculated)
@@ -254,7 +255,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     const bottomNode = nodesWithPositions.find(n => n.yPosition === maxAnchorY);
     const bottomNodeHeight = bottomNode ? (nodeHeights?.get(bottomNode.id) || getNodeTypeConfig(bottomNode.type)?.defaultHeight || 70) : 70;
     
-    const ANCHOR_MARGIN = 25;
+    const ANCHOR_MARGIN = 35; // Match process box margin
     const thisYStart = minAnchorY - (topNodeHeight / 2) - ANCHOR_MARGIN;
     const thisYEnd = maxAnchorY + (bottomNodeHeight / 2) + ANCHOR_MARGIN;
     
@@ -293,8 +294,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const pBottomNode = nodesWithPositions.find(n => n.yPosition === pMaxY);
       const pBottomHeight = pBottomNode ? (nodeHeights?.get(pBottomNode.id) || getNodeTypeConfig(pBottomNode.type)?.defaultHeight || 70) : 70;
       
-      const pYStart = pMinY - (pTopHeight / 2) - ANCHOR_MARGIN;
-      const pYEnd = pMaxY + (pBottomHeight / 2) + ANCHOR_MARGIN;
+      const pYStart = pMinY - (pTopHeight / 2) - 35; // Match ANCHOR_MARGIN
+      const pYEnd = pMaxY + (pBottomHeight / 2) + 35; // Match ANCHOR_MARGIN
       
       return rangesOverlap(thisYStart, thisYEnd, pYStart, pYEnd);
     });
@@ -319,7 +320,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     let xPos: number;
     if (processInfo) {
       const PROCESS_BOX_WIDTH = 50;
-      const PROCESS_CONTAINER_WIDTH = PROCESS_BOX_WIDTH * processInfo.parallelCount;
+      const PROCESS_HORIZONTAL_GAP = 8; // Match the gap used in process positioning
+      const PROCESS_CONTAINER_WIDTH = (PROCESS_BOX_WIDTH * processInfo.parallelCount) + (PROCESS_HORIZONTAL_GAP * (processInfo.parallelCount - 1));
       
       // Determine side based on anchor type
       const isSourceAnchor = anchor.anchorType === 'source';
@@ -327,8 +329,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         ? lifelineX - PROCESS_CONTAINER_WIDTH - 10  // Left side for source
         : lifelineX + 10;                            // Right side for target
       
-      // Center anchor in its process box
-      xPos = processContainerX + (processInfo.parallelIndex * PROCESS_BOX_WIDTH) + (PROCESS_BOX_WIDTH / 2);
+      // Center anchor in its process box (including gaps)
+      xPos = processContainerX + (processInfo.parallelIndex * (PROCESS_BOX_WIDTH + PROCESS_HORIZONTAL_GAP)) + (PROCESS_BOX_WIDTH / 2);
     } else {
       // Position on lifeline
       xPos = lifelineX;
@@ -870,7 +872,7 @@ const calculateProcessLayout = (
       if (anchorYPositions.length === 0) return;
 
       // Calculate bounds based on actual anchor positions with node heights
-      const ANCHOR_MARGIN = 25;
+      const ANCHOR_MARGIN = 35; // Vertical margin above/below process boxes
       const NODE_HEIGHT = 70;
       const minAnchorY = Math.min(...anchorYPositions);
       const maxAnchorY = Math.max(...anchorYPositions);
@@ -923,8 +925,8 @@ const calculateProcessLayout = (
         const segBottomNode = nodes.find(n => n.anchors?.some(a => a.id === segBottomAnchor));
         const segBottomHeight = segBottomNode ? (nodeHeights?.get(segBottomNode.id) || getNodeTypeConfig(segBottomNode.type)?.defaultHeight || 70) : 70;
         
-        const segYStart = segMinY - (segTopHeight / 2) - 25;
-        const segYEnd = segMaxY + (segBottomHeight / 2) + 25;
+        const segYStart = segMinY - (segTopHeight / 2) - 35; // Match ANCHOR_MARGIN
+        const segYEnd = segMaxY + (segBottomHeight / 2) + 35; // Match ANCHOR_MARGIN
         
         return rangesOverlap(thisYStart, thisYEnd, segYStart, segYEnd);
       });
@@ -940,7 +942,8 @@ const calculateProcessLayout = (
 
       // Calculate dimensions
       const PROCESS_BOX_WIDTH = 50;
-      const PROCESS_CONTAINER_WIDTH = PROCESS_BOX_WIDTH * parallelCount;
+      const PROCESS_HORIZONTAL_GAP = 8; // Gap between parallel process boxes
+      const PROCESS_CONTAINER_WIDTH = (PROCESS_BOX_WIDTH * parallelCount) + (PROCESS_HORIZONTAL_GAP * (parallelCount - 1));
       
       // Position based on anchor type
       const isSourceSide = group.anchorType === 'source';
@@ -948,8 +951,8 @@ const calculateProcessLayout = (
         ? lifelineX - PROCESS_CONTAINER_WIDTH - 10  // Left side for source
         : lifelineX + 10;                            // Right side for target
       
-      // Offset each parallel process horizontally based on its index
-      const processX = baseContainerX + (parallelIndex * PROCESS_BOX_WIDTH);
+      // Offset each parallel process horizontally based on its index (including gaps)
+      const processX = baseContainerX + (parallelIndex * (PROCESS_BOX_WIDTH + PROCESS_HORIZONTAL_GAP));
 
       processNodes.push({
         id: `process-${process.id}-${key}`,
