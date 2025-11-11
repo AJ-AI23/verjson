@@ -337,8 +337,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const isSourceSide = sourceCount >= targetCount;
       
       const processContainerX = isSourceSide 
-        ? lifelineX - PROCESS_CONTAINER_WIDTH - 10  // Left side for source
-        : lifelineX + 10;                            // Right side for target
+        ? lifelineX + 10                             // Right side for source (reversed)
+        : lifelineX - PROCESS_CONTAINER_WIDTH - 10;  // Left side for target (reversed)
       
       // Center anchor in its process box (including gaps)
       xPos = processContainerX + (processInfo.parallelIndex * (PROCESS_BOX_WIDTH + PROCESS_HORIZONTAL_GAP)) + (PROCESS_BOX_WIDTH / 2);
@@ -962,10 +962,10 @@ const calculateProcessLayout = (
       const PROCESS_HORIZONTAL_GAP = 8; // Gap between parallel process boxes
       const PROCESS_CONTAINER_WIDTH = (PROCESS_BOX_WIDTH * parallelCount) + (PROCESS_HORIZONTAL_GAP * (parallelCount - 1));
       
-      // Position based on anchor type (already determined above as isSourceSide)
+      // Position based on anchor type (reversed: source on right, target on left)
       const baseContainerX = isSourceSide
-        ? lifelineX - PROCESS_CONTAINER_WIDTH - 10  // Left side for source
-        : lifelineX + 10;                            // Right side for target
+        ? lifelineX + 10                             // Right side for source (reversed)
+        : lifelineX - PROCESS_CONTAINER_WIDTH - 10;  // Left side for target (reversed)
       
       // Offset each parallel process horizontally based on its index (including gaps)
       const processX = baseContainerX + (parallelIndex * (PROCESS_BOX_WIDTH + PROCESS_HORIZONTAL_GAP));
