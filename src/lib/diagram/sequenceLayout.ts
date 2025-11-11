@@ -738,10 +738,15 @@ const calculateProcessLayout = (
     return nodeY;
   };
 
-  // Group processes by lifeline-anchorType-Y range to determine parallel positioning
-  const processGroups = new Map<string, Map<number, ProcessNode[]>>();
+  // Group processes by lifeline-anchorType to determine parallel positioning
+  // We need to check for actual Y range overlaps, not just arbitrary Y groups
+  const processGroups = new Map<string, Array<{
+    process: ProcessNode;
+    anchorIds: string[];
+    yRange: { min: number; max: number };
+  }>>();
 
-  // Create entries for each lifeline-anchorType combination per process
+  // First pass: collect all process segments with their Y ranges
   processes.forEach(process => {
     if (!process || !process.anchorIds || process.anchorIds.length === 0) {
       console.warn('Process missing anchorIds:', process);
@@ -762,7 +767,7 @@ const calculateProcessLayout = (
       lifelineAnchorGroups.get(key)!.push(anchorId);
     });
 
-    // For each lifeline-anchorType group, add to processGroups
+    // For each lifeline-anchorType group, calculate Y range and store
     lifelineAnchorGroups.forEach((anchorIds, key) => {
       const anchorYPositions: number[] = [];
       
@@ -775,20 +780,18 @@ const calculateProcessLayout = (
 
       if (anchorYPositions.length === 0) return;
 
-      // Calculate average Y position for grouping
-      const avgY = anchorYPositions.reduce((sum, y) => sum + y, 0) / anchorYPositions.length;
-      const yGroup = Math.floor(avgY / 200) * 200;
+      const minY = Math.min(...anchorYPositions);
+      const maxY = Math.max(...anchorYPositions);
 
       if (!processGroups.has(key)) {
-        processGroups.set(key, new Map());
+        processGroups.set(key, []);
       }
       
-      const lifelineGroups = processGroups.get(key)!;
-      if (!lifelineGroups.has(yGroup)) {
-        lifelineGroups.set(yGroup, []);
-      }
-      
-      lifelineGroups.get(yGroup)!.push(process);
+      processGroups.get(key)!.push({
+        process,
+        anchorIds,
+        yRange: { min: minY, max: maxY }
+      });
     });
   });
 
@@ -854,22 +857,52 @@ const calculateProcessLayout = (
       const bottomY = maxAnchorY + (bottomNodeHeight / 2) + ANCHOR_MARGIN;
       const height = Math.max(bottomY - yPosition, 60);
       
-      const avgY = (minAnchorY + maxAnchorY) / 2;
-      const yGroup = Math.floor(avgY / 200) * 200;
-
+      // Determine parallel count and index based on actual Y range overlaps
+      const groupSegments = processGroups.get(key) || [];
+      
+      // Find all segments that overlap with this segment's Y range
+      // Use the already calculated Y range from above
+      const thisYStart = yPosition;
+      const thisYEnd = yPosition + height;
+      
+      // Helper to check if two Y ranges overlap
+      const rangesOverlap = (start1: number, end1: number, start2: number, end2: number): boolean => {
+        return !(end1 < start2 || end2 < start1);
+      };
+      
+      // Find overlapping segments and assign parallel indices
+      const overlappingSegments = groupSegments.filter(seg => {
+        if (seg.process.id === process.id) return true; // Include self
+        
+        // Get Y range for this segment
+        const segMinY = Math.min(...seg.anchorIds.map(id => getAnchorCenterY(id) || 0).filter(y => y > 0));
+        const segMaxY = Math.max(...seg.anchorIds.map(id => getAnchorCenterY(id) || 0).filter(y => y > 0));
+        
+        if (segMinY === 0 || segMaxY === 0) return false;
+        
+        // Get node heights for this segment
+        const segTopAnchor = seg.anchorIds[0];
+        const segTopNode = nodes.find(n => n.anchors?.some(a => a.id === segTopAnchor));
+        const segTopHeight = segTopNode ? (nodeHeights?.get(segTopNode.id) || getNodeTypeConfig(segTopNode.type)?.defaultHeight || 70) : 70;
+        
+        const segBottomAnchor = seg.anchorIds[seg.anchorIds.length - 1];
+        const segBottomNode = nodes.find(n => n.anchors?.some(a => a.id === segBottomAnchor));
+        const segBottomHeight = segBottomNode ? (nodeHeights?.get(segBottomNode.id) || getNodeTypeConfig(segBottomNode.type)?.defaultHeight || 70) : 70;
+        
+        const segYStart = segMinY - (segTopHeight / 2) - 25;
+        const segYEnd = segMaxY + (segBottomHeight / 2) + 25;
+        
+        return rangesOverlap(thisYStart, thisYEnd, segYStart, segYEnd);
+      });
+      
+      const parallelCount = overlappingSegments.length;
+      const parallelIndex = overlappingSegments.findIndex(seg => seg.process.id === process.id);
+      
       const lifelineX = lifelinePositions.get(group.lifelineId);
       if (lifelineX === undefined) {
         console.warn('Lifeline position not found for process:', group.lifelineId);
         return;
       }
-
-      // Determine parallel count for this lifeline-anchorType-Y group
-      const lifelineGroups = processGroups.get(key);
-      const parallelProcesses = lifelineGroups?.get(yGroup) || [];
-      const parallelCount = parallelProcesses.length;
-      
-      // Find this process's index in the parallel group
-      const parallelIndex = parallelProcesses.findIndex(p => p.id === process.id);
 
       // Calculate dimensions
       const PROCESS_BOX_WIDTH = 50;
