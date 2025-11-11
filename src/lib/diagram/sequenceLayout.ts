@@ -106,85 +106,6 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     return node.yPosition;
   };
 
-  // Helper function to calculate process margin for a lifeline (right side only)
-  // All processes are always positioned on the right side of lifelines
-  const getProcessMargin = (
-    lifelineId: string, 
-    nodeY: number, 
-    nodeHeight: number
-  ): number => {
-    if (!options.processes || options.processes.length === 0) return 0;
-    
-    const PROCESS_BOX_WIDTH = 50;
-    const MARGIN_GAP = 10;
-    const PROCESS_HORIZONTAL_GAP = 8;
-    const ANCHOR_MARGIN = 15;
-    
-    const nodeTopY = nodeY;
-    const nodeBottomY = nodeY + nodeHeight;
-    
-    // Find processes on this lifeline that overlap with this node's Y position
-    const overlappingProcesses = options.processes.filter(process => {
-      const processAnchorsOnLifeline = process.anchorIds.filter(id => {
-        const anchor = anchors.find(a => a.id === id);
-        return anchor?.lifelineId === lifelineId;
-      });
-      
-      if (processAnchorsOnLifeline.length === 0) return false;
-      
-      // Get Y range of the process
-      const anchorYPositions: number[] = [];
-      processAnchorsOnLifeline.forEach(anchorId => {
-        const anchorY = getAnchorCenterY(anchorId);
-        if (anchorY !== null) {
-          anchorYPositions.push(anchorY);
-        }
-      });
-      
-      if (anchorYPositions.length === 0) return false;
-      
-      const minAnchorY = Math.min(...anchorYPositions);
-      const maxAnchorY = Math.max(...anchorYPositions);
-      
-      const processTopY = minAnchorY - ANCHOR_MARGIN;
-      const processBottomY = maxAnchorY + ANCHOR_MARGIN;
-      
-      return !(nodeBottomY < processTopY || nodeTopY > processBottomY);
-    });
-    
-    if (overlappingProcesses.length === 0) return 0;
-    
-    // Group by Y range to find parallel processes
-    const nodeCenterY = nodeY + (nodeHeight / 2);
-    const yGroup = Math.floor(nodeCenterY / 200) * 200;
-    const parallelProcesses = overlappingProcesses.filter(process => {
-      const processAnchorsOnLifeline = process.anchorIds.filter(id => {
-        const anchor = anchors.find(a => a.id === id);
-        return anchor?.lifelineId === lifelineId;
-      });
-      
-      const anchorYPositions: number[] = [];
-      processAnchorsOnLifeline.forEach(anchorId => {
-        const anchorY = getAnchorCenterY(anchorId);
-        if (anchorY !== null) {
-          anchorYPositions.push(anchorY);
-        }
-      });
-      
-      if (anchorYPositions.length === 0) return false;
-      
-      const avgY = anchorYPositions.reduce((sum, y) => sum + y, 0) / anchorYPositions.length;
-      const processYGroup = Math.floor(avgY / 200) * 200;
-      
-      return processYGroup === yGroup;
-    });
-    
-    const parallelCount = parallelProcesses.length;
-    const totalProcessWidth = (PROCESS_BOX_WIDTH * parallelCount) + (PROCESS_HORIZONTAL_GAP * (parallelCount - 1));
-    
-    return totalProcessWidth + MARGIN_GAP + 30;
-  };
-
   // Create lifeline nodes (height will be updated after node positions are calculated)
   const lifelineNodes: Node[] = sortedLifelines.map((lifeline, index) => {
     const xPos = lifelineXPositions.get(lifeline.id) || (index * (LIFELINE_WIDTH + horizontalSpacing) + NODE_HORIZONTAL_PADDING);
@@ -410,21 +331,14 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const sourceX = lifelineXPositions.get(sourceAnchor.lifelineId) || 0;
       const targetX = lifelineXPositions.get(targetAnchor.lifelineId) || 0;
       
-      // Calculate actual process margins at this specific node's Y position
-      const sourceProcessMargin = getProcessMargin(sourceAnchor.lifelineId, topY, nodeHeight);
-      const targetProcessMargin = getProcessMargin(targetAnchor.lifelineId, topY, nodeHeight);
-      
+      // Since processes are always on the right side of lifelines,
+      // apply constant process margin to the right lifeline only
       const leftX = Math.min(sourceX, targetX);
       const rightX = Math.max(sourceX, targetX);
       
-      // Determine which side has processes and add extra margin
-      const leftIsSource = sourceX < targetX;
-      const leftProcessMargin = leftIsSource ? sourceProcessMargin : targetProcessMargin;
-      const rightProcessMargin = leftIsSource ? targetProcessMargin : sourceProcessMargin;
-      
-      // Add margins to accommodate edges and process boxes
-      const totalLeftMargin = BASE_MARGIN + leftProcessMargin;
-      const totalRightMargin = BASE_MARGIN + rightProcessMargin;
+      // Add margins: base margin on left, process margin on right
+      const totalLeftMargin = BASE_MARGIN;
+      const totalRightMargin = BASE_MARGIN + processSpacing;
       
       startX = leftX + totalLeftMargin;
       width = Math.abs(rightX - leftX) - totalLeftMargin - totalRightMargin;
