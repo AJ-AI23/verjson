@@ -32,30 +32,45 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [localNode, setLocalNode] = useState<DiagramNode | null>(node);
   
-  // Update local state when node prop changes
+  // Update local state when dialog opens with new node
   useEffect(() => {
-    setLocalNode(node);
-  }, [node]);
+    if (isOpen && node) {
+      setLocalNode(node);
+    }
+  }, [isOpen, node]);
 
   if (!localNode) return null;
 
   const handleUpdate = (field: string, value: any) => {
-    console.log('🔧 [NodeEditor] handleUpdate called:', { nodeId: localNode.id, field, value });
-    const updatedNode = { ...localNode, [field]: value };
-    setLocalNode(updatedNode);
-    onUpdate(localNode.id, { [field]: value });
+    setLocalNode(prev => prev ? { ...prev, [field]: value } : null);
   };
 
   const handleDataUpdate = (field: string, value: any) => {
-    console.log('🔧 [NodeEditor] handleDataUpdate called:', { nodeId: localNode.id, field, value });
-    const updatedNode = {
-      ...localNode,
-      data: { ...localNode.data, [field]: value }
-    };
-    setLocalNode(updatedNode);
-    onUpdate(localNode.id, {
-      data: { ...localNode.data, [field]: value }
-    });
+    setLocalNode(prev => prev ? {
+      ...prev,
+      data: { ...prev.data, [field]: value }
+    } : null);
+  };
+  
+  const handleClose = () => {
+    // Save all changes when closing
+    if (localNode && node) {
+      // Check if anything changed
+      const hasChanges = 
+        localNode.label !== node.label ||
+        localNode.type !== node.type ||
+        JSON.stringify(localNode.data) !== JSON.stringify(node.data);
+      
+      if (hasChanges) {
+        console.log('💾 [NodeEditor] Saving changes on close:', { nodeId: localNode.id, localNode });
+        onUpdate(localNode.id, {
+          label: localNode.label,
+          type: localNode.type,
+          data: localNode.data
+        });
+      }
+    }
+    onClose();
   };
 
   const handleImportEndpoint = (endpoint: {
@@ -65,11 +80,11 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
     description?: string;
     documentId: string;
   }) => {
-    const updatedNode = {
-      ...localNode,
+    setLocalNode(prev => prev ? {
+      ...prev,
       label: endpoint.summary || `${endpoint.method} ${endpoint.path}`,
       data: {
-        ...localNode.data,
+        ...prev.data,
         method: endpoint.method,
         path: endpoint.path,
         description: endpoint.description,
@@ -79,22 +94,7 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
           method: endpoint.method
         }
       }
-    };
-    setLocalNode(updatedNode);
-    onUpdate(localNode.id, {
-      label: endpoint.summary || `${endpoint.method} ${endpoint.path}`,
-      data: {
-        ...localNode.data,
-        method: endpoint.method,
-        path: endpoint.path,
-        description: endpoint.description,
-        openApiRef: {
-          documentId: endpoint.documentId,
-          path: endpoint.path,
-          method: endpoint.method
-        }
-      }
-    });
+    } : null);
   };
 
   const handleDelete = () => {
@@ -105,7 +105,7 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Edit Node</DialogTitle>
