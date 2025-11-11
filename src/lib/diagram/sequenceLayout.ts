@@ -96,15 +96,13 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   });
 
   // Helper function to get anchor center Y position
+  // Note: node.yPosition now represents the CENTER of the node
   const getAnchorCenterY = (anchorId: string): number | null => {
     const node = nodesWithPositions.find(n => n.anchors?.some(a => a.id === anchorId));
     if (!node || node.yPosition === undefined) return null;
     
-    const nodeConfig = node ? getNodeTypeConfig(node.type) : null;
-    const measuredHeight = nodeHeights ? nodeHeights.get(node.id) : undefined;
-    const nodeHeight = measuredHeight || nodeConfig?.defaultHeight || 70;
-    
-    return node.yPosition + (nodeHeight / 2);
+    // yPosition is already the center, so return it directly
+    return node.yPosition;
   };
 
   // Helper function to calculate process margin for a lifeline
@@ -115,7 +113,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     const MARGIN_GAP = 10; // Gap between process box and lifeline
     const ANCHOR_MARGIN = 25; // Margin that process boxes have above/below anchors
     
-    // Calculate this node's center Y and its range
+    // nodeY is the TOP Y position, calculate ranges
     const nodeCenterY = nodeY + (nodeHeight / 2);
     const nodeTopY = nodeY;
     const nodeBottomY = nodeY + nodeHeight;
@@ -347,15 +345,17 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     const sourceAnchor = node.anchors?.[0];
     const targetAnchor = node.anchors?.[1];
     
-    // Use auto-aligned position for consistent spacing (this is top Y)
-    const topY = alignedNodePositions.get(node.id) || (LIFELINE_HEADER_HEIGHT + 40);
+    // Use auto-aligned position for consistent spacing (this is now CENTER Y)
+    const centerY = alignedNodePositions.get(node.id) || (LIFELINE_HEADER_HEIGHT + 40);
     
-    // Get node height to calculate center Y
+    // Get node height to calculate top Y for positioning
     const measuredHeight = nodeHeights?.get(node.id);
     const nodeHeight = measuredHeight || config?.defaultHeight || 70;
     
-    // Calculate the CENTER Y coordinate and store it for later persistence
-    const centerY = topY + (nodeHeight / 2);
+    // Calculate the TOP Y coordinate for React Flow positioning
+    const topY = centerY - (nodeHeight / 2);
+    
+    // Store the calculated center yPosition for later persistence
     calculatedYPositions.set(node.id, centerY);
 
     // Determine horizontal positioning based on connected anchors
@@ -368,7 +368,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const sourceX = lifelineXPositions.get(sourceAnchor.lifelineId) || 0;
       const targetX = lifelineXPositions.get(targetAnchor.lifelineId) || 0;
       
-      // Calculate process margins for both lifelines at this node's Y position
+      // Calculate process margins for both lifelines at this node's Y position (using topY for collision)
       const sourceProcessMargin = getProcessMargin(sourceAnchor.lifelineId, topY, nodeHeight);
       const targetProcessMargin = getProcessMargin(targetAnchor.lifelineId, topY, nodeHeight);
       
@@ -664,7 +664,9 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
       yLevels.push(assignedLevel);
     }
     
-    positions.set(node.id, assignedLevel.y);
+    // Store the CENTER Y position of the node (not the top)
+    // This ensures yPosition represents the center point for consistent positioning
+    positions.set(node.id, assignedLevel.y + (nodeHeight / 2));
   });
   
   return positions;
