@@ -27,15 +27,45 @@ export const ProcessNode: React.FC<ProcessNodeProps> = ({ data, selected }) => {
 
   // Get process color from theme or use default
   const getProcessColor = () => {
-    if (color) return color;
+    // Get base lifeline process color
+    const baseColor = theme?.lifelineColors?.[lifelineId]?.processColor || 
+      (theme?.id === 'dark' ? 'rgba(100, 116, 139, 0.3)' : 'rgba(148, 163, 184, 0.3)');
     
-    if (theme?.lifelineColors?.[lifelineId]?.processColor) {
-      return theme.lifelineColors[lifelineId].processColor;
+    // If custom color is provided, blend it with the base color
+    if (color) {
+      // Convert hex to RGB
+      const hexToRgb = (hex: string) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+        } : null;
+      };
+      
+      // Extract RGB from rgba base color
+      const rgbaMatch = baseColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+      if (rgbaMatch) {
+        const baseRgb = {
+          r: parseInt(rgbaMatch[1]),
+          g: parseInt(rgbaMatch[2]),
+          b: parseInt(rgbaMatch[3])
+        };
+        const baseAlpha = rgbaMatch[4] ? parseFloat(rgbaMatch[4]) : 1;
+        
+        const customRgb = hexToRgb(color);
+        if (customRgb) {
+          // Blend: 85% base color + 15% custom color for a subtle hint
+          const blendedR = Math.round(baseRgb.r * 0.85 + customRgb.r * 0.15);
+          const blendedG = Math.round(baseRgb.g * 0.85 + customRgb.g * 0.15);
+          const blendedB = Math.round(baseRgb.b * 0.85 + customRgb.b * 0.15);
+          
+          return `rgba(${blendedR}, ${blendedG}, ${blendedB}, ${baseAlpha})`;
+        }
+      }
     }
     
-    // Default process color (less vibrant than anchor)
-    const isDark = theme?.id === 'dark';
-    return isDark ? 'rgba(100, 116, 139, 0.3)' : 'rgba(148, 163, 184, 0.3)';
+    return baseColor;
   };
 
   const processColor = getProcessColor();
