@@ -151,6 +151,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   }, [nodeHeights]);
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
+  const [isDraggingLifeline, setIsDraggingLifeline] = useState(false);
   const [layoutVersion, setLayoutVersion] = useState(0); // Force layout recalculation
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const previousLayoutRef = useRef<{ nodes: Node[]; edges: Edge[]; calculatedYPositions?: Map<string, number> }>({ nodes: [], edges: [] });
@@ -1667,7 +1668,13 @@ const MousePositionTracker: React.FC<{
   }, [lifelines, diagramNodes, data, onDataChange]);
   
   // Handle lifeline reorder via drag and drop
+  const handleDragStart = useCallback(() => {
+    setIsDraggingLifeline(true);
+  }, []);
+
   const handleDragEnd = useCallback((event: DragEndEvent) => {
+    setIsDraggingLifeline(false);
+    
     const { active, over } = event;
     
     if (!over || active.id === over.id || !onDataChange) {
@@ -1801,11 +1808,12 @@ const MousePositionTracker: React.FC<{
       )}
 
       <div className="flex-1 relative">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
+      <DndContext 
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
           <SortableContext
             items={lifelines.map(l => l.id)}
             strategy={horizontalListSortingStrategy}
@@ -1827,6 +1835,7 @@ const MousePositionTracker: React.FC<{
               onViewportChange={onViewportChange}
               minZoom={0.1}
               maxZoom={2}
+              panOnDrag={!isDraggingLifeline}
               nodesDraggable={!readOnly}
               nodesConnectable={!readOnly}
               elementsSelectable={!readOnly}
