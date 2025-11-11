@@ -981,7 +981,7 @@ const calculateProcessLayout = (
         style: {
           width: PROCESS_BOX_WIDTH,
           height: height,
-          zIndex: 50
+          zIndex: -1
         },
         draggable: false,
         selectable: true
