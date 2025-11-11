@@ -33,6 +33,7 @@ import { DiagramHeader } from '../DiagramHeader';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 import { useProcessManagement } from '@/hooks/useProcessManagement';
 import { ProcessEditor } from './ProcessEditor';
+import { LifelineEditor } from './LifelineEditor';
 import '@xyflow/react/dist/style.css';
 
 interface SequenceDiagramRendererProps {
@@ -123,6 +124,11 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [selectedProcessId, setSelectedProcessId] = useState<string | null>(null);
   const [isProcessEditorOpen, setIsProcessEditorOpen] = useState(false);
   const [processToolbarPosition, setProcessToolbarPosition] = useState<{ x: number; y: number } | null>(null);
+  
+  // Lifeline selection state
+  const [selectedLifelineId, setSelectedLifelineId] = useState<string | null>(null);
+  const [isLifelineEditorOpen, setIsLifelineEditorOpen] = useState(false);
+  const [lifelineToolbarPosition, setLifelineToolbarPosition] = useState<{ x: number; y: number } | null>(null);
   
   const [dragStartPositions, setDragStartPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
   const [nodeHeights, setNodeHeights] = useState<Map<string, number>>(new Map());
@@ -542,6 +548,16 @@ const MousePositionTracker: React.FC<{
     // We'll set the toolbar position in the node click handler
     // since we need the actual rendered position
   }, [readOnly, data.processes]);
+  
+  // Lifeline selection and editing handlers
+  const handleLifelineSelect = useCallback((lifelineId: string) => {
+    if (readOnly) return;
+    
+    const lifeline = lifelines.find(l => l.id === lifelineId);
+    if (!lifeline) return;
+    
+    setSelectedLifelineId(lifelineId);
+  }, [readOnly, lifelines]);
 
   // Memoize custom lifeline colors extraction
   const customLifelineColors = useMemo(() => {
@@ -560,8 +576,12 @@ const MousePositionTracker: React.FC<{
   const nodesWithHandlers = useMemo(() => {
     return layoutNodes.map(node => {
       if (node.type === 'columnLifeline') {
+        const lifelineData = node.data as any;
+        const isSelected = lifelineData?.column?.id === selectedLifelineId;
         return {
           ...node,
+          selectable: true,
+          selected: isSelected,
           data: {
             ...node.data,
             customLifelineColors,
@@ -623,7 +643,7 @@ const MousePositionTracker: React.FC<{
       
       return node;
     });
-  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, customLifelineColors, lifelineHeight, selectedAnchorId, processManagement, processCreationMode, activeTheme, selectedProcessId, handleProcessSelect]);
+  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, customLifelineColors, lifelineHeight, selectedAnchorId, processManagement, processCreationMode, activeTheme, selectedProcessId, handleProcessSelect, selectedLifelineId]);
 
   const [nodes, setNodes, handleNodesChange] = useNodesState(nodesWithHandlers);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
@@ -1319,6 +1339,20 @@ const MousePositionTracker: React.FC<{
       return;
     }
     
+    // Handle lifeline clicks
+    if (node.type === 'columnLifeline') {
+      const lifelineData = node.data as any;
+      const lifelineId = lifelineData?.column?.id;
+      if (lifelineId) {
+        handleLifelineSelect(lifelineId);
+        setLifelineToolbarPosition({
+          x: node.position.x + 150, // Center of lifeline
+          y: node.position.y + 40 // Below header
+        });
+      }
+      return;
+    }
+    
     // Only show toolbar for sequence nodes
     if (node.type !== 'sequenceNode') return;
     
@@ -1467,6 +1501,37 @@ const MousePositionTracker: React.FC<{
     const updatedProcesses = (data.processes || []).filter(p => p.id !== processId);
     onDataChange({ ...data, processes: updatedProcesses });
   }, [data, onDataChange]);
+  
+  const handleEditLifeline = useCallback(() => {
+    if (!selectedLifelineId) return;
+    setIsLifelineEditorOpen(true);
+  }, [selectedLifelineId]);
+  
+  const handleDeleteLifeline = useCallback(() => {
+    if (!selectedLifelineId || !onDataChange) return;
+    
+    const updatedLifelines = lifelines.filter(l => l.id !== selectedLifelineId);
+    onDataChange({ ...data, lifelines: updatedLifelines });
+    setSelectedLifelineId(null);
+    setLifelineToolbarPosition(null);
+  }, [selectedLifelineId, lifelines, data, onDataChange]);
+  
+  const handleLifelineUpdate = useCallback((lifelineId: string, updates: Partial<Lifeline>) => {
+    if (!onDataChange) return;
+    
+    const updatedLifelines = lifelines.map(l =>
+      l.id === lifelineId ? { ...l, ...updates } : l
+    );
+    
+    onDataChange({ ...data, lifelines: updatedLifelines });
+  }, [lifelines, data, onDataChange]);
+  
+  const handleLifelineDelete = useCallback((lifelineId: string) => {
+    if (!onDataChange) return;
+    
+    const updatedLifelines = lifelines.filter(l => l.id !== lifelineId);
+    onDataChange({ ...data, lifelines: updatedLifelines });
+  }, [lifelines, data, onDataChange]);
 
   // Close toolbar and tooltips when clicking outside
   const onPaneClick = useCallback(() => {
@@ -1477,6 +1542,8 @@ const MousePositionTracker: React.FC<{
     setProcessCreationMode('none');
     setSelectedProcessId(null);
     setProcessToolbarPosition(null);
+    setSelectedLifelineId(null);
+    setLifelineToolbarPosition(null);
   }, []);
 
   const onEdgeClick = useCallback((_: any, edge: Edge) => {
@@ -1630,6 +1697,15 @@ const MousePositionTracker: React.FC<{
                 />
               )}
               
+              {selectedLifelineId && lifelineToolbarPosition && (
+                <NodeToolbarWrapper
+                  diagramPosition={lifelineToolbarPosition}
+                  selectedCount={1}
+                  onEdit={handleEditLifeline}
+                  onDelete={handleDeleteLifeline}
+                />
+              )}
+              
               {selectedAnchorId && anchorTooltipPosition && (
                 <AnchorTooltip
                   anchorId={selectedAnchorId}
@@ -1705,6 +1781,18 @@ const MousePositionTracker: React.FC<{
             }}
             onUpdate={handleProcessUpdate}
             onDelete={handleProcessDelete}
+          />
+          
+          <LifelineEditor
+            lifeline={lifelines.find(l => l.id === selectedLifelineId) || null}
+            isOpen={isLifelineEditorOpen}
+            onClose={() => {
+              setIsLifelineEditorOpen(false);
+              setSelectedLifelineId(null);
+              setLifelineToolbarPosition(null);
+            }}
+            onUpdate={handleLifelineUpdate}
+            onDelete={handleLifelineDelete}
           />
 
           <OpenApiImportDialog
