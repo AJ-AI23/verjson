@@ -1439,12 +1439,14 @@ const MousePositionTracker: React.FC<{
   }, [selectedProcessId, data, onDataChange]);
   
   const handleProcessUpdate = useCallback((processId: string, updates: Partial<any>) => {
+    console.log('🔄 [SequenceRenderer] handleProcessUpdate called:', { processId, updates, currentProcesses: data.processes });
     if (!onDataChange) return;
     
     const updatedProcesses = (data.processes || []).map(p =>
       p.id === processId ? { ...p, ...updates } : p
     );
     
+    console.log('🔄 [SequenceRenderer] Updating processes:', { updatedProcesses });
     onDataChange({ ...data, processes: updatedProcesses });
   }, [data, onDataChange]);
   
