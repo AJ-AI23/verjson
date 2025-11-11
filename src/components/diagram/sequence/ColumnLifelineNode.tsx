@@ -1,11 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { useViewport } from '@xyflow/react';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { Lifeline } from '@/types/diagram';
 import { DiagramStyleTheme } from '@/types/diagramStyles';
 import { Button } from '@/components/ui/button';
-import { Plus, GripVertical } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 interface ColumnLifelineNodeProps {
   data: {
@@ -25,15 +23,6 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, se
   const lifelineRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
   const viewport = useViewport();
-  
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: lifeline.id, disabled: readOnly });
 
   const handleAddNode = (yPosition: number) => {
     if (onAddNode && !readOnly) {
@@ -99,26 +88,19 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, se
   };
   
   const lifelineColor = getBlendedLifelineColor();
-  
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
 
   return (
     <div
-      ref={setNodeRef}
-      style={style}
       className="flex flex-col items-center pointer-events-none"
-      {...attributes}
+      style={{
+        width: '200px',
+        transform: 'translateX(-50%)'
+      }}
     >
       {/* Column Header */}
       <div
-        className="rounded-lg shadow-sm px-4 py-3 mb-4 text-center w-full pointer-events-auto transition-all relative group"
+        className="rounded-lg shadow-sm px-4 py-3 mb-4 text-center w-full pointer-events-auto transition-all"
         style={{
-          width: '200px',
-          transform: 'translateX(-50%)',
           backgroundColor: lifelineColor,
           borderWidth: '2px',
           borderColor: selected ? '#3b82f6' : (styles?.colors.nodeBorder || '#64748b'),
@@ -126,24 +108,6 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, se
           boxShadow: selected ? '0 0 0 2px rgba(59, 130, 246, 0.3)' : undefined
         }}
       >
-        {!readOnly && (
-          <div
-            {...listeners}
-            className="absolute left-1 top-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity z-50"
-            style={{ color: styles?.colors.nodeText || '#0f172a' }}
-            onPointerDown={(e) => {
-              e.stopPropagation();
-            }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-            }}
-          >
-            <GripVertical className="h-4 w-4" />
-          </div>
-        )}
         <div className="font-semibold text-sm">
           {lifeline.name}
         </div>
