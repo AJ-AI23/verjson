@@ -140,6 +140,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   }, [nodeHeights]);
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
+  const [layoutVersion, setLayoutVersion] = useState(0); // Force layout recalculation
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const previousLayoutRef = useRef<{ nodes: Node[]; edges: Edge[]; calculatedYPositions?: Map<string, number> }>({ nodes: [], edges: [] });
   const [mousePosition, setMousePosition] = useState<{ viewport: { x: number; y: number }; flow: { x: number; y: number } } | null>(null);
@@ -424,6 +425,7 @@ const MousePositionTracker: React.FC<{
       nodeCount: diagramNodes.length,
       lifelineCount: lifelines.length,
       isDragging,
+      layoutVersion,
       sampleNode: diagramNodes[0] ? {
         id: diagramNodes[0].id,
         label: diagramNodes[0].label,
@@ -505,7 +507,7 @@ const MousePositionTracker: React.FC<{
     // Store layout for use during drag
     previousLayoutRef.current = layout;
     return layout;
-  }, [lifelines, diagramNodes, activeTheme, isRenderMode, onDataChange, data, isDragging]);
+  }, [lifelines, diagramNodes, activeTheme, isRenderMode, onDataChange, data, isDragging, layoutVersion]);
 
   // Sync calculated positions back to document when they change
   useEffect(() => {
@@ -1673,6 +1675,12 @@ const MousePositionTracker: React.FC<{
     
     console.log('📝 [handleNodeUpdate] Calling onDataChange with updated nodes');
     onDataChange({ ...data, nodes: updatedNodes });
+    
+    // Force layout recalculation after a short delay to let the node re-render with new height
+    setTimeout(() => {
+      console.log('🔄 [handleNodeUpdate] Forcing layout recalculation');
+      setLayoutVersion(v => v + 1);
+    }, 100);
   }, [diagramNodes, data, onDataChange]);
 
   const handleNodeDelete = useCallback((nodeId: string) => {
