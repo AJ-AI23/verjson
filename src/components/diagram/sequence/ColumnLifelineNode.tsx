@@ -59,7 +59,35 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, se
 
   // Get custom color for this lifeline from theme, fallback to lifeline.color, then to theme-specific default
   const defaultLifelineBg = styles?.id === 'dark' ? '#475569' : '#e0f2fe';
-  const lifelineColor = styles?.lifelineColors?.[lifeline.id]?.background || customLifelineColors?.[`lifeline-${lifeline.id}`] || lifeline.color || defaultLifelineBg;
+  const baseColor = styles?.lifelineColors?.[lifeline.id]?.background || customLifelineColors?.[`lifeline-${lifeline.id}`] || defaultLifelineBg;
+  
+  // Blend lifeline.color with base theme color (40% base + 60% custom)
+  const getBlendedLifelineColor = () => {
+    if (!lifeline.color) return baseColor;
+    
+    const hexToRgb = (hex: string) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : null;
+    };
+    
+    const baseRgb = hexToRgb(baseColor);
+    const customRgb = hexToRgb(lifeline.color);
+    
+    if (baseRgb && customRgb) {
+      const blendedR = Math.round(baseRgb.r * 0.4 + customRgb.r * 0.6);
+      const blendedG = Math.round(baseRgb.g * 0.4 + customRgb.g * 0.6);
+      const blendedB = Math.round(baseRgb.b * 0.4 + customRgb.b * 0.6);
+      return `#${blendedR.toString(16).padStart(2, '0')}${blendedG.toString(16).padStart(2, '0')}${blendedB.toString(16).padStart(2, '0')}`;
+    }
+    
+    return baseColor;
+  };
+  
+  const lifelineColor = getBlendedLifelineColor();
 
   return (
     <div

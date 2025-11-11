@@ -24,15 +24,45 @@ export const AnchorNode: React.FC<AnchorNodeProps> = ({ data, selected }) => {
   // Get colors from theme first, then fall back to custom styles or defaults
   const lifelineColors = styles?.lifelineColors?.[lifelineId];
   const defaultLifelineBg = styles?.id === 'dark' ? '#475569' : '#e0f2fe';
-  const lifelineColor = lifelineColors?.background || customStyles?.customNodeStyles?.[`lifeline-${lifelineId}`]?.backgroundColor || lifeline?.color || defaultLifelineBg;
+  const baseLifelineColor = lifelineColors?.background || customStyles?.customNodeStyles?.[`lifeline-${lifelineId}`]?.backgroundColor || defaultLifelineBg;
   
   // Calculate default anchor colors as 50% lighter than lifeline background
-  const defaultAnchorColor = lightenColor(lifelineColor, 50);
-  const defaultAnchorBorderColor = lightenColor(lifelineColor, 30);
+  const defaultAnchorColor = lightenColor(baseLifelineColor, 50);
+  const defaultAnchorBorderColor = lightenColor(baseLifelineColor, 30);
   
-  // Use theme colors first, then custom styles, then calculated defaults
-  let anchorColor = lifelineColors?.anchorColor || customStyles?.customNodeStyles?.[`lifeline-${lifelineId}-anchor`]?.backgroundColor || lifeline?.anchorColor || defaultAnchorColor;
-  let anchorBorderColor = lifelineColors?.anchorBorder || customStyles?.customNodeStyles?.[`lifeline-${lifelineId}-anchor`]?.borderColor || defaultAnchorBorderColor;
+  // Get base anchor color from theme
+  const baseAnchorColor = lifelineColors?.anchorColor || customStyles?.customNodeStyles?.[`lifeline-${lifelineId}-anchor`]?.backgroundColor || defaultAnchorColor;
+  const baseAnchorBorderColor = lifelineColors?.anchorBorder || customStyles?.customNodeStyles?.[`lifeline-${lifelineId}-anchor`]?.borderColor || defaultAnchorBorderColor;
+  
+  // Blend custom anchor color with theme color (40% base + 60% custom)
+  const getBlendedAnchorColor = (baseColor: string, customColor?: string) => {
+    if (!customColor) return baseColor;
+    
+    const hexToRgb = (hex: string) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : null;
+    };
+    
+    const baseRgb = hexToRgb(baseColor);
+    const customRgb = hexToRgb(customColor);
+    
+    if (baseRgb && customRgb) {
+      const blendedR = Math.round(baseRgb.r * 0.4 + customRgb.r * 0.6);
+      const blendedG = Math.round(baseRgb.g * 0.4 + customRgb.g * 0.6);
+      const blendedB = Math.round(baseRgb.b * 0.4 + customRgb.b * 0.6);
+      return `#${blendedR.toString(16).padStart(2, '0')}${blendedG.toString(16).padStart(2, '0')}${blendedB.toString(16).padStart(2, '0')}`;
+    }
+    
+    return baseColor;
+  };
+  
+  // Use theme colors first, then blend with custom colors
+  let anchorColor = getBlendedAnchorColor(baseAnchorColor, lifeline?.anchorColor);
+  let anchorBorderColor = getBlendedAnchorColor(baseAnchorBorderColor, lifeline?.anchorColor);
   
   // Visual feedback when anchor is in a process
   if (isInProcess) {
