@@ -34,10 +34,12 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
   if (!node) return null;
 
   const handleUpdate = (field: string, value: any) => {
+    console.log('🔧 [NodeEditor] handleUpdate called:', { nodeId: node.id, field, value });
     onUpdate(node.id, { [field]: value });
   };
 
   const handleDataUpdate = (field: string, value: any) => {
+    console.log('🔧 [NodeEditor] handleDataUpdate called:', { nodeId: node.id, field, value });
     onUpdate(node.id, {
       data: { ...node.data, [field]: value }
     });
