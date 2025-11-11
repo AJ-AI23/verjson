@@ -1674,6 +1674,7 @@ const MousePositionTracker: React.FC<{
     }
     
     // Clear height cache for this node to force remeasurement
+    // The ResizeObserver will remeasure and add it back, which will trigger layout recalc naturally
     console.log('🗑️ [handleNodeUpdate] Clearing height cache for node:', nodeId);
     setNodeHeights(prev => {
       const newHeights = new Map(prev);
