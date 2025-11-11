@@ -418,6 +418,11 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const leftX = Math.min(sourceX, targetX);
       const rightX = Math.max(sourceX, targetX);
       
+      // Debug logging
+      if (index < 3) {
+        console.log(`Node ${node.id}: leftLifeline=${leftLifelineId}, leftProcessMargin=${leftProcessMargin}, topY=${topY}`);
+      }
+      
       // Add margins: dynamic left margin based on processes, fixed right margin
       const totalLeftMargin = BASE_MARGIN + leftProcessMargin;
       const totalRightMargin = RIGHT_MARGIN;
