@@ -579,8 +579,8 @@ const MousePositionTracker: React.FC<{
         const lifelineData = node.data as any;
         const isSelected = lifelineData?.column?.id === selectedLifelineId;
         const lifeline = lifelines.find(l => l.id === lifelineData?.column?.id);
-        // Create dataVersion from lifeline properties to force re-render on changes
-        const dataVersion = lifeline ? `${lifeline.name}-${lifeline.description}-${lifeline.color}-${lifeline.anchorColor}` : '';
+        // Create dataVersion from lifeline properties AND theme to force re-render on changes
+        const dataVersion = lifeline ? `${lifeline.name}-${lifeline.description}-${lifeline.color}-${lifeline.anchorColor}-${currentTheme}` : currentTheme;
         return {
           ...node,
           selectable: true,
@@ -591,7 +591,8 @@ const MousePositionTracker: React.FC<{
             onAddNode: (lifelineId: string, yPosition: number) => handleAddNodeOnLifeline(lifelineId, yPosition, lifelineHeight),
             readOnly,
             lifelineHeight: lifelineHeight,
-            dataVersion
+            dataVersion,
+            styles: activeTheme
           }
         };
       }
@@ -603,7 +604,9 @@ const MousePositionTracker: React.FC<{
           data: {
             ...node.data,
             onHeightChange: handleNodeHeightChange,
-            calculatedHeight: nodeHeightsRef.current.get(node.id)
+            calculatedHeight: nodeHeightsRef.current.get(node.id),
+            styles: activeTheme,
+            dataVersion: currentTheme // Force re-render on theme change
           }
         };
       }
@@ -612,6 +615,10 @@ const MousePositionTracker: React.FC<{
       if (node.type === 'anchorNode') {
         const anchorId = node.id;
         const isInProcess = processManagement.isAnchorInProcess(anchorId);
+        const anchorData = node.data as any;
+        const lifeline = lifelines.find(l => l.id === anchorData?.lifelineId);
+        // Include theme and lifeline colors in dataVersion for re-render on theme change
+        const dataVersion = `${currentTheme}-${lifeline?.anchorColor || ''}-${lifeline?.color || ''}`;
         
         return {
           ...node,
@@ -619,7 +626,10 @@ const MousePositionTracker: React.FC<{
           selected: node.id === selectedAnchorId,
           data: {
             ...node.data,
-            isInProcess
+            isInProcess,
+            styles: activeTheme,
+            lifelines,
+            dataVersion
           }
         };
       }
@@ -629,6 +639,10 @@ const MousePositionTracker: React.FC<{
         const processNode = node.data as any;
         const isHighlighted = processCreationMode === 'selecting-process';
         const isSelected = processNode?.processNode?.id === selectedProcessId;
+        const process = processNode?.processNode;
+        // Include theme and process color in dataVersion for re-render on theme change
+        const dataVersion = `${currentTheme}-${process?.description || ''}-${process?.color || ''}`;
+        
         return {
           ...node,
           selectable: true,
@@ -640,14 +654,15 @@ const MousePositionTracker: React.FC<{
           },
           data: {
             ...node.data,
-            theme: activeTheme
+            theme: activeTheme,
+            dataVersion
           }
         } as Node;
       }
       
       return node;
     });
-  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, customLifelineColors, lifelineHeight, selectedAnchorId, processManagement, processCreationMode, activeTheme, selectedProcessId, handleProcessSelect, selectedLifelineId, lifelines]);
+  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, customLifelineColors, lifelineHeight, selectedAnchorId, processManagement, processCreationMode, activeTheme, selectedProcessId, handleProcessSelect, selectedLifelineId, lifelines, currentTheme]);
 
   const [nodes, setNodes, handleNodesChange] = useNodesState(nodesWithHandlers);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
@@ -672,11 +687,11 @@ const MousePositionTracker: React.FC<{
           return true;
         }
         
-        // Check data changes (especially for process and lifeline nodes)
-        if (node.type === 'processNode' || node.type === 'columnLifeline') {
+        // Check data changes (especially for process, lifeline, anchor, and sequence nodes)
+        if (node.type === 'processNode' || node.type === 'columnLifeline' || node.type === 'anchorNode' || node.type === 'sequenceNode') {
           const nodeData = node.data as any;
           const prevData = prev.data as any;
-          // Compare dataVersion which changes when process/lifeline properties change
+          // Compare dataVersion which changes when properties or theme changes
           if (nodeData?.dataVersion !== prevData?.dataVersion) {
             return true;
           }
@@ -696,7 +711,16 @@ const MousePositionTracker: React.FC<{
     const edgesChanged = layoutEdges.length !== prevEdgesRef.current.length ||
       layoutEdges.some((edge, i) => {
         const prev = prevEdgesRef.current[i];
-        return !prev || edge.id !== prev.id || edge.source !== prev.source || edge.target !== prev.target;
+        if (!prev || edge.id !== prev.id || edge.source !== prev.source || edge.target !== prev.target) {
+          return true;
+        }
+        // Check if edge data changed (e.g., theme)
+        const edgeData = edge.data as any;
+        const prevData = prev.data as any;
+        if (edgeData?.styles?.id !== prevData?.styles?.id) {
+          return true;
+        }
+        return false;
       });
     
     if (edgesChanged) {
