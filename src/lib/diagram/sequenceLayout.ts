@@ -323,7 +323,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
 
     // Determine horizontal positioning based on connected anchors
     const BASE_MARGIN = 60; // Base margin from lifeline for edges and minimum spacing
-    const RIGHT_MARGIN = 15; // Minimal margin for right side (further reduced)
+    const RIGHT_MARGIN = 40; // Increased margin for right side
     let startX = 0;
     let width = 180; // Default width
 
