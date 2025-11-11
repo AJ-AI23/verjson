@@ -173,7 +173,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     return totalProcessWidth + MARGIN_GAP + 15; // Total margin including gap and extra space
   };
 
-  // Create lifeline nodes
+  // Create lifeline nodes (height will be updated after node positions are calculated)
   const lifelineNodes: Node[] = sortedLifelines.map((lifeline, index) => {
     const xPos = lifelineXPositions.get(lifeline.id) || (index * (LIFELINE_WIDTH + horizontalSpacing) + NODE_HORIZONTAL_PADDING);
     return {
@@ -182,7 +182,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       position: { x: xPos, y: 0 },
       data: {
         column: lifeline,
-        styles
+        styles,
+        lifelineHeight: 2000 // Will be updated below after calculating node positions
       },
       draggable: false,
       selectable: false,
@@ -211,6 +212,28 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Auto-align all nodes with even vertical spacing based on actual heights
   // Allow nodes to share Y positions when they connect to non-overlapping lifelines
   const alignedNodePositions = calculateEvenSpacing(nodesWithPositions, nodeHeights, lifelines);
+  
+  // Calculate required lifeline height based on actual node positions after alignment
+  let maxNodeBottomY = LIFELINE_HEADER_HEIGHT + 40; // Start with minimum height
+  
+  nodesWithPositions.forEach(node => {
+    const topY = alignedNodePositions.get(node.id);
+    if (topY !== undefined) {
+      const measuredHeight = nodeHeights?.get(node.id);
+      const nodeConfig = getNodeTypeConfig(node.type);
+      const nodeHeight = measuredHeight || nodeConfig?.defaultHeight || 70;
+      const bottomY = topY + nodeHeight;
+      maxNodeBottomY = Math.max(maxNodeBottomY, bottomY);
+    }
+  });
+  
+  // Add padding at the bottom
+  const calculatedLifelineHeight = maxNodeBottomY + 200;
+  
+  // Update lifeline nodes with calculated height
+  lifelineNodes.forEach(lifelineNode => {
+    lifelineNode.data.lifelineHeight = calculatedLifelineHeight;
+  });
   
   // Create a map to store calculated yPosition values (center Y)
   const calculatedYPositions = new Map<string, number>();
