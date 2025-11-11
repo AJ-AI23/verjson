@@ -128,7 +128,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const previousLayoutRef = useRef<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
+  const previousLayoutRef = useRef<{ nodes: Node[]; edges: Edge[]; calculatedYPositions?: Map<string, number> }>({ nodes: [], edges: [] });
   const [mousePosition, setMousePosition] = useState<{ viewport: { x: number; y: number }; flow: { x: number; y: number } } | null>(null);
 
   // Process management state
@@ -400,7 +400,7 @@ const MousePositionTracker: React.FC<{
   }, [diagramNodes, lifelines, data, onDataChange]);
 
   // Calculate layout with validation and recovery
-  const { nodes: layoutNodes, edges: layoutEdges } = useMemo(() => {
+  const { nodes: layoutNodes, edges: layoutEdges, calculatedYPositions } = useMemo(() => {
     // Skip recalculation during active drag operations - use ref for synchronous check
     if (isDraggingRef.current) {
       console.log('⏸️ [Layout] Skipping recalculation during drag');
@@ -488,6 +488,31 @@ const MousePositionTracker: React.FC<{
     previousLayoutRef.current = layout;
     return layout;
   }, [lifelines, diagramNodes, activeTheme, isRenderMode, onDataChange, data, isDragging]);
+
+  // Sync calculated positions back to document when they change
+  useEffect(() => {
+    if (!calculatedYPositions || !onDataChange || isDraggingRef.current) return;
+    
+    // Check if any positions have changed
+    let hasChanges = false;
+    const updatedNodes = diagramNodes.map(node => {
+      const calculatedY = calculatedYPositions.get(node.id);
+      if (calculatedY !== undefined && calculatedY !== node.yPosition) {
+        hasChanges = true;
+        return { ...node, yPosition: calculatedY };
+      }
+      return node;
+    });
+    
+    // Only update if there are actual changes
+    if (hasChanges) {
+      console.log('📝 [Position Sync] Syncing calculated positions back to document:', {
+        changedNodes: updatedNodes.filter((node, i) => node.yPosition !== diagramNodes[i].yPosition)
+          .map(n => ({ id: n.id, oldY: diagramNodes.find(dn => dn.id === n.id)?.yPosition, newY: n.yPosition }))
+      });
+      onDataChange({ ...data, nodes: updatedNodes });
+    }
+  }, [calculatedYPositions, onDataChange, diagramNodes, data, isDragging]);
 
   // Handle node height changes
   const handleNodeHeightChange = useCallback((nodeId: string, height: number) => {
