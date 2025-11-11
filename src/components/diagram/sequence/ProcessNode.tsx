@@ -55,10 +55,10 @@ export const ProcessNode: React.FC<ProcessNodeProps> = ({ data, selected }) => {
         
         const customRgb = hexToRgb(color);
         if (customRgb) {
-          // Blend: 85% base color + 15% custom color for a subtle hint
-          const blendedR = Math.round(baseRgb.r * 0.85 + customRgb.r * 0.15);
-          const blendedG = Math.round(baseRgb.g * 0.85 + customRgb.g * 0.15);
-          const blendedB = Math.round(baseRgb.b * 0.85 + customRgb.b * 0.15);
+          // Blend: 40% base color + 60% custom color
+          const blendedR = Math.round(baseRgb.r * 0.4 + customRgb.r * 0.6);
+          const blendedG = Math.round(baseRgb.g * 0.4 + customRgb.g * 0.6);
+          const blendedB = Math.round(baseRgb.b * 0.4 + customRgb.b * 0.6);
           
           return `rgba(${blendedR}, ${blendedG}, ${blendedB}, ${baseAlpha})`;
         }
