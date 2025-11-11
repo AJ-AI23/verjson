@@ -14,6 +14,8 @@ import {
   addEdge as addFlowEdge,
   useReactFlow
 } from '@xyflow/react';
+import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
+import { SortableContext, horizontalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { SequenceDiagramData, DiagramNode, DiagramEdge, DiagramNodeType, Lifeline, AnchorNode as AnchorNodeType } from '@/types/diagram';
 import { DiagramStyles, defaultLightTheme } from '@/types/diagramStyles';
 import { calculateSequenceLayout } from '@/lib/diagram/sequenceLayout';
@@ -100,6 +102,15 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const { settings } = useEditorSettings();
   
   const [currentTheme, setCurrentTheme] = useState(initialTheme);
+  
+  // Drag and drop sensors for lifeline reordering
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px movement before drag starts
+      },
+    })
+  );
   
   // Update local theme state when initialTheme prop changes
   React.useEffect(() => {
@@ -1654,6 +1665,39 @@ const MousePositionTracker: React.FC<{
     
     onDataChange({ ...data, lifelines: updatedLifelines, nodes: updatedNodes });
   }, [lifelines, diagramNodes, data, onDataChange]);
+  
+  // Handle lifeline reorder via drag and drop
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (!over || active.id === over.id || !onDataChange) {
+      return;
+    }
+    
+    const oldIndex = lifelines.findIndex(l => l.id === active.id);
+    const newIndex = lifelines.findIndex(l => l.id === over.id);
+    
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+    
+    // Reorder lifelines
+    const reorderedLifelines = arrayMove(lifelines, oldIndex, newIndex);
+    
+    // Update order property to match new positions
+    const updatedLifelines = reorderedLifelines.map((lifeline, index) => ({
+      ...lifeline,
+      order: index
+    }));
+    
+    console.log('🔄 [handleDragEnd] Reordering lifelines:', {
+      movedLifeline: active.id,
+      fromIndex: oldIndex,
+      toIndex: newIndex
+    });
+    
+    onDataChange({ ...data, lifelines: updatedLifelines });
+  }, [lifelines, data, onDataChange]);
 
   // Close toolbar and tooltips when clicking outside
   const onPaneClick = useCallback(() => {
@@ -1757,34 +1801,43 @@ const MousePositionTracker: React.FC<{
       )}
 
       <div className="flex-1 relative">
-        <ReactFlow
-          key="sequence-diagram"
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChangeHandler}
-          onEdgesChange={onEdgesChangeHandler}
-          onNodeClick={onNodeClick}
-          onEdgeClick={onEdgeClick}
-          onConnect={onConnect}
-          onPaneClick={onPaneClick}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          fitView={!isRenderMode && !initialViewport}
-          defaultViewport={initialViewport}
-          onViewportChange={onViewportChange}
-          minZoom={0.1}
-          maxZoom={2}
-          nodesDraggable={!readOnly}
-          nodesConnectable={!readOnly}
-          elementsSelectable={!readOnly}
-          defaultEdgeOptions={{
-            type: 'smoothstep',
-          }}
-          className={processCreationMode === 'selecting-process' ? 'process-selection-mode' : ''}
-          style={{
-            filter: processCreationMode === 'selecting-process' ? 'brightness(0.95)' : undefined
-          }}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
         >
+          <SortableContext
+            items={lifelines.map(l => l.id)}
+            strategy={horizontalListSortingStrategy}
+          >
+            <ReactFlow
+              key="sequence-diagram"
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChangeHandler}
+              onEdgesChange={onEdgesChangeHandler}
+              onNodeClick={onNodeClick}
+              onEdgeClick={onEdgeClick}
+              onConnect={onConnect}
+              onPaneClick={onPaneClick}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              fitView={!isRenderMode && !initialViewport}
+              defaultViewport={initialViewport}
+              onViewportChange={onViewportChange}
+              minZoom={0.1}
+              maxZoom={2}
+              nodesDraggable={!readOnly}
+              nodesConnectable={!readOnly}
+              elementsSelectable={!readOnly}
+              defaultEdgeOptions={{
+                type: 'smoothstep',
+              }}
+              className={processCreationMode === 'selecting-process' ? 'process-selection-mode' : ''}
+              style={{
+                filter: processCreationMode === 'selecting-process' ? 'brightness(0.95)' : undefined
+              }}
+            >
           <Background />
           {!isRenderMode && (
             <>
@@ -1880,9 +1933,11 @@ const MousePositionTracker: React.FC<{
             </div>
           )}
         </ReactFlow>
-      </div>
+      </SortableContext>
+    </DndContext>
+  </div>
 
-      {!isRenderMode && (
+  {!isRenderMode && (
         <>
           <NodeEditor
             node={selectedNode}
@@ -1948,10 +2003,10 @@ const MousePositionTracker: React.FC<{
               onStylesChange={onStylesChange}
               nodes={diagramNodes}
               lifelines={lifelines}
-            />
-          )}
-        </>
-      )}
-    </div>
+          />
+        )}
+      </>
+    )}
+  </div>
   );
 };
