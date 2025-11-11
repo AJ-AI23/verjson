@@ -124,14 +124,17 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     const nodeBottomY = nodeY + nodeHeight;
     const nodeCenterY = nodeY + (nodeHeight / 2);
     
-    // Find processes on this lifeline that overlap with this node's Y position
-    const overlappingProcesses = options.processes.filter(process => {
+    // Find UNIQUE processes on this lifeline that overlap with this node's Y position
+    // Use a Set to track unique process IDs
+    const overlappingProcessIds = new Set<string>();
+    
+    options.processes.forEach(process => {
       const processAnchorsOnLifeline = process.anchorIds.filter(id => {
         const anchor = anchors.find(a => a.id === id);
         return anchor?.lifelineId === lifelineId;
       });
       
-      if (processAnchorsOnLifeline.length === 0) return false;
+      if (processAnchorsOnLifeline.length === 0) return;
       
       // Get Y range of the process
       const anchorYPositions: number[] = [];
@@ -142,7 +145,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         }
       });
       
-      if (anchorYPositions.length === 0) return false;
+      if (anchorYPositions.length === 0) return;
       
       const minAnchorY = Math.min(...anchorYPositions);
       const maxAnchorY = Math.max(...anchorYPositions);
@@ -150,48 +153,18 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const processTopY = minAnchorY - ANCHOR_MARGIN;
       const processBottomY = maxAnchorY + ANCHOR_MARGIN;
       
+      // Check if this process overlaps with the node
       const overlaps = !(nodeBottomY < processTopY || nodeTopY > processBottomY);
       
-      // Debug log for problematic nodes
-      if (nodeCenterY > 200 && nodeCenterY < 400) {
-        console.log(`  Process ${process.id} check:`, {
-          processAnchors: processAnchorsOnLifeline,
-          processYRange: [processTopY, processBottomY],
-          nodeYRange: [nodeTopY, nodeBottomY],
-          overlaps
-        });
+      if (overlaps) {
+        overlappingProcessIds.add(process.id);
       }
-      
-      return overlaps;
     });
     
-    if (overlappingProcesses.length === 0) return 0;
+    const parallelCount = overlappingProcessIds.size;
     
-    // Group by Y range to find parallel processes
-    const yGroup = Math.floor(nodeCenterY / 200) * 200;
-    const parallelProcesses = overlappingProcesses.filter(process => {
-      const processAnchorsOnLifeline = process.anchorIds.filter(id => {
-        const anchor = anchors.find(a => a.id === id);
-        return anchor?.lifelineId === lifelineId;
-      });
-      
-      const anchorYPositions: number[] = [];
-      processAnchorsOnLifeline.forEach(anchorId => {
-        const anchorY = getAnchorCenterY(anchorId);
-        if (anchorY !== null) {
-          anchorYPositions.push(anchorY);
-        }
-      });
-      
-      if (anchorYPositions.length === 0) return false;
-      
-      const avgY = anchorYPositions.reduce((sum, y) => sum + y, 0) / anchorYPositions.length;
-      const processYGroup = Math.floor(avgY / 200) * 200;
-      
-      return processYGroup === yGroup;
-    });
+    if (parallelCount === 0) return 0;
     
-    const parallelCount = parallelProcesses.length;
     const totalProcessWidth = (PROCESS_BOX_WIDTH * parallelCount) + (PROCESS_HORIZONTAL_GAP * (parallelCount - 1));
     
     return totalProcessWidth + MARGIN_GAP + 30;
@@ -423,25 +396,9 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const sourceX = lifelineXPositions.get(sourceAnchor.lifelineId) || 0;
       const targetX = lifelineXPositions.get(targetAnchor.lifelineId) || 0;
       
-      // Calculate dynamic margin only for processes that THIS node is connected to
+      // Calculate dynamic margin based on processes that overlap this node's Y position
       const leftLifelineId = sourceX < targetX ? sourceAnchor.lifelineId : targetAnchor.lifelineId;
-      
-      // Find anchors of this node that connect to the left lifeline
-      const leftAnchors = node.anchors?.filter(a => a.lifelineId === leftLifelineId) || [];
-      
-      // Get processes connected to this node's anchors on the left lifeline
-      const connectedProcesses = options.processes?.filter(process => {
-        return leftAnchors.some(anchor => process.anchorIds.includes(anchor.id));
-      }) || [];
-      
-      // Calculate margin based on number of connected processes
-      const PROCESS_BOX_WIDTH = 50;
-      const PROCESS_HORIZONTAL_GAP = 8;
-      const MARGIN_GAP = 10;
-      const parallelCount = connectedProcesses.length;
-      const leftProcessMargin = parallelCount > 0 
-        ? (PROCESS_BOX_WIDTH * parallelCount) + (PROCESS_HORIZONTAL_GAP * (parallelCount - 1)) + MARGIN_GAP + 30
-        : 0;
+      const leftProcessMargin = getProcessMargin(leftLifelineId, topY, nodeHeight);
       
       const leftX = Math.min(sourceX, targetX);
       const rightX = Math.max(sourceX, targetX);
