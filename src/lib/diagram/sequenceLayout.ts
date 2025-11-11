@@ -63,47 +63,58 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Sort lifelines by order
   const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
 
-  // Calculate max parallel processes per lifeline for spacing adjustment
-  // Need to check both source and target side processes
+  // Pre-calculate maximum process margins per lifeline and anchor type
+  // This ensures consistent spacing for all nodes on a lifeline
+  const maxProcessMargins = new Map<string, { source: number; target: number }>();
   const PROCESS_BOX_WIDTH = 50;
   const PROCESS_HORIZONTAL_GAP = 8;
-  let maxParallelProcessesPerSide = 0;
+  const MARGIN_GAP = 10;
   
   if (options.processes && options.processes.length > 0) {
     sortedLifelines.forEach(lifeline => {
-      // Group processes by lifeline and anchor type side
-      const processGroups = new Map<string, Array<{ process: ProcessNode; yRange: [number, number] }>>();
+      const margins = { source: 0, target: 0 };
       
-      options.processes!.forEach(process => {
-        const processAnchorsOnLifeline = process.anchorIds.filter(id => {
-          const anchor = anchors.find(a => a.id === id);
-          return anchor?.lifelineId === lifeline.id;
+      // Find max parallel processes for each anchor type on this lifeline
+      ['source', 'target'].forEach(anchorType => {
+        const processesOnSide = options.processes!.filter(process => {
+          const processAnchorsOnLifeline = process.anchorIds.filter(id => {
+            const anchor = anchors.find(a => a.id === id);
+            return anchor?.lifelineId === lifeline.id;
+          });
+          
+          if (processAnchorsOnLifeline.length === 0) return false;
+          
+          // Determine which side this process is on
+          const anchorTypes = processAnchorsOnLifeline.map(id => anchors.find(a => a.id === id)?.anchorType).filter(Boolean);
+          const sourceCount = anchorTypes.filter(t => t === 'source').length;
+          const targetCount = anchorTypes.filter(t => t === 'target').length;
+          const processIsSourceSide = sourceCount >= targetCount;
+          
+          return (anchorType === 'source' && processIsSourceSide) || 
+                 (anchorType === 'target' && !processIsSourceSide);
         });
         
-        if (processAnchorsOnLifeline.length === 0) return;
-        
-        // Determine which side this process is on
-        const anchorTypes = processAnchorsOnLifeline.map(id => anchors.find(a => a.id === id)?.anchorType).filter(Boolean);
-        const sourceCount = anchorTypes.filter(t => t === 'source').length;
-        const targetCount = anchorTypes.filter(t => t === 'target').length;
-        const side = sourceCount >= targetCount ? 'source' : 'target';
-        
-        if (!processGroups.has(side)) {
-          processGroups.set(side, []);
+        if (processesOnSide.length > 0) {
+          // Maximum possible parallel processes (conservative estimate)
+          const maxParallel = Math.min(processesOnSide.length, 3);
+          const totalProcessWidth = (PROCESS_BOX_WIDTH * maxParallel) + (PROCESS_HORIZONTAL_GAP * (maxParallel - 1));
+          margins[anchorType as 'source' | 'target'] = totalProcessWidth + MARGIN_GAP + 30;
         }
-        
-        // Simplified Y range - will be recalculated properly later
-        processGroups.get(side)!.push({ process, yRange: [0, 100] });
       });
       
-      // Find max parallel processes on each side
-      processGroups.forEach(processes => {
-        // Simplified: assume max 3 parallel for now (will be refined by actual overlap detection)
-        const maxParallel = Math.min(processes.length, 3);
-        maxParallelProcessesPerSide = Math.max(maxParallelProcessesPerSide, maxParallel);
-      });
+      maxProcessMargins.set(lifeline.id, margins);
     });
   }
+  
+  let maxParallelProcessesPerSide = 0;
+  maxProcessMargins.forEach(margins => {
+    const maxMargin = Math.max(margins.source, margins.target);
+    if (maxMargin > 0) {
+      // Rough estimate of parallel count from margin
+      const estimatedParallel = Math.ceil((maxMargin - MARGIN_GAP - 30) / (PROCESS_BOX_WIDTH + PROCESS_HORIZONTAL_GAP));
+      maxParallelProcessesPerSide = Math.max(maxParallelProcessesPerSide, estimatedParallel);
+    }
+  });
 
   // Add extra spacing for process boxes on both sides
   // Each side can have up to maxParallelProcessesPerSide process boxes
@@ -463,34 +474,20 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const sourceX = lifelineXPositions.get(sourceAnchor.lifelineId) || 0;
       const targetX = lifelineXPositions.get(targetAnchor.lifelineId) || 0;
       
-      // Calculate process margins for both lifelines at this node's Y position
-      // Pass anchor type to get margins for processes on the correct side
-      const sourceProcessMargin = getProcessMargin(sourceAnchor.lifelineId, topY, nodeHeight, 'source');
-      const targetProcessMargin = getProcessMargin(targetAnchor.lifelineId, topY, nodeHeight, 'target');
+      // Use pre-calculated maximum process margins for consistent spacing across all nodes
+      const sourceMargins = maxProcessMargins.get(sourceAnchor.lifelineId) || { source: 0, target: 0 };
+      const targetMargins = maxProcessMargins.get(targetAnchor.lifelineId) || { source: 0, target: 0 };
       
-      // Also check for maximum process margin in nearby Y range to ensure consistent spacing
-      // even if this specific node doesn't overlap with a process
-      const Y_RANGE_CHECK = 150; // Check within 150px above and below
-      let maxSourceProcessMargin = sourceProcessMargin;
-      let maxTargetProcessMargin = targetProcessMargin;
-      
-      // Check a few Y positions around this node
-      for (let offsetY = -Y_RANGE_CHECK; offsetY <= Y_RANGE_CHECK; offsetY += 50) {
-        const checkY = topY + offsetY;
-        const sourceCheck = getProcessMargin(sourceAnchor.lifelineId, checkY, nodeHeight, 'source');
-        const targetCheck = getProcessMargin(targetAnchor.lifelineId, checkY, nodeHeight, 'target');
-        maxSourceProcessMargin = Math.max(maxSourceProcessMargin, sourceCheck);
-        maxTargetProcessMargin = Math.max(maxTargetProcessMargin, targetCheck);
-      }
+      const sourceProcessMargin = sourceMargins.source;
+      const targetProcessMargin = targetMargins.target;
       
       const leftX = Math.min(sourceX, targetX);
       const rightX = Math.max(sourceX, targetX);
       
       // Determine which side has processes and add extra margin
-      // Use the maximum margins to ensure consistent spacing
       const leftIsSource = sourceX < targetX;
-      const leftProcessMargin = leftIsSource ? maxSourceProcessMargin : maxTargetProcessMargin;
-      const rightProcessMargin = leftIsSource ? maxTargetProcessMargin : maxSourceProcessMargin;
+      const leftProcessMargin = leftIsSource ? sourceProcessMargin : targetProcessMargin;
+      const rightProcessMargin = leftIsSource ? targetProcessMargin : sourceProcessMargin;
       
       // Add margins to accommodate edges and process boxes
       const totalLeftMargin = BASE_MARGIN + leftProcessMargin;
