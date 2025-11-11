@@ -131,6 +131,9 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, se
             {...listeners}
             className="absolute left-1 top-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
             style={{ color: styles?.colors.nodeText || '#0f172a' }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+            }}
           >
             <GripVertical className="h-4 w-4" />
           </div>

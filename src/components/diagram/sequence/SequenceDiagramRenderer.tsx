@@ -623,6 +623,7 @@ const MousePositionTracker: React.FC<{
           ...node,
           selectable: true,
           selected: isSelected,
+          draggable: false, // Prevent ReactFlow from dragging lifeline nodes
           data: {
             ...node.data,
             customLifelineColors,
