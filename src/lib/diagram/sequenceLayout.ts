@@ -227,10 +227,10 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     const currentAnchor = anchors.find(a => a.id === anchorId);
     if (!currentAnchor) return null;
     
-    // Get all anchor IDs for this process on this specific lifeline with this anchor type
+    // Get all anchor IDs for this process on this specific lifeline (allow mixed types)
     const lifelineAnchorIds = process.anchorIds.filter(id => {
       const anchor = anchors.find(a => a.id === id);
-      return anchor?.lifelineId === anchorLifelineId && anchor?.anchorType === currentAnchor.anchorType;
+      return anchor?.lifelineId === anchorLifelineId;
     });
     
     if (lifelineAnchorIds.length === 0) return null;
@@ -264,12 +264,12 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       return !(end1 < start2 || end2 < start1);
     };
     
-    // Find all processes that have anchors on this lifeline with the same type and overlap Y range
+    // Find all processes that have anchors on this lifeline and overlap Y range
     const overlappingProcesses = options.processes.filter(p => {
-      // Check if this process has any anchor on the target lifeline with matching type
+      // Check if this process has any anchor on the target lifeline
       const pLifelineAnchorIds = p.anchorIds.filter(id => {
         const anchor = anchors.find(a => a.id === id);
-        return anchor?.lifelineId === anchorLifelineId && anchor?.anchorType === currentAnchor.anchorType;
+        return anchor?.lifelineId === anchorLifelineId;
       });
       
       if (pLifelineAnchorIds.length === 0) return false;
@@ -323,9 +323,20 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       const PROCESS_HORIZONTAL_GAP = 8; // Match the gap used in process positioning
       const PROCESS_CONTAINER_WIDTH = (PROCESS_BOX_WIDTH * processInfo.parallelCount) + (PROCESS_HORIZONTAL_GAP * (processInfo.parallelCount - 1));
       
-      // Determine side based on anchor type
-      const isSourceAnchor = anchor.anchorType === 'source';
-      const processContainerX = isSourceAnchor 
+      // Determine side based on anchor type distribution in the process
+      // Get the process to check anchor type distribution
+      const process = options.processes?.find(p => p.id === processInfo.processId);
+      const processAnchorsOnLifeline = process?.anchorIds.filter(id => {
+        const a = anchors.find(anc => anc.id === id);
+        return a?.lifelineId === anchor.lifelineId;
+      }) || [];
+      
+      const anchorTypesOnLifeline = processAnchorsOnLifeline.map(id => anchors.find(a => a.id === id)?.anchorType).filter(Boolean);
+      const sourceCount = anchorTypesOnLifeline.filter(t => t === 'source').length;
+      const targetCount = anchorTypesOnLifeline.filter(t => t === 'target').length;
+      const isSourceSide = sourceCount >= targetCount;
+      
+      const processContainerX = isSourceSide 
         ? lifelineX - PROCESS_CONTAINER_WIDTH - 10  // Left side for source
         : lifelineX + 10;                            // Right side for target
       
@@ -789,14 +800,14 @@ const calculateProcessLayout = (
       return;
     }
 
-    // Get all anchors for this process and group by lifeline-anchorType
+    // Get all anchors for this process and group by lifeline only (not by anchor type)
     const lifelineAnchorGroups = new Map<string, string[]>();
     
     process.anchorIds.forEach(anchorId => {
       const anchor = anchors.find(a => a.id === anchorId);
       if (!anchor) return;
       
-      const key = `${anchor.lifelineId}-${anchor.anchorType}`;
+      const key = anchor.lifelineId; // Group by lifeline only, allowing mixed anchor types
       if (!lifelineAnchorGroups.has(key)) {
         lifelineAnchorGroups.set(key, []);
       }
@@ -837,25 +848,24 @@ const calculateProcessLayout = (
       return;
     }
 
-    // Group anchors by lifeline-anchorType
-    const lifelineAnchorGroups = new Map<string, { lifelineId: string; anchorType: string; anchorIds: string[] }>();
+    // Group anchors by lifeline only (allow mixed source/target on same lifeline)
+    const lifelineAnchorGroups = new Map<string, { lifelineId: string; anchorIds: string[] }>();
     
     process.anchorIds.forEach(anchorId => {
       const anchor = anchors.find(a => a.id === anchorId);
       if (!anchor) return;
       
-      const key = `${anchor.lifelineId}-${anchor.anchorType}`;
+      const key = anchor.lifelineId; // Group by lifeline only
       if (!lifelineAnchorGroups.has(key)) {
         lifelineAnchorGroups.set(key, {
           lifelineId: anchor.lifelineId,
-          anchorType: anchor.anchorType,
           anchorIds: []
         });
       }
       lifelineAnchorGroups.get(key)!.anchorIds.push(anchorId);
     });
 
-    // Create a process box for each lifeline-anchorType combination
+    // Create a process box for each lifeline (can contain mixed source/target anchors)
     lifelineAnchorGroups.forEach((group, key) => {
       // Get all anchor center positions for this group
       const anchorYPositions: number[] = [];
@@ -870,6 +880,13 @@ const calculateProcessLayout = (
       });
 
       if (anchorYPositions.length === 0) return;
+
+      // Determine which side to place the process box based on anchor types
+      // If we have both source and target, prefer the side with more anchors
+      const anchorTypes = group.anchorIds.map(id => anchors.find(a => a.id === id)?.anchorType).filter(Boolean);
+      const sourceCount = anchorTypes.filter(t => t === 'source').length;
+      const targetCount = anchorTypes.filter(t => t === 'target').length;
+      const isSourceSide = sourceCount >= targetCount; // Use source side if equal or more source anchors
 
       // Calculate bounds based on actual anchor positions with node heights
       const ANCHOR_MARGIN = 15; // Vertical margin above/below process boxes (reduced to prevent overlap)
@@ -945,8 +962,7 @@ const calculateProcessLayout = (
       const PROCESS_HORIZONTAL_GAP = 8; // Gap between parallel process boxes
       const PROCESS_CONTAINER_WIDTH = (PROCESS_BOX_WIDTH * parallelCount) + (PROCESS_HORIZONTAL_GAP * (parallelCount - 1));
       
-      // Position based on anchor type
-      const isSourceSide = group.anchorType === 'source';
+      // Position based on anchor type (already determined above as isSourceSide)
       const baseContainerX = isSourceSide
         ? lifelineX - PROCESS_CONTAINER_WIDTH - 10  // Left side for source
         : lifelineX + 10;                            // Right side for target
