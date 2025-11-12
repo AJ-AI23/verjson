@@ -11,12 +11,13 @@ interface AnchorNodeProps {
     styles?: DiagramStyleTheme;
     customStyles?: DiagramStyles;
     isInProcess?: boolean;
+    isRenderMode?: boolean;
   };
   selected?: boolean;
 }
 
 export const AnchorNode: React.FC<AnchorNodeProps> = ({ data, selected }) => {
-  const { lifelineId, lifelines, styles, customStyles, isInProcess } = data;
+  const { lifelineId, lifelines, styles, customStyles, isInProcess, isRenderMode } = data;
   
   // Find the lifeline for this anchor
   const lifeline = lifelines?.find(l => l.id === lifelineId);
@@ -71,7 +72,7 @@ export const AnchorNode: React.FC<AnchorNodeProps> = ({ data, selected }) => {
   }
   
   // Visual feedback when selected
-  const isSelected = selected;
+  const isSelected = selected && !isRenderMode;
   const borderWidth = isSelected ? '3px' : '2px';
   const selectedBorderColor = isSelected ? '#3b82f6' : anchorBorderColor;
   
@@ -98,7 +99,7 @@ export const AnchorNode: React.FC<AnchorNodeProps> = ({ data, selected }) => {
       />
       
       <div
-        className="w-full h-full rounded-full shadow-md cursor-move transition-all hover:scale-125 hover:shadow-lg"
+        className={`w-full h-full rounded-full shadow-md transition-all ${isRenderMode ? '' : 'cursor-move hover:scale-125 hover:shadow-lg'}`}
         style={{
           backgroundColor: anchorColor,
           borderColor: selectedBorderColor,
