@@ -615,10 +615,11 @@ const MousePositionTracker: React.FC<{
             ...node.data,
             customLifelineColors,
             onAddNode: (lifelineId: string, yPosition: number) => handleAddNodeOnLifeline(lifelineId, yPosition, lifelineHeight),
-            readOnly,
+            readOnly: readOnly || isRenderMode,
             lifelineHeight: lifelineHeight,
             dataVersion,
-            styles: activeTheme
+            styles: activeTheme,
+            isRenderMode
           }
         };
       }
@@ -638,7 +639,8 @@ const MousePositionTracker: React.FC<{
             onHeightChange: handleNodeHeightChange,
             calculatedHeight: nodeHeightsRef.current.get(node.id),
             styles: activeTheme,
-            dataVersion
+            dataVersion,
+            isRenderMode
           }
         };
       }
@@ -661,7 +663,8 @@ const MousePositionTracker: React.FC<{
             isInProcess,
             styles: activeTheme,
             lifelines,
-            dataVersion
+            dataVersion,
+            isRenderMode
           }
         };
       }
@@ -687,7 +690,8 @@ const MousePositionTracker: React.FC<{
           data: {
             ...node.data,
             theme: activeTheme,
-            dataVersion
+            dataVersion,
+            isRenderMode
           }
         } as Node;
       }

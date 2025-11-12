@@ -8,6 +8,7 @@ interface ProcessNodeProps {
     theme?: DiagramStyleTheme;
     parallelCount?: number;
     onSelect?: (processId: string) => void;
+    isRenderMode?: boolean;
   };
   selected?: boolean;
 }
@@ -17,7 +18,7 @@ export const ProcessNode: React.FC<ProcessNodeProps> = ({ data, selected }) => {
     return null;
   }
   
-  const { processNode, theme, parallelCount = 1, onSelect } = data;
+  const { processNode, theme, parallelCount = 1, onSelect, isRenderMode } = data;
   
   if (!processNode.lifelineId || !processNode.description) {
     return null;
@@ -94,16 +95,16 @@ export const ProcessNode: React.FC<ProcessNodeProps> = ({ data, selected }) => {
           width: `${PROCESS_BOX_WIDTH}px`,
           height: '100%',
           backgroundColor: processColor,
-          border: selected ? `2px solid #3b82f6` : `1px solid ${borderColor}`,
+          border: selected && !isRenderMode ? `2px solid #3b82f6` : `1px solid ${borderColor}`,
           borderRadius: '6px',
           padding: '8px 4px',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
-          boxShadow: selected ? '0 0 0 3px rgba(59, 130, 246, 0.2)' : '0 2px 4px rgba(0,0,0,0.1)',
+          boxShadow: selected && !isRenderMode ? '0 0 0 3px rgba(59, 130, 246, 0.2)' : '0 2px 4px rgba(0,0,0,0.1)',
           transition: 'all 0.2s ease',
-          cursor: 'pointer'
+          cursor: isRenderMode ? 'default' : 'pointer'
         }}
       >
         <div

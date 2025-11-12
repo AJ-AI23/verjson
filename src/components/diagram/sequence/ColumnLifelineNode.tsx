@@ -13,12 +13,13 @@ interface ColumnLifelineNodeProps {
     onAddNode?: (lifelineId: string, yPosition: number) => void;
     readOnly?: boolean;
     lifelineHeight?: number;
+    isRenderMode?: boolean;
   };
   selected?: boolean;
 }
 
 export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, selected }) => {
-  const { column: lifeline, styles, customLifelineColors, onAddNode, readOnly, lifelineHeight = 2000 } = data;
+  const { column: lifeline, styles, customLifelineColors, onAddNode, readOnly, lifelineHeight = 2000, isRenderMode } = data;
   const [hoverPosition, setHoverPosition] = useState<number | null>(null);
   const lifelineRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
@@ -103,9 +104,10 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, se
         style={{
           backgroundColor: lifelineColor,
           borderWidth: '2px',
-          borderColor: selected ? '#3b82f6' : (styles?.colors.nodeBorder || '#64748b'),
+          borderColor: selected && !isRenderMode ? '#3b82f6' : (styles?.colors.nodeBorder || '#64748b'),
           color: styles?.colors.nodeText || '#0f172a',
-          boxShadow: selected ? '0 0 0 2px rgba(59, 130, 246, 0.3)' : undefined
+          boxShadow: selected && !isRenderMode ? '0 0 0 2px rgba(59, 130, 246, 0.3)' : undefined,
+          cursor: isRenderMode ? 'default' : undefined
         }}
       >
         <div className="font-semibold text-sm">
@@ -131,8 +133,8 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, se
           marginLeft: '-30px',
           marginRight: '-30px'
         }}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
+        onMouseMove={isRenderMode ? undefined : handleMouseMove}
+        onMouseLeave={isRenderMode ? undefined : handleMouseLeave}
       >
         {/* Visual line */}
         <div
