@@ -16,6 +16,7 @@ export const SequenceEdge: React.FC<EdgeProps> = ({
   data
 }) => {
   const styles = data?.styles as DiagramStyleTheme | undefined;
+  const isRenderMode = data?.isRenderMode as boolean | undefined;
   const [edgePath, labelX, labelY] = getStraightPath({
     sourceX,
     sourceY,
@@ -55,7 +56,7 @@ export const SequenceEdge: React.FC<EdgeProps> = ({
             style={{
               position: 'absolute',
               transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
-              pointerEvents: 'all',
+              pointerEvents: isRenderMode ? 'none' : 'all',
               color: styles?.colors.edgeLabel || '#475569'
             }}
             className={getLabelStyle()}
