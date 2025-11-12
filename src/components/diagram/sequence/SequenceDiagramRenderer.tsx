@@ -441,7 +441,8 @@ const MousePositionTracker: React.FC<{
       processes: data.processes || [],
       styles: activeTheme,
       fullStyles: styles,
-      nodeHeights: nodeHeightsRef.current
+      nodeHeights: nodeHeightsRef.current,
+      isRenderMode
     });
     
     // Validate edge creation and attempt recovery if needed
@@ -656,8 +657,8 @@ const MousePositionTracker: React.FC<{
         
         return {
           ...node,
-          selectable: !readOnly,
-          selected: node.id === selectedAnchorId,
+          selectable: !readOnly && !isRenderMode,
+          selected: node.id === selectedAnchorId && !isRenderMode,
           data: {
             ...node.data,
             isInProcess,
