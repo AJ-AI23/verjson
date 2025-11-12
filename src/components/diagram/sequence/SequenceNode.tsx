@@ -13,6 +13,7 @@ interface SequenceNodeProps {
     width?: number;
     onHeightChange?: (nodeId: string, height: number) => void;
     calculatedHeight?: number;
+    isRenderMode?: boolean;
   };
   selected?: boolean;
   positionAbsoluteX: number;
@@ -20,7 +21,7 @@ interface SequenceNodeProps {
 }
 
 export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected, positionAbsoluteY }) => {
-  const { config, label, type, data: nodeData, styles, width, onHeightChange, id, calculatedHeight } = data;
+  const { config, label, type, data: nodeData, styles, width, onHeightChange, id, calculatedHeight, isRenderMode } = data;
   const nodeRef = useRef<HTMLDivElement>(null);
 
   // Track full node height changes (including debug display) and notify parent
@@ -108,16 +109,17 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected, posi
       ref={nodeRef}
       className={cn(
         'px-4 py-3 border-2 shadow-md transition-all rounded-lg',
-        'hover:shadow-lg cursor-pointer',
-        selected && 'ring-2 ring-primary ring-offset-2 shadow-xl'
+        !isRenderMode && 'hover:shadow-lg cursor-pointer',
+        selected && !isRenderMode && 'ring-2 ring-primary ring-offset-2 shadow-xl'
       )}
       style={{
         width: width && width > 0 ? `${width}px` : undefined,
         minWidth: width && width > 0 ? undefined : config.defaultWidth,
         minHeight: config.defaultHeight,
         backgroundColor: nodeColors.background,
-        borderColor: selected ? 'hsl(var(--primary))' : nodeColors.border,
-        color: nodeColors.text
+        borderColor: selected && !isRenderMode ? 'hsl(var(--primary))' : nodeColors.border,
+        color: nodeColors.text,
+        cursor: isRenderMode ? 'default' : undefined
       }}
     >
       {/* Left side handles - both source and target for bidirectional flow */}
