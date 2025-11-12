@@ -11,6 +11,7 @@ interface LayoutOptions {
   styles?: DiagramStyleTheme;
   fullStyles?: DiagramStyles;
   nodeHeights?: Map<string, number>;
+  isRenderMode?: boolean;
 }
 
 interface LayoutResult {
@@ -31,7 +32,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     horizontalSpacing = 100,
     styles,
     fullStyles,
-    nodeHeights
+    nodeHeights,
+    isRenderMode = false
   } = options;
 
   // Validate and extract anchors from nodes
@@ -515,7 +517,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         style: edgeStyles,
         zIndex: 5,
         markerEnd: { type: MarkerType.ArrowClosed },
-        data: { edgeType: 'default', styles }
+        data: { edgeType: 'default', styles, isRenderMode }
       };
       layoutEdges.push(edge);
     } else if (anchor.anchorType === 'target') {
@@ -531,7 +533,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         style: edgeStyles,
         zIndex: 5,
         markerEnd: { type: MarkerType.ArrowClosed },
-        data: { edgeType: 'default', styles }
+        data: { edgeType: 'default', styles, isRenderMode }
       };
       layoutEdges.push(edge);
     }
