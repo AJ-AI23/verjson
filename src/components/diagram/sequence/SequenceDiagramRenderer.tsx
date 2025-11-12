@@ -1863,9 +1863,9 @@ const MousePositionTracker: React.FC<{
           onViewportChange={onViewportChange}
           minZoom={0.1}
           maxZoom={2}
-          nodesDraggable={!readOnly}
-          nodesConnectable={!readOnly}
-          elementsSelectable={!readOnly}
+          nodesDraggable={!readOnly && !isRenderMode}
+          nodesConnectable={!readOnly && !isRenderMode}
+          elementsSelectable={!readOnly && !isRenderMode}
           defaultEdgeOptions={{
             type: 'smoothstep',
           }}
