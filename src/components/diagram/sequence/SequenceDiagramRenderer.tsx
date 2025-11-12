@@ -1637,23 +1637,55 @@ const MousePositionTracker: React.FC<{
     const oldOrderMap = new Map<string, number>();
     lifelines.forEach(l => oldOrderMap.set(l.id, l.order));
     
-    // Update the lifeline
-    const updatedLifelines = lifelines.map(l =>
-      l.id === lifelineId ? { ...l, ...updates } : l
-    );
+    let updatedLifelines: Lifeline[];
+    let orderChanged = false;
     
-    console.log('🔄 [handleLifelineUpdate] Old lifelines:', lifelines.map(l => ({ id: l.id, order: l.order })));
-    console.log('🔄 [handleLifelineUpdate] New lifelines:', updatedLifelines.map(l => ({ id: l.id, order: l.order })));
+    // Handle order changes specially to maintain unique sequential orders
+    if (updates.order !== undefined) {
+      const oldOrder = oldOrderMap.get(lifelineId);
+      const newOrder = updates.order;
+      
+      if (oldOrder !== newOrder) {
+        orderChanged = true;
+        console.log('🔄 [handleLifelineUpdate] Reordering from', oldOrder, 'to', newOrder);
+        
+        // Update all lifelines to maintain sequential unique orders
+        updatedLifelines = lifelines.map(l => {
+          if (l.id === lifelineId) {
+            // This is the lifeline being moved
+            return { ...l, ...updates };
+          } else if (oldOrder !== undefined && newOrder < oldOrder) {
+            // Moving a lifeline earlier - shift affected lifelines forward
+            if (l.order >= newOrder && l.order < oldOrder) {
+              return { ...l, order: l.order + 1 };
+            }
+          } else if (oldOrder !== undefined && newOrder > oldOrder) {
+            // Moving a lifeline later - shift affected lifelines backward
+            if (l.order > oldOrder && l.order <= newOrder) {
+              return { ...l, order: l.order - 1 };
+            }
+          }
+          return l;
+        });
+        
+        console.log('🔄 [handleLifelineUpdate] Old lifelines:', lifelines.map(l => ({ id: l.id, order: l.order })));
+        console.log('🔄 [handleLifelineUpdate] New lifelines:', updatedLifelines.map(l => ({ id: l.id, order: l.order })));
+      } else {
+        // Order didn't actually change, just update other properties
+        updatedLifelines = lifelines.map(l =>
+          l.id === lifelineId ? { ...l, ...updates } : l
+        );
+      }
+    } else {
+      // No order change, just update the lifeline
+      updatedLifelines = lifelines.map(l =>
+        l.id === lifelineId ? { ...l, ...updates } : l
+      );
+    }
     
     // Create a map of new lifeline orders
     const newOrderMap = new Map<string, number>();
     updatedLifelines.forEach(l => newOrderMap.set(l.id, l.order));
-    
-    // Check if order changed
-    const orderChanged = updates.order !== undefined && 
-      oldOrderMap.get(lifelineId) !== newOrderMap.get(lifelineId);
-    
-    console.log('🔄 [handleLifelineUpdate] Order changed?', orderChanged);
     
     let updatedNodes = diagramNodes;
     
