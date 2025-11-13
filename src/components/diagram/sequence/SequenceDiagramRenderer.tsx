@@ -216,6 +216,8 @@ const FitViewHelper: React.FC<{
   edgesCount: number;
   hasInitialViewport: boolean;
   hasUserInteracted: boolean;
+  sequenceNodesCount: number;
+  measuredHeightsCount: number;
 }> = ({ 
   isRenderMode, 
   onReady,
@@ -223,29 +225,42 @@ const FitViewHelper: React.FC<{
   nodesCount,
   edgesCount,
   hasInitialViewport,
-  hasUserInteracted
+  hasUserInteracted,
+  sequenceNodesCount,
+  measuredHeightsCount
 }) => {
   const { fitView } = useReactFlow();
   
+  // Check if all sequence nodes have been measured
+  const allNodesMeasured = sequenceNodesCount === 0 || measuredHeightsCount >= sequenceNodesCount;
+  
   // Expose fitView function to parent for preview
   useEffect(() => {
-    if (onFitViewReady && nodesCount > 0 && edgesCount > 0) {
-      console.log('[FitViewHelper] Exposing fitView function to parent');
+    if (onFitViewReady && nodesCount > 0 && edgesCount > 0 && allNodesMeasured) {
+      console.log('[FitViewHelper] Exposing fitView function to parent', { 
+        allNodesMeasured, 
+        sequenceNodesCount, 
+        measuredHeightsCount 
+      });
       onFitViewReady(() => {
         console.log('[FitViewHelper] fitView CALLED via onFitViewReady callback');
         fitView({ padding: 0.1, duration: 200 });
       });
     }
-  }, [onFitViewReady, fitView, nodesCount, edgesCount]);
+  }, [onFitViewReady, fitView, nodesCount, edgesCount, allNodesMeasured, sequenceNodesCount, measuredHeightsCount]);
   
   // Auto-fit in render mode ONLY if no initial viewport is provided and user hasn't interacted
+  // AND all nodes have been measured
   useEffect(() => {
-    if (isRenderMode && nodesCount > 0 && edgesCount > 0 && !hasInitialViewport && !hasUserInteracted) {
-      console.log('[FitViewHelper] AUTO-FIT TRIGGERED - Nodes and edges ready, fitting view...', { 
+    if (isRenderMode && nodesCount > 0 && edgesCount > 0 && !hasInitialViewport && !hasUserInteracted && allNodesMeasured) {
+      console.log('[FitViewHelper] AUTO-FIT TRIGGERED - Nodes measured and edges ready, fitting view...', { 
         nodesCount, 
         edgesCount,
         hasUserInteracted,
-        hasInitialViewport 
+        hasInitialViewport,
+        sequenceNodesCount,
+        measuredHeightsCount,
+        allNodesMeasured
       });
       setTimeout(() => {
         try {
@@ -278,9 +293,17 @@ const FitViewHelper: React.FC<{
     } else if (isRenderMode && nodesCount > 0 && edgesCount > 0 && hasUserInteracted) {
       console.log('[FitViewHelper] SKIPPING AUTO-FIT - User has interacted', { hasUserInteracted });
     } else if (isRenderMode) {
-      console.log('[FitViewHelper] Waiting for nodes/edges...', { nodesCount, edgesCount, hasUserInteracted, hasInitialViewport });
+      console.log('[FitViewHelper] Waiting for nodes/edges or height measurements...', { 
+        nodesCount, 
+        edgesCount, 
+        hasUserInteracted, 
+        hasInitialViewport,
+        sequenceNodesCount,
+        measuredHeightsCount,
+        allNodesMeasured
+      });
     }
-  }, [isRenderMode, nodesCount, edgesCount, fitView, onReady, hasInitialViewport, hasUserInteracted]);
+  }, [isRenderMode, nodesCount, edgesCount, fitView, onReady, hasInitialViewport, hasUserInteracted, allNodesMeasured, sequenceNodesCount, measuredHeightsCount]);
   
   return null;
 };
@@ -1918,6 +1941,8 @@ const MousePositionTracker: React.FC<{
             edgesCount={edges.length}
             hasInitialViewport={!!initialViewport}
             hasUserInteracted={hasUserInteractedWithViewport}
+            sequenceNodesCount={diagramNodes.length}
+            measuredHeightsCount={nodeHeights.size}
           />
           
           {/* Node selection toolbar */}
