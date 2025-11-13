@@ -704,8 +704,17 @@ const MousePositionTracker: React.FC<{
     });
   }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, customLifelineColors, lifelineHeight, selectedAnchorId, processManagement, processCreationMode, activeTheme, selectedProcessId, handleProcessSelect, selectedLifelineId, lifelines, currentTheme, diagramNodes]);
 
+  // Process edges to add render mode properties
+  const edgesWithRenderMode = useMemo(() => {
+    return layoutEdges.map(edge => ({
+      ...edge,
+      selectable: !readOnly && !isRenderMode,
+      focusable: !readOnly && !isRenderMode,
+    }));
+  }, [layoutEdges, readOnly, isRenderMode]);
+
   const [nodes, setNodes, handleNodesChange] = useNodesState(nodesWithHandlers);
-  const [edges, setEdges, handleEdgesChange] = useEdgesState(layoutEdges);
+  const [edges, setEdges, handleEdgesChange] = useEdgesState(edgesWithRenderMode);
   
   // Track previous values to prevent unnecessary updates
   const prevNodesRef = useRef<Node[]>([]);
@@ -766,8 +775,8 @@ const MousePositionTracker: React.FC<{
 
   // Update edges when layout changes - with deduplication
   useEffect(() => {
-    const edgesChanged = layoutEdges.length !== prevEdgesRef.current.length ||
-      layoutEdges.some((edge, i) => {
+    const edgesChanged = edgesWithRenderMode.length !== prevEdgesRef.current.length ||
+      edgesWithRenderMode.some((edge, i) => {
         const prev = prevEdgesRef.current[i];
         if (!prev || edge.id !== prev.id || edge.source !== prev.source || edge.target !== prev.target) {
           return true;
@@ -782,10 +791,10 @@ const MousePositionTracker: React.FC<{
       });
     
     if (edgesChanged) {
-      prevEdgesRef.current = layoutEdges;
-      setEdges(layoutEdges);
+      prevEdgesRef.current = edgesWithRenderMode;
+      setEdges(edgesWithRenderMode);
     }
-  }, [layoutEdges, setEdges]);
+  }, [edgesWithRenderMode, setEdges]);
 
   const onNodesChangeHandler = useCallback((changes: any) => {
     // Log all position changes for debugging
@@ -1873,6 +1882,7 @@ const MousePositionTracker: React.FC<{
           maxZoom={2}
           nodesDraggable={!readOnly && !isRenderMode}
           nodesConnectable={!readOnly && !isRenderMode}
+          edgesReconnectable={!readOnly && !isRenderMode}
           elementsSelectable={!readOnly && !isRenderMode}
           defaultEdgeOptions={{
             type: 'smoothstep',
