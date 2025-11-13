@@ -610,8 +610,9 @@ const MousePositionTracker: React.FC<{
         const dataVersion = lifeline ? `${lifeline.name}-${lifeline.description}-${lifeline.color}-${lifeline.anchorColor}-${lifeline.order}-${currentTheme}` : currentTheme;
         return {
           ...node,
-          selectable: true,
-          selected: isSelected,
+          draggable: !readOnly && !isRenderMode,
+          selectable: !readOnly && !isRenderMode,
+          selected: isSelected && !isRenderMode,
           data: {
             ...node.data,
             customLifelineColors,
@@ -634,7 +635,7 @@ const MousePositionTracker: React.FC<{
         
         return {
           ...node,
-          draggable: !readOnly,
+          draggable: !readOnly && !isRenderMode,
           data: {
             ...node.data,
             onHeightChange: handleNodeHeightChange,
@@ -682,12 +683,13 @@ const MousePositionTracker: React.FC<{
         
         return {
           ...node,
-          selectable: true,
-          selected: isSelected,
+          draggable: !readOnly && !isRenderMode,
+          selectable: !readOnly && !isRenderMode,
+          selected: isSelected && !isRenderMode,
           style: {
             ...node.style,
             opacity: isHighlighted ? 1 : undefined,
-            cursor: 'pointer'
+            cursor: isRenderMode ? 'default' : 'pointer'
           },
           data: {
             ...node.data,
