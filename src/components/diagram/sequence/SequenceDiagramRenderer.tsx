@@ -657,6 +657,7 @@ const MousePositionTracker: React.FC<{
         
         return {
           ...node,
+          draggable: !readOnly && !isRenderMode,
           selectable: !readOnly && !isRenderMode,
           selected: node.id === selectedAnchorId && !isRenderMode,
           data: {
