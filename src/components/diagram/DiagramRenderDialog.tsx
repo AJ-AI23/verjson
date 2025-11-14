@@ -297,19 +297,20 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
                       data={data}
                       styles={previewStyles}
                       theme={selectedTheme}
-                      readOnly={false}
+                      readOnly={true}
                       isRenderMode={true}
                       hasUserInteractedWithViewport={hasUserInteracted}
+                      onRenderReady={() => {
+                        console.log('[DiagramRenderDialog] onRenderReady - Diagram fully rendered with proper positioning');
+                        // Capture viewport after diagram is fully positioned
+                        const viewport = { x: 0, y: 0, zoom: 1 };
+                        setPreviewViewport(viewport);
+                      }}
                       onFitViewReady={(fitView) => {
                         console.log('[DiagramRenderDialog] onFitViewReady called, storing fitView reference');
                         previewFitViewRef.current = fitView;
-                        // ONLY auto-fit on first load if user hasn't interacted yet
-                        if (!hasUserInteracted) {
-                          console.log('[DiagramRenderDialog] AUTO-CALLING fitView on first load');
-                          setTimeout(() => fitView(), 100);
-                        } else {
-                          console.log('[DiagramRenderDialog] SKIPPING auto-fit - user has interacted');
-                        }
+                        // Don't auto-call fitView here - let FitViewHelper handle it
+                        // after all nodes are measured for proper positioning
                       }}
                       onViewportChange={(viewport) => {
                         console.log('[DiagramRenderDialog] Viewport changed - USER INTERACTION', viewport);
