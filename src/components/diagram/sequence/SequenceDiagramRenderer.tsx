@@ -1250,6 +1250,46 @@ const MousePositionTracker: React.FC<{
         });
         
         onDataChange({ ...data, nodes: updatedDiagramNodes });
+      } else if (movedNode?.type === 'columnLifeline') {
+        // Handle lifeline drag - update order based on new X position
+        const lifelineData = movedNode.data as any;
+        const lifelineId = lifelineData?.column?.id;
+        
+        if (lifelineId) {
+          const movedLifeline = lifelines.find(l => l.id === lifelineId);
+          if (movedLifeline) {
+            // Calculate which order position this lifeline should have based on X position
+            const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
+            const lifelineXPositions = sortedLifelines.map((l, index) => ({
+              lifeline: l,
+              x: index * (300 + 100) + 150, // LIFELINE_WIDTH + horizontalSpacing + padding
+              order: index
+            }));
+            
+            // Find the closest position slot based on new X coordinate
+            const newX = moveChange.position.x;
+            const targetPosition = lifelineXPositions.reduce((closest, current) => {
+              const currentDistance = Math.abs(current.x - newX);
+              const closestDistance = Math.abs(closest.x - newX);
+              return currentDistance < closestDistance ? current : closest;
+            });
+            
+            const newOrder = targetPosition.order;
+            const oldOrder = movedLifeline.order;
+            
+            // Only update if order actually changed
+            if (newOrder !== oldOrder) {
+              console.log('🔄 [LifelineDrag] Updating lifeline order:', {
+                lifelineId,
+                oldOrder,
+                newOrder,
+                newX
+              });
+              
+              handleLifelineUpdate(lifelineId, { order: newOrder });
+            }
+          }
+        }
       } else {
         // Regular node position update - also update connected anchors
         const movedDiagramNode = diagramNodes.find(n => n.id === moveChange.id);
