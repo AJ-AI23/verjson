@@ -301,16 +301,21 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
                       isRenderMode={true}
                       hasUserInteractedWithViewport={hasUserInteracted}
                       onRenderReady={() => {
-                        console.log('[DiagramRenderDialog] onRenderReady - Diagram fully rendered with proper positioning');
-                        // Capture viewport after diagram is fully positioned
-                        const viewport = { x: 0, y: 0, zoom: 1 };
-                        setPreviewViewport(viewport);
+                        console.log('[DiagramRenderDialog] onRenderReady - Diagram fully rendered, waiting for layout to settle');
+                        // Add timeout to ensure all DOM measurements and layouts are complete
+                        setTimeout(() => {
+                          console.log('[DiagramRenderDialog] Layout settled, capturing viewport and fitting view');
+                          const viewport = { x: 0, y: 0, zoom: 1 };
+                          setPreviewViewport(viewport);
+                          // Trigger fitView after everything is settled
+                          if (previewFitViewRef.current && !hasUserInteracted) {
+                            previewFitViewRef.current();
+                          }
+                        }, 300);
                       }}
                       onFitViewReady={(fitView) => {
                         console.log('[DiagramRenderDialog] onFitViewReady called, storing fitView reference');
                         previewFitViewRef.current = fitView;
-                        // Don't auto-call fitView here - let FitViewHelper handle it
-                        // after all nodes are measured for proper positioning
                       }}
                       onViewportChange={(viewport) => {
                         console.log('[DiagramRenderDialog] Viewport changed - USER INTERACTION', viewport);
