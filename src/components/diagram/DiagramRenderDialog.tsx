@@ -37,6 +37,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const [isRendering, setIsRendering] = useState(false);
   const [previewViewport, setPreviewViewport] = useState<{ x: number; y: number; zoom: number } | null>(null);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const [initialRenderComplete, setInitialRenderComplete] = useState(false);
   const previewContainerRef = React.useRef<HTMLDivElement>(null);
 
   // Default themes if none provided
@@ -301,17 +302,20 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
                       isRenderMode={true}
                       hasUserInteractedWithViewport={hasUserInteracted}
                       onRenderReady={() => {
-                        console.log('[DiagramRenderDialog] onRenderReady - Diagram fully rendered, waiting for layout to settle');
-                        // Add timeout to ensure all DOM measurements and layouts are complete
-                        setTimeout(() => {
-                          console.log('[DiagramRenderDialog] Layout settled, capturing viewport and fitting view');
-                          const viewport = { x: 0, y: 0, zoom: 1 };
-                          setPreviewViewport(viewport);
-                          // Trigger fitView after everything is settled
-                          if (previewFitViewRef.current && !hasUserInteracted) {
-                            previewFitViewRef.current();
-                          }
-                        }, 300);
+                        console.log('[DiagramRenderDialog] onRenderReady - Diagram fully rendered');
+                        const viewport = { x: 0, y: 0, zoom: 1 };
+                        setPreviewViewport(viewport);
+                        
+                        // Force a re-layout after initial render to match theme change behavior
+                        if (!initialRenderComplete) {
+                          setTimeout(() => {
+                            console.log('[DiagramRenderDialog] Forcing initial fitView after mount');
+                            if (previewFitViewRef.current && !hasUserInteracted) {
+                              previewFitViewRef.current();
+                              setInitialRenderComplete(true);
+                            }
+                          }, 500);
+                        }
                       }}
                       onFitViewReady={(fitView) => {
                         console.log('[DiagramRenderDialog] onFitViewReady called, storing fitView reference');
