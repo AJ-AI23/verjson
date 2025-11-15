@@ -37,8 +37,15 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const [isRendering, setIsRendering] = useState(false);
   const [previewViewport, setPreviewViewport] = useState<{ x: number; y: number; zoom: number } | null>(null);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
-  const [renderKey, setRenderKey] = useState(0);
+  const [activeTheme, setActiveTheme] = useState<string>(selectedTheme);
+  const [initialRenderComplete, setInitialRenderComplete] = useState(false);
   const previewContainerRef = React.useRef<HTMLDivElement>(null);
+
+  // Sync active theme with selected theme
+  React.useEffect(() => {
+    setActiveTheme(selectedTheme);
+    setInitialRenderComplete(false);
+  }, [selectedTheme]);
 
   // Default themes if none provided
   const defaultThemes = {
@@ -295,10 +302,9 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
                 >
                   <ReactFlowProvider>
                     <SequenceDiagramRenderer
-                      key={renderKey}
                       data={data}
                       styles={previewStyles}
-                      theme={selectedTheme}
+                      theme={activeTheme}
                       readOnly={true}
                       isRenderMode={true}
                       hasUserInteractedWithViewport={hasUserInteracted}
@@ -307,11 +313,17 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
                         const viewport = { x: 0, y: 0, zoom: 1 };
                         setPreviewViewport(viewport);
                         
-                        // Force complete re-render after initial mount to recalculate layout
-                        if (renderKey === 0) {
+                        // Force proper layout by toggling theme after initial mount
+                        if (!initialRenderComplete) {
                           setTimeout(() => {
-                            console.log('[DiagramRenderDialog] Forcing layout recalculation by changing render key');
-                            setRenderKey(1);
+                            console.log('[DiagramRenderDialog] Toggling theme to force layout recalculation');
+                            // Toggle to opposite theme temporarily
+                            const tempTheme = activeTheme === 'light' ? 'dark' : 'light';
+                            setActiveTheme(tempTheme);
+                            setTimeout(() => {
+                              setActiveTheme(selectedTheme);
+                              setInitialRenderComplete(true);
+                            }, 50);
                           }, 100);
                         }
                       }}
