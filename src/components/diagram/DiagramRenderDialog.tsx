@@ -37,7 +37,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const [isRendering, setIsRendering] = useState(false);
   const [previewViewport, setPreviewViewport] = useState<{ x: number; y: number; zoom: number } | null>(null);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
-  const [initialRenderComplete, setInitialRenderComplete] = useState(false);
+  const [renderKey, setRenderKey] = useState(0);
   const previewContainerRef = React.useRef<HTMLDivElement>(null);
 
   // Default themes if none provided
@@ -295,6 +295,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
                 >
                   <ReactFlowProvider>
                     <SequenceDiagramRenderer
+                      key={renderKey}
                       data={data}
                       styles={previewStyles}
                       theme={selectedTheme}
@@ -306,15 +307,12 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
                         const viewport = { x: 0, y: 0, zoom: 1 };
                         setPreviewViewport(viewport);
                         
-                        // Force a re-layout after initial render to match theme change behavior
-                        if (!initialRenderComplete) {
+                        // Force complete re-render after initial mount to recalculate layout
+                        if (renderKey === 0) {
                           setTimeout(() => {
-                            console.log('[DiagramRenderDialog] Forcing initial fitView after mount');
-                            if (previewFitViewRef.current && !hasUserInteracted) {
-                              previewFitViewRef.current();
-                              setInitialRenderComplete(true);
-                            }
-                          }, 500);
+                            console.log('[DiagramRenderDialog] Forcing layout recalculation by changing render key');
+                            setRenderKey(1);
+                          }, 100);
                         }
                       }}
                       onFitViewReady={(fitView) => {
