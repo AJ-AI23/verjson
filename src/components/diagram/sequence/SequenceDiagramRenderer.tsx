@@ -1287,6 +1287,16 @@ const MousePositionTracker: React.FC<{
               });
               
               handleLifelineUpdate(lifelineId, { order: newOrder });
+            } else {
+              // Order didn't change, reset lifeline position to its original spot
+              const originalX = oldOrder * (300 + 100);
+              setNodes(currentNodes => 
+                currentNodes.map(n => 
+                  n.id === movedNode.id 
+                    ? { ...n, position: { ...n.position, x: originalX } }
+                    : n
+                )
+              );
             }
           }
         }
