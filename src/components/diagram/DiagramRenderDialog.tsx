@@ -51,12 +51,10 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
     }
   }, [open]);
 
-  // Sync active theme with selected theme and reset interaction state
+  // Sync active theme with selected theme
   React.useEffect(() => {
     setActiveTheme(selectedTheme);
     setInitialRenderComplete(false);
-    setHasUserInteracted(false);
-    setPreviewViewport(null);
   }, [selectedTheme]);
 
   // Default themes if none provided
