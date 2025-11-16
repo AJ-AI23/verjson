@@ -987,45 +987,10 @@ const MousePositionTracker: React.FC<{
       }
     }
     
-    // Constrain node movement during drag
+    // Constrain sequence node movement to vertical only during drag
     const constrainedChanges = changes.map((change: any) => {
       if (change.type === 'position' && change.dragging) {
         const node = nodes.find(n => n.id === change.id);
-        
-        // Constrain lifeline dragging to valid X positions only
-        if (node?.type === 'columnLifeline') {
-          const lifelineData = node.data as any;
-          const lifelineId = lifelineData?.column?.id;
-          const movedLifeline = lifelines.find(l => l.id === lifelineId);
-          
-          if (movedLifeline) {
-            // Calculate valid lifeline X positions
-            const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
-            const lifelineXPositions = sortedLifelines.map((l, index) => ({
-              x: index * (300 + 100), // LIFELINE_WIDTH + horizontalSpacing
-              order: index
-            }));
-            
-            // Snap to closest valid X position
-            const newX = change.position.x;
-            const closestPosition = lifelineXPositions.reduce((closest, current) => {
-              const currentDistance = Math.abs(current.x - newX);
-              const closestDistance = Math.abs(closest.x - newX);
-              return currentDistance < closestDistance ? current : closest;
-            });
-            
-            // Lock Y position, snap X to valid lifeline position
-            return {
-              ...change,
-              position: {
-                x: closestPosition.x,
-                y: node.position.y // Keep original Y
-              }
-            };
-          }
-        }
-        
-        // Constrain sequence node movement to vertical only
         if (node?.type === 'sequenceNode') {
           // Multi-node drag disabled - only single node swapping is supported
           
@@ -1322,16 +1287,6 @@ const MousePositionTracker: React.FC<{
               });
               
               handleLifelineUpdate(lifelineId, { order: newOrder });
-            } else {
-              // Order didn't change, reset lifeline position to its original spot
-              const originalX = oldOrder * (300 + 100);
-              setNodes(currentNodes => 
-                currentNodes.map(n => 
-                  n.id === movedNode.id 
-                    ? { ...n, position: { ...n.position, x: originalX } }
-                    : n
-                )
-              );
             }
           }
         }
