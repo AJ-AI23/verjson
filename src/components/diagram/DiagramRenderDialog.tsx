@@ -42,10 +42,21 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const [initialRenderComplete, setInitialRenderComplete] = useState(false);
   const previewContainerRef = React.useRef<HTMLDivElement>(null);
 
-  // Sync active theme with selected theme
+  // Reset interaction state when dialog opens
+  React.useEffect(() => {
+    if (open) {
+      setHasUserInteracted(false);
+      setInitialRenderComplete(false);
+      setPreviewViewport(null);
+    }
+  }, [open]);
+
+  // Sync active theme with selected theme and reset interaction state
   React.useEffect(() => {
     setActiveTheme(selectedTheme);
     setInitialRenderComplete(false);
+    setHasUserInteracted(false);
+    setPreviewViewport(null);
   }, [selectedTheme]);
 
   // Default themes if none provided
