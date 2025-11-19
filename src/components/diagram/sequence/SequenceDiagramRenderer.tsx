@@ -840,7 +840,8 @@ const MousePositionTracker: React.FC<{
       
       const startPositions = new Map<string, { x: number; y: number }>();
       nodes.forEach(n => {
-        if (selectedNodeIds.includes(n.id) && n.type === 'sequenceNode') {
+        // Store positions for sequence nodes and lifeline columns
+        if ((selectedNodeIds.includes(n.id) && n.type === 'sequenceNode') || n.type === 'columnLifeline') {
           startPositions.set(n.id, { x: n.position.x, y: n.position.y });
         }
       });
@@ -1287,6 +1288,21 @@ const MousePositionTracker: React.FC<{
               });
               
               handleLifelineUpdate(lifelineId, { order: newOrder });
+            } else {
+              // Order didn't change - snap back to original position
+              const originalPosition = dragStartPositions.get(moveChange.id);
+              if (originalPosition) {
+                console.log('↩️ [LifelineDrag] Snapping back to original position:', {
+                  lifelineId,
+                  originalPosition
+                });
+                
+                setNodes(nodes => nodes.map(n => 
+                  n.id === moveChange.id 
+                    ? { ...n, position: originalPosition }
+                    : n
+                ));
+              }
             }
           }
         }
