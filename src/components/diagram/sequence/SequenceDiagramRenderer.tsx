@@ -1289,19 +1289,17 @@ const MousePositionTracker: React.FC<{
               
               handleLifelineUpdate(lifelineId, { order: newOrder });
             } else {
-              // Order didn't change - snap back to original position
+              // Order didn't change - snap back to original position by modifying the change
               const originalPosition = dragStartPositions.get(moveChange.id);
               if (originalPosition) {
                 console.log('↩️ [LifelineDrag] Snapping back to original position:', {
                   lifelineId,
-                  originalPosition
+                  originalPosition,
+                  attemptedPosition: moveChange.position
                 });
                 
-                setNodes(nodes => nodes.map(n => 
-                  n.id === moveChange.id 
-                    ? { ...n, position: originalPosition }
-                    : n
-                ));
+                // Replace the position change with the original position
+                moveChange.position = originalPosition;
               }
             }
           }
