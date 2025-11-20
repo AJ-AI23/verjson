@@ -560,8 +560,16 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
     let isValidCase = true;
     let hasCorrectPrefixSuffix = true;
 
+    // For camelCase and snake_case, be lenient with the first character after prefix removal
+    // Allow it to be uppercase if there's a prefix, since patterns like "createUser" are common
+    let testBaseName = currentBaseName;
+    if ((caseType === 'camelCase' || caseType === 'snake_case') && convention.prefix && currentBaseName.length > 0) {
+      // Convert first char to lowercase for the pattern test
+      testBaseName = currentBaseName.charAt(0).toLowerCase() + currentBaseName.slice(1);
+    }
+
     // Check case pattern
-    if (pattern && !pattern.test(currentBaseName)) {
+    if (pattern && !pattern.test(testBaseName)) {
       isValidCase = false;
     }
 
@@ -588,6 +596,7 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
       name, 
       baseName,
       currentBaseName,
+      testBaseName,
       isValidCase,
       hasCorrectPrefixSuffix,
       isValid, 
