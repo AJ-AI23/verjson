@@ -461,6 +461,34 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
       return { isValid: true };
     }
 
+    // If alternatives are defined, check if name matches any alternative
+    if (convention.alternatives && convention.alternatives.length > 0) {
+      for (const alternative of convention.alternatives) {
+        const altConvention = {
+          ...convention,
+          prefix: alternative.prefix,
+          suffix: alternative.suffix
+        };
+        const result = validateNamingConventionSingle(name, altConvention);
+        if (result.isValid) {
+          return { isValid: true };
+        }
+      }
+      // If no alternatives matched, return the suggestion for the first alternative
+      const firstAltConvention = {
+        ...convention,
+        prefix: convention.alternatives[0].prefix,
+        suffix: convention.alternatives[0].suffix
+      };
+      return validateNamingConventionSingle(name, firstAltConvention);
+    }
+
+    return validateNamingConventionSingle(name, convention);
+  }
+
+  // Helper function to validate naming convention for a single prefix/suffix combination
+  function validateNamingConventionSingle(name: string, convention: any): { isValid: boolean; suggestion?: string } {
+
     // Helper function to trim prefix/suffix case-insensitively
     function trimPrefixSuffix(inputName: string, prefix?: string, suffix?: string): string {
       let trimmed = inputName;
@@ -880,6 +908,51 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
     }
   }
 
+  // Check for operationId naming consistency
+  function checkOperationIdNaming(currentObj: any, path: string[] = []) {
+    if (currentObj === null || currentObj === undefined) {
+      return;
+    }
+
+    if (Array.isArray(currentObj)) {
+      currentObj.forEach((item, index) => {
+        checkOperationIdNaming(item, [...path, index.toString()]);
+      });
+    } else if (typeof currentObj === 'object') {
+      // Check if this is an operation object with an operationId
+      if (currentObj.operationId && typeof currentObj.operationId === 'string' && 
+          config?.operationIdNaming?.enabled) {
+        const operationId = currentObj.operationId;
+        
+        console.log('OperationId validation:', {
+          operationId,
+          config: config.operationIdNaming
+        });
+        
+        const validation = validateNamingConvention(operationId, config.operationIdNaming);
+        
+        console.log('OperationId validation result:', validation);
+        
+        if (!validation.isValid) {
+          issues.push({
+            type: 'operationid-naming',
+            path: [...path, 'operationId'].join('.'),
+            value: operationId,
+            suggestedName: validation.suggestion,
+            convention: config.operationIdNaming.caseType,
+            message: `OperationId "${operationId}" should follow ${config.operationIdNaming.caseType} convention${validation.suggestion ? `. Suggested: "${validation.suggestion}"` : ''}${config.operationIdNaming.alternatives && config.operationIdNaming.alternatives.length > 0 ? ' (checking against ' + (config.operationIdNaming.alternatives.length + 1) + ' alternative(s))' : ''}`,
+            severity: 'warning',
+            rule: 'OperationId Naming Convention'
+          });
+        }
+      }
+      
+      Object.keys(currentObj).forEach(key => {
+        checkOperationIdNaming(currentObj[key], [...path, key]);
+      });
+    }
+  }
+
   // Check for property naming consistency
   function checkPropertyNaming(currentObj: any, path: string[] = []) {
     if (currentObj === null || currentObj === undefined) {
@@ -1211,6 +1284,7 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
   checkParameterNaming(obj);
   checkComponentNaming(obj);
   checkEndpointNaming(obj);
+  checkOperationIdNaming(obj);
   checkPropertyNaming(obj);
   checkExamples(obj);
   checkSemanticRules(obj);

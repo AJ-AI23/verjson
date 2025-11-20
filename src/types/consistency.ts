@@ -1,3 +1,8 @@
+export interface NamingAlternative {
+  prefix?: string;
+  suffix?: string;
+}
+
 export interface NamingConvention {
   enabled: boolean;
   caseType: 'kebab-case' | 'camelCase' | 'snake_case' | 'PascalCase' | 'custom';
@@ -5,6 +10,7 @@ export interface NamingConvention {
   exclusions?: string[];
   prefix?: string;
   suffix?: string;
+  alternatives?: NamingAlternative[];
 }
 
 export interface SemanticRule {
@@ -23,6 +29,7 @@ export interface ConsistencyConfig {
   componentNaming: NamingConvention;
   endpointNaming: NamingConvention;
   propertyNaming: NamingConvention;
+  operationIdNaming: NamingConvention;
   semanticRules: SemanticRule[];
   presetName?: string;
 }
@@ -118,6 +125,12 @@ export const DEFAULT_CONFIG: ConsistencyConfig = {
     enabled: true,
     caseType: 'camelCase',
     exclusions: []
+  },
+  operationIdNaming: {
+    enabled: true,
+    caseType: 'camelCase',
+    exclusions: [],
+    alternatives: []
   },
   semanticRules: DEFAULT_SEMANTIC_RULES
 };
