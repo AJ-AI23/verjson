@@ -12,7 +12,8 @@ export const PRESET_CONFIGS: ConsistencyPreset[] = [
       queryParameterNaming: { enabled: true, caseType: 'kebab-case', exclusions: [] },
       pathParameterNaming: { enabled: true, caseType: 'kebab-case', exclusions: [] },
       endpointNaming: { enabled: true, caseType: 'kebab-case', exclusions: [] },
-      propertyNaming: { enabled: true, caseType: 'camelCase', exclusions: [] }
+      propertyNaming: { enabled: true, caseType: 'camelCase', exclusions: [] },
+      operationIdNaming: { enabled: true, caseType: 'camelCase', exclusions: [], alternatives: [] }
     }
   },
   {
@@ -23,7 +24,8 @@ export const PRESET_CONFIGS: ConsistencyPreset[] = [
       queryParameterNaming: { enabled: true, caseType: 'snake_case', exclusions: [] },
       pathParameterNaming: { enabled: true, caseType: 'snake_case', exclusions: [] },
       endpointNaming: { enabled: true, caseType: 'snake_case', exclusions: [] },
-      propertyNaming: { enabled: true, caseType: 'snake_case', exclusions: [] }
+      propertyNaming: { enabled: true, caseType: 'snake_case', exclusions: [] },
+      operationIdNaming: { enabled: true, caseType: 'snake_case', exclusions: [], alternatives: [] }
     }
   },
   {
@@ -34,7 +36,8 @@ export const PRESET_CONFIGS: ConsistencyPreset[] = [
       queryParameterNaming: { enabled: true, caseType: 'camelCase', exclusions: [] },
       pathParameterNaming: { enabled: true, caseType: 'camelCase', exclusions: [] },
       endpointNaming: { enabled: true, caseType: 'camelCase', exclusions: [] },
-      propertyNaming: { enabled: true, caseType: 'camelCase', exclusions: [] }
+      propertyNaming: { enabled: true, caseType: 'camelCase', exclusions: [] },
+      operationIdNaming: { enabled: true, caseType: 'camelCase', exclusions: [], alternatives: [] }
     }
   }
 ];

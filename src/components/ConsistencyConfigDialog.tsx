@@ -20,6 +20,7 @@ import { Settings, Download, Upload, RotateCcw } from 'lucide-react';
 import { useConsistencyConfig } from '@/hooks/useConsistencyConfig';
 import { ConsistencyConfig, NamingConvention, SemanticRule } from '@/types/consistency';
 import { useToast } from '@/hooks/use-toast';
+import { AlternativesEditor } from './ConsistencyConfigDialogWithAlternatives';
 
 interface ConsistencyConfigDialogProps {
   open: boolean;
@@ -54,7 +55,7 @@ export function ConsistencyConfigDialog({ open, onOpenChange }: ConsistencyConfi
   };
 
   const updateNamingConvention = (
-    type: 'queryParameterNaming' | 'pathParameterNaming' | 'componentNaming' | 'endpointNaming' | 'propertyNaming',
+    type: 'queryParameterNaming' | 'pathParameterNaming' | 'componentNaming' | 'endpointNaming' | 'propertyNaming' | 'operationIdNaming',
     updates: Partial<NamingConvention>
   ) => {
     setLocalConfig(prev => ({
@@ -87,7 +88,7 @@ export function ConsistencyConfigDialog({ open, onOpenChange }: ConsistencyConfi
   const renderNamingSection = (
     title: string,
     description: string,
-    type: 'queryParameterNaming' | 'pathParameterNaming' | 'componentNaming' | 'endpointNaming' | 'propertyNaming',
+    type: 'queryParameterNaming' | 'pathParameterNaming' | 'componentNaming' | 'endpointNaming' | 'propertyNaming' | 'operationIdNaming',
     convention: NamingConvention
   ) => (
     <div className="border rounded-lg p-4 space-y-3">
@@ -219,6 +220,73 @@ export function ConsistencyConfigDialog({ open, onOpenChange }: ConsistencyConfi
                 {renderNamingSection('Component Names', 'Enforce naming conventions for reusable schema components', 'componentNaming', localConfig.componentNaming)}
                 {renderNamingSection('Endpoint Paths', 'Enforce naming conventions for API endpoint path segments', 'endpointNaming', localConfig.endpointNaming)}
                 {renderNamingSection('Property Names', 'Enforce naming conventions for object properties in schemas', 'propertyNaming', localConfig.propertyNaming)}
+                
+                {/* OperationId naming with alternatives support */}
+                <div className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={localConfig.operationIdNaming?.enabled || false}
+                        onCheckedChange={(enabled) => updateNamingConvention('operationIdNaming', { enabled })}
+                      />
+                      <Label className="font-medium">OperationId</Label>
+                    </div>
+                  </div>
+                  
+                  <p className="text-sm text-muted-foreground">
+                    Enforce naming conventions for operationId properties with support for multiple alternatives
+                  </p>
+                  
+                  {localConfig.operationIdNaming?.enabled && (
+                    <div className="space-y-3">
+                      <div>
+                        <Label>Case Convention</Label>
+                        <Select
+                          value={localConfig.operationIdNaming.caseType}
+                          onValueChange={(value: any) => updateNamingConvention('operationIdNaming', { caseType: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="kebab-case">kebab-case</SelectItem>
+                            <SelectItem value="camelCase">camelCase</SelectItem>
+                            <SelectItem value="snake_case">snake_case</SelectItem>
+                            <SelectItem value="PascalCase">PascalCase</SelectItem>
+                            <SelectItem value="custom">Custom Pattern</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      {localConfig.operationIdNaming.caseType === 'custom' && (
+                        <div>
+                          <Label>Custom Pattern (RegEx)</Label>
+                          <Input
+                            placeholder="^[a-z]+(-[a-z]+)*$"
+                            value={localConfig.operationIdNaming.customPattern || ''}
+                            onChange={(e) => updateNamingConvention('operationIdNaming', { customPattern: e.target.value })}
+                          />
+                        </div>
+                      )}
+                      
+                      <AlternativesEditor
+                        alternatives={localConfig.operationIdNaming.alternatives || []}
+                        onChange={(alternatives) => updateNamingConvention('operationIdNaming', { alternatives })}
+                      />
+                      
+                      <div>
+                        <Label>Exclusions (comma-separated)</Label>
+                        <Input
+                          placeholder="health, metrics, status"
+                          value={localConfig.operationIdNaming.exclusions?.join(', ') || ''}
+                          onChange={(e) => updateNamingConvention('operationIdNaming', { 
+                            exclusions: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                          })}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </TabsContent>
 
