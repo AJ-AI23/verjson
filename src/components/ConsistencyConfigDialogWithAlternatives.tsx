@@ -2,6 +2,7 @@ import React from 'react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, X } from 'lucide-react';
 import { NamingAlternative } from '@/types/consistency';
 
@@ -10,9 +11,11 @@ interface AlternativesEditorProps {
   onChange: (alternatives: NamingAlternative[]) => void;
 }
 
+const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
+
 export function AlternativesEditor({ alternatives, onChange }: AlternativesEditorProps) {
   const addAlternative = () => {
-    onChange([...(alternatives || []), { prefix: '', suffix: '' }]);
+    onChange([...(alternatives || []), { prefix: '', suffix: '', method: '' }]);
   };
 
   const removeAlternative = (index: number) => {
@@ -50,7 +53,23 @@ export function AlternativesEditor({ alternatives, onChange }: AlternativesEdito
               <span className="text-sm text-muted-foreground min-w-[80px]">
                 Alternative {index + 1}:
               </span>
-              <div className="flex-1 grid grid-cols-2 gap-2">
+              <div className="flex-1 grid grid-cols-3 gap-2">
+                <Select
+                  value={alternative.method || ''}
+                  onValueChange={(value) => updateAlternative(index, { method: value || undefined })}
+                >
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder="Any Method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Any</SelectItem>
+                    {HTTP_METHODS.map((method) => (
+                      <SelectItem key={method} value={method}>
+                        {method}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Input
                   placeholder="Prefix"
                   value={alternative.prefix || ''}
@@ -77,7 +96,7 @@ export function AlternativesEditor({ alternatives, onChange }: AlternativesEdito
           ))}
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">No alternatives defined. Click "Add Alternative" to add prefix/suffix combinations.</p>
+        <p className="text-sm text-muted-foreground">No alternatives defined. Click "Add Alternative" to add method/prefix/suffix combinations.</p>
       )}
     </div>
   );
