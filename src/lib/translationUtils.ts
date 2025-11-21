@@ -447,8 +447,8 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
   });
 
   // Helper function to validate naming convention
-  function validateNamingConvention(name: string, convention: any): { isValid: boolean; suggestion?: string } {
-    console.log('validateNamingConvention called with:', { name, convention });
+  function validateNamingConvention(name: string, convention: any, actualMethod?: string): { isValid: boolean; suggestion?: string } {
+    console.log('validateNamingConvention called with:', { name, convention, actualMethod });
     
     if (!convention || convention.exclusions?.includes(name)) {
       console.log('Convention not defined or name in exclusions, returning valid');
@@ -463,7 +463,12 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
 
     // If alternatives are defined, check if name matches any alternative
     if (convention.alternatives && convention.alternatives.length > 0) {
-      for (const alternative of convention.alternatives) {
+      // Filter alternatives by method if provided
+      const matchingAlternatives = convention.alternatives.filter((alt: any) => 
+        !alt.method || !actualMethod || alt.method.toUpperCase() === actualMethod.toUpperCase()
+      );
+
+      for (const alternative of matchingAlternatives) {
         const altConvention = {
           ...convention,
           prefix: alternative.prefix,
@@ -474,13 +479,15 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
           return { isValid: true };
         }
       }
-      // If no alternatives matched, return the suggestion for the first alternative
-      const firstAltConvention = {
+      
+      // If no alternatives matched, return the suggestion for the best matching alternative
+      const bestAlternative = matchingAlternatives.length > 0 ? matchingAlternatives[0] : convention.alternatives[0];
+      const bestAltConvention = {
         ...convention,
-        prefix: convention.alternatives[0].prefix,
-        suffix: convention.alternatives[0].suffix
+        prefix: bestAlternative.prefix,
+        suffix: bestAlternative.suffix
       };
-      return validateNamingConventionSingle(name, firstAltConvention);
+      return validateNamingConventionSingle(name, bestAltConvention);
     }
 
     return validateNamingConventionSingle(name, convention);
@@ -918,14 +925,14 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
   }
 
   // Check for operationId naming consistency
-  function checkOperationIdNaming(currentObj: any, path: string[] = []) {
+  function checkOperationIdNaming(currentObj: any, path: string[] = [], httpMethod?: string) {
     if (currentObj === null || currentObj === undefined) {
       return;
     }
 
     if (Array.isArray(currentObj)) {
       currentObj.forEach((item, index) => {
-        checkOperationIdNaming(item, [...path, index.toString()]);
+        checkOperationIdNaming(item, [...path, index.toString()], httpMethod);
       });
     } else if (typeof currentObj === 'object') {
       // Check if this is an operation object with an operationId
@@ -935,29 +942,35 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
         
         console.log('OperationId validation:', {
           operationId,
+          httpMethod,
           config: config.operationIdNaming
         });
         
-        const validation = validateNamingConvention(operationId, config.operationIdNaming);
+        const validation = validateNamingConvention(operationId, config.operationIdNaming, httpMethod);
         
         console.log('OperationId validation result:', validation);
         
         if (!validation.isValid) {
+          const methodInfo = httpMethod ? ` for ${httpMethod}` : '';
+          const altCount = config.operationIdNaming.alternatives?.length || 0;
           issues.push({
             type: 'operationid-naming',
             path: [...path, 'operationId'].join('.'),
             value: operationId,
             suggestedName: validation.suggestion,
             convention: config.operationIdNaming.caseType,
-            message: `OperationId "${operationId}" should follow ${config.operationIdNaming.caseType} convention${validation.suggestion ? `. Suggested: "${validation.suggestion}"` : ''}${config.operationIdNaming.alternatives && config.operationIdNaming.alternatives.length > 0 ? ' (checking against ' + (config.operationIdNaming.alternatives.length + 1) + ' alternative(s))' : ''}`,
+            message: `OperationId "${operationId}" should follow ${config.operationIdNaming.caseType} convention${methodInfo}${validation.suggestion ? `. Suggested: "${validation.suggestion}"` : ''}${altCount > 0 ? ` (checking against ${altCount} alternative(s))` : ''}`,
             severity: 'warning',
             rule: 'OperationId Naming Convention'
           });
         }
       }
       
+      // Check if we're in a paths object - extract HTTP method
+      const httpMethods = ['get', 'post', 'put', 'patch', 'delete', 'options', 'head', 'trace'];
       Object.keys(currentObj).forEach(key => {
-        checkOperationIdNaming(currentObj[key], [...path, key]);
+        const newHttpMethod = httpMethods.includes(key.toLowerCase()) ? key.toUpperCase() : httpMethod;
+        checkOperationIdNaming(currentObj[key], [...path, key], newHttpMethod);
       });
     }
   }

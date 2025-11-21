@@ -1,6 +1,7 @@
 export interface NamingAlternative {
   prefix?: string;
   suffix?: string;
+  method?: string;
 }
 
 export interface NamingConvention {
