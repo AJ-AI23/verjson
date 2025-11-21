@@ -55,14 +55,14 @@ export function AlternativesEditor({ alternatives, onChange }: AlternativesEdito
               </span>
               <div className="flex-1 grid grid-cols-3 gap-2">
                 <Select
-                  value={alternative.method || ''}
-                  onValueChange={(value) => updateAlternative(index, { method: value || undefined })}
+                  value={alternative.method || 'any'}
+                  onValueChange={(value) => updateAlternative(index, { method: value === 'any' ? undefined : value })}
                 >
                   <SelectTrigger className="h-8">
                     <SelectValue placeholder="Any Method" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any</SelectItem>
+                    <SelectItem value="any">Any</SelectItem>
                     {HTTP_METHODS.map((method) => (
                       <SelectItem key={method} value={method}>
                         {method}
