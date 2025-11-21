@@ -472,7 +472,9 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
         const altConvention = {
           ...convention,
           prefix: alternative.prefix,
-          suffix: alternative.suffix
+          suffix: alternative.suffix,
+          // pass through all alternatives so trimming can remove any known prefix/suffix
+          alternatives: convention.alternatives,
         };
         const result = validateNamingConventionSingle(name, altConvention);
         if (result.isValid) {
@@ -485,7 +487,8 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
       const bestAltConvention = {
         ...convention,
         prefix: bestAlternative.prefix,
-        suffix: bestAlternative.suffix
+        suffix: bestAlternative.suffix,
+        alternatives: convention.alternatives,
       };
       return validateNamingConventionSingle(name, bestAltConvention);
     }
@@ -497,20 +500,44 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
   function validateNamingConventionSingle(name: string, convention: any): { isValid: boolean; suggestion?: string } {
 
     // Helper function to trim prefix/suffix case-insensitively
-    function trimPrefixSuffix(inputName: string, prefix?: string, suffix?: string): string {
+    function trimPrefixSuffix(inputName: string, prefix?: string, suffix?: string, allPrefixes?: string[], allSuffixes?: string[]): string {
       let trimmed = inputName;
+
+      // Remove any known prefix (longest match first) case-insensitively
+      if (allPrefixes && allPrefixes.length > 0) {
+        const sorted = [...allPrefixes].filter(Boolean).sort((a, b) => b.length - a.length);
+        for (const p of sorted) {
+          const regex = new RegExp(`^${p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, 'i');
+          if (regex.test(trimmed)) {
+            trimmed = trimmed.substring(p.length);
+            break;
+          }
+        }
+      }
       
-      // Remove existing prefix case-insensitively
+      // Fallback: remove specific prefix if still present
       if (prefix) {
-        const regex = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
+        const regex = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, 'i');
         if (regex.test(trimmed)) {
           trimmed = trimmed.substring(prefix.length);
         }
       }
       
-      // Remove existing suffix case-insensitively
+      // Remove any known suffix (longest match first) case-insensitively
+      if (allSuffixes && allSuffixes.length > 0) {
+        const sorted = [...allSuffixes].filter(Boolean).sort((a, b) => b.length - a.length);
+        for (const s of sorted) {
+          const regex = new RegExp(`${s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, 'i');
+          if (regex.test(trimmed)) {
+            trimmed = trimmed.substring(0, trimmed.length - s.length);
+            break;
+          }
+        }
+      }
+      
+      // Fallback: remove specific suffix if still present
       if (suffix) {
-        const regex = new RegExp(`${suffix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+        const regex = new RegExp(`${suffix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, 'i');
         if (regex.test(trimmed)) {
           trimmed = trimmed.substring(0, trimmed.length - suffix.length);
         }
@@ -520,7 +547,9 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
     }
 
     // Extract base name for case conversion, trimming any existing prefix/suffix
-    let baseName = trimPrefixSuffix(name, convention.prefix, convention.suffix);
+    const allPrefixes: string[] | undefined = convention.alternatives?.map((a: any) => a.prefix).filter(Boolean);
+    const allSuffixes: string[] | undefined = convention.alternatives?.map((a: any) => a.suffix).filter(Boolean);
+    let baseName = trimPrefixSuffix(name, convention.prefix, convention.suffix, allPrefixes, allSuffixes);
 
     const caseType = convention.caseType;
     let pattern: RegExp;
