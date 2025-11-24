@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Copy, Download, Languages, FileText, CheckCircle, AlertTriangle, XCircle, Search, Upload, Settings, Filter, FilterX, HelpCircle, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { useToast } from '@/hooks/use-toast';
@@ -1104,122 +1105,144 @@ export const QADialog: React.FC<QADialogProps> = ({
                         />
                       </div>
 
-                      {/* Filter Categories */}
-                      <div className="grid grid-cols-2 gap-3">
-                        {/* HTTP Methods */}
-                        {inspectionData.methods.size > 0 && (
-                          <Card className="p-3">
-                            <div className="text-xs font-medium mb-2 text-muted-foreground">HTTP Methods</div>
-                            <div className="flex flex-wrap gap-1">
-                              {Array.from(inspectionData.methods).sort().map(method => (
-                                <Badge
-                                  key={method}
-                                  variant={inspectionFilters.methods.has(method) ? "default" : "outline"}
-                                  className="cursor-pointer text-xs"
-                                  onClick={() => toggleInspectionFilter('methods', method)}
-                                >
-                                  {method}
+                      {/* Filters Accordion */}
+                      <Accordion type="single" collapsible defaultValue="filters">
+                        <AccordionItem value="filters">
+                          <AccordionTrigger>
+                            <div className="flex items-center gap-2">
+                              <Filter className="h-4 w-4" />
+                              <span>Filters</span>
+                              {hasActiveInspectionFilters && (
+                                <Badge variant="secondary" className="ml-2">
+                                  {inspectionFilters.methods.size + 
+                                   inspectionFilters.tags.size + 
+                                   inspectionFilters.contentTypes.size + 
+                                   inspectionFilters.responseCodes.size + 
+                                   inspectionFilters.componentTypes.size + 
+                                   inspectionFilters.parameterTypes.size} active
                                 </Badge>
-                              ))}
+                              )}
                             </div>
-                          </Card>
-                        )}
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="grid grid-cols-2 gap-3 pt-2">
+                              {/* HTTP Methods */}
+                              {inspectionData.methods.size > 0 && (
+                                <Card className="p-3">
+                                  <div className="text-xs font-medium mb-2 text-muted-foreground">HTTP Methods</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {Array.from(inspectionData.methods).sort().map(method => (
+                                      <Badge
+                                        key={method}
+                                        variant={inspectionFilters.methods.has(method) ? "default" : "outline"}
+                                        className="cursor-pointer text-xs"
+                                        onClick={() => toggleInspectionFilter('methods', method)}
+                                      >
+                                        {method}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </Card>
+                              )}
 
-                        {/* Tags */}
-                        {inspectionData.tags.size > 0 && (
-                          <Card className="p-3">
-                            <div className="text-xs font-medium mb-2 text-muted-foreground">Tags</div>
-                            <div className="flex flex-wrap gap-1">
-                              {Array.from(inspectionData.tags).sort().map(tag => (
-                                <Badge
-                                  key={tag}
-                                  variant={inspectionFilters.tags.has(tag) ? "default" : "outline"}
-                                  className="cursor-pointer text-xs"
-                                  onClick={() => toggleInspectionFilter('tags', tag)}
-                                >
-                                  {tag}
-                                </Badge>
-                              ))}
-                            </div>
-                          </Card>
-                        )}
+                              {/* Tags */}
+                              {inspectionData.tags.size > 0 && (
+                                <Card className="p-3">
+                                  <div className="text-xs font-medium mb-2 text-muted-foreground">Tags</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {Array.from(inspectionData.tags).sort().map(tag => (
+                                      <Badge
+                                        key={tag}
+                                        variant={inspectionFilters.tags.has(tag) ? "default" : "outline"}
+                                        className="cursor-pointer text-xs"
+                                        onClick={() => toggleInspectionFilter('tags', tag)}
+                                      >
+                                        {tag}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </Card>
+                              )}
 
-                        {/* Content Types */}
-                        {inspectionData.contentTypes.size > 0 && (
-                          <Card className="p-3">
-                            <div className="text-xs font-medium mb-2 text-muted-foreground">Content Types</div>
-                            <div className="flex flex-wrap gap-1">
-                              {Array.from(inspectionData.contentTypes).sort().map(ct => (
-                                <Badge
-                                  key={ct}
-                                  variant={inspectionFilters.contentTypes.has(ct) ? "default" : "outline"}
-                                  className="cursor-pointer text-xs"
-                                  onClick={() => toggleInspectionFilter('contentTypes', ct)}
-                                >
-                                  {ct}
-                                </Badge>
-                              ))}
-                            </div>
-                          </Card>
-                        )}
+                              {/* Content Types */}
+                              {inspectionData.contentTypes.size > 0 && (
+                                <Card className="p-3">
+                                  <div className="text-xs font-medium mb-2 text-muted-foreground">Content Types</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {Array.from(inspectionData.contentTypes).sort().map(ct => (
+                                      <Badge
+                                        key={ct}
+                                        variant={inspectionFilters.contentTypes.has(ct) ? "default" : "outline"}
+                                        className="cursor-pointer text-xs"
+                                        onClick={() => toggleInspectionFilter('contentTypes', ct)}
+                                      >
+                                        {ct}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </Card>
+                              )}
 
-                        {/* Response Codes */}
-                        {inspectionData.responseCodes.size > 0 && (
-                          <Card className="p-3">
-                            <div className="text-xs font-medium mb-2 text-muted-foreground">Response Codes</div>
-                            <div className="flex flex-wrap gap-1">
-                              {Array.from(inspectionData.responseCodes).sort().map(code => (
-                                <Badge
-                                  key={code}
-                                  variant={inspectionFilters.responseCodes.has(code) ? "default" : "outline"}
-                                  className="cursor-pointer text-xs"
-                                  onClick={() => toggleInspectionFilter('responseCodes', code)}
-                                >
-                                  {code}
-                                </Badge>
-                              ))}
-                            </div>
-                          </Card>
-                        )}
+                              {/* Response Codes */}
+                              {inspectionData.responseCodes.size > 0 && (
+                                <Card className="p-3">
+                                  <div className="text-xs font-medium mb-2 text-muted-foreground">Response Codes</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {Array.from(inspectionData.responseCodes).sort().map(code => (
+                                      <Badge
+                                        key={code}
+                                        variant={inspectionFilters.responseCodes.has(code) ? "default" : "outline"}
+                                        className="cursor-pointer text-xs"
+                                        onClick={() => toggleInspectionFilter('responseCodes', code)}
+                                      >
+                                        {code}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </Card>
+                              )}
 
-                        {/* Component Types */}
-                        {inspectionData.componentTypes.size > 0 && (
-                          <Card className="p-3">
-                            <div className="text-xs font-medium mb-2 text-muted-foreground">Component Types</div>
-                            <div className="flex flex-wrap gap-1">
-                              {Array.from(inspectionData.componentTypes).sort().map(type => (
-                                <Badge
-                                  key={type}
-                                  variant={inspectionFilters.componentTypes.has(type) ? "default" : "outline"}
-                                  className="cursor-pointer text-xs"
-                                  onClick={() => toggleInspectionFilter('componentTypes', type)}
-                                >
-                                  {type}
-                                </Badge>
-                              ))}
-                            </div>
-                          </Card>
-                        )}
+                              {/* Component Types */}
+                              {inspectionData.componentTypes.size > 0 && (
+                                <Card className="p-3">
+                                  <div className="text-xs font-medium mb-2 text-muted-foreground">Component Types</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {Array.from(inspectionData.componentTypes).sort().map(type => (
+                                      <Badge
+                                        key={type}
+                                        variant={inspectionFilters.componentTypes.has(type) ? "default" : "outline"}
+                                        className="cursor-pointer text-xs"
+                                        onClick={() => toggleInspectionFilter('componentTypes', type)}
+                                      >
+                                        {type}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </Card>
+                              )}
 
-                        {/* Parameter Types */}
-                        {inspectionData.parameterTypes.size > 0 && (
-                          <Card className="p-3">
-                            <div className="text-xs font-medium mb-2 text-muted-foreground">Parameter Types</div>
-                            <div className="flex flex-wrap gap-1">
-                              {Array.from(inspectionData.parameterTypes).sort().map(type => (
-                                <Badge
-                                  key={type}
-                                  variant={inspectionFilters.parameterTypes.has(type) ? "default" : "outline"}
-                                  className="cursor-pointer text-xs"
-                                  onClick={() => toggleInspectionFilter('parameterTypes', type)}
-                                >
-                                  {type}
-                                </Badge>
-                              ))}
+                              {/* Parameter Types */}
+                              {inspectionData.parameterTypes.size > 0 && (
+                                <Card className="p-3">
+                                  <div className="text-xs font-medium mb-2 text-muted-foreground">Parameter Types</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {Array.from(inspectionData.parameterTypes).sort().map(type => (
+                                      <Badge
+                                        key={type}
+                                        variant={inspectionFilters.parameterTypes.has(type) ? "default" : "outline"}
+                                        className="cursor-pointer text-xs"
+                                        onClick={() => toggleInspectionFilter('parameterTypes', type)}
+                                      >
+                                        {type}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </Card>
+                              )}
                             </div>
-                          </Card>
-                        )}
-                      </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
                     </div>
 
                     {/* Results */}
