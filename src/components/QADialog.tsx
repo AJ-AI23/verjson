@@ -40,6 +40,15 @@ export const QADialog: React.FC<QADialogProps> = ({
   const [groupingStrategy, setGroupingStrategy] = useState<'property' | 'value'>('property');
   const [filterValue, setFilterValue] = useState('');
   const [filterError, setFilterError] = useState<string | null>(null);
+  const [inspectionFilters, setInspectionFilters] = useState({
+    methods: new Set<string>(),
+    contentTypes: new Set<string>(),
+    responseCodes: new Set<string>(),
+    tags: new Set<string>(),
+    componentTypes: new Set<string>(),
+    parameterTypes: new Set<string>(),
+  });
+  const [inspectionSearchQuery, setInspectionSearchQuery] = useState('');
   const [crowdinDialogOpen, setCrowdinDialogOpen] = useState(false);
   const [crowdinImportDialogOpen, setCrowdinImportDialogOpen] = useState(false);
   const [importAvailable, setImportAvailable] = useState(false);
@@ -359,6 +368,257 @@ export const QADialog: React.FC<QADialogProps> = ({
     return Array.from(props).sort();
   }, [translationData.entries]);
 
+  // Extract inspection data from schema
+  const inspectionData = useMemo(() => {
+    try {
+      const parsedSchema = JSON.parse(schema);
+      const data = {
+        methods: new Set<string>(),
+        contentTypes: new Set<string>(),
+        responseCodes: new Set<string>(),
+        tags: new Set<string>(),
+        componentTypes: new Set<string>(),
+        parameterTypes: new Set<string>(),
+        operationIds: [] as Array<{ id: string; method: string; path: string }>,
+        paths: [] as string[],
+        components: [] as Array<{ type: string; name: string }>,
+        securities: [] as string[],
+      };
+
+      // Extract from paths
+      if (parsedSchema.paths) {
+        Object.entries(parsedSchema.paths).forEach(([path, pathItem]: [string, any]) => {
+          data.paths.push(path);
+          
+          ['get', 'post', 'put', 'patch', 'delete', 'options', 'head', 'trace'].forEach(method => {
+            if (pathItem[method]) {
+              const operation = pathItem[method];
+              data.methods.add(method.toUpperCase());
+              
+              if (operation.operationId) {
+                data.operationIds.push({
+                  id: operation.operationId,
+                  method: method.toUpperCase(),
+                  path
+                });
+              }
+              
+              if (operation.tags) {
+                operation.tags.forEach((tag: string) => data.tags.add(tag));
+              }
+              
+              if (operation.parameters) {
+                operation.parameters.forEach((param: any) => {
+                  if (param.in) {
+                    data.parameterTypes.add(param.in);
+                  }
+                });
+              }
+              
+              if (operation.requestBody?.content) {
+                Object.keys(operation.requestBody.content).forEach(ct => 
+                  data.contentTypes.add(ct)
+                );
+              }
+              
+              if (operation.responses) {
+                Object.entries(operation.responses).forEach(([code, response]: [string, any]) => {
+                  data.responseCodes.add(code);
+                  if (response.content) {
+                    Object.keys(response.content).forEach(ct => 
+                      data.contentTypes.add(ct)
+                    );
+                  }
+                });
+              }
+              
+              if (operation.security) {
+                operation.security.forEach((secReq: any) => {
+                  Object.keys(secReq).forEach(secName => 
+                    data.securities.push(secName)
+                  );
+                });
+              }
+            }
+          });
+        });
+      }
+
+      // Extract from components
+      if (parsedSchema.components) {
+        Object.entries(parsedSchema.components).forEach(([type, items]: [string, any]) => {
+          data.componentTypes.add(type);
+          if (typeof items === 'object' && items !== null) {
+            Object.keys(items).forEach(name => {
+              data.components.push({ type, name });
+            });
+          }
+        });
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Failed to extract inspection data:', error);
+      return {
+        methods: new Set<string>(),
+        contentTypes: new Set<string>(),
+        responseCodes: new Set<string>(),
+        tags: new Set<string>(),
+        componentTypes: new Set<string>(),
+        parameterTypes: new Set<string>(),
+        operationIds: [],
+        paths: [],
+        components: [],
+        securities: [],
+      };
+    }
+  }, [schema]);
+
+  // Filter inspection results
+  const filteredInspectionResults = useMemo(() => {
+    let results = {
+      operationIds: [...inspectionData.operationIds],
+      paths: [...inspectionData.paths],
+      components: [...inspectionData.components],
+      securities: [...inspectionData.securities],
+    };
+
+    // Apply filter selections
+    if (inspectionFilters.methods.size > 0) {
+      results.operationIds = results.operationIds.filter(op => 
+        inspectionFilters.methods.has(op.method)
+      );
+    }
+
+    if (inspectionFilters.tags.size > 0) {
+      // Filter by tags - need to re-parse to check operation tags
+      try {
+        const parsedSchema = JSON.parse(schema);
+        results.operationIds = results.operationIds.filter(op => {
+          const pathItem = parsedSchema.paths?.[op.path];
+          const operation = pathItem?.[op.method.toLowerCase()];
+          return operation?.tags?.some((tag: string) => inspectionFilters.tags.has(tag));
+        });
+      } catch (e) {}
+    }
+
+    if (inspectionFilters.componentTypes.size > 0) {
+      results.components = results.components.filter(comp => 
+        inspectionFilters.componentTypes.has(comp.type)
+      );
+    }
+
+    if (inspectionFilters.parameterTypes.size > 0) {
+      // Filter operations by parameter types
+      try {
+        const parsedSchema = JSON.parse(schema);
+        results.operationIds = results.operationIds.filter(op => {
+          const pathItem = parsedSchema.paths?.[op.path];
+          const operation = pathItem?.[op.method.toLowerCase()];
+          return operation?.parameters?.some((param: any) => 
+            inspectionFilters.parameterTypes.has(param.in)
+          );
+        });
+      } catch (e) {}
+    }
+
+    if (inspectionFilters.responseCodes.size > 0) {
+      // Filter operations by response codes
+      try {
+        const parsedSchema = JSON.parse(schema);
+        results.operationIds = results.operationIds.filter(op => {
+          const pathItem = parsedSchema.paths?.[op.path];
+          const operation = pathItem?.[op.method.toLowerCase()];
+          return operation?.responses && 
+            Object.keys(operation.responses).some(code => 
+              inspectionFilters.responseCodes.has(code)
+            );
+        });
+      } catch (e) {}
+    }
+
+    if (inspectionFilters.contentTypes.size > 0) {
+      // Filter operations by content types
+      try {
+        const parsedSchema = JSON.parse(schema);
+        results.operationIds = results.operationIds.filter(op => {
+          const pathItem = parsedSchema.paths?.[op.path];
+          const operation = pathItem?.[op.method.toLowerCase()];
+          
+          // Check request body content types
+          const requestContentTypes = operation?.requestBody?.content ? 
+            Object.keys(operation.requestBody.content) : [];
+          
+          // Check response content types
+          const responseContentTypes = operation?.responses ? 
+            Object.values(operation.responses).flatMap((resp: any) => 
+              resp.content ? Object.keys(resp.content) : []
+            ) : [];
+          
+          const allContentTypes = [...requestContentTypes, ...responseContentTypes];
+          return allContentTypes.some(ct => inspectionFilters.contentTypes.has(ct));
+        });
+      } catch (e) {}
+    }
+
+    // Apply search query
+    if (inspectionSearchQuery.trim()) {
+      const query = inspectionSearchQuery.toLowerCase();
+      results.operationIds = results.operationIds.filter(op => 
+        op.id.toLowerCase().includes(query) || 
+        op.path.toLowerCase().includes(query) ||
+        op.method.toLowerCase().includes(query)
+      );
+      results.paths = results.paths.filter(p => 
+        p.toLowerCase().includes(query)
+      );
+      results.components = results.components.filter(c => 
+        c.name.toLowerCase().includes(query) ||
+        c.type.toLowerCase().includes(query)
+      );
+      results.securities = results.securities.filter(s => 
+        s.toLowerCase().includes(query)
+      );
+    }
+
+    return results;
+  }, [inspectionData, inspectionFilters, inspectionSearchQuery, schema]);
+
+  const toggleInspectionFilter = (category: keyof typeof inspectionFilters, value: string) => {
+    setInspectionFilters(prev => {
+      const newFilters = { ...prev };
+      const filterSet = new Set(prev[category]);
+      if (filterSet.has(value)) {
+        filterSet.delete(value);
+      } else {
+        filterSet.add(value);
+      }
+      newFilters[category] = filterSet;
+      return newFilters;
+    });
+  };
+
+  const clearInspectionFilters = () => {
+    setInspectionFilters({
+      methods: new Set(),
+      contentTypes: new Set(),
+      responseCodes: new Set(),
+      tags: new Set(),
+      componentTypes: new Set(),
+      parameterTypes: new Set(),
+    });
+    setInspectionSearchQuery('');
+  };
+
+  const hasActiveInspectionFilters = 
+    inspectionFilters.methods.size > 0 ||
+    inspectionFilters.contentTypes.size > 0 ||
+    inspectionFilters.responseCodes.size > 0 ||
+    inspectionFilters.tags.size > 0 ||
+    inspectionFilters.componentTypes.size > 0 ||
+    inspectionFilters.parameterTypes.size > 0 ||
+    inspectionSearchQuery.trim() !== '';
+
   const handleValidateSchema = async () => {
     setIsValidating(true);
     try {
@@ -616,7 +876,7 @@ export const QADialog: React.FC<QADialogProps> = ({
                 <div className="overflow-x-auto shrink-0">
                   <TabsList className="inline-flex w-auto min-w-full">
                     <TabsTrigger value="grouped" className="flex-shrink-0">Grouped View</TabsTrigger>
-                    <TabsTrigger value="flat" className="flex-shrink-0">Flat Index</TabsTrigger>
+                    <TabsTrigger value="inspection" className="flex-shrink-0">Inspection</TabsTrigger>
                     <TabsTrigger value="syntax" className="flex-shrink-0">Syntax</TabsTrigger>
                     <TabsTrigger value="consistency" className="flex-shrink-0 relative">
                       Consistency
@@ -814,23 +1074,278 @@ export const QADialog: React.FC<QADialogProps> = ({
               </ScrollArea>
                 </TabsContent>
               
-                <TabsContent value="flat" className="flex-1 min-h-0 mt-4 data-[state=active]:flex data-[state=active]:flex-col">
-                  <ScrollArea className="flex-1 min-h-0 w-full">
-                <div className="space-y-2">
-                  {translationData.entries.map((entry, index) => (
-                    <div key={index} className="p-3 border rounded text-sm">
-                      <div className="min-w-0">
-                        <div className="font-mono text-xs text-muted-foreground mb-1 break-all">
-                          {entry.key}
-                        </div>
-                        <div className="text-foreground break-words">
-                          "{entry.value}"
-                        </div>
+                <TabsContent value="inspection" className="flex-1 min-h-0 mt-4 data-[state=active]:flex data-[state=active]:flex-col">
+                  <div className="flex flex-col gap-4 flex-1 min-h-0">
+                    {/* Filter Controls */}
+                    <div className="space-y-4 shrink-0">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-medium">OpenAPI Specification Inspector</h3>
+                        {hasActiveInspectionFilters && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={clearInspectionFilters}
+                            className="h-8 gap-2"
+                          >
+                            <FilterX className="h-4 w-4" />
+                            Clear Filters
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Search Query */}
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search operations, paths, components..."
+                          value={inspectionSearchQuery}
+                          onChange={(e) => setInspectionSearchQuery(e.target.value)}
+                          className="pl-9"
+                        />
+                      </div>
+
+                      {/* Filter Categories */}
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* HTTP Methods */}
+                        {inspectionData.methods.size > 0 && (
+                          <Card className="p-3">
+                            <div className="text-xs font-medium mb-2 text-muted-foreground">HTTP Methods</div>
+                            <div className="flex flex-wrap gap-1">
+                              {Array.from(inspectionData.methods).sort().map(method => (
+                                <Badge
+                                  key={method}
+                                  variant={inspectionFilters.methods.has(method) ? "default" : "outline"}
+                                  className="cursor-pointer text-xs"
+                                  onClick={() => toggleInspectionFilter('methods', method)}
+                                >
+                                  {method}
+                                </Badge>
+                              ))}
+                            </div>
+                          </Card>
+                        )}
+
+                        {/* Tags */}
+                        {inspectionData.tags.size > 0 && (
+                          <Card className="p-3">
+                            <div className="text-xs font-medium mb-2 text-muted-foreground">Tags</div>
+                            <div className="flex flex-wrap gap-1">
+                              {Array.from(inspectionData.tags).sort().map(tag => (
+                                <Badge
+                                  key={tag}
+                                  variant={inspectionFilters.tags.has(tag) ? "default" : "outline"}
+                                  className="cursor-pointer text-xs"
+                                  onClick={() => toggleInspectionFilter('tags', tag)}
+                                >
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          </Card>
+                        )}
+
+                        {/* Content Types */}
+                        {inspectionData.contentTypes.size > 0 && (
+                          <Card className="p-3">
+                            <div className="text-xs font-medium mb-2 text-muted-foreground">Content Types</div>
+                            <div className="flex flex-wrap gap-1">
+                              {Array.from(inspectionData.contentTypes).sort().map(ct => (
+                                <Badge
+                                  key={ct}
+                                  variant={inspectionFilters.contentTypes.has(ct) ? "default" : "outline"}
+                                  className="cursor-pointer text-xs"
+                                  onClick={() => toggleInspectionFilter('contentTypes', ct)}
+                                >
+                                  {ct}
+                                </Badge>
+                              ))}
+                            </div>
+                          </Card>
+                        )}
+
+                        {/* Response Codes */}
+                        {inspectionData.responseCodes.size > 0 && (
+                          <Card className="p-3">
+                            <div className="text-xs font-medium mb-2 text-muted-foreground">Response Codes</div>
+                            <div className="flex flex-wrap gap-1">
+                              {Array.from(inspectionData.responseCodes).sort().map(code => (
+                                <Badge
+                                  key={code}
+                                  variant={inspectionFilters.responseCodes.has(code) ? "default" : "outline"}
+                                  className="cursor-pointer text-xs"
+                                  onClick={() => toggleInspectionFilter('responseCodes', code)}
+                                >
+                                  {code}
+                                </Badge>
+                              ))}
+                            </div>
+                          </Card>
+                        )}
+
+                        {/* Component Types */}
+                        {inspectionData.componentTypes.size > 0 && (
+                          <Card className="p-3">
+                            <div className="text-xs font-medium mb-2 text-muted-foreground">Component Types</div>
+                            <div className="flex flex-wrap gap-1">
+                              {Array.from(inspectionData.componentTypes).sort().map(type => (
+                                <Badge
+                                  key={type}
+                                  variant={inspectionFilters.componentTypes.has(type) ? "default" : "outline"}
+                                  className="cursor-pointer text-xs"
+                                  onClick={() => toggleInspectionFilter('componentTypes', type)}
+                                >
+                                  {type}
+                                </Badge>
+                              ))}
+                            </div>
+                          </Card>
+                        )}
+
+                        {/* Parameter Types */}
+                        {inspectionData.parameterTypes.size > 0 && (
+                          <Card className="p-3">
+                            <div className="text-xs font-medium mb-2 text-muted-foreground">Parameter Types</div>
+                            <div className="flex flex-wrap gap-1">
+                              {Array.from(inspectionData.parameterTypes).sort().map(type => (
+                                <Badge
+                                  key={type}
+                                  variant={inspectionFilters.parameterTypes.has(type) ? "default" : "outline"}
+                                  className="cursor-pointer text-xs"
+                                  onClick={() => toggleInspectionFilter('parameterTypes', type)}
+                                >
+                                  {type}
+                                </Badge>
+                              ))}
+                            </div>
+                          </Card>
+                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
+
+                    {/* Results */}
+                    <ScrollArea className="flex-1 min-h-0 w-full">
+                      <div className="space-y-4">
+                        {/* Operations */}
+                        {filteredInspectionResults.operationIds.length > 0 && (
+                          <Card>
+                            <CardHeader className="pb-3">
+                              <CardTitle className="text-sm">
+                                Operations ({filteredInspectionResults.operationIds.length})
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-0">
+                              <div className="space-y-2">
+                                {filteredInspectionResults.operationIds.map((op, idx) => (
+                                  <div key={idx} className="p-2 bg-muted/30 rounded text-sm">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <Badge variant="outline" className="font-mono text-xs">
+                                        {op.method}
+                                      </Badge>
+                                      <span className="font-mono text-xs text-muted-foreground">
+                                        {op.path}
+                                      </span>
+                                    </div>
+                                    <div className="font-medium">
+                                      {op.id}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+
+                        {/* Paths */}
+                        {filteredInspectionResults.paths.length > 0 && inspectionFilters.methods.size === 0 && (
+                          <Card>
+                            <CardHeader className="pb-3">
+                              <CardTitle className="text-sm">
+                                Paths ({filteredInspectionResults.paths.length})
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-0">
+                              <div className="space-y-1">
+                                {filteredInspectionResults.paths.map((path, idx) => (
+                                  <div key={idx} className="p-2 bg-muted/30 rounded">
+                                    <span className="font-mono text-xs">
+                                      {path}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+
+                        {/* Components */}
+                        {filteredInspectionResults.components.length > 0 && (
+                          <Card>
+                            <CardHeader className="pb-3">
+                              <CardTitle className="text-sm">
+                                Components ({filteredInspectionResults.components.length})
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-0">
+                              <div className="space-y-2">
+                                {filteredInspectionResults.components.map((comp, idx) => (
+                                  <div key={idx} className="p-2 bg-muted/30 rounded text-sm">
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant="secondary" className="text-xs">
+                                        {comp.type}
+                                      </Badge>
+                                      <span className="font-medium">
+                                        {comp.name}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+
+                        {/* Securities */}
+                        {filteredInspectionResults.securities.length > 0 && (
+                          <Card>
+                            <CardHeader className="pb-3">
+                              <CardTitle className="text-sm">
+                                Security Schemes ({filteredInspectionResults.securities.length})
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-0">
+                              <div className="flex flex-wrap gap-1">
+                                {filteredInspectionResults.securities.map((sec, idx) => (
+                                  <Badge key={idx} variant="outline">
+                                    {sec}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+
+                        {/* No Results */}
+                        {filteredInspectionResults.operationIds.length === 0 &&
+                         filteredInspectionResults.paths.length === 0 &&
+                         filteredInspectionResults.components.length === 0 &&
+                         filteredInspectionResults.securities.length === 0 && (
+                          <Card>
+                            <CardContent className="pt-4">
+                              <div className="text-center py-8">
+                                <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                                <h3 className="text-lg font-medium text-muted-foreground mb-2">
+                                  No Results Found
+                                </h3>
+                                <p className="text-muted-foreground text-sm">
+                                  Try adjusting your filters or search query.
+                                </p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </div>
                 </TabsContent>
               
                 <TabsContent value="syntax" className="flex-1 min-h-0 mt-4 data-[state=active]:flex data-[state=active]:flex-col">
