@@ -658,6 +658,11 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
         const paramName = currentObj.name;
         const paramType = currentObj.in || 'query'; // 'query', 'path', 'header', 'cookie'
         
+        // Skip header parameters - they should not be checked for naming conventions
+        if (paramType === 'header') {
+          return;
+        }
+        
         // Use different config based on parameter type
         let paramConfig;
         if (paramType === 'path') {
