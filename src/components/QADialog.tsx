@@ -477,57 +477,37 @@ export const QADialog: React.FC<QADialogProps> = ({
 
   // Filter inspection results
   const filteredInspectionResults = useMemo(() => {
-    let results = {
-      operationIds: [...inspectionData.operationIds],
-      paths: [...inspectionData.paths],
-      components: [...inspectionData.components],
-      securities: [...inspectionData.securities],
-    };
+    try {
+      const parsedSchema = JSON.parse(schema);
+      let filteredOperations = [...inspectionData.operationIds];
+      
+      // Apply operation filters
+      if (inspectionFilters.methods.size > 0) {
+        filteredOperations = filteredOperations.filter(op => 
+          inspectionFilters.methods.has(op.method)
+        );
+      }
 
-    // Apply filter selections
-    if (inspectionFilters.methods.size > 0) {
-      results.operationIds = results.operationIds.filter(op => 
-        inspectionFilters.methods.has(op.method)
-      );
-    }
-
-    if (inspectionFilters.tags.size > 0) {
-      // Filter by tags - need to re-parse to check operation tags
-      try {
-        const parsedSchema = JSON.parse(schema);
-        results.operationIds = results.operationIds.filter(op => {
+      if (inspectionFilters.tags.size > 0) {
+        filteredOperations = filteredOperations.filter(op => {
           const pathItem = parsedSchema.paths?.[op.path];
           const operation = pathItem?.[op.method.toLowerCase()];
           return operation?.tags?.some((tag: string) => inspectionFilters.tags.has(tag));
         });
-      } catch (e) {}
-    }
+      }
 
-    if (inspectionFilters.componentTypes.size > 0) {
-      results.components = results.components.filter(comp => 
-        inspectionFilters.componentTypes.has(comp.type)
-      );
-    }
-
-    if (inspectionFilters.parameterTypes.size > 0) {
-      // Filter operations by parameter types
-      try {
-        const parsedSchema = JSON.parse(schema);
-        results.operationIds = results.operationIds.filter(op => {
+      if (inspectionFilters.parameterTypes.size > 0) {
+        filteredOperations = filteredOperations.filter(op => {
           const pathItem = parsedSchema.paths?.[op.path];
           const operation = pathItem?.[op.method.toLowerCase()];
           return operation?.parameters?.some((param: any) => 
             inspectionFilters.parameterTypes.has(param.in)
           );
         });
-      } catch (e) {}
-    }
+      }
 
-    if (inspectionFilters.responseCodes.size > 0) {
-      // Filter operations by response codes
-      try {
-        const parsedSchema = JSON.parse(schema);
-        results.operationIds = results.operationIds.filter(op => {
+      if (inspectionFilters.responseCodes.size > 0) {
+        filteredOperations = filteredOperations.filter(op => {
           const pathItem = parsedSchema.paths?.[op.path];
           const operation = pathItem?.[op.method.toLowerCase()];
           return operation?.responses && 
@@ -535,22 +515,16 @@ export const QADialog: React.FC<QADialogProps> = ({
               inspectionFilters.responseCodes.has(code)
             );
         });
-      } catch (e) {}
-    }
+      }
 
-    if (inspectionFilters.contentTypes.size > 0) {
-      // Filter operations by content types
-      try {
-        const parsedSchema = JSON.parse(schema);
-        results.operationIds = results.operationIds.filter(op => {
+      if (inspectionFilters.contentTypes.size > 0) {
+        filteredOperations = filteredOperations.filter(op => {
           const pathItem = parsedSchema.paths?.[op.path];
           const operation = pathItem?.[op.method.toLowerCase()];
           
-          // Check request body content types
           const requestContentTypes = operation?.requestBody?.content ? 
             Object.keys(operation.requestBody.content) : [];
           
-          // Check response content types
           const responseContentTypes = operation?.responses ? 
             Object.values(operation.responses).flatMap((resp: any) => 
               resp.content ? Object.keys(resp.content) : []
@@ -559,30 +533,133 @@ export const QADialog: React.FC<QADialogProps> = ({
           const allContentTypes = [...requestContentTypes, ...responseContentTypes];
           return allContentTypes.some(ct => inspectionFilters.contentTypes.has(ct));
         });
-      } catch (e) {}
-    }
+      }
 
-    // Apply search query
-    if (inspectionSearchQuery.trim()) {
-      const query = inspectionSearchQuery.toLowerCase();
-      results.operationIds = results.operationIds.filter(op => 
-        op.id.toLowerCase().includes(query) || 
-        op.path.toLowerCase().includes(query) ||
-        op.method.toLowerCase().includes(query)
-      );
-      results.paths = results.paths.filter(p => 
-        p.toLowerCase().includes(query)
-      );
-      results.components = results.components.filter(c => 
-        c.name.toLowerCase().includes(query) ||
-        c.type.toLowerCase().includes(query)
-      );
-      results.securities = results.securities.filter(s => 
-        s.toLowerCase().includes(query)
-      );
-    }
+      // Apply search query to operations
+      if (inspectionSearchQuery.trim()) {
+        const query = inspectionSearchQuery.toLowerCase();
+        filteredOperations = filteredOperations.filter(op => 
+          op.id.toLowerCase().includes(query) || 
+          op.path.toLowerCase().includes(query) ||
+          op.method.toLowerCase().includes(query)
+        );
+      }
 
-    return results;
+      // Derive related data from filtered operations
+      const hasOperationFilters = inspectionFilters.methods.size > 0 || 
+        inspectionFilters.tags.size > 0 ||
+        inspectionFilters.contentTypes.size > 0 ||
+        inspectionFilters.responseCodes.size > 0 ||
+        inspectionFilters.parameterTypes.size > 0;
+
+      let filteredPaths = [...inspectionData.paths];
+      let filteredComponents = [...inspectionData.components];
+      let filteredSecurities = [...inspectionData.securities];
+
+      // If operation filters are active, only show related paths and components
+      if (hasOperationFilters || inspectionSearchQuery.trim()) {
+        // Get paths that have filtered operations
+        const pathsWithOperations = new Set(filteredOperations.map(op => op.path));
+        filteredPaths = inspectionData.paths.filter(p => pathsWithOperations.has(p));
+
+        // Extract referenced components from filtered operations
+        const referencedComponents = new Set<string>();
+        const referencedSecurities = new Set<string>();
+        
+        filteredOperations.forEach(op => {
+          const pathItem = parsedSchema.paths?.[op.path];
+          const operation = pathItem?.[op.method.toLowerCase()];
+          
+          if (!operation) return;
+
+          // Helper to extract $ref components
+          const extractRefs = (obj: any) => {
+            if (!obj || typeof obj !== 'object') return;
+            
+            if (obj.$ref && typeof obj.$ref === 'string') {
+              // Extract component reference like "#/components/schemas/Pet"
+              const match = obj.$ref.match(/#\/components\/([^\/]+)\/([^\/]+)/);
+              if (match) {
+                referencedComponents.add(`${match[1]}:${match[2]}`);
+              }
+            }
+            
+            // Recursively check nested objects and arrays
+            Object.values(obj).forEach(value => {
+              if (typeof value === 'object' && value !== null) {
+                extractRefs(value);
+              }
+            });
+          };
+
+          // Extract from parameters
+          if (operation.parameters) {
+            operation.parameters.forEach((param: any) => extractRefs(param));
+          }
+
+          // Extract from request body
+          if (operation.requestBody) {
+            extractRefs(operation.requestBody);
+          }
+
+          // Extract from responses
+          if (operation.responses) {
+            Object.values(operation.responses).forEach((response: any) => {
+              extractRefs(response);
+            });
+          }
+
+          // Extract security schemes
+          if (operation.security) {
+            operation.security.forEach((secReq: any) => {
+              Object.keys(secReq).forEach(secName => referencedSecurities.add(secName));
+            });
+          }
+        });
+
+        // Filter components to only those referenced
+        filteredComponents = inspectionData.components.filter(comp => 
+          referencedComponents.has(`${comp.type}:${comp.name}`)
+        );
+
+        // Filter securities to only those referenced
+        filteredSecurities = inspectionData.securities.filter(sec => 
+          referencedSecurities.has(sec)
+        );
+      }
+
+      // Apply component type filter if no operation filters are active
+      if (!hasOperationFilters && inspectionFilters.componentTypes.size > 0) {
+        filteredComponents = filteredComponents.filter(comp => 
+          inspectionFilters.componentTypes.has(comp.type)
+        );
+      }
+
+      // Apply search query to remaining items if not already filtered by operations
+      if (inspectionSearchQuery.trim() && !hasOperationFilters) {
+        const query = inspectionSearchQuery.toLowerCase();
+        filteredPaths = filteredPaths.filter(p => p.toLowerCase().includes(query));
+        filteredComponents = filteredComponents.filter(c => 
+          c.name.toLowerCase().includes(query) || c.type.toLowerCase().includes(query)
+        );
+        filteredSecurities = filteredSecurities.filter(s => s.toLowerCase().includes(query));
+      }
+
+      return {
+        operationIds: filteredOperations,
+        paths: filteredPaths,
+        components: filteredComponents,
+        securities: filteredSecurities,
+      };
+    } catch (error) {
+      console.error('Failed to filter inspection results:', error);
+      return {
+        operationIds: [],
+        paths: [],
+        components: [],
+        securities: [],
+      };
+    }
   }, [inspectionData, inspectionFilters, inspectionSearchQuery, schema]);
 
   const toggleInspectionFilter = (category: keyof typeof inspectionFilters, value: string) => {
