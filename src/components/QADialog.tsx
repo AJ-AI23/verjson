@@ -383,7 +383,7 @@ export const QADialog: React.FC<QADialogProps> = ({
         operationIds: [] as Array<{ id: string; method: string; path: string }>,
         paths: [] as string[],
         components: [] as Array<{ type: string; name: string }>,
-        securities: [] as string[],
+        securities: new Set<string>(),
       };
 
       // Extract from paths
@@ -436,7 +436,7 @@ export const QADialog: React.FC<QADialogProps> = ({
               if (operation.security) {
                 operation.security.forEach((secReq: any) => {
                   Object.keys(secReq).forEach(secName => 
-                    data.securities.push(secName)
+                    data.securities.add(secName)
                   );
                 });
               }
@@ -470,7 +470,7 @@ export const QADialog: React.FC<QADialogProps> = ({
         operationIds: [],
         paths: [],
         components: [],
-        securities: [],
+        securities: new Set<string>(),
       };
     }
   }, [schema]);
@@ -554,7 +554,7 @@ export const QADialog: React.FC<QADialogProps> = ({
 
       let filteredPaths = [...inspectionData.paths];
       let filteredComponents = [...inspectionData.components];
-      let filteredSecurities = [...inspectionData.securities];
+      let filteredSecurities = Array.from(inspectionData.securities);
 
       // If operation filters are active, only show related paths and components
       if (hasOperationFilters || inspectionSearchQuery.trim()) {
@@ -623,7 +623,7 @@ export const QADialog: React.FC<QADialogProps> = ({
         );
 
         // Filter securities to only those referenced
-        filteredSecurities = inspectionData.securities.filter(sec => 
+        filteredSecurities = Array.from(inspectionData.securities).filter(sec => 
           referencedSecurities.has(sec)
         );
       }
