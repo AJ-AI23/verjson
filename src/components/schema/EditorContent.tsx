@@ -70,6 +70,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
   diagramRef,
 }) => {
   const isMobile = useIsMobile();
+  const [showDiagram, setShowDiagram] = React.useState(true);
 
   const editorPane = (
     <div className="flex flex-col h-full">
@@ -81,6 +82,8 @@ export const EditorContent: React.FC<EditorContentProps> = ({
         onToggleCollapse={onToggleCollapse}
         maxDepth={maxDepth}
         documentId={documentId}
+        showDiagram={showDiagram}
+        onToggleDiagram={() => setShowDiagram(!showDiagram)}
       />
       <VersionControls 
         version={currentVersion} 
@@ -127,14 +130,16 @@ export const EditorContent: React.FC<EditorContentProps> = ({
       <Tabs defaultValue="editor" className="h-full flex flex-col">
         <TabsList className="w-full justify-start rounded-none border-b">
           <TabsTrigger value="editor" className="flex-1">Editor</TabsTrigger>
-          <TabsTrigger value="diagram" className="flex-1">Diagram</TabsTrigger>
+          {showDiagram && <TabsTrigger value="diagram" className="flex-1">Diagram</TabsTrigger>}
         </TabsList>
         <TabsContent value="editor" className="flex-1 mt-0">
           {editorPane}
         </TabsContent>
-        <TabsContent value="diagram" className="flex-1 mt-0">
-          {diagramPane}
-        </TabsContent>
+        {showDiagram && (
+          <TabsContent value="diagram" className="flex-1 mt-0">
+            {diagramPane}
+          </TabsContent>
+        )}
       </Tabs>
     );
   }
@@ -142,7 +147,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
   return (
     <SplitPane>
       {editorPane}
-      {diagramPane}
+      {showDiagram && diagramPane}
     </SplitPane>
   );
 };

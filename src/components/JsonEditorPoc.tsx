@@ -9,7 +9,7 @@ import { useCollaboration } from '@/hooks/useCollaboration';
 import { EditorHistoryControls } from '@/components/editor/EditorHistoryControls';
 import { CollaborationIndicator } from '@/components/CollaborationIndicator';
 import { Button } from '@/components/ui/button';
-import { Settings, Users, Code, List } from 'lucide-react';
+import { Settings, Users, Code, List, LayoutPanelLeft, LayoutPanelTop } from 'lucide-react';
 import {
   Dialog,
   DialogContent, 
@@ -31,6 +31,8 @@ interface JsonEditorPocProps {
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
   maxDepth: number;
   documentId?: string;
+  showDiagram?: boolean;
+  onToggleDiagram?: () => void;
 }
 
 export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
@@ -40,7 +42,9 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   collapsedPaths = {},
   onToggleCollapse,
   maxDepth,
-  documentId
+  documentId,
+  showDiagram = true,
+  onToggleDiagram
 }) => {
   // Create a ref to the editor container DOM element
   const containerRef = useRef<HTMLDivElement>(null);
@@ -417,6 +421,25 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
                 </>
               )}
             </button>
+            {onToggleDiagram && (
+              <button
+                onClick={onToggleDiagram}
+                className="text-xs px-2 py-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded transition-colors flex items-center gap-1"
+                title={showDiagram ? 'Hide Diagram' : 'Show Diagram'}
+              >
+                {showDiagram ? (
+                  <>
+                    <LayoutPanelTop className="h-3 w-3" />
+                    Hide Diagram
+                  </>
+                ) : (
+                  <>
+                    <LayoutPanelLeft className="h-3 w-3" />
+                    Show Diagram
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
