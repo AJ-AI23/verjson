@@ -9,7 +9,7 @@ import { useCollaboration } from '@/hooks/useCollaboration';
 import { EditorHistoryControls } from '@/components/editor/EditorHistoryControls';
 import { CollaborationIndicator } from '@/components/CollaborationIndicator';
 import { Button } from '@/components/ui/button';
-import { Settings, Users, Code, List, LayoutPanelLeft, LayoutPanelTop } from 'lucide-react';
+import { Settings, Users, Code2, FileJson2, PanelLeftClose, PanelLeft } from 'lucide-react';
 import {
   Dialog,
   DialogContent, 
@@ -406,37 +406,25 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
             </button>
             <button
               onClick={handleModeToggle}
-              className="text-xs px-2 py-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded transition-colors flex items-center gap-1"
+              className="p-1.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded transition-colors"
               title={editorMode === 'tree' ? 'Switch to Code Mode' : 'Switch to Tree Mode'}
             >
               {editorMode === 'tree' ? (
-                <>
-                  <Code className="h-3 w-3" />
-                  Code
-                </>
+                <Code2 className="h-4 w-4" />
               ) : (
-                <>
-                  <List className="h-3 w-3" />
-                  Tree
-                </>
+                <FileJson2 className="h-4 w-4" />
               )}
             </button>
             {onToggleDiagram && (
               <button
                 onClick={onToggleDiagram}
-                className="text-xs px-2 py-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded transition-colors flex items-center gap-1"
+                className="p-1.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded transition-colors"
                 title={showDiagram ? 'Hide Diagram' : 'Show Diagram'}
               >
                 {showDiagram ? (
-                  <>
-                    <LayoutPanelTop className="h-3 w-3" />
-                    Hide Diagram
-                  </>
+                  <PanelLeftClose className="h-4 w-4" />
                 ) : (
-                  <>
-                    <LayoutPanelLeft className="h-3 w-3" />
-                    Show Diagram
-                  </>
+                  <PanelLeft className="h-4 w-4" />
                 )}
               </button>
             )}

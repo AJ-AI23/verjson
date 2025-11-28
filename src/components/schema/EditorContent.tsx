@@ -144,10 +144,15 @@ export const EditorContent: React.FC<EditorContentProps> = ({
     );
   }
 
+  // Desktop view - if diagram is hidden, show only editor
+  if (!showDiagram) {
+    return <div className="h-full">{editorPane}</div>;
+  }
+
   return (
     <SplitPane>
       {editorPane}
-      {showDiagram && diagramPane}
+      {diagramPane}
     </SplitPane>
   );
 };
