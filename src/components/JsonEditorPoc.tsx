@@ -9,7 +9,7 @@ import { useCollaboration } from '@/hooks/useCollaboration';
 import { EditorHistoryControls } from '@/components/editor/EditorHistoryControls';
 import { CollaborationIndicator } from '@/components/CollaborationIndicator';
 import { Button } from '@/components/ui/button';
-import { Settings, Users } from 'lucide-react';
+import { Settings, Users, Code, List } from 'lucide-react';
 import {
   Dialog,
   DialogContent, 
@@ -50,6 +50,9 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   
   // Track if we're updating from Yjs to avoid circular updates
   const isUpdatingFromYjs = useRef<boolean>(false);
+  
+  // Track the current editor mode
+  const [editorMode, setEditorMode] = useState<'tree' | 'code'>('tree');
   
   // Clean up legacy editor history on component mount
   useEffect(() => {
@@ -151,6 +154,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   
   // Use the custom hook for editor functionality
   const {
+    editorRef,
     initializeEditor,
     destroyEditor,
     expandAll,
@@ -163,6 +167,20 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     onToggleCollapse: handleToggleCollapse,
     maxDepth
   });
+  
+  // Handle mode toggle
+  const handleModeToggle = useCallback(() => {
+    if (editorRef.current) {
+      const newMode = editorMode === 'tree' ? 'code' : 'tree';
+      try {
+        editorRef.current.setMode(newMode);
+        setEditorMode(newMode);
+      } catch (err) {
+        console.error('Error switching editor mode:', err);
+        toast.error(`Failed to switch to ${newMode} mode`);
+      }
+    }
+  }, [editorRef, editorMode]);
 
   // Initialize the editor once the component mounts
   useEffect(() => {
@@ -381,6 +399,23 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
               className="text-xs px-2 py-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded transition-colors"
             >
               Collapse All
+            </button>
+            <button
+              onClick={handleModeToggle}
+              className="text-xs px-2 py-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded transition-colors flex items-center gap-1"
+              title={editorMode === 'tree' ? 'Switch to Code Mode' : 'Switch to Tree Mode'}
+            >
+              {editorMode === 'tree' ? (
+                <>
+                  <Code className="h-3 w-3" />
+                  Code
+                </>
+              ) : (
+                <>
+                  <List className="h-3 w-3" />
+                  Tree
+                </>
+              )}
             </button>
           </div>
         </div>
