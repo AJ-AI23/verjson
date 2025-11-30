@@ -98,6 +98,20 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     suggestedVersion
   } = useEditorState(schemaAsString, selectedDocument?.id);
 
+  // Ensure schema type is correctly set based on document's file_type
+  React.useEffect(() => {
+    if (!selectedDocument?.file_type) return;
+    
+    const documentFileType = selectedDocument.file_type;
+    if (documentFileType === 'openapi' && schemaType !== 'openapi') {
+      console.log('📝 Correcting schema type to match document file_type:', documentFileType);
+      handleSchemaTypeChange('openapi');
+    } else if (documentFileType !== 'openapi' && documentFileType !== 'diagram' && schemaType !== 'json-schema') {
+      console.log('📝 Correcting schema type to match document file_type:', documentFileType);
+      handleSchemaTypeChange('json-schema');
+    }
+  }, [selectedDocument?.file_type, schemaType, handleSchemaTypeChange]);
+
   // Clear editor state when onClearRequest is triggered
   React.useEffect(() => {
     if (onClearRequest) {
