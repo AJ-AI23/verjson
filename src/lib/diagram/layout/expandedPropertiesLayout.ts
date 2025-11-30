@@ -65,7 +65,8 @@ export const generateExpandedLayout = (
           collapsedPaths, 
           'root',
           0, // Start with 0 expandedNodeDepth from root
-          maxIndividualProperties // Use the passed maxIndividualProperties
+          maxIndividualProperties, // Use the passed maxIndividualProperties
+          schema // Pass full schema to process special keywords
         );
   }
   
@@ -86,8 +87,26 @@ function processProperties(
   collapsedPaths: CollapsedState = {},
   currentPath: string = '',
   expandedNodeDepth: number = 0, // New parameter to track depth from last expanded node
-  maxPropertiesLimit: number = 5 // Maximum number of individual property nodes before grouping
+  maxPropertiesLimit: number = 5, // Maximum number of individual property nodes before grouping
+  fullSchema?: any // Full schema object to access special keywords
 ) {
+  // Process special JSON Schema keywords first if available
+  if (fullSchema && currentDepth === 1 && currentPath === 'root') {
+    processSpecialKeywords(
+      fullSchema,
+      result,
+      parentId,
+      yOffset,
+      xOffset,
+      xSpacing,
+      collapsedPaths,
+      currentPath,
+      currentDepth,
+      maxDepth,
+      expandedNodeDepth,
+      maxPropertiesLimit
+    );
+  }
   const propertyEntries = Object.entries(properties);
   const totalProperties = propertyEntries.length;
   
@@ -229,7 +248,7 @@ function processProperties(
           // Reset expandedNodeDepth to 0 since this object's properties are explicitly expanded
           const newExpandedNodeDepth = 0;
           
-          // Process nested properties (depth + 1)
+              // Process nested properties (depth + 1)
               processProperties(
                 nestedProps, 
                 nestedRequired, 
@@ -243,7 +262,8 @@ function processProperties(
                 collapsedPaths,
                 jsonEditorPath,
                 newExpandedNodeDepth,
-                maxPropertiesLimit
+                maxPropertiesLimit,
+                propSchema // Pass full property schema
               );
         }
       }
@@ -298,7 +318,8 @@ function processProperties(
                   collapsedPaths,
                   itemPath,
                   newExpandedNodeDepth,
-                  maxPropertiesLimit
+                  maxPropertiesLimit,
+                  itemSchema // Pass full item schema
                 );
             }
           }
@@ -322,6 +343,126 @@ function processProperties(
         } else {
           // Default collapsed for max depth nodes
           propNode.data.isCollapsed = true;
+        }
+      }
+    }
+  });
+}
+
+// Helper function to process special JSON Schema keywords
+function processSpecialKeywords(
+  schema: any,
+  result: DiagramElements,
+  parentId: string,
+  yOffset: number,
+  xOffset: number,
+  xSpacing: number,
+  collapsedPaths: CollapsedState,
+  currentPath: string,
+  currentDepth: number,
+  maxDepth: number,
+  expandedNodeDepth: number,
+  maxPropertiesLimit: number
+) {
+  const specialKeywords = ['allOf', 'oneOf', 'anyOf', 'not', 'if', 'then', 'else', 'dependentSchemas', 'patternProperties'];
+  const specialProps: Array<[string, any]> = [];
+  
+  // Collect all special keywords that exist in the schema
+  for (const keyword of specialKeywords) {
+    if (schema[keyword] !== undefined) {
+      specialProps.push([keyword, schema[keyword]]);
+    }
+  }
+  
+  // Also check for additionalProperties if it's an object (schema)
+  if (schema.additionalProperties && typeof schema.additionalProperties === 'object') {
+    specialProps.push(['additionalProperties', schema.additionalProperties]);
+  }
+  
+  if (specialProps.length === 0) return;
+  
+  // Calculate positions for special keyword nodes
+  const specialYOffset = yOffset - 150; // Place above regular properties
+  const totalSpecialProps = specialProps.length;
+  
+  specialProps.forEach(([keyword, keywordSchema], index) => {
+    const xPos = xOffset - (totalSpecialProps - 1) * xSpacing / 2 + index * xSpacing;
+    const keywordPath = `${currentPath}.${keyword}`;
+    const jsonEditorPath = currentPath === 'root' ? `root.${keyword}` : `${currentPath}.${keyword}`;
+    
+    // Check if this keyword path is expanded
+    const isExpanded = collapsedPaths[keywordPath] === false || collapsedPaths[jsonEditorPath] === false;
+    
+    // Create node for the special keyword
+    const keywordNode = createPropertyNode(
+      keyword,
+      Array.isArray(keywordSchema) ? { type: 'array', items: keywordSchema } : keywordSchema,
+      [],
+      xPos,
+      specialYOffset,
+      !isExpanded
+    );
+    
+    // Add edge from parent to keyword node
+    const edge = createEdge(parentId, keywordNode.id);
+    
+    result.nodes.push(keywordNode);
+    result.edges.push(edge);
+    
+    // Process nested content if expanded and not at max depth
+    if (isExpanded && expandedNodeDepth < maxDepth) {
+      // Handle array-type keywords (allOf, oneOf, anyOf)
+      if (Array.isArray(keywordSchema)) {
+        keywordSchema.forEach((subSchema, subIndex) => {
+          if (subSchema && typeof subSchema === 'object') {
+            const subSchemaPath = `${jsonEditorPath}[${subIndex}]`;
+            const isSubSchemaExpanded = collapsedPaths[subSchemaPath] === false;
+            
+            if (isSubSchemaExpanded && subSchema.properties) {
+              const subYOffset = specialYOffset + 150;
+              processProperties(
+                subSchema.properties,
+                subSchema.required || [],
+                xPos,
+                subYOffset,
+                xSpacing * 0.8,
+                result,
+                keywordNode.id,
+                currentDepth + 1,
+                maxDepth,
+                collapsedPaths,
+                subSchemaPath,
+                0,
+                maxPropertiesLimit,
+                subSchema
+              );
+            }
+          }
+        });
+      }
+      // Handle object-type keywords (if, then, else, not, etc.)
+      else if (keywordSchema && typeof keywordSchema === 'object' && keywordSchema.properties) {
+        const keywordPropertiesPath = `${jsonEditorPath}.properties`;
+        const isPropertiesExpanded = collapsedPaths[keywordPropertiesPath] === false;
+        
+        if (isPropertiesExpanded) {
+          const subYOffset = specialYOffset + 150;
+          processProperties(
+            keywordSchema.properties,
+            keywordSchema.required || [],
+            xPos,
+            subYOffset,
+            xSpacing * 0.8,
+            result,
+            keywordNode.id,
+            currentDepth + 1,
+            maxDepth,
+            collapsedPaths,
+            jsonEditorPath,
+            0,
+            maxPropertiesLimit,
+            keywordSchema
+          );
         }
       }
     }
