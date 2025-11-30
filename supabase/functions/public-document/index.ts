@@ -122,6 +122,29 @@ Deno.serve(async (req) => {
       workspaceName = workspace?.name;
     }
 
+    // Fetch the latest released version if available
+    let documentContent = document?.content;
+    if (document) {
+      const { data: latestReleasedVersion } = await supabase
+        .from('document_versions')
+        .select('full_document, version_major, version_minor, version_patch')
+        .eq('document_id', documentId)
+        .eq('is_released', true)
+        .order('version_major', { ascending: false })
+        .order('version_minor', { ascending: false })
+        .order('version_patch', { ascending: false })
+        .limit(1)
+        .single();
+
+      // Use the released version content if available
+      if (latestReleasedVersion?.full_document) {
+        console.log(`Using released version ${latestReleasedVersion.version_major}.${latestReleasedVersion.version_minor}.${latestReleasedVersion.version_patch}`);
+        documentContent = latestReleasedVersion.full_document;
+      } else {
+        console.log('No released version found, using document content');
+      }
+    }
+
     if (error) {
       console.error('Error fetching document:', error);
       return new Response(
@@ -183,20 +206,20 @@ Deno.serve(async (req) => {
       } : null;
       
       responseContent = {
-        content: document.content,
+        content: documentContent,
         metadata,
-        formatted_content: formatForConfluence(document.content)
+        formatted_content: formatForConfluence(documentContent)
       };
     } else {
       // Default JSON format
       responseContent = includeMetadata ? {
-        content: document.content,
+        content: documentContent,
         name: document.name,
         workspace: workspaceName,
         created_at: document.created_at,
         updated_at: document.updated_at,
         document_id: documentId
-      } : document.content;
+      } : documentContent;
     }
 
     return new Response(
