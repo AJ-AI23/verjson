@@ -90,8 +90,9 @@ function processProperties(
   maxPropertiesLimit: number = 5, // Maximum number of individual property nodes before grouping
   fullSchema?: any // Full schema object to access special keywords
 ) {
-  // Process special JSON Schema keywords first if available
-  if (fullSchema && currentDepth === 1 && currentPath === 'root') {
+  // Process special JSON Schema keywords for any schema object that has them
+  // This allows keywords like allOf, oneOf, if/then/else to be shown at any level
+  if (fullSchema) {
     processSpecialKeywords(
       fullSchema,
       result,
