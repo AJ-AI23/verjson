@@ -105,19 +105,55 @@ function processSpecialKeywordsAtLevel(
   expandedNodeDepth: number,
   maxPropertiesLimit: number
 ) {
-  const specialKeywords = ['allOf', 'oneOf', 'anyOf', 'not', 'if', 'then', 'else', 'dependentSchemas', 'patternProperties'];
+  // Comprehensive list of JSON Schema keywords that can contain schema definitions
+  // Applicator keywords (combine/apply schemas)
+  const applicatorKeywords = [
+    'allOf', 'anyOf', 'oneOf', 'not',           // Schema composition
+    'if', 'then', 'else',                        // Conditional schema
+    'dependentSchemas',                          // Dependent schemas (draft-07+)
+    'prefixItems',                               // Array prefix items (draft-2020-12)
+    'contains',                                  // Array contains schema
+    'propertyNames',                             // Property name validation schema
+    'patternProperties',                         // Pattern-based property schemas
+    'unevaluatedProperties',                     // Unevaluated properties (draft-2019+)
+    'unevaluatedItems',                          // Unevaluated items (draft-2019+)
+  ];
+  
+  // Keywords that contain schemas only when they are objects (not booleans)
+  const conditionalSchemaKeywords = [
+    'additionalProperties',                      // Additional properties schema
+    'additionalItems',                           // Additional items schema (pre draft-2020)
+    'items',                                     // Array items schema (when not handled elsewhere)
+  ];
+  
+  // Definition containers
+  const definitionKeywords = [
+    '$defs',                                     // Definitions (draft-2019+)
+    'definitions',                               // Definitions (draft-07 and earlier)
+  ];
+  
   const specialProps: Array<[string, any]> = [];
   
-  // Collect all special keywords that exist in the schema
-  for (const keyword of specialKeywords) {
+  // Collect applicator keywords
+  for (const keyword of applicatorKeywords) {
     if (schema[keyword] !== undefined) {
       specialProps.push([keyword, schema[keyword]]);
     }
   }
   
-  // Also check for additionalProperties if it's an object (schema)
-  if (schema.additionalProperties && typeof schema.additionalProperties === 'object') {
-    specialProps.push(['additionalProperties', schema.additionalProperties]);
+  // Collect conditional schema keywords (only if they're objects, not booleans)
+  for (const keyword of conditionalSchemaKeywords) {
+    const value = schema[keyword];
+    if (value !== undefined && typeof value === 'object' && value !== null) {
+      specialProps.push([keyword, value]);
+    }
+  }
+  
+  // Collect definition containers
+  for (const keyword of definitionKeywords) {
+    if (schema[keyword] !== undefined && typeof schema[keyword] === 'object') {
+      specialProps.push([keyword, schema[keyword]]);
+    }
   }
   
   if (specialProps.length === 0) return;
