@@ -45,6 +45,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const [mobileTab, setMobileTab] = useState<string>('settings');
   const previewContainerRef = React.useRef<HTMLDivElement>(null);
   const previewFitViewRef = React.useRef<(() => void) | null>(null);
+  const hasFittedViewRef = React.useRef(false);
 
   // Sync active theme with selected theme
   React.useEffect(() => {
@@ -314,21 +315,24 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
               isRenderMode={true}
               hasUserInteractedWithViewport={hasUserInteracted}
               onRenderReady={() => {
-                console.log('[DiagramRenderDialog] onRenderReady - Diagram fully rendered');
-                setPreviewViewport({ x: 0, y: 0, zoom: 1 });
-                setInitialRenderComplete(true);
+                if (!hasFittedViewRef.current) {
+                  setPreviewViewport({ x: 0, y: 0, zoom: 1 });
+                  setInitialRenderComplete(true);
+                }
               }}
               onFitViewReady={(fitView) => {
-                console.log('[DiagramRenderDialog] onFitViewReady called');
                 previewFitViewRef.current = fitView;
                 // Auto fit view once on initial load
-                if (!initialRenderComplete) {
-                  setTimeout(() => fitView(), 100);
+                if (!hasFittedViewRef.current) {
+                  hasFittedViewRef.current = true;
+                  setTimeout(() => fitView(), 150);
                 }
               }}
               onViewportChange={(viewport) => {
-                setPreviewViewport(viewport);
-                setHasUserInteracted(true);
+                if (hasFittedViewRef.current) {
+                  setPreviewViewport(viewport);
+                  setHasUserInteracted(true);
+                }
               }}
             />
           </ReactFlowProvider>
