@@ -1180,26 +1180,32 @@ const MousePositionTracker: React.FC<{
             const draggedAnchor = updatedAnchors[anchorIndex];
             
             if (isSwapping) {
-              // Swap the lifelines AND the anchor types (source/target)
+              // Swap the lifelines, anchor types, AND processIds
               const draggedOriginalType = draggedAnchor.anchorType;
               const otherOriginalType = otherAnchor.anchorType;
               const otherOriginalLifeline = otherAnchor.lifelineId;
+              const draggedOriginalProcessId = draggedAnchor.processId;
+              const otherOriginalProcessId = otherAnchor.processId;
               
               updatedAnchors[anchorIndex] = {
                 ...draggedAnchor,
                 lifelineId: otherOriginalLifeline,
-                anchorType: otherOriginalType
+                anchorType: otherOriginalType,
+                processId: otherOriginalProcessId // Swap processId too
               };
               updatedAnchors[otherAnchorIndex] = {
                 ...otherAnchor,
                 lifelineId: draggedOriginalLifeline,
-                anchorType: draggedOriginalType
+                anchorType: draggedOriginalType,
+                processId: draggedOriginalProcessId // Swap processId too
               };
             } else {
               // Update the dragged anchor to new lifeline
+              // Clear processId when moving to a different lifeline (process is lifeline-specific)
               updatedAnchors[anchorIndex] = {
                 ...draggedAnchor,
-                lifelineId: closestLifelineId
+                lifelineId: closestLifelineId,
+                processId: undefined // Clear process association when changing lifeline
               };
               
               // Other anchor stays the same
@@ -1310,7 +1316,37 @@ const MousePositionTracker: React.FC<{
           });
         });
         
-        onDataChange({ ...data, nodes: updatedDiagramNodes });
+        // If swapping and there are processes, update the process anchorIds to reflect the swap
+        let updatedProcesses = data.processes || [];
+        if (isSwapping && updatedProcesses.length > 0 && nodeWithAnchor) {
+          const draggedAnchorIndex = nodeWithAnchor.anchors.findIndex(a => a.id === moveChange.id);
+          const otherAnchorIndex = draggedAnchorIndex === 0 ? 1 : 0;
+          const draggedAnchorId = nodeWithAnchor.anchors[draggedAnchorIndex].id;
+          const otherAnchorId = nodeWithAnchor.anchors[otherAnchorIndex].id;
+          
+          // Swap anchor IDs in processes - if a process had the dragged anchor, give it the other anchor and vice versa
+          updatedProcesses = updatedProcesses.map(process => {
+            const hasDraggedAnchor = process.anchorIds.includes(draggedAnchorId);
+            const hasOtherAnchor = process.anchorIds.includes(otherAnchorId);
+            
+            if (hasDraggedAnchor && !hasOtherAnchor) {
+              // Process had dragged anchor - replace with other anchor
+              return {
+                ...process,
+                anchorIds: process.anchorIds.map(id => id === draggedAnchorId ? otherAnchorId : id)
+              };
+            } else if (hasOtherAnchor && !hasDraggedAnchor) {
+              // Process had other anchor - replace with dragged anchor
+              return {
+                ...process,
+                anchorIds: process.anchorIds.map(id => id === otherAnchorId ? draggedAnchorId : id)
+              };
+            }
+            return process;
+          });
+        }
+        
+        onDataChange({ ...data, nodes: updatedDiagramNodes, processes: updatedProcesses });
       } else if (movedNode?.type === 'columnLifeline') {
         // Handle lifeline drag - update order based on new X position
         const lifelineData = movedNode.data as any;
