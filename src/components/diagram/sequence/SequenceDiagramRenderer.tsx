@@ -1259,13 +1259,19 @@ const MousePositionTracker: React.FC<{
         if (lifelineId) {
           const movedLifeline = lifelines.find(l => l.id === lifelineId);
           if (movedLifeline) {
-            // Calculate which order position this lifeline should have based on X position
+            // Get actual lifeline positions from layout nodes (accounts for process box spacing)
+            const lifelineLayoutNodes = layoutNodes.filter(n => n.type === 'columnLifeline');
             const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
-            const lifelineXPositions = sortedLifelines.map((l, index) => ({
-              lifeline: l,
-              x: index * (300 + 100) + 150, // LIFELINE_WIDTH + horizontalSpacing + padding
-              order: index
-            }));
+            
+            // Build position map from actual layout positions
+            const lifelineXPositions = sortedLifelines.map((l, index) => {
+              const layoutNode = lifelineLayoutNodes.find(n => n.id === `lifeline-${l.id}`);
+              return {
+                lifeline: l,
+                x: layoutNode?.position.x || (index * (300 + 100) + 150), // Use layout position or fallback
+                order: index
+              };
+            });
             
             // Find the closest position slot based on new X coordinate
             const newX = moveChange.position.x;
@@ -1289,9 +1295,10 @@ const MousePositionTracker: React.FC<{
               
               handleLifelineUpdate(lifelineId, { order: newOrder });
             } else {
-              // Order didn't change - force snap back to correct position
-              // Calculate the correct X position based on order
-              const correctX = oldOrder * (300 + 100) + 150; // LIFELINE_WIDTH + horizontalSpacing + padding
+              // Order didn't change - force snap back to correct position from layout
+              const currentLifelineLayout = lifelineLayoutNodes.find(n => n.id === `lifeline-${lifelineId}`);
+              const correctX = currentLifelineLayout?.position.x || (oldOrder * (300 + 100) + 150);
+              
               console.log('↩️ [LifelineDrag] Snapping back to correct position:', {
                 lifelineId,
                 order: oldOrder,
@@ -1453,7 +1460,7 @@ const MousePositionTracker: React.FC<{
         }
       }
     }
-  }, [handleNodesChange, onNodesChange, nodes, diagramNodes, data, onDataChange, lifelines, setNodes, selectedNodeIds, dragStartPositions, settings, nodeHeights]);
+  }, [handleNodesChange, onNodesChange, nodes, diagramNodes, data, onDataChange, lifelines, setNodes, selectedNodeIds, dragStartPositions, settings, nodeHeights, layoutNodes]);
 
   const onEdgesChangeHandler = useCallback((changes: any) => {
     handleEdgesChange(changes);
