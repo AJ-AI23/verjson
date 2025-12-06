@@ -1071,6 +1071,16 @@ const MousePositionTracker: React.FC<{
         const anchorLayoutNode = layoutNodes.find(n => n.id === moveChange.id);
         const originalAnchorX = anchorLayoutNode ? anchorLayoutNode.position.x + 8 : 0; // Center of 16px anchor
         
+        console.log('🎯 [ANCHOR DROP] Starting snap calculation:', {
+          anchorId: moveChange.id,
+          dropPosition: moveChange.position,
+          originalLifelineId,
+          anchorLayoutNode: anchorLayoutNode ? { id: anchorLayoutNode.id, position: anchorLayoutNode.position } : null,
+          originalAnchorX,
+          layoutNodesCount: layoutNodes.length,
+          anchorNodesInLayout: layoutNodes.filter(n => n.type === 'anchorNode').map(n => ({ id: n.id, x: n.position.x }))
+        });
+        
         // Find which lifeline this anchor should snap to based on X position
         const anchorX = moveChange.position.x + 8; // Add half width to get center
         let closestLifelineId = originalLifelineId;
@@ -1080,6 +1090,12 @@ const MousePositionTracker: React.FC<{
         // Use layout positions (which account for process box offsets) to find closest lifeline
         const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
         const lifelineLayoutNodes = layoutNodes.filter(n => n.type === 'columnLifeline');
+        
+        console.log('📍 [ANCHOR DROP] Lifeline positions:', lifelineLayoutNodes.map(n => ({
+          id: n.id,
+          x: n.position.x,
+          centerX: n.position.x + 150
+        })));
         
         sortedLifelines.forEach((lifeline, index) => {
           // Get actual position from layout nodes, fall back to simple calculation
@@ -1091,6 +1107,13 @@ const MousePositionTracker: React.FC<{
             closestLifelineId = lifeline.id;
             closestLifelineX = lifelineX;
           }
+        });
+        
+        console.log('🔍 [ANCHOR DROP] Closest lifeline found:', {
+          anchorX,
+          closestLifelineId,
+          closestLifelineX,
+          minDistance
         });
         
         // If drop position is too far from any lifeline, snap back to original position from layout
@@ -1106,12 +1129,26 @@ const MousePositionTracker: React.FC<{
             minDistance,
             threshold: SNAP_THRESHOLD,
             originalLifelineId,
-            originalAnchorX
+            originalAnchorX,
+            willSnapTo: closestLifelineX - 8
+          });
+        } else {
+          console.log('✅ [ANCHOR DROP] Valid snap to new lifeline:', {
+            anchorId: moveChange.id,
+            newLifelineId: closestLifelineId,
+            newX: closestLifelineX - 8
           });
         }
         
         // Snap anchor to correct X position
         const snappedX = closestLifelineX - 8; // Center the 16px anchor
+        
+        console.log('📌 [ANCHOR DROP] Final snapped position:', {
+          anchorId: moveChange.id,
+          snappedX,
+          closestLifelineX,
+          originalAnchorX
+        });
         
         // Check if we're swapping BEFORE updating diagram nodes
         let isSwapping = false;
