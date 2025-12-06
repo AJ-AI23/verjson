@@ -1868,61 +1868,15 @@ const MousePositionTracker: React.FC<{
       );
     }
     
-    // Create a map of new lifeline orders
-    const newOrderMap = new Map<string, number>();
-    updatedLifelines.forEach(l => newOrderMap.set(l.id, l.order));
-    
-    let updatedNodes = diagramNodes;
-    
     if (orderChanged) {
-      // For each node, check if the relative position of its two lifelines has flipped
-      // If lifeline A was left of B before, but now A is right of B, we need to swap anchor types
-      updatedNodes = diagramNodes.map(node => {
-        const [anchor1, anchor2] = node.anchors;
-        
-        // Get old and new orders for both lifelines
-        const lifeline1OldOrder = oldOrderMap.get(anchor1.lifelineId) ?? 0;
-        const lifeline2OldOrder = oldOrderMap.get(anchor2.lifelineId) ?? 0;
-        const lifeline1NewOrder = newOrderMap.get(anchor1.lifelineId) ?? 0;
-        const lifeline2NewOrder = newOrderMap.get(anchor2.lifelineId) ?? 0;
-        
-        // Check if the relative order has flipped
-        // wasAnchor1Left: true if anchor1's lifeline was to the left of anchor2's lifeline before
-        // isAnchor1Left: true if anchor1's lifeline is to the left of anchor2's lifeline now
-        const wasAnchor1Left = lifeline1OldOrder < lifeline2OldOrder;
-        const isAnchor1Left = lifeline1NewOrder < lifeline2NewOrder;
-        
-        // If both are on same lifeline (same order), no swap needed
-        if (lifeline1NewOrder === lifeline2NewOrder) {
-          return node;
-        }
-        
-        // Only swap if the relative position has changed (flipped)
-        const relativePositionFlipped = wasAnchor1Left !== isAnchor1Left;
-        
-        if (relativePositionFlipped) {
-          console.log('🔄 [handleLifelineUpdate] Relative position flipped for node:', node.id, 
-            { wasAnchor1Left, isAnchor1Left, anchor1Lifeline: anchor1.lifelineId, anchor2Lifeline: anchor2.lifelineId });
-          return {
-            ...node,
-            anchors: [
-              { ...anchor1, anchorType: anchor1.anchorType === 'source' ? 'target' : 'source' } as AnchorNodeType,
-              { ...anchor2, anchorType: anchor2.anchorType === 'source' ? 'target' : 'source' } as AnchorNodeType
-            ]
-          };
-        }
-        
-        return node;
-      });
-      
       // Force layout recalculation by incrementing version
+      // Note: We do NOT swap anchor types - arrow direction should be maintained as originally defined
       setLayoutVersion(prev => prev + 1);
     }
     
     onDataChange({ 
       ...data, 
-      lifelines: updatedLifelines,
-      ...(orderChanged && { nodes: updatedNodes })
+      lifelines: updatedLifelines
     });
   }, [lifelines, diagramNodes, data, onDataChange]);
   
