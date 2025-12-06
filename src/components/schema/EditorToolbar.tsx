@@ -270,7 +270,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                       </Badge>
                     </div>
                     
-                    <div className="hidden md:flex items-center gap-3 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1 md:gap-3 text-xs text-muted-foreground">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
@@ -280,7 +280,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                             onClick={() => handleCopyId(selectedDocument.id)}
                           >
                             <Copy className="h-3 w-3" />
-                            ID
+                            <span className="hidden md:inline">ID</span>
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -297,7 +297,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                             onClick={() => handleCopyPublicUrl(selectedDocument.id)}
                           >
                             <Share className="h-3 w-3" />
-                            URL
+                            <span className="hidden md:inline">URL</span>
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -315,7 +315,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                               onClick={handleCopyPngUrl}
                             >
                               <Image className="h-3 w-3" />
-                              PNG
+                              <span className="hidden md:inline">PNG</span>
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -335,7 +335,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                               disabled={isReloading}
                             >
                               <RefreshCw className={`h-3 w-3 ${isReloading ? 'animate-spin' : ''}`} />
-                              Reload
+                              <span className="hidden md:inline">Reload</span>
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
