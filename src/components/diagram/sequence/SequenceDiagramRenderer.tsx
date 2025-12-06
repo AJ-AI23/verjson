@@ -1906,6 +1906,7 @@ const FitViewHelper: React.FC<{
     onDataChange({ ...data, nodes: updatedNodes });
     
     // Clear height cache AFTER a delay to let the node re-render and ResizeObserver measure
+    // Then trigger a layout recalculation to realign anchors with new node heights
     setTimeout(() => {
       console.log('🗑️ [handleNodeUpdate] Clearing height cache for node after delay:', nodeId);
       setNodeHeights(prev => {
@@ -1915,6 +1916,13 @@ const FitViewHelper: React.FC<{
         console.log('🗑️ [handleNodeUpdate] Height cache cleared:', { nodeId, hadHeight, remainingHeights: newHeights.size });
         return newHeights;
       });
+      
+      // Force layout recalculation after height is cleared so node can be re-measured
+      // and anchors can be repositioned correctly
+      setTimeout(() => {
+        console.log('🔄 [handleNodeUpdate] Triggering layout recalculation for anchor realignment');
+        setLayoutVersion(v => v + 1);
+      }, 100);
     }, 50);
   }, [diagramNodes, data, onDataChange]);
 
