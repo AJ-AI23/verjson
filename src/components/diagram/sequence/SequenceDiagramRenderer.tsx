@@ -650,6 +650,8 @@ const FitViewHelper: React.FC<{
         return {
           ...node,
           draggable: !readOnly && !isRenderMode && isInteractive,
+          selectable: !readOnly && !isRenderMode && isInteractive,
+          selected: node.selected && isInteractive,
           data: {
             ...node.data,
             onHeightChange: handleNodeHeightChange,
@@ -714,7 +716,13 @@ const FitViewHelper: React.FC<{
         } as Node;
       }
       
-      return node;
+      // Default: ensure interactivity controls for any other node types
+      return {
+        ...node,
+        selectable: !readOnly && !isRenderMode && isInteractive,
+        draggable: !readOnly && !isRenderMode && isInteractive,
+        selected: node.selected && isInteractive
+      };
     });
   }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, customLifelineColors, lifelineHeight, selectedAnchorId, processManagement, processCreationMode, activeTheme, selectedProcessId, handleProcessSelect, selectedLifelineId, lifelines, currentTheme, diagramNodes, isInteractive]);
 
