@@ -686,8 +686,11 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
     return aPos - bPos;
   });
   
+  console.log('[calculateEvenSpacing] Starting with nodes:', sortedNodes.map(n => ({ id: n.id, yPosition: n.yPosition, range: n.anchors?.map(a => a.lifelineId) })));
+  console.log('[calculateEvenSpacing] Lifeline positions:', Object.fromEntries(lifelinePositions));
+  
   // Assign Y positions based on sorted nodes, allowing sharing when no overlap
-  sortedNodes.forEach((node) => {
+  sortedNodes.forEach((node, nodeIndex) => {
     if (!node || !node.anchors || node.anchors.length !== 2) {
       positions.set(node.id, startY);
       return;
@@ -709,14 +712,20 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
     const intendedY = Math.max(rawIntendedY, minCenterY);
     const intendedTopY = intendedY - (nodeHeight / 2);
     
+    console.log(`[calculateEvenSpacing] Node ${nodeIndex}: ${node.id}, range=[${nodeRange}], intendedY=${intendedY}`);
+    console.log(`[calculateEvenSpacing] Current yLevels:`, yLevels.map((l, i) => ({ i, y: l.y, height: l.height, nodes: l.nodesWithRanges.map(n => n.nodeId) })));
+    
     // Try to find an existing Y level where this node can fit (no overlap)
     let assignedLevel: YLevel | null = null;
     
-    for (const level of yLevels) {
+    for (let levelIdx = 0; levelIdx < yLevels.length; levelIdx++) {
+      const level = yLevels[levelIdx];
       // Check if this node overlaps with any node at this level
-      const hasOverlap = level.nodesWithRanges.some(existing => 
-        lifelineRangesOverlap(nodeRange, existing.range, lifelinePositions)
-      );
+      const hasOverlap = level.nodesWithRanges.some(existing => {
+        const overlaps = lifelineRangesOverlap(nodeRange, existing.range, lifelinePositions);
+        console.log(`[calculateEvenSpacing]   Checking overlap: ${node.id} [${nodeRange}] vs ${existing.nodeId} [${existing.range}] = ${overlaps}`);
+        return overlaps;
+      });
       
       if (!hasOverlap) {
         // Check if the level's Y is close enough to the intended Y (within reasonable tolerance)
@@ -728,14 +737,19 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
         // Use a much tighter tolerance - only share if positions are nearly the same
         const tolerance = 20; // Much tighter tolerance for sharing
         
+        console.log(`[calculateEvenSpacing]   Level ${levelIdx}: no overlap, checking Y. levelCenterY=${levelCenterY}, intendedY=${intendedY}, diff=${Math.abs(levelCenterY - intendedY)}`);
+        
         if (Math.abs(levelCenterY - intendedY) <= tolerance) {
           // This node can share this Y level
+          console.log(`[calculateEvenSpacing]   SHARING level ${levelIdx}`);
           assignedLevel = level;
           // Update level height if this node is taller
           level.height = Math.max(level.height, nodeHeight);
           level.nodesWithRanges.push({ nodeId: node.id, range: nodeRange });
           break;
         }
+      } else {
+        console.log(`[calculateEvenSpacing]   Level ${levelIdx}: HAS overlap, skipping`);
       }
     }
     
