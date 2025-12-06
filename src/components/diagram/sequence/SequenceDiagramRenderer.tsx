@@ -361,8 +361,8 @@ const MousePositionTracker: React.FC<{
     }
     
     const nodeId = `node-${Date.now()}`;
-    const sourceAnchorId = `anchor-${nodeId}-source`;
-    const targetAnchorId = `anchor-${nodeId}-target`;
+    const anchorId1 = `anchor-${Date.now()}-1`;
+    const anchorId2 = `anchor-${Date.now()}-2`;
     
     // Find the source lifeline and get the next one
     const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
@@ -421,8 +421,8 @@ const MousePositionTracker: React.FC<{
       type: 'endpoint',
       label: 'New Endpoint',
       anchors: [
-        { id: sourceAnchorId, lifelineId: sourceLifelineId, anchorType: 'source' },
-        { id: targetAnchorId, lifelineId: targetLifelineId, anchorType: 'target' }
+        { id: anchorId1, lifelineId: sourceLifelineId, anchorType: 'source' },
+        { id: anchorId2, lifelineId: targetLifelineId, anchorType: 'target' }
       ],
       yPosition: constrainedNodeY
     };
@@ -497,12 +497,12 @@ const MousePositionTracker: React.FC<{
               
               const newAnchors: [AnchorNodeType, AnchorNodeType] = [
                 { 
-                  id: `anchor-${node.id}-source`, 
+                  id: `anchor-${Date.now()}-1`, 
                   lifelineId: sourceLifeline.id,
                   anchorType: 'source'
                 },
                 { 
-                  id: `anchor-${node.id}-target`, 
+                  id: `anchor-${Date.now()}-2`, 
                   lifelineId: targetLifeline.id,
                   anchorType: 'target'
                 }
