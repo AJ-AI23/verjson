@@ -21,7 +21,7 @@ interface SequenceNodeProps {
 }
 
 export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected, positionAbsoluteY }) => {
-  const { config, label, type, data: nodeData, styles, width, onHeightChange, id, calculatedHeight, isRenderMode } = data;
+  const { config, label, type, description, data: nodeData, styles, width, onHeightChange, id, calculatedHeight, isRenderMode } = data;
   const nodeRef = useRef<HTMLDivElement>(null);
 
   // Track full node height changes (including debug display) and notify parent
@@ -75,9 +75,9 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected, posi
             <div className="text-sm font-medium" style={{ color: nodeColors.text }}>
               {label}
             </div>
-            {nodeData.description && (
+            {description && (
               <div className="text-xs opacity-70 line-clamp-2" style={{ color: nodeColors.text }}>
-                {nodeData.description}
+                {description}
               </div>
             )}
           </div>
@@ -94,9 +94,9 @@ export const SequenceNode: React.FC<SequenceNodeProps> = ({ data, selected, posi
           <div className="text-sm font-medium" style={{ color: nodeColors.text }}>
             {label}
           </div>
-          {nodeData?.description && (
+          {description && (
             <div className="text-xs opacity-70 line-clamp-2" style={{ color: nodeColors.text }}>
-              {nodeData.description}
+              {description}
             </div>
           )}
         </div>

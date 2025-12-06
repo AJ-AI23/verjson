@@ -47,79 +47,67 @@ export const defaultDiagramSchema: DiagramDocument = {
         id: 'node-1',
         type: 'process',
         label: 'Click login link',
+        description: 'User initiates login',
         anchors: [
           { id: 'anchor-1', lifelineId: 'lifeline-1', anchorType: 'source' },
           { id: 'anchor-2', lifelineId: 'lifeline-2', anchorType: 'target' }
         ],
-        yPosition: 140,
-        data: {
-          description: 'User initiates login'
-        }
+        yPosition: 140
       },
       {
         id: 'node-2',
         type: 'process',
         label: 'Authorization Code Request to /authorize',
+        description: 'Request authorization code',
         anchors: [
           { id: 'anchor-3', lifelineId: 'lifeline-2', anchorType: 'source' },
           { id: 'anchor-4', lifelineId: 'lifeline-3', anchorType: 'target' }
         ],
-        yPosition: 280,
-        data: {
-          description: 'Request authorization code'
-        }
+        yPosition: 280
       },
       {
         id: 'node-3',
         type: 'process',
         label: 'Redirect to login/authorization prompt',
+        description: 'Show login screen',
         anchors: [
           { id: 'anchor-5', lifelineId: 'lifeline-3', anchorType: 'source' },
           { id: 'anchor-6', lifelineId: 'lifeline-1', anchorType: 'target' }
         ],
-        yPosition: 420,
-        data: {
-          description: 'Show login screen'
-        }
+        yPosition: 420
       },
       {
         id: 'node-4',
         type: 'process',
         label: 'Authenticate and consent',
+        description: 'User provides credentials',
         anchors: [
           { id: 'anchor-7', lifelineId: 'lifeline-1', anchorType: 'source' },
           { id: 'anchor-8', lifelineId: 'lifeline-3', anchorType: 'target' }
         ],
-        yPosition: 560,
-        data: {
-          description: 'User provides credentials'
-        }
+        yPosition: 560
       },
       {
         id: 'node-5',
         type: 'process',
         label: 'Authorization Code',
+        description: 'Return authorization code',
         anchors: [
           { id: 'anchor-9', lifelineId: 'lifeline-3', anchorType: 'source' },
           { id: 'anchor-10', lifelineId: 'lifeline-2', anchorType: 'target' }
         ],
-        yPosition: 700,
-        data: {
-          description: 'Return authorization code'
-        }
+        yPosition: 700
       },
       {
         id: 'node-6',
         type: 'process',
         label: 'Authorization Code + Client ID + Client Secret to /oauth/token endpoint',
+        description: 'Exchange code for token',
         anchors: [
           { id: 'anchor-11', lifelineId: 'lifeline-2', anchorType: 'source' },
           { id: 'anchor-12', lifelineId: 'lifeline-3', anchorType: 'target' }
         ],
-        yPosition: 840,
-        data: {
-          description: 'Exchange code for token'
-        }
+        yPosition: 840
       }
     ],
     processes: [

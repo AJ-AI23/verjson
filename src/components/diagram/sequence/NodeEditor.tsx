@@ -65,16 +65,20 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
       // Check if anything changed
       const labelChanged = localNode.label !== node.label;
       const typeChanged = localNode.type !== node.type;
+      const descriptionChanged = localNode.description !== node.description;
       const dataChanged = JSON.stringify(localNode.data) !== JSON.stringify(node.data);
-      const hasChanges = labelChanged || typeChanged || dataChanged;
+      const hasChanges = labelChanged || typeChanged || descriptionChanged || dataChanged;
       
       console.log('🔍 [NodeEditor] Checking for changes:', {
         labelChanged,
         typeChanged,
+        descriptionChanged,
         dataChanged,
         hasChanges,
         localLabel: localNode.label,
         nodeLabel: node.label,
+        localDescription: localNode.description,
+        nodeDescription: node.description,
         localData: localNode.data,
         nodeData: node.data
       });
@@ -84,6 +88,7 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
         onUpdate(localNode.id, {
           label: localNode.label,
           type: localNode.type,
+          description: localNode.description,
           data: localNode.data
         });
       } else {
@@ -213,8 +218,8 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
             <Label htmlFor="node-description">Description</Label>
             <Textarea
               id="node-description"
-              value={localNode.data?.description || ''}
-              onChange={(e) => handleDataUpdate('description', e.target.value)}
+              value={localNode.description || ''}
+              onChange={(e) => handleUpdate('description', e.target.value)}
               placeholder="Optional description"
               rows={3}
             />
