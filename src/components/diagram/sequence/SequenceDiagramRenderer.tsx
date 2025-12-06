@@ -681,7 +681,7 @@ const MousePositionTracker: React.FC<{
         
         return {
           ...node,
-          draggable: false, // Anchors should never be draggable - their position is determined by lifelines
+          draggable: !readOnly && !isRenderMode,
           selectable: !readOnly && !isRenderMode,
           selected: node.id === selectedAnchorId && !isRenderMode,
           data: {
@@ -1072,10 +1072,14 @@ const MousePositionTracker: React.FC<{
         let closestLifelineX = 0;
         let minDistance = Infinity;
         
-        // Calculate lifeline positions and find closest
+        // Use layout positions (which account for process box offsets) to find closest lifeline
         const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
+        const lifelineLayoutNodes = layoutNodes.filter(n => n.type === 'columnLifeline');
+        
         sortedLifelines.forEach((lifeline, index) => {
-          const lifelineX = index * (300 + 100) + 150; // LIFELINE_WIDTH + horizontalSpacing + padding
+          // Get actual position from layout nodes, fall back to simple calculation
+          const layoutNode = lifelineLayoutNodes.find(n => n.id === `lifeline-${lifeline.id}`);
+          const lifelineX = layoutNode ? layoutNode.position.x + 150 : index * (300 + 100) + 150; // Center of lifeline
           const distance = Math.abs(anchorX - lifelineX);
           if (distance < minDistance) {
             minDistance = distance;
@@ -1203,13 +1207,16 @@ const MousePositionTracker: React.FC<{
           const currentNodeY = connectedNode.yPosition || 100;
           const nodeCenterY = currentNodeY + (nodeHeight / 2);
           
-          // Helper to get lifeline X position
+          // Helper to get lifeline X position from layout (accounts for process box offsets)
           const getLifelineX = (lifelineId: string) => {
             const lifeline = lifelines.find(l => l.id === lifelineId);
             if (!lifeline) return 0;
             const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
             const index = sortedLifelines.findIndex(l => l.id === lifelineId);
-            return index * (300 + 100) + 150; // Match the calculation above
+            // Use layout position if available, fall back to simple calculation
+            const lifelineLayoutNodes = layoutNodes.filter(n => n.type === 'columnLifeline');
+            const layoutNode = lifelineLayoutNodes.find(n => n.id === `lifeline-${lifelineId}`);
+            return layoutNode ? layoutNode.position.x + 150 : index * (300 + 100) + 150; // Center of lifeline
           };
           
           return currentNodes.map(n => {
