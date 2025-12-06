@@ -1944,9 +1944,6 @@ const FitViewHelper: React.FC<{
 
   // Handle node hover for tooltip
   const handleNodeMouseEnter = useCallback((event: React.MouseEvent, node: Node) => {
-    // Only show tooltip for sequence nodes (not lifelines, anchors, or processes)
-    if (node.type !== 'sequenceNode') return;
-    
     const container = document.querySelector('.react-flow');
     if (!container) return;
     
@@ -1956,15 +1953,46 @@ const FitViewHelper: React.FC<{
       y: event.clientY - bounds.top
     };
     
-    // Find the diagram node to get its description
-    const diagramNode = diagramNodes.find(n => n.id === node.id);
+    let elementId = node.id;
+    let elementDescription: string | undefined;
+    
+    switch (node.type) {
+      case 'sequenceNode': {
+        const diagramNode = diagramNodes.find(n => n.id === node.id);
+        elementDescription = diagramNode?.description;
+        break;
+      }
+      case 'columnLifeline': {
+        const lifeline = lifelines.find(l => l.id === node.id);
+        elementDescription = lifeline?.description;
+        break;
+      }
+      case 'anchorNode': {
+        // Anchor nodes have format like "anchor-xxx" - find the parent node
+        const parentNode = diagramNodes.find(n => 
+          n.anchors.some(a => a.id === node.id)
+        );
+        if (parentNode) {
+          const anchor = parentNode.anchors.find(a => a.id === node.id);
+          elementDescription = `${anchor?.anchorType} anchor for ${parentNode.label}`;
+        }
+        break;
+      }
+      case 'processNode': {
+        const process = (data.processes || []).find(p => p.id === node.id);
+        elementDescription = process?.description;
+        break;
+      }
+      default:
+        return; // Don't show tooltip for unknown types
+    }
     
     setHoveredElement({
-      id: node.id,
-      description: diagramNode?.description,
+      id: elementId,
+      description: elementDescription,
       position: viewportPos
     });
-  }, [diagramNodes]);
+  }, [diagramNodes, lifelines, data.processes]);
 
   const handleNodeMouseLeave = useCallback(() => {
     setHoveredElement(null);
