@@ -1307,35 +1307,8 @@ const MousePositionTracker: React.FC<{
           });
         });
         
-        // If swapping and there are processes, update the process anchorIds to reflect the swap
-        let updatedProcesses = data.processes || [];
-        if (isSwapping && updatedProcesses.length > 0 && nodeWithAnchor) {
-          const draggedAnchorIndex = nodeWithAnchor.anchors.findIndex(a => a.id === moveChange.id);
-          const otherAnchorIndex = draggedAnchorIndex === 0 ? 1 : 0;
-          const draggedAnchorId = nodeWithAnchor.anchors[draggedAnchorIndex].id;
-          const otherAnchorId = nodeWithAnchor.anchors[otherAnchorIndex].id;
-          
-          // Swap anchor IDs in processes - if a process had the dragged anchor, give it the other anchor and vice versa
-          updatedProcesses = updatedProcesses.map(process => {
-            const hasDraggedAnchor = process.anchorIds.includes(draggedAnchorId);
-            const hasOtherAnchor = process.anchorIds.includes(otherAnchorId);
-            
-            if (hasDraggedAnchor && !hasOtherAnchor) {
-              // Process had dragged anchor - replace with other anchor
-              return {
-                ...process,
-                anchorIds: process.anchorIds.map(id => id === draggedAnchorId ? otherAnchorId : id)
-              };
-            } else if (hasOtherAnchor && !hasDraggedAnchor) {
-              // Process had other anchor - replace with dragged anchor
-              return {
-                ...process,
-                anchorIds: process.anchorIds.map(id => id === otherAnchorId ? draggedAnchorId : id)
-              };
-            }
-            return process;
-          });
-        }
+        // Process anchorIds don't need updating when swapping - only anchorType changes
+        const updatedProcesses = data.processes || [];
         
         onDataChange({ ...data, nodes: updatedDiagramNodes, processes: updatedProcesses });
       } else if (movedNode?.type === 'columnLifeline') {
