@@ -495,14 +495,13 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     
     const edgeStyles = getEdgeStyle('default');
     
-    // Determine which anchor is on the left and which is on the right
-    const sourceAnchor = node.anchors?.[0];
-    const targetAnchor = node.anchors?.[1];
+    // Determine if this anchor is on the left side of the node based on lifeline positions
+    const otherAnchor = node.anchors?.find(a => a.id !== anchor.id);
+    const thisAnchorX = lifelineXPositions.get(anchor.lifelineId) || 0;
+    const otherAnchorX = otherAnchor ? lifelineXPositions.get(otherAnchor.lifelineId) || 0 : thisAnchorX;
     
-    const sourceX = sourceAnchor ? lifelineXPositions.get(sourceAnchor.lifelineId) || 0 : 0;
-    const targetX = targetAnchor ? lifelineXPositions.get(targetAnchor.lifelineId) || 0 : 0;
-    
-    const isLeftAnchor = anchor.id === (sourceX < targetX ? sourceAnchor?.id : targetAnchor?.id);
+    // Anchor is on the left if its lifeline X position is less than the other anchor's
+    const isLeftAnchor = thisAnchorX < otherAnchorX;
     
     if (anchor.anchorType === 'source') {
       // Edge from anchor to node
