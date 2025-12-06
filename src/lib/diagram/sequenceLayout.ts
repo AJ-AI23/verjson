@@ -526,7 +526,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         animated: false,
         style: edgeStyles,
         zIndex: 5,
-        markerEnd: { type: MarkerType.ArrowClosed, width: 28, height: 28, color: edgeStyles.stroke },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 28, height: 28, color: '#3b82f6' },
         data: { edgeType: 'default', styles, isRenderMode }
       };
       layoutEdges.push(edge);
@@ -542,7 +542,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         animated: false,
         style: edgeStyles,
         zIndex: 5,
-        markerEnd: { type: MarkerType.ArrowClosed, width: 28, height: 28, color: edgeStyles.stroke },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 28, height: 28, color: '#3b82f6' },
         data: { edgeType: 'default', styles, isRenderMode }
       };
       layoutEdges.push(edge);
