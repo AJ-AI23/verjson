@@ -686,8 +686,7 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
     return aPos - bPos;
   });
   
-  // Assign Y positions based on sorted nodes
-  // IMPORTANT: Use explicit yPosition when defined (user-placed nodes), otherwise auto-calculate
+  // Assign Y positions based on sorted nodes, allowing sharing when no overlap
   sortedNodes.forEach((node) => {
     if (!node || !node.anchors || node.anchors.length !== 2) {
       positions.set(node.id, startY);
@@ -697,13 +696,6 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
     const nodeConfig = getNodeTypeConfig(node.type);
     const measuredHeight = nodeHeights?.get(node.id);
     const nodeHeight = measuredHeight || nodeConfig?.defaultHeight || 70;
-    
-    // If node has explicit yPosition (user clicked to place it), use it directly
-    // yPosition represents the CENTER Y of the node
-    if (node.yPosition !== undefined) {
-      positions.set(node.id, node.yPosition);
-      return;
-    }
     
     // Get the lifeline range this node spans
     const sourceLifelineId = node.anchors[0].lifelineId;
