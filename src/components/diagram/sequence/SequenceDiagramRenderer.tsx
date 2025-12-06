@@ -1063,12 +1063,13 @@ const MousePositionTracker: React.FC<{
       const isAnchor = movedNode?.type === 'anchorNode';
       
       if (isAnchor) {
-        // Update anchor position - snap to nearest lifeline
+        // Update anchor position - snap to nearest lifeline if within valid distance
         const anchorData = movedNode?.data as any;
+        const originalLifelineId = anchorData?.lifelineId;
         
         // Find which lifeline this anchor should snap to based on X position
         const anchorX = moveChange.position.x + 8; // Add half width to get center
-        let closestLifelineId = anchorData?.lifelineId;
+        let closestLifelineId = originalLifelineId;
         let closestLifelineX = 0;
         let minDistance = Infinity;
         
@@ -1087,6 +1088,26 @@ const MousePositionTracker: React.FC<{
             closestLifelineX = lifelineX;
           }
         });
+        
+        // If drop position is too far from any lifeline, snap back to original
+        const SNAP_THRESHOLD = 150; // Max distance in pixels to consider a valid snap
+        const shouldSnapBack = minDistance > SNAP_THRESHOLD;
+        
+        if (shouldSnapBack) {
+          // Revert to original lifeline
+          closestLifelineId = originalLifelineId;
+          const originalLifelineLayoutNode = lifelineLayoutNodes.find(n => n.id === `lifeline-${originalLifelineId}`);
+          const lifelineIndex = sortedLifelines.findIndex(l => l.id === originalLifelineId);
+          closestLifelineX = originalLifelineLayoutNode 
+            ? originalLifelineLayoutNode.position.x + 150 
+            : lifelineIndex * (300 + 100) + 150;
+          console.log('↩️ [ANCHOR DROP] Snapping back to original lifeline - drop too far:', {
+            anchorId: moveChange.id,
+            minDistance,
+            threshold: SNAP_THRESHOLD,
+            originalLifelineId
+          });
+        }
         
         // Snap anchor to lifeline X position
         const snappedX = closestLifelineX - 8; // Center the 16px anchor
@@ -1111,13 +1132,8 @@ const MousePositionTracker: React.FC<{
         const updatedDiagramNodes = diagramNodes.map(n => {
           const anchorIndex = n.anchors?.findIndex(a => a.id === moveChange.id);
           if (anchorIndex !== undefined && anchorIndex !== -1) {
-            // Get node height to determine center Y
-            const nodeConfig = getNodeTypeConfig(n.type);
-            const nodeHeight = nodeConfig?.defaultHeight || 70;
-            const currentNodeY = n.yPosition || 100;
-            
-            // Keep both anchors at the node's current center Y position
-            const nodeCenterY = currentNodeY + (nodeHeight / 2);
+            // yPosition is already the CENTER Y of the node (set by layout)
+            const nodeCenterY = n.yPosition || 100;
             
             const updatedAnchors = [...n.anchors];
             const otherAnchorIndex = anchorIndex === 0 ? 1 : 0;
@@ -1187,7 +1203,7 @@ const MousePositionTracker: React.FC<{
               return {
                 ...n,
                 anchors: updatedAnchors as [typeof updatedAnchors[0], typeof updatedAnchors[1]],
-                yPosition: currentNodeY
+                yPosition: nodeCenterY
               };
             }
           }
@@ -1202,10 +1218,8 @@ const MousePositionTracker: React.FC<{
           
           if (!connectedNode) return currentNodes;
           
-          const nodeConfig = getNodeTypeConfig(connectedNode.type);
-          const nodeHeight = nodeConfig?.defaultHeight || 70;
-          const currentNodeY = connectedNode.yPosition || 100;
-          const nodeCenterY = currentNodeY + (nodeHeight / 2);
+          // yPosition is already the CENTER Y of the node (set by layout)
+          const nodeCenterY = connectedNode.yPosition || 100;
           
           // Helper to get lifeline X position from layout (accounts for process box offsets)
           const getLifelineX = (lifelineId: string) => {
