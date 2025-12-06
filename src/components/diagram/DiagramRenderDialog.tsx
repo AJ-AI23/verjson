@@ -4,14 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DiagramStyles, DiagramStyleTheme, defaultLightTheme, defaultDarkTheme } from '@/types/diagramStyles';
 import { SequenceDiagramData } from '@/types/diagram';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { toPng, toSvg } from 'html-to-image';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Settings, Eye } from 'lucide-react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { SequenceDiagramRenderer } from './sequence/SequenceDiagramRenderer';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface DiagramRenderDialogProps {
   open: boolean;
@@ -30,6 +32,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   styles,
   diagramRef
 }) => {
+  const isMobile = useIsMobile();
   const [width, setWidth] = useState(1920);
   const [height, setHeight] = useState(1080);
   const [selectedTheme, setSelectedTheme] = useState<string>('light');
@@ -39,6 +42,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [activeTheme, setActiveTheme] = useState<string>(selectedTheme);
   const [initialRenderComplete, setInitialRenderComplete] = useState(false);
+  const [mobileTab, setMobileTab] = useState<string>('settings');
   const previewContainerRef = React.useRef<HTMLDivElement>(null);
 
   // Sync active theme with selected theme
@@ -201,9 +205,142 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
     }
   };
 
+  // Settings panel content (reusable for both layouts)
+  const SettingsPanel = () => (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="width">Width (px)</Label>
+        <Input
+          id="width"
+          type="number"
+          value={width}
+          onChange={(e) => setWidth(parseInt(e.target.value) || 1920)}
+          min={800}
+          max={4096}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="height">Height (px)</Label>
+        <Input
+          id="height"
+          type="number"
+          value={height}
+          onChange={(e) => setHeight(parseInt(e.target.value) || 1080)}
+          min={600}
+          max={4096}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="theme">Style Theme</Label>
+        <Select value={selectedTheme} onValueChange={setSelectedTheme}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {availableThemes.map(theme => (
+              <SelectItem key={theme} value={theme}>
+                {theme.charAt(0).toUpperCase() + theme.slice(1)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="format">Output Format</Label>
+        <Select value={outputFormat} onValueChange={(value: 'png' | 'svg') => setOutputFormat(value)}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="png">PNG (Raster)</SelectItem>
+            <SelectItem value="svg">SVG (Vector)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="pt-4 space-y-2 border-t">
+        <div className="text-sm text-muted-foreground">
+          <p>Aspect Ratio: {(width / height).toFixed(2)}</p>
+          <p className="mt-1">Resolution: {width} × {height}</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Preview panel content (reusable for both layouts)
+  const PreviewPanel = () => (
+    <div className="h-full flex flex-col">
+      <div className="bg-muted px-3 py-2 border-b flex items-center justify-between">
+        <span className="text-sm font-medium">Preview</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleFitView}
+          className="h-7 text-xs"
+        >
+          Fit to View
+        </Button>
+      </div>
+      <div className="flex-1 p-4 overflow-auto">
+        <div 
+          ref={previewContainerRef}
+          className="mx-auto border shadow-lg"
+          style={{ 
+            width: '100%',
+            aspectRatio: `${width} / ${height}`,
+            maxHeight: '100%',
+            backgroundColor: activeThemeData.colors.background
+          }}
+        >
+          <ReactFlowProvider>
+            <SequenceDiagramRenderer
+              data={data}
+              styles={previewStyles}
+              theme={activeTheme}
+              readOnly={true}
+              isRenderMode={true}
+              hasUserInteractedWithViewport={hasUserInteracted}
+              onRenderReady={() => {
+                console.log('[DiagramRenderDialog] onRenderReady - Diagram fully rendered');
+                const viewport = { x: 0, y: 0, zoom: 1 };
+                setPreviewViewport(viewport);
+                
+                // Force proper layout by toggling theme after initial mount
+                if (!initialRenderComplete) {
+                  setTimeout(() => {
+                    console.log('[DiagramRenderDialog] Toggling theme to force layout recalculation');
+                    // Toggle to opposite theme temporarily
+                    const tempTheme = activeTheme === 'light' ? 'dark' : 'light';
+                    setActiveTheme(tempTheme);
+                    setTimeout(() => {
+                      setActiveTheme(selectedTheme);
+                      setInitialRenderComplete(true);
+                    }, 50);
+                  }, 100);
+                }
+              }}
+              onFitViewReady={(fitView) => {
+                console.log('[DiagramRenderDialog] onFitViewReady called, storing fitView reference');
+                previewFitViewRef.current = fitView;
+              }}
+              onViewportChange={(viewport) => {
+                console.log('[DiagramRenderDialog] Viewport changed - USER INTERACTION', viewport);
+                setPreviewViewport(viewport);
+                setHasUserInteracted(true);
+              }}
+            />
+          </ReactFlowProvider>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl h-[80vh]">
+      <DialogContent className={isMobile ? "max-w-full h-[90vh] p-4" : "max-w-6xl h-[80vh]"}>
         <DialogHeader>
           <DialogTitle>Render Diagram</DialogTitle>
           <DialogDescription>
@@ -211,150 +348,56 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex gap-6 flex-1 min-h-0">
-          {/* Settings Panel */}
-          <div className="w-64 space-y-4 flex-shrink-0">
-            <div className="space-y-2">
-              <Label htmlFor="width">Width (px)</Label>
-              <Input
-                id="width"
-                type="number"
-                value={width}
-                onChange={(e) => setWidth(parseInt(e.target.value) || 1920)}
-                min={800}
-                max={4096}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="height">Height (px)</Label>
-              <Input
-                id="height"
-                type="number"
-                value={height}
-                onChange={(e) => setHeight(parseInt(e.target.value) || 1080)}
-                min={600}
-                max={4096}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="theme">Style Theme</Label>
-              <Select value={selectedTheme} onValueChange={setSelectedTheme}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableThemes.map(theme => (
-                    <SelectItem key={theme} value={theme}>
-                      {theme.charAt(0).toUpperCase() + theme.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="format">Output Format</Label>
-              <Select value={outputFormat} onValueChange={(value: 'png' | 'svg') => setOutputFormat(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="png">PNG (Raster)</SelectItem>
-                  <SelectItem value="svg">SVG (Vector)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="pt-4 space-y-2 border-t">
-              <div className="text-sm text-muted-foreground">
-                <p>Aspect Ratio: {(width / height).toFixed(2)}</p>
-                <p className="mt-1">Resolution: {width} × {height}</p>
+        {isMobile ? (
+          // Mobile layout with tabs
+          <Tabs value={mobileTab} onValueChange={setMobileTab} className="flex-1 flex flex-col min-h-0">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="settings" className="flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                Settings
+              </TabsTrigger>
+              <TabsTrigger value="preview" className="flex items-center gap-2">
+                <Eye className="h-4 w-4" />
+                Preview
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="settings" className="flex-1 overflow-auto mt-4">
+              <SettingsPanel />
+            </TabsContent>
+            <TabsContent value="preview" className="flex-1 min-h-0 mt-4">
+              <div className="h-full border rounded-lg overflow-hidden bg-muted/20">
+                <PreviewPanel />
               </div>
+            </TabsContent>
+          </Tabs>
+        ) : (
+          // Desktop layout with side-by-side panels
+          <div className="flex gap-6 flex-1 min-h-0">
+            {/* Settings Panel */}
+            <div className="w-64 flex-shrink-0">
+              <SettingsPanel />
+            </div>
+
+            {/* Preview Panel */}
+            <div className="flex-1 border rounded-lg overflow-hidden bg-muted/20 min-w-0">
+              <PreviewPanel />
             </div>
           </div>
+        )}
 
-          {/* Preview Panel */}
-          <div className="flex-1 border rounded-lg overflow-hidden bg-muted/20 min-w-0">
-            <div className="h-full flex flex-col">
-              <div className="bg-muted px-3 py-2 border-b flex items-center justify-between">
-                <span className="text-sm font-medium">Preview</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleFitView}
-                  className="h-7 text-xs"
-                >
-                  Fit to View
-                </Button>
-              </div>
-              <div className="flex-1 p-4 overflow-auto">
-                <div 
-                  ref={previewContainerRef}
-                  className="mx-auto border shadow-lg"
-                  style={{ 
-                    width: '100%',
-                    aspectRatio: `${width} / ${height}`,
-                    maxHeight: '100%',
-                    backgroundColor: activeThemeData.colors.background
-                  }}
-                >
-                  <ReactFlowProvider>
-                    <SequenceDiagramRenderer
-                      data={data}
-                      styles={previewStyles}
-                      theme={activeTheme}
-                      readOnly={true}
-                      isRenderMode={true}
-                      hasUserInteractedWithViewport={hasUserInteracted}
-                      onRenderReady={() => {
-                        console.log('[DiagramRenderDialog] onRenderReady - Diagram fully rendered');
-                        const viewport = { x: 0, y: 0, zoom: 1 };
-                        setPreviewViewport(viewport);
-                        
-                        // Force proper layout by toggling theme after initial mount
-                        if (!initialRenderComplete) {
-                          setTimeout(() => {
-                            console.log('[DiagramRenderDialog] Toggling theme to force layout recalculation');
-                            // Toggle to opposite theme temporarily
-                            const tempTheme = activeTheme === 'light' ? 'dark' : 'light';
-                            setActiveTheme(tempTheme);
-                            setTimeout(() => {
-                              setActiveTheme(selectedTheme);
-                              setInitialRenderComplete(true);
-                            }, 50);
-                          }, 100);
-                        }
-                      }}
-                      onFitViewReady={(fitView) => {
-                        console.log('[DiagramRenderDialog] onFitViewReady called, storing fitView reference');
-                        previewFitViewRef.current = fitView;
-                      }}
-                      onViewportChange={(viewport) => {
-                        console.log('[DiagramRenderDialog] Viewport changed - USER INTERACTION', viewport);
-                        setPreviewViewport(viewport);
-                        setHasUserInteracted(true);
-                      }}
-                    />
-                  </ReactFlowProvider>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <DialogFooter>
+        <DialogFooter className={isMobile ? "flex-col gap-2" : ""}>
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={isRendering}
+            className={isMobile ? "w-full" : ""}
           >
             Cancel
           </Button>
           <Button
             onClick={handleRender}
             disabled={isRendering}
+            className={isMobile ? "w-full" : ""}
           >
             {isRendering && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Render {outputFormat.toUpperCase()}
