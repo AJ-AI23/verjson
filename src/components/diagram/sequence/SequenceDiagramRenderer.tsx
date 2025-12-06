@@ -133,11 +133,18 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [dragStartPositions, setDragStartPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
   const [nodeHeights, setNodeHeights] = useState<Map<string, number>>(new Map());
   const nodeHeightsRef = useRef<Map<string, number>>(new Map());
+  const initialHeightsAppliedRef = useRef(false);
   
   // Update ref when nodeHeights changes
   useEffect(() => {
     nodeHeightsRef.current = nodeHeights;
-  }, [nodeHeights]);
+    
+    // Trigger layout recalculation once all initial heights are measured
+    if (!initialHeightsAppliedRef.current && diagramNodes.length > 0 && nodeHeights.size >= diagramNodes.length) {
+      initialHeightsAppliedRef.current = true;
+      setLayoutVersion(v => v + 1);
+    }
+  }, [nodeHeights, diagramNodes.length]);
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
   const [layoutVersion, setLayoutVersion] = useState(0); // Force layout recalculation
@@ -533,7 +540,7 @@ const MousePositionTracker: React.FC<{
     // Store layout for use during drag
     previousLayoutRef.current = layout;
     return layout;
-  }, [lifelines, diagramNodes, activeTheme, isRenderMode, onDataChange, data, isDragging, layoutVersion, nodeHeights]);
+  }, [lifelines, diagramNodes, activeTheme, isRenderMode, onDataChange, data, isDragging, layoutVersion]);
 
   // Sync calculated positions back to document when they change
   useEffect(() => {
