@@ -1276,10 +1276,12 @@ const MousePositionTracker: React.FC<{
               const isTheDraggedAnchor = n.id === moveChange.id;
               
               if (isSwapping) {
-                // When swapping anchorType (arrow direction), anchors stay in their original positions
-                // Only the anchorType property changes, not the lifelineId or position
-                // So we don't move anchors at all - just keep current position
-                return n;
+                // When swapping anchorType (arrow direction), anchors stay on their original lifelines
+                // Only the anchorType property changes, not the lifelineId
+                // Snap the dragged anchor back to its original lifeline position
+                const anchorLifelineId = isTheDraggedAnchor ? draggedOriginalLifeline : anchorData.lifelineId;
+                const originalX = getLifelineX(anchorLifelineId);
+                return { ...n, position: { x: originalX - 8, y: nodeCenterY - 8 } };
               } else {
                 // Normal drag - only update dragged anchor position
                 return { 
