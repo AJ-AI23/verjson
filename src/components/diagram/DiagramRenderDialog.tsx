@@ -44,12 +44,26 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const [initialRenderComplete, setInitialRenderComplete] = useState(false);
   const [mobileTab, setMobileTab] = useState<string>('settings');
   const previewContainerRef = React.useRef<HTMLDivElement>(null);
+  const previewFitViewRef = React.useRef<(() => void) | null>(null);
 
   // Sync active theme with selected theme
   React.useEffect(() => {
     setActiveTheme(selectedTheme);
     setInitialRenderComplete(false);
   }, [selectedTheme]);
+
+  // Trigger fitView when switching to preview tab on mobile
+  React.useEffect(() => {
+    if (isMobile && mobileTab === 'preview' && previewFitViewRef.current) {
+      // Small delay to ensure ReactFlow is fully rendered
+      const timer = setTimeout(() => {
+        if (previewFitViewRef.current) {
+          previewFitViewRef.current();
+        }
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [isMobile, mobileTab]);
 
   // Default themes if none provided
   const defaultThemes = {
@@ -194,9 +208,6 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
 
   // Get the active theme colors
   const activeThemeData = previewStyles.themes[selectedTheme] || previewStyles.themes['light'] || defaultLightTheme;
-
-  // Reference for fit view control in preview
-  const previewFitViewRef = React.useRef<(() => void) | null>(null);
 
   const handleFitView = () => {
     console.log('[DiagramRenderDialog] Fit to View button clicked - MANUAL fitView call');
