@@ -767,11 +767,18 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
         const level = yLevels[i];
         const levelCenterY = level.y + level.height / 2;
         
+        // Check if there's horizontal overlap with this level
+        const hasHorizontalOverlap = level.nodesWithRanges.some(existing => 
+          lifelineRangesOverlap(nodeRange, existing.range, lifelinePositions)
+        );
+        
         // Use the level's center as the breakpoint:
         // - If click Y > levelCenterY → this level is "above" us, insert AFTER it
         // - If click Y <= levelCenterY → this level is "below" us, insert BEFORE it
-        if (intendedY > levelCenterY) {
-          // Click is below this level's center, so this level is above us
+        // EXCEPTION: if there's horizontal overlap, we MUST be below this level regardless of Y position
+        if (intendedY > levelCenterY || hasHorizontalOverlap) {
+          // Click is below this level's center OR we have horizontal overlap
+          // Either way, this level is "above" us and we insert after it
           levelAboveIndex = i;
         } else if (levelBelowIndex === -1) {
           // Click is at or above this level's center, so this level is below us
