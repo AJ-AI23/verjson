@@ -1180,20 +1180,15 @@ const MousePositionTracker: React.FC<{
             const draggedAnchor = updatedAnchors[anchorIndex];
             
             if (isSwapping) {
-              // Swap the lifelineIds and processIds, but keep anchorTypes unchanged
-              const otherOriginalLifeline = otherAnchor.lifelineId;
-              const draggedOriginalProcessId = draggedAnchor.processId;
-              const otherOriginalProcessId = otherAnchor.processId;
-              
+              // Only invert the anchorType values to change arrow direction
+              // Keep lifelineIds and processIds unchanged
               updatedAnchors[anchorIndex] = {
                 ...draggedAnchor,
-                lifelineId: otherOriginalLifeline,
-                processId: otherOriginalProcessId // Swap processId too
+                anchorType: draggedAnchor.anchorType === 'source' ? 'target' : 'source'
               };
               updatedAnchors[otherAnchorIndex] = {
                 ...otherAnchor,
-                lifelineId: draggedOriginalLifeline,
-                processId: draggedOriginalProcessId // Swap processId too
+                anchorType: otherAnchor.anchorType === 'source' ? 'target' : 'source'
               };
             } else {
               // Update the dragged anchor to new lifeline
