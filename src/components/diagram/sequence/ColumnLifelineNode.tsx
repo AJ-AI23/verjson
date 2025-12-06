@@ -127,12 +127,13 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, se
       {/* Vertical Lifeline with Hover Button */}
       <div
         ref={lifelineRef}
-        className="relative pointer-events-auto"
+        className="relative"
         style={{
           width: '60px',
           height: `${lifelineHeight}px`,
           marginLeft: '-30px',
-          marginRight: '-30px'
+          marginRight: '-30px',
+          pointerEvents: 'none'
         }}
         onMouseMove={isRenderMode ? undefined : handleMouseMove}
         onMouseLeave={isRenderMode ? undefined : handleMouseLeave}
