@@ -1133,18 +1133,22 @@ const MousePositionTracker: React.FC<{
           minDistance
         });
         
+        // Check if the anchor is part of a process - if so, it cannot be moved to a different lifeline
+        const anchorIsInProcess = anchorData?.isInProcess || false;
+        
         // If drop position is too far from any lifeline, snap back to original position from layout
         const SNAP_THRESHOLD = 150; // Max distance in pixels to consider a valid snap
-        const shouldSnapBack = minDistance > SNAP_THRESHOLD;
+        const shouldSnapBack = minDistance > SNAP_THRESHOLD || anchorIsInProcess;
         
         if (shouldSnapBack) {
           // Revert to original lifeline and use the anchor's layout position (includes process offset)
           closestLifelineId = originalLifelineId;
           closestLifelineX = originalAnchorX;
-          console.log('↩️ [ANCHOR DROP] Snapping back to original position - drop too far:', {
+          console.log('↩️ [ANCHOR DROP] Snapping back to original position' + (anchorIsInProcess ? ' - anchor is in process' : ' - drop too far') + ':', {
             anchorId: moveChange.id,
             minDistance,
             threshold: SNAP_THRESHOLD,
+            anchorIsInProcess,
             originalLifelineId,
             originalAnchorX,
             willSnapTo: closestLifelineX - 8
