@@ -95,75 +95,40 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const availableThemes = styles?.themes ? Object.keys(styles.themes) : ['light', 'dark'];
 
   const handleRender = async () => {
+    if (!previewContainerRef.current) {
+      toast.error('Preview container not found');
+      return;
+    }
+
     const selectedThemeData = styles?.themes?.[selectedTheme] || defaultThemes[selectedTheme as 'light' | 'dark'];
     const captureWidth = width;
     const captureHeight = height;
     const captureFormat = outputFormat;
     const captureTheme = selectedTheme;
-    
-    // Capture the current viewport from the preview
-    const currentViewport = previewGetViewportRef.current?.() || { x: 0, y: 0, zoom: 1 };
-    
-    // Calculate the viewport scale factor based on container size difference
-    // The preview container has a certain size, the offscreen will be at target dimensions
-    const previewRect = previewContainerRef.current?.getBoundingClientRect();
-    const scaleX = previewRect ? captureWidth / previewRect.width : 1;
-    const scaleY = previewRect ? captureHeight / previewRect.height : 1;
-    
-    // Scale the viewport to match the target dimensions
-    const scaledViewport = {
-      x: currentViewport.x * scaleX,
-      y: currentViewport.y * scaleY,
-      zoom: currentViewport.zoom
-    };
-    
-    console.log('[Render] Viewport captured:', { currentViewport, scaledViewport, scaleX, scaleY });
 
     try {
-      // Create an offscreen container at the exact target dimensions
-      const offscreenContainer = document.createElement('div');
-      offscreenContainer.style.cssText = `
-        position: fixed;
-        left: -9999px;
-        top: -9999px;
-        width: ${captureWidth}px;
-        height: ${captureHeight}px;
-        background-color: ${selectedThemeData?.colors?.background || '#ffffff'};
-        overflow: hidden;
-      `;
-      document.body.appendChild(offscreenContainer);
-
-      // Render the diagram into the offscreen container with the captured viewport
-      const { createRoot } = await import('react-dom/client');
-      const root = createRoot(offscreenContainer);
+      const containerToCapture = previewContainerRef.current;
+      const previewRect = containerToCapture.getBoundingClientRect();
       
-      await new Promise<void>((resolve) => {
-        root.render(
-          <ReactFlowProvider>
-            <SequenceDiagramRenderer
-              data={data}
-              styles={previewStyles}
-              theme={captureTheme}
-              readOnly={true}
-              isRenderMode={true}
-              initialViewport={scaledViewport}
-              hasUserInteractedWithViewport={true}
-              onRenderReady={() => {
-                // Give it a bit more time to fully render
-                setTimeout(resolve, 300);
-              }}
-            />
-          </ReactFlowProvider>
-        );
+      // Calculate pixel ratio to achieve target dimensions
+      const pixelRatio = captureWidth / previewRect.width;
+      
+      console.log('[Render] Capturing preview:', { 
+        targetWidth: captureWidth, 
+        targetHeight: captureHeight, 
+        previewWidth: previewRect.width,
+        previewHeight: previewRect.height,
+        pixelRatio,
+        backgroundColor: selectedThemeData?.colors?.background
       });
 
-      // Capture the offscreen container at its actual size (1:1 pixel ratio)
+      // Capture the preview container directly
       const renderFunction = captureFormat === 'svg' ? toSvg : toPng;
-      const dataUrl = await renderFunction(offscreenContainer, {
+      const dataUrl = await renderFunction(containerToCapture, {
         quality: captureFormat === 'png' ? 1.0 : undefined,
-        pixelRatio: 1,
-        width: captureWidth,
-        height: captureHeight,
+        pixelRatio: captureFormat === 'png' ? pixelRatio : 1,
+        width: previewRect.width,
+        height: previewRect.height,
         backgroundColor: selectedThemeData?.colors?.background,
         cacheBust: true,
         filter: (node) => {
@@ -176,10 +141,6 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
         }
       });
 
-      // Cleanup
-      root.unmount();
-      document.body.removeChild(offscreenContainer);
-      
       if (!dataUrl || dataUrl.length < 100) {
         throw new Error(`${captureFormat.toUpperCase()} capture produced empty or invalid data`);
       }
