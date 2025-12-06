@@ -42,6 +42,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const [mobileTab, setMobileTab] = useState<string>('settings');
   const previewContainerRef = React.useRef<HTMLDivElement>(null);
   const previewFitViewRef = React.useRef<(() => void) | null>(null);
+  const previewGetViewportRef = React.useRef<(() => { x: number; y: number; zoom: number }) | null>(null);
   const hasFittedViewRef = React.useRef(false);
   const isReadyRef = React.useRef(false);
   
@@ -57,6 +58,10 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       hasFittedViewRef.current = true;
       setTimeout(() => fitView(), 150);
     }
+  }, []);
+  
+  const handleGetViewportReady = useCallback((getViewport: () => { x: number; y: number; zoom: number }) => {
+    previewGetViewportRef.current = getViewport;
   }, []);
   
   const handleViewportChange = useCallback(() => {
@@ -95,6 +100,24 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
     const captureHeight = height;
     const captureFormat = outputFormat;
     const captureTheme = selectedTheme;
+    
+    // Capture the current viewport from the preview
+    const currentViewport = previewGetViewportRef.current?.() || { x: 0, y: 0, zoom: 1 };
+    
+    // Calculate the viewport scale factor based on container size difference
+    // The preview container has a certain size, the offscreen will be at target dimensions
+    const previewRect = previewContainerRef.current?.getBoundingClientRect();
+    const scaleX = previewRect ? captureWidth / previewRect.width : 1;
+    const scaleY = previewRect ? captureHeight / previewRect.height : 1;
+    
+    // Scale the viewport to match the target dimensions
+    const scaledViewport = {
+      x: currentViewport.x * scaleX,
+      y: currentViewport.y * scaleY,
+      zoom: currentViewport.zoom
+    };
+    
+    console.log('[Render] Viewport captured:', { currentViewport, scaledViewport, scaleX, scaleY });
 
     try {
       // Create an offscreen container at the exact target dimensions
@@ -110,7 +133,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       `;
       document.body.appendChild(offscreenContainer);
 
-      // Render the diagram into the offscreen container
+      // Render the diagram into the offscreen container with the captured viewport
       const { createRoot } = await import('react-dom/client');
       const root = createRoot(offscreenContainer);
       
@@ -123,14 +146,11 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
               theme={captureTheme}
               readOnly={true}
               isRenderMode={true}
-              hasUserInteractedWithViewport={false}
+              initialViewport={scaledViewport}
+              hasUserInteractedWithViewport={true}
               onRenderReady={() => {
-                // Give it a bit more time to fully render and fit
+                // Give it a bit more time to fully render
                 setTimeout(resolve, 300);
-              }}
-              onFitViewReady={(fitView) => {
-                // Auto fit the view in the offscreen container
-                setTimeout(() => fitView(), 100);
               }}
             />
           </ReactFlowProvider>
@@ -282,10 +302,11 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
         hasUserInteractedWithViewport={hasFittedViewRef.current}
         onRenderReady={handleRenderReady}
         onFitViewReady={handleFitViewReady}
+        onGetViewportReady={handleGetViewportReady}
         onViewportChange={handleViewportChange}
       />
     </ReactFlowProvider>
-  ), [data, previewStyles, activeTheme, handleRenderReady, handleFitViewReady, handleViewportChange]);
+  ), [data, previewStyles, activeTheme, handleRenderReady, handleFitViewReady, handleGetViewportReady, handleViewportChange]);
 
   // Preview panel content (reusable for both layouts)
   const PreviewPanel = () => (
