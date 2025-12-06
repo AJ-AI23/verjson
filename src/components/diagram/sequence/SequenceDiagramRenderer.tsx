@@ -378,35 +378,9 @@ const FitViewHelper: React.FC<{
     const newNodeBottom = constrainedNodeY + nodeHeight / 2;
     const newNodeTop = constrainedNodeY - nodeHeight / 2;
     
-    const updatedNodes = diagramNodes.map(node => {
-      const existingNodeY = node.yPosition || 0;
-      const existingNodeHeight = nodeHeightsRef.current.get(node.id) || nodeHeight;
-      const existingNodeMidpoint = existingNodeY;
-      const existingNodeTop = existingNodeY - existingNodeHeight / 2;
-      const existingNodeBottom = existingNodeY + existingNodeHeight / 2;
-      
-      // Only push down nodes where:
-      // 1. The click position is ABOVE the existing node's midpoint (we want to insert above it)
-      // 2. AND the new node would overlap with the existing node
-      const clickedAboveMidpoint = constrainedNodeY < existingNodeMidpoint;
-      const wouldOverlap = newNodeBottom + minSpacing > existingNodeTop;
-      
-      if (clickedAboveMidpoint && wouldOverlap) {
-        const newY = newNodeBottom + minSpacing + existingNodeHeight / 2;
-        console.log('📦 [handleAddNodeOnLifeline] Pushing node down:', {
-          nodeId: node.id,
-          oldY: existingNodeY,
-          newY,
-          reason: 'clicked above midpoint and would overlap'
-        });
-        return {
-          ...node,
-          yPosition: newY,
-          anchors: node.anchors
-        };
-      }
-      return node;
-    });
+    // Don't manually push nodes down here - let calculateEvenSpacing handle all positioning
+    // It will properly check for horizontal overlap (lifeline conflicts) and only separate nodes that actually conflict
+    const updatedNodes = diagramNodes;
     
     // Create new node
     const newNode: DiagramNode = {
