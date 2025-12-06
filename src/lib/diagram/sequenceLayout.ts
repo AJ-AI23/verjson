@@ -703,7 +703,10 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
     const nodeRange: [string, string] = [sourceLifelineId, targetLifelineId];
     
     // Get the intended Y position from the node (this is the center Y)
-    const intendedY = node.yPosition !== undefined ? node.yPosition : startY + (nodeHeight / 2);
+    // Ensure the node's center Y is at least startY (below header with margin)
+    const minCenterY = startY;
+    const rawIntendedY = node.yPosition !== undefined ? node.yPosition : startY + (nodeHeight / 2);
+    const intendedY = Math.max(rawIntendedY, minCenterY);
     const intendedTopY = intendedY - (nodeHeight / 2);
     
     // Try to find an existing Y level where this node can fit (no overlap)
@@ -748,13 +751,9 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
       let levelAboveIndex = -1;
       let levelBelowIndex = -1;
       
-      console.log(`[calculateEvenSpacing] Node ${node.id}: intendedY=${intendedY}, intendedTopY=${intendedTopY}`);
-      
       for (let i = 0; i < yLevels.length; i++) {
         const level = yLevels[i];
         const levelCenterY = level.y + level.height / 2;
-        
-        console.log(`[calculateEvenSpacing] Comparing with level ${i}: levelY=${level.y}, levelHeight=${level.height}, levelCenterY=${levelCenterY}, intendedY > levelCenterY = ${intendedY > levelCenterY}`);
         
         // Use the level's center as the breakpoint:
         // - If click Y > levelCenterY → this level is "above" us, insert AFTER it
@@ -767,8 +766,6 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
           levelBelowIndex = i;
         }
       }
-      
-      console.log(`[calculateEvenSpacing] Result: levelAboveIndex=${levelAboveIndex}, levelBelowIndex=${levelBelowIndex}, insertIndex will be ${levelAboveIndex >= 0 ? levelAboveIndex + 1 : 0}`);
       
       // The insert index should be right after levelAbove (if it exists)
       // This ensures we insert in the correct slot - BELOW nodes whose center is above our click point
