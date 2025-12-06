@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Link, Unlink } from 'lucide-react';
+import { Plus, Link, Unlink, ArrowLeftRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   HoverCard,
@@ -9,12 +9,14 @@ import {
 
 interface AnchorTooltipProps {
   anchorId: string;
+  anchorType: 'source' | 'target';
   isInProcess: boolean;
   canAddProcess: boolean;
   hasNearbyProcesses: boolean;
   onCreateProcess: () => void;
   onAddToExisting: () => void;
   onRemoveFromProcess?: () => void;
+  onSwitchAnchorType: () => void;
   position: { x: number; y: number };
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -22,16 +24,19 @@ interface AnchorTooltipProps {
 
 export const AnchorTooltip: React.FC<AnchorTooltipProps> = ({
   anchorId,
+  anchorType,
   isInProcess,
   canAddProcess,
   hasNearbyProcesses,
   onCreateProcess,
   onAddToExisting,
   onRemoveFromProcess,
+  onSwitchAnchorType,
   position,
   open,
   onOpenChange
 }) => {
+  const switchLabel = anchorType === 'source' ? 'Switch to target' : 'Switch to source';
 
   return (
     <div
@@ -43,6 +48,18 @@ export const AnchorTooltip: React.FC<AnchorTooltipProps> = ({
       }}
     >
       <div className="pointer-events-auto bg-popover border border-border rounded-lg shadow-lg p-2 flex flex-col gap-1 min-w-[180px]">
+        {/* Switch anchor type option - always visible */}
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onSwitchAnchorType}
+          className="w-full justify-start h-8 text-xs"
+          title={switchLabel}
+        >
+          <ArrowLeftRight className="h-3 w-3 mr-2" />
+          {switchLabel}
+        </Button>
+        
         {isInProcess ? (
           // Show remove option when anchor is in a process
           <Button
