@@ -38,14 +38,12 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const [selectedTheme, setSelectedTheme] = useState<string>('light');
   const [outputFormat, setOutputFormat] = useState<'png' | 'svg'>('png');
   const [isRendering, setIsRendering] = useState(false);
-  const [previewViewport, setPreviewViewport] = useState<{ x: number; y: number; zoom: number } | null>(null);
-  const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [activeTheme, setActiveTheme] = useState<string>(selectedTheme);
-  const [initialRenderComplete, setInitialRenderComplete] = useState(false);
   const [mobileTab, setMobileTab] = useState<string>('settings');
   const previewContainerRef = React.useRef<HTMLDivElement>(null);
   const previewFitViewRef = React.useRef<(() => void) | null>(null);
   const hasFittedViewRef = React.useRef(false);
+  const isReadyRef = React.useRef(false);
 
   // Sync active theme with selected theme
   React.useEffect(() => {
@@ -74,9 +72,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const availableThemes = styles?.themes ? Object.keys(styles.themes) : ['light', 'dark'];
 
   const handleRender = async () => {
-    console.log('[Render] Button clicked!', { hasViewport: !!previewViewport, hasRef: !!previewContainerRef.current });
-    
-    if (!previewViewport) {
+    if (!isReadyRef.current) {
       toast.error('Please wait for preview to load');
       return;
     }
@@ -87,7 +83,6 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
     }
 
     setIsRendering(true);
-    console.log('[Render] Starting diagram render process with viewport:', previewViewport);
 
     try {
       const selectedThemeData = styles?.themes?.[selectedTheme] || defaultThemes[selectedTheme as 'light' | 'dark'];
@@ -313,12 +308,9 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
               theme={activeTheme}
               readOnly={true}
               isRenderMode={true}
-              hasUserInteractedWithViewport={hasUserInteracted}
+              hasUserInteractedWithViewport={hasFittedViewRef.current}
               onRenderReady={() => {
-                if (!hasFittedViewRef.current) {
-                  setPreviewViewport({ x: 0, y: 0, zoom: 1 });
-                  setInitialRenderComplete(true);
-                }
+                isReadyRef.current = true;
               }}
               onFitViewReady={(fitView) => {
                 previewFitViewRef.current = fitView;
@@ -328,11 +320,8 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
                   setTimeout(() => fitView(), 150);
                 }
               }}
-              onViewportChange={(viewport) => {
-                if (hasFittedViewRef.current) {
-                  setPreviewViewport(viewport);
-                  setHasUserInteracted(true);
-                }
+              onViewportChange={() => {
+                // No state updates needed - just track via refs
               }}
             />
           </ReactFlowProvider>
