@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useReactFlow } from '@xyflow/react';
+import { useViewport } from '@xyflow/react';
 import { Lifeline } from '@/types/diagram';
 import { DiagramStyleTheme } from '@/types/diagramStyles';
 import { Button } from '@/components/ui/button';
@@ -20,14 +20,14 @@ interface ColumnLifelineNodeProps {
 
 export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, selected }) => {
   const { column: lifeline, styles, customLifelineColors, onAddNode, readOnly, lifelineHeight = 2000, isRenderMode } = data;
-  const [hoverPosition, setHoverPosition] = useState<{ screen: number; flow: number } | null>(null);
+  const [hoverPosition, setHoverPosition] = useState<number | null>(null);
   const lifelineRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
-  const { screenToFlowPosition, getViewport } = useReactFlow();
+  const viewport = useViewport();
 
-  const handleAddNode = (flowY: number) => {
+  const handleAddNode = (yPosition: number) => {
     if (onAddNode && !readOnly) {
-      onAddNode(lifeline.id, flowY);
+      onAddNode(lifeline.id, yPosition);
     }
   };
 
@@ -43,16 +43,10 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, se
       
       const rect = lifelineRef.current.getBoundingClientRect();
       const screenY = e.clientY - rect.top;
-      
-      // Use screenToFlowPosition for accurate conversion accounting for zoom and pan
-      const flowPosition = screenToFlowPosition({ x: e.clientX, y: e.clientY });
-      const viewport = getViewport();
+      const diagramY = screenY / viewport.zoom;
       
       if (screenY >= 0 && screenY <= rect.height) {
-        setHoverPosition({ 
-          screen: screenY / viewport.zoom, // For button positioning within the track
-          flow: flowPosition.y // Actual flow Y coordinate for node placement
-        });
+        setHoverPosition(diagramY);
       }
     });
   };
@@ -164,14 +158,14 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, se
         {!readOnly && onAddNode && hoverPosition !== null && (
           <div
             className="absolute"
-            style={{ top: `${hoverPosition.screen}px`, left: '30px', transform: 'translate(-50%, -50%)', pointerEvents: 'auto' }}
+            style={{ top: `${hoverPosition}px`, left: '30px', transform: 'translate(-50%, -50%)', pointerEvents: 'auto' }}
           >
             {/* Large Clickable Area */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                handleAddNode(hoverPosition.flow);
+                handleAddNode(hoverPosition);
               }}
               onMouseDown={(e) => {
                 e.stopPropagation();
