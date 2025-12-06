@@ -1180,9 +1180,7 @@ const MousePositionTracker: React.FC<{
             const draggedAnchor = updatedAnchors[anchorIndex];
             
             if (isSwapping) {
-              // Swap the lifelines, anchor types, AND processIds
-              const draggedOriginalType = draggedAnchor.anchorType;
-              const otherOriginalType = otherAnchor.anchorType;
+              // Swap the lifelineIds and processIds, but keep anchorTypes unchanged
               const otherOriginalLifeline = otherAnchor.lifelineId;
               const draggedOriginalProcessId = draggedAnchor.processId;
               const otherOriginalProcessId = otherAnchor.processId;
@@ -1190,13 +1188,11 @@ const MousePositionTracker: React.FC<{
               updatedAnchors[anchorIndex] = {
                 ...draggedAnchor,
                 lifelineId: otherOriginalLifeline,
-                anchorType: otherOriginalType,
                 processId: otherOriginalProcessId // Swap processId too
               };
               updatedAnchors[otherAnchorIndex] = {
                 ...otherAnchor,
                 lifelineId: draggedOriginalLifeline,
-                anchorType: draggedOriginalType,
                 processId: draggedOriginalProcessId // Swap processId too
               };
             } else {
