@@ -133,7 +133,7 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, se
           height: `${lifelineHeight}px`,
           marginLeft: '-30px',
           marginRight: '-30px',
-          pointerEvents: 'none'
+          pointerEvents: isRenderMode || readOnly ? 'none' : 'auto'
         }}
         onMouseMove={isRenderMode ? undefined : handleMouseMove}
         onMouseLeave={isRenderMode ? undefined : handleMouseLeave}
