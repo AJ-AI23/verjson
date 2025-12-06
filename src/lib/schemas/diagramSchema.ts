@@ -172,6 +172,10 @@ const diagramSchema = {
           minLength: 1,
           description: 'Node label'
         },
+        description: {
+          type: 'string',
+          description: 'Node description'
+        },
         anchors: {
           type: 'array',
           minItems: 2,
@@ -198,10 +202,6 @@ const diagramSchema = {
             path: {
               type: 'string',
               description: 'API path for endpoint nodes'
-            },
-            description: {
-              type: 'string',
-              description: 'Node description'
             },
             openApiRef: {
               type: 'object',

@@ -152,7 +152,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [layoutVersion, setLayoutVersion] = useState(0); // Force layout recalculation
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const previousLayoutRef = useRef<{ nodes: Node[]; edges: Edge[]; calculatedYPositions?: Map<string, number> }>({ nodes: [], edges: [] });
-  const [mousePosition, setMousePosition] = useState<{ viewport: { x: number; y: number }; flow: { x: number; y: number } } | null>(null);
+  const [hoveredElement, setHoveredElement] = useState<{ id: string; description?: string; position: { x: number; y: number } } | null>(null);
 
   // Process management state
   const [selectedAnchorId, setSelectedAnchorId] = useState<string | null>(null);
@@ -320,44 +320,6 @@ const FitViewHelper: React.FC<{
       });
     }
   }, [isRenderMode, nodesCount, edgesCount, fitView, onReady, hasInitialViewport, hasUserInteracted, allNodesMeasured, sequenceNodesCount, measuredHeightsCount]);
-  
-  return null;
-};
-
-// Helper component to track mouse position in both viewport and flow coordinates
-const MousePositionTracker: React.FC<{
-  onMouseMove: (pos: { viewport: { x: number; y: number }; flow: { x: number; y: number } }) => void;
-  onMouseLeave: () => void;
-}> = ({ onMouseMove, onMouseLeave }) => {
-  const { screenToFlowPosition } = useReactFlow();
-  
-  useEffect(() => {
-    const handleMouseMove = (event: MouseEvent) => {
-      const container = document.querySelector('.react-flow');
-      if (container) {
-        const bounds = container.getBoundingClientRect();
-        const viewportPos = {
-          x: event.clientX - bounds.left,
-          y: event.clientY - bounds.top
-        };
-        const flowPos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-        onMouseMove({ viewport: viewportPos, flow: flowPos });
-      }
-    };
-    
-    const container = document.querySelector('.react-flow');
-    if (container) {
-      container.addEventListener('mousemove', handleMouseMove as any);
-      container.addEventListener('mouseleave', onMouseLeave);
-    }
-    
-    return () => {
-      if (container) {
-        container.removeEventListener('mousemove', handleMouseMove as any);
-        container.removeEventListener('mouseleave', onMouseLeave);
-      }
-    };
-  }, [screenToFlowPosition, onMouseMove, onMouseLeave]);
   
   return null;
 };
@@ -1980,6 +1942,34 @@ const MousePositionTracker: React.FC<{
     onDataChange({ ...data, nodes: updatedNodes });
   }, [diagramNodes, data, onDataChange]);
 
+  // Handle node hover for tooltip
+  const handleNodeMouseEnter = useCallback((event: React.MouseEvent, node: Node) => {
+    // Only show tooltip for sequence nodes (not lifelines, anchors, or processes)
+    if (node.type !== 'sequenceNode') return;
+    
+    const container = document.querySelector('.react-flow');
+    if (!container) return;
+    
+    const bounds = container.getBoundingClientRect();
+    const viewportPos = {
+      x: event.clientX - bounds.left,
+      y: event.clientY - bounds.top
+    };
+    
+    // Find the diagram node to get its description
+    const diagramNode = diagramNodes.find(n => n.id === node.id);
+    
+    setHoveredElement({
+      id: node.id,
+      description: diagramNode?.description,
+      position: viewportPos
+    });
+  }, [diagramNodes]);
+
+  const handleNodeMouseLeave = useCallback(() => {
+    setHoveredElement(null);
+  }, []);
+
   // Log rendering information
   console.log('[SequenceRenderer] Rendering with:', {
     isRenderMode,
@@ -2014,6 +2004,8 @@ const MousePositionTracker: React.FC<{
           onEdgesChange={onEdgesChangeHandler}
           onNodeClick={onNodeClick}
           onEdgeClick={onEdgeClick}
+          onNodeMouseEnter={handleNodeMouseEnter}
+          onNodeMouseLeave={handleNodeMouseLeave}
           onConnect={onConnect}
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
@@ -2046,11 +2038,6 @@ const MousePositionTracker: React.FC<{
             </>
           )}
           
-          {/* Mouse position tracker */}
-          <MousePositionTracker 
-            onMouseMove={setMousePosition}
-            onMouseLeave={() => setMousePosition(null)}
-          />
           
           {/* Render mode helper */}
           <FitViewHelper
@@ -2119,17 +2106,20 @@ const MousePositionTracker: React.FC<{
             </>
           )}
           
-          {/* Mouse position tooltip for debugging */}
-          {mousePosition && (
+          {/* Element hover tooltip */}
+          {hoveredElement && (
             <div 
-              className="absolute pointer-events-none bg-background/90 border border-border px-2 py-1 rounded text-xs"
+              className="absolute pointer-events-none bg-background/95 border border-border px-3 py-2 rounded-md shadow-lg text-sm max-w-xs"
               style={{
-                left: mousePosition.viewport.x + 15,
-                top: mousePosition.viewport.y + 15,
+                left: hoveredElement.position.x + 15,
+                top: hoveredElement.position.y + 15,
                 zIndex: 1000
               }}
             >
-              x: {mousePosition.flow.x.toFixed(0)}, y: {mousePosition.flow.y.toFixed(0)}
+              <span className="font-medium">{hoveredElement.id}</span>
+              {hoveredElement.description && (
+                <span className="text-muted-foreground"> - {hoveredElement.description}</span>
+              )}
             </div>
           )}
         </ReactFlow>

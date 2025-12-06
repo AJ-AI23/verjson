@@ -40,12 +40,12 @@ export interface DiagramNode {
   id: string;
   type: 'endpoint' | 'process' | 'decision' | 'data' | 'custom';
   label: string;
+  description?: string;
   anchors: [AnchorNode, AnchorNode];
   yPosition?: number;
   data?: {
     method?: string;
     path?: string;
-    description?: string;
     openApiRef?: {
       documentId: string;
       path: string;
