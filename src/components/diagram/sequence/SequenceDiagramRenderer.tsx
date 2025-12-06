@@ -1712,6 +1712,41 @@ const FitViewHelper: React.FC<{
       setAnchorTooltipPosition(null);
     }
   }, [selectedAnchorId, processManagement, data.processes]);
+
+  // Get the anchor type for the selected anchor
+  const getSelectedAnchorType = useCallback((): 'source' | 'target' => {
+    if (!selectedAnchorId) return 'source';
+    for (const node of diagramNodes) {
+      for (const anchor of node.anchors) {
+        if (anchor.id === selectedAnchorId) {
+          return anchor.anchorType;
+        }
+      }
+    }
+    return 'source';
+  }, [selectedAnchorId, diagramNodes]);
+
+  const handleSwitchAnchorType = useCallback(() => {
+    if (!selectedAnchorId || !onDataChange) return;
+    
+    // Find the node containing this anchor
+    const updatedNodes = diagramNodes.map(node => {
+      const anchorIndex = node.anchors.findIndex(a => a.id === selectedAnchorId);
+      if (anchorIndex === -1) return node;
+      
+      // Swap the anchor types for both anchors of this node
+      const updatedAnchors: [typeof node.anchors[0], typeof node.anchors[1]] = [
+        { ...node.anchors[0], anchorType: node.anchors[0].anchorType === 'source' ? 'target' : 'source' },
+        { ...node.anchors[1], anchorType: node.anchors[1].anchorType === 'source' ? 'target' : 'source' }
+      ];
+      
+      return { ...node, anchors: updatedAnchors };
+    });
+    
+    onDataChange({ ...data, nodes: updatedNodes });
+    setSelectedAnchorId(null);
+    setAnchorTooltipPosition(null);
+  }, [selectedAnchorId, diagramNodes, data, onDataChange]);
   
   const handleEditProcess = useCallback(() => {
     if (!selectedProcessId) return;
@@ -2107,12 +2142,14 @@ const FitViewHelper: React.FC<{
               {selectedAnchorId && anchorTooltipPosition && (
                 <AnchorTooltip
                   anchorId={selectedAnchorId}
+                  anchorType={getSelectedAnchorType()}
                   isInProcess={processManagement.isAnchorInProcess(selectedAnchorId)}
                   canAddProcess={!processManagement.isAnchorInProcess(selectedAnchorId)}
                   hasNearbyProcesses={true}
                   onCreateProcess={handleCreateProcess}
                   onAddToExisting={handleAddToExistingProcess}
                   onRemoveFromProcess={handleRemoveFromProcess}
+                  onSwitchAnchorType={handleSwitchAnchorType}
                   position={anchorTooltipPosition}
                   open={true}
                   onOpenChange={(open) => {
