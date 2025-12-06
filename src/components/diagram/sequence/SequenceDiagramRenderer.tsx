@@ -801,6 +801,17 @@ const FitViewHelper: React.FC<{
   }, [edgesWithRenderMode, setEdges]);
 
   const onNodesChangeHandler = useCallback((changes: any) => {
+    // Block position and selection changes when interactivity is disabled
+    if (!isInteractive) {
+      const allowedChanges = changes.filter((c: any) => 
+        c.type !== 'position' && c.type !== 'select'
+      );
+      if (allowedChanges.length > 0) {
+        handleNodesChange(allowedChanges);
+      }
+      return;
+    }
+    
     // Log all position changes for debugging
     const positionChanges = changes.filter((c: any) => c.type === 'position');
     if (positionChanges.length > 0) {
@@ -1498,7 +1509,7 @@ const FitViewHelper: React.FC<{
         }
       }
     }
-  }, [handleNodesChange, onNodesChange, nodes, diagramNodes, data, onDataChange, lifelines, setNodes, selectedNodeIds, dragStartPositions, settings, nodeHeights, layoutNodes]);
+  }, [handleNodesChange, onNodesChange, nodes, diagramNodes, data, onDataChange, lifelines, setNodes, selectedNodeIds, dragStartPositions, settings, nodeHeights, layoutNodes, isInteractive]);
 
   const onEdgesChangeHandler = useCallback((changes: any) => {
     handleEdgesChange(changes);
