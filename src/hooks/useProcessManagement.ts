@@ -111,13 +111,20 @@ export const useProcessManagement = ({
     return newProcess;
   }, [processes, isAnchorInProcess, getAnchorLifeline, getAnchorYPosition, getParallelProcessCount, getNextParallelIndex, onProcessesChange]);
 
+  // Get the node that owns an anchor
+  const getAnchorNode = useCallback((anchorId: string): DiagramNode | null => {
+    return nodes.find(n => n.anchors.some(a => a.id === anchorId)) || null;
+  }, [nodes]);
+
+  // Get the sibling anchor (the other anchor of the same node)
+  const getSiblingAnchor = useCallback((anchorId: string): AnchorNode | null => {
+    const node = getAnchorNode(anchorId);
+    if (!node) return null;
+    return node.anchors.find(a => a.id !== anchorId) || null;
+  }, [getAnchorNode]);
+
   // Add an anchor to an existing process
   const addAnchorToProcess = useCallback((anchorId: string, processId: string): boolean => {
-    if (isAnchorInProcess(anchorId)) {
-      toast.error('This anchor is already in a process');
-      return false;
-    }
-
     const process = processes.find(p => p.id === processId);
     if (!process) {
       toast.error('Process not found');
@@ -130,6 +137,26 @@ export const useProcessManagement = ({
       return false;
     }
 
+    // Check if the sibling anchor is already in this process
+    const siblingAnchor = getSiblingAnchor(anchorId);
+    if (siblingAnchor && process.anchorIds.includes(siblingAnchor.id)) {
+      // Both anchors of the same node would be in the same process - swap them instead
+      // Remove sibling from this process and add the new anchor
+      const updatedProcesses = processes.map(p =>
+        p.id === processId
+          ? { ...p, anchorIds: p.anchorIds.filter(id => id !== siblingAnchor.id).concat(anchorId) }
+          : p
+      );
+      onProcessesChange(updatedProcesses);
+      toast.success('Anchor swapped in process');
+      return true;
+    }
+
+    if (isAnchorInProcess(anchorId)) {
+      toast.error('This anchor is already in a process');
+      return false;
+    }
+
     const updatedProcesses = processes.map(p =>
       p.id === processId
         ? { ...p, anchorIds: [...p.anchorIds, anchorId] }
@@ -139,7 +166,7 @@ export const useProcessManagement = ({
     onProcessesChange(updatedProcesses);
     toast.success('Anchor added to process');
     return true;
-  }, [processes, isAnchorInProcess, getAnchorLifeline, onProcessesChange]);
+  }, [processes, isAnchorInProcess, getAnchorLifeline, getSiblingAnchor, onProcessesChange]);
 
   // Remove an anchor from a process
   const removeAnchorFromProcess = useCallback((anchorId: string, processId: string): boolean => {
