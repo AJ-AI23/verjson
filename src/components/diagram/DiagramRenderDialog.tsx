@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,6 +44,24 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const previewFitViewRef = React.useRef<(() => void) | null>(null);
   const hasFittedViewRef = React.useRef(false);
   const isReadyRef = React.useRef(false);
+  
+  // Memoize callbacks to prevent unnecessary re-renders
+  const handleRenderReady = useCallback(() => {
+    isReadyRef.current = true;
+  }, []);
+  
+  const handleFitViewReady = useCallback((fitView: () => void) => {
+    previewFitViewRef.current = fitView;
+    // Auto fit view once on initial load
+    if (!hasFittedViewRef.current) {
+      hasFittedViewRef.current = true;
+      setTimeout(() => fitView(), 150);
+    }
+  }, []);
+  
+  const handleViewportChange = useCallback(() => {
+    // No state updates needed - just track via refs
+  }, []);
 
   // Sync active theme with selected theme
   React.useEffect(() => {
@@ -255,6 +273,23 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
     </div>
   );
 
+  // Memoize the preview content to prevent re-renders when isRendering changes
+  const previewContent = useMemo(() => (
+    <ReactFlowProvider>
+      <SequenceDiagramRenderer
+        data={data}
+        styles={previewStyles}
+        theme={activeTheme}
+        readOnly={true}
+        isRenderMode={true}
+        hasUserInteractedWithViewport={hasFittedViewRef.current}
+        onRenderReady={handleRenderReady}
+        onFitViewReady={handleFitViewReady}
+        onViewportChange={handleViewportChange}
+      />
+    </ReactFlowProvider>
+  ), [data, previewStyles, activeTheme, handleRenderReady, handleFitViewReady, handleViewportChange]);
+
   // Preview panel content (reusable for both layouts)
   const PreviewPanel = () => (
     <div className="h-full flex flex-col">
@@ -282,30 +317,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
             backgroundColor: activeThemeData.colors.background
           }}
         >
-          <ReactFlowProvider>
-            <SequenceDiagramRenderer
-              data={data}
-              styles={previewStyles}
-              theme={activeTheme}
-              readOnly={true}
-              isRenderMode={true}
-              hasUserInteractedWithViewport={hasFittedViewRef.current}
-              onRenderReady={() => {
-                isReadyRef.current = true;
-              }}
-              onFitViewReady={(fitView) => {
-                previewFitViewRef.current = fitView;
-                // Auto fit view once on initial load
-                if (!hasFittedViewRef.current) {
-                  hasFittedViewRef.current = true;
-                  setTimeout(() => fitView(), 150);
-                }
-              }}
-              onViewportChange={() => {
-                // No state updates needed - just track via refs
-              }}
-            />
-          </ReactFlowProvider>
+          {previewContent}
         </div>
       </div>
     </div>
