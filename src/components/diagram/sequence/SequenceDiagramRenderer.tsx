@@ -1087,20 +1087,21 @@ const MousePositionTracker: React.FC<{
         let closestLifelineX = originalAnchorX; // Default to current position
         let minDistance = Infinity;
         
-        // Use layout positions (which account for process box offsets) to find closest lifeline
+        // Use layout positions to find closest lifeline
+        // Note: lifeline node position.x is where anchors are positioned (left edge of lifeline)
         const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
         const lifelineLayoutNodes = layoutNodes.filter(n => n.type === 'columnLifeline');
         
         console.log('📍 [ANCHOR DROP] Lifeline positions:', lifelineLayoutNodes.map(n => ({
           id: n.id,
-          x: n.position.x,
-          centerX: n.position.x + 150
+          x: n.position.x
         })));
         
         sortedLifelines.forEach((lifeline, index) => {
-          // Get actual position from layout nodes, fall back to simple calculation
+          // Get actual position from layout nodes - this is where anchors are positioned
+          // Don't add 150 - anchors are at lifeline left edge, not center
           const layoutNode = lifelineLayoutNodes.find(n => n.id === `lifeline-${lifeline.id}`);
-          const lifelineX = layoutNode ? layoutNode.position.x + 150 : index * (300 + 100) + 150; // Center of lifeline
+          const lifelineX = layoutNode ? layoutNode.position.x : index * (300 + 100) + 150;
           const distance = Math.abs(anchorX - lifelineX);
           if (distance < minDistance) {
             minDistance = distance;
