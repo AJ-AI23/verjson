@@ -194,8 +194,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       width: 200,
       height: 60,
       style: {
-        zIndex: -1,
-        pointerEvents: 'none' as const
+        zIndex: -1
       }
     };
   });
