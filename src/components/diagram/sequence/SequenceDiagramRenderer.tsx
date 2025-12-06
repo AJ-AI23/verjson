@@ -553,7 +553,7 @@ const FitViewHelper: React.FC<{
   
   // Process selection and editing handlers
   const handleProcessSelect = useCallback((processId: string) => {
-    if (readOnly) return;
+    if (readOnly || !isInteractive) return;
     
     const process = (data.processes || []).find(p => p.id === processId);
     if (!process) return;
@@ -562,17 +562,17 @@ const FitViewHelper: React.FC<{
     
     // We'll set the toolbar position in the node click handler
     // since we need the actual rendered position
-  }, [readOnly, data.processes]);
+  }, [readOnly, data.processes, isInteractive]);
   
   // Lifeline selection and editing handlers
   const handleLifelineSelect = useCallback((lifelineId: string) => {
-    if (readOnly) return;
+    if (readOnly || !isInteractive) return;
     
     const lifeline = lifelines.find(l => l.id === lifelineId);
     if (!lifeline) return;
     
     setSelectedLifelineId(lifelineId);
-  }, [readOnly, lifelines]);
+  }, [readOnly, lifelines, isInteractive]);
 
   // Memoize custom lifeline colors extraction
   const customLifelineColors = useMemo(() => {
@@ -1519,7 +1519,7 @@ const FitViewHelper: React.FC<{
   }, [handleEdgesChange, onEdgesChange, edges]);
 
   const onNodeClick = useCallback((event: any, node: Node) => {
-    if (readOnly) return;
+    if (readOnly || !isInteractive) return;
     
     // Handle anchor node clicks for process creation
     if (node.type === 'anchorNode') {
@@ -1671,7 +1671,7 @@ const FitViewHelper: React.FC<{
         }
       }
     }
-  }, [diagramNodes, readOnly, selectedNodeIds, nodes, processManagement, processCreationMode, selectedAnchorId, handleProcessSelect, handleLifelineSelect, selectedLifelineId]);
+  }, [diagramNodes, readOnly, selectedNodeIds, nodes, processManagement, processCreationMode, selectedAnchorId, handleProcessSelect, handleLifelineSelect, selectedLifelineId, isInteractive]);
   
   const handleEditNode = useCallback(() => {
     // Only edit if single node is selected
