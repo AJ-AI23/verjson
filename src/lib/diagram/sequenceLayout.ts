@@ -498,13 +498,16 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     
     const edgeStyles = getEdgeStyle('default');
     
-    // Determine if this anchor is on the left side of the node based on lifeline positions
+    // Determine anchor position relative to node by comparing lifeline X positions
     const otherAnchor = node.anchors?.find(a => a.id !== anchor.id);
     const thisAnchorX = lifelineXPositions.get(anchor.lifelineId) || 0;
     const otherAnchorX = otherAnchor ? lifelineXPositions.get(otherAnchor.lifelineId) || 0 : thisAnchorX;
     
-    // Anchor is on the left if its lifeline X position is less than the other anchor's
-    const isLeftAnchor = thisAnchorX < otherAnchorX;
+    // Simple rule:
+    // - Anchor on LEFT side of node (thisX < otherX) → connect from RIGHT edge point of anchor
+    // - Anchor on RIGHT side of node (thisX > otherX) → connect from LEFT edge point of anchor
+    const isAnchorOnLeftOfNode = thisAnchorX < otherAnchorX;
+    const anchorEdgeHandle = isAnchorOnLeftOfNode ? 'right' : 'left';
     
     // Log edge creation details
     console.log(`🔗 [Edge] Creating edge for anchor ${anchor.id}:`, {
@@ -513,7 +516,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       lifelineId: anchor.lifelineId,
       thisAnchorX,
       otherAnchorX,
-      isLeftAnchor,
+      isAnchorOnLeftOfNode,
+      anchorEdgeHandle,
       nodeId: node.id
     });
     
@@ -523,8 +527,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         id: `anchor-edge-${anchor.id}`,
         source: anchor.id,
         target: node.id,
-        sourceHandle: isLeftAnchor ? 'right' : 'left',
-        targetHandle: isLeftAnchor ? 'target-left' : 'target-right',
+        sourceHandle: anchorEdgeHandle,
+        targetHandle: isAnchorOnLeftOfNode ? 'target-left' : 'target-right',
         type: 'sequenceEdge',
         animated: false,
         style: edgeStyles,
@@ -539,8 +543,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         id: `anchor-edge-${anchor.id}`,
         source: node.id,
         target: anchor.id,
-        sourceHandle: isLeftAnchor ? 'source-left' : 'source-right',
-        targetHandle: isLeftAnchor ? 'right' : 'left',
+        sourceHandle: isAnchorOnLeftOfNode ? 'source-left' : 'source-right',
+        targetHandle: anchorEdgeHandle,
         type: 'sequenceEdge',
         animated: false,
         style: edgeStyles,
