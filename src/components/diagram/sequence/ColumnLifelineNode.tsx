@@ -21,6 +21,7 @@ interface ColumnLifelineNodeProps {
 export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, selected }) => {
   const { column: lifeline, styles, customLifelineColors, onAddNode, readOnly, lifelineHeight = 2000, isRenderMode } = data;
   const [hoverPosition, setHoverPosition] = useState<number | null>(null);
+  const [diagramYPosition, setDiagramYPosition] = useState<number | null>(null);
   const lifelineRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
   const viewport = useViewport();
@@ -30,6 +31,9 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, se
       onAddNode(lifeline.id, yPosition);
     }
   };
+
+  // The lifeline header height - this must match the header's rendered height
+  const LIFELINE_HEADER_HEIGHT = 100; // Same as in sequenceLayout.ts
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!lifelineRef.current || readOnly || !onAddNode) return;
@@ -43,10 +47,14 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, se
       
       const rect = lifelineRef.current.getBoundingClientRect();
       const screenY = e.clientY - rect.top;
-      const diagramY = screenY / viewport.zoom;
+      // Visual position for the hover button (relative to the lifeline element)
+      const visualY = screenY / viewport.zoom;
+      // Diagram coordinate for node placement (add header offset to match diagram coordinate system)
+      const diagramY = visualY + LIFELINE_HEADER_HEIGHT;
       
       if (screenY >= 0 && screenY <= rect.height) {
-        setHoverPosition(diagramY);
+        setHoverPosition(visualY);
+        setDiagramYPosition(diagramY);
       }
     });
   };
@@ -56,6 +64,7 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, se
       cancelAnimationFrame(rafRef.current);
     }
     setHoverPosition(null);
+    setDiagramYPosition(null);
   };
 
   // Get custom color for this lifeline from theme, fallback to lifeline.color, then to theme-specific default
@@ -155,7 +164,7 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, se
             pointerEvents: 'none'
           }}
         />
-        {!readOnly && onAddNode && hoverPosition !== null && (
+        {!readOnly && onAddNode && hoverPosition !== null && diagramYPosition !== null && (
           <div
             className="absolute"
             style={{ top: `${hoverPosition}px`, left: '30px', transform: 'translate(-50%, -50%)', pointerEvents: 'auto' }}
@@ -165,7 +174,8 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, se
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                handleAddNode(hoverPosition);
+                // Use diagramYPosition which includes the header offset for correct diagram coordinates
+                handleAddNode(diagramYPosition);
               }}
               onMouseDown={(e) => {
                 e.stopPropagation();
