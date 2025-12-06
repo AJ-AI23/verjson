@@ -853,6 +853,9 @@ const MousePositionTracker: React.FC<{
     if (dragEndChange && dragEndChange.type === 'position') {
       console.log('🔴 [DRAG END] Setting isDraggingRef.current = false');
       isDraggingRef.current = false;
+      // Always reset isDragging state and force layout recalculation on any drag end
+      setIsDragging(false);
+      setLayoutVersion(v => v + 1);
       
       // Update positions with slot-based cascading conflict resolution
       if (onDataChange) {
@@ -982,9 +985,6 @@ const MousePositionTracker: React.FC<{
         
         console.log('📝 [DROP] Repositioned nodes with cascading slot-based conflict resolution');
         onDataChange({ ...data, nodes: updatedNodes });
-        
-        // Force state update to trigger layout recalculation
-        setIsDragging(false);
       }
     }
     
