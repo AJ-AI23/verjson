@@ -279,7 +279,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   // Preview panel content (reusable for both layouts)
   const PreviewPanel = () => (
     <div className="h-full flex flex-col">
-      <div className="bg-muted px-3 py-2 border-b flex items-center justify-between">
+      <div className="bg-muted px-3 py-2 border-b flex items-center justify-between flex-shrink-0">
         <span className="text-sm font-medium">Preview</span>
         <Button
           variant="ghost"
@@ -290,14 +290,16 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
           Fit to View
         </Button>
       </div>
-      <div className="flex-1 p-4 overflow-auto">
+      <div className="flex-1 min-h-0 flex items-center justify-center p-2">
         <div 
           ref={previewContainerRef}
-          className="mx-auto border shadow-lg"
+          className="border shadow-lg relative"
           style={{ 
             width: '100%',
-            aspectRatio: `${width} / ${height}`,
+            height: '100%',
+            maxWidth: '100%',
             maxHeight: '100%',
+            aspectRatio: `${width} / ${height}`,
             backgroundColor: activeThemeData.colors.background
           }}
         >
