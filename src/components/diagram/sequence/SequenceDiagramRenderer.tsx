@@ -681,7 +681,7 @@ const MousePositionTracker: React.FC<{
         
         return {
           ...node,
-          draggable: !readOnly && !isRenderMode,
+          draggable: false, // Anchors should never be draggable - their position is determined by lifelines
           selectable: !readOnly && !isRenderMode,
           selected: node.id === selectedAnchorId && !isRenderMode,
           data: {
