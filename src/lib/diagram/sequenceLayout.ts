@@ -836,6 +836,39 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
     positions.set(node.id, assignedLevel.y + (nodeHeight / 2));
   });
   
+  // Compact the levels to remove unnecessary gaps
+  // This handles cases where nodes were deleted and left empty vertical space
+  if (yLevels.length > 0) {
+    // Start from the minimum Y position
+    let currentY = startY - (yLevels[0].height / 2);
+    
+    for (let i = 0; i < yLevels.length; i++) {
+      const level = yLevels[i];
+      const oldY = level.y;
+      
+      // Position this level right after the previous one (with proper spacing)
+      if (i === 0) {
+        level.y = currentY;
+      } else {
+        level.y = currentY;
+      }
+      
+      // Update positions for all nodes at this level if the level moved
+      if (oldY !== level.y) {
+        const yDelta = level.y - oldY;
+        level.nodesWithRanges.forEach(({ nodeId }) => {
+          const currentPos = positions.get(nodeId);
+          if (currentPos !== undefined) {
+            positions.set(nodeId, currentPos + yDelta);
+          }
+        });
+      }
+      
+      // Calculate the start Y for the next level
+      currentY = level.y + level.height + SPACING_BETWEEN_ROWS;
+    }
+  }
+  
   return positions;
 }
 
