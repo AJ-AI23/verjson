@@ -503,8 +503,19 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     // Anchor is on the left if its lifeline X position is less than the other anchor's
     const isLeftAnchor = thisAnchorX < otherAnchorX;
     
+    // Log edge creation details
+    console.log(`🔗 [Edge] Creating edge for anchor ${anchor.id}:`, {
+      anchorId: anchor.id,
+      anchorType: anchor.anchorType,
+      lifelineId: anchor.lifelineId,
+      thisAnchorX,
+      otherAnchorX,
+      isLeftAnchor,
+      nodeId: node.id
+    });
+    
     if (anchor.anchorType === 'source') {
-      // Edge from anchor to node
+      // Edge from anchor to node (arrow points TO the node)
       const edge = {
         id: `anchor-edge-${anchor.id}`,
         source: anchor.id,
@@ -520,7 +531,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       };
       layoutEdges.push(edge);
     } else if (anchor.anchorType === 'target') {
-      // Edge from node to anchor
+      // Edge from node to anchor (arrow points TO the anchor)
       const edge = {
         id: `anchor-edge-${anchor.id}`,
         source: node.id,
