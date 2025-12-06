@@ -10,7 +10,7 @@ import { SequenceDiagramData } from '@/types/diagram';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { toPng, toSvg } from 'html-to-image';
-import { Loader2, Settings, Eye } from 'lucide-react';
+import { Settings, Eye } from 'lucide-react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { SequenceDiagramRenderer } from './sequence/SequenceDiagramRenderer';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -37,7 +37,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const [height, setHeight] = useState(1080);
   const [selectedTheme, setSelectedTheme] = useState<string>('light');
   const [outputFormat, setOutputFormat] = useState<'png' | 'svg'>('png');
-  const [isRendering, setIsRendering] = useState(false);
+  
   const [activeTheme, setActiveTheme] = useState<string>(selectedTheme);
   const [mobileTab, setMobileTab] = useState<string>('settings');
   const previewContainerRef = React.useRef<HTMLDivElement>(null);
@@ -151,9 +151,6 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
         throw new Error(`${captureFormat.toUpperCase()} capture produced empty or invalid data`);
       }
 
-      // NOW set loading state for the upload phase
-      setIsRendering(true);
-
       // Upload to server
       const { data: uploadData, error } = await supabase.functions.invoke('diagram-render', {
         body: {
@@ -174,8 +171,6 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
     } catch (error) {
       console.error('[Render] Error occurred:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to render diagram');
-    } finally {
-      setIsRendering(false);
     }
   };
 
@@ -363,17 +358,14 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={isRendering}
             className={isMobile ? "w-full" : ""}
           >
             Cancel
           </Button>
           <Button
             onClick={handleRender}
-            disabled={isRendering}
             className={isMobile ? "w-full" : ""}
           >
-            {isRendering && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Render {outputFormat.toUpperCase()}
           </Button>
         </DialogFooter>
