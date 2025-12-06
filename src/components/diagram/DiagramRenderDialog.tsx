@@ -82,68 +82,49 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       return;
     }
 
+    // Capture the container reference before any async operations
+    const containerToCapture = previewContainerRef.current;
+    const selectedThemeData = styles?.themes?.[selectedTheme] || defaultThemes[selectedTheme as 'light' | 'dark'];
+    const captureWidth = width;
+    const captureHeight = height;
+    const captureFormat = outputFormat;
+    const captureTheme = selectedTheme;
+
     setIsRendering(true);
 
     try {
-      const selectedThemeData = styles?.themes?.[selectedTheme] || defaultThemes[selectedTheme as 'light' | 'dark'];
-      
       console.log('[Render] Starting capture with theme:', {
-        selectedTheme,
+        captureTheme,
         hasThemeData: !!selectedThemeData,
-        backgroundColor: selectedThemeData?.colors?.background,
-        themeColors: selectedThemeData?.colors
+        backgroundColor: selectedThemeData?.colors?.background
       });
       
-      console.log('[Render] Capturing preview container directly');
-      
-      if (!previewContainerRef.current) {
-        throw new Error('Preview container ref is null');
-      }
-      
       // Find the React Flow viewport element within the preview
-      const reactFlowViewport = previewContainerRef.current.querySelector('.react-flow__viewport');
+      const reactFlowViewport = containerToCapture.querySelector('.react-flow__viewport');
       if (!reactFlowViewport) {
         throw new Error('React Flow viewport not found in preview');
       }
       
-      console.log('[Render] Found React Flow viewport, checking container styles...');
-      const computedStyle = window.getComputedStyle(previewContainerRef.current);
-      console.log('[Render] Container computed background:', computedStyle.backgroundColor);
-      
-      // Debug: Check what's actually in the DOM
-      const reactFlowPane = previewContainerRef.current.querySelector('.react-flow__pane');
-      const nodes = previewContainerRef.current.querySelectorAll('[data-id]');
-      console.log('[Render] DOM elements found:', {
-        hasReactFlowPane: !!reactFlowPane,
-        nodeCount: nodes.length,
-        containerHTML: previewContainerRef.current.innerHTML.substring(0, 500)
-      });
-      
-      console.log('[Render] Starting PNG capture...');
-      
       // Get the actual dimensions of the preview container
-      const previewRect = previewContainerRef.current.getBoundingClientRect();
-      const scale = width / previewRect.width;
+      const previewRect = containerToCapture.getBoundingClientRect();
+      const scale = captureWidth / previewRect.width;
       
       console.log('[Render] Capture settings:', { 
-        targetWidth: width, 
-        targetHeight: height, 
+        targetWidth: captureWidth, 
+        targetHeight: captureHeight, 
         previewWidth: previewRect.width,
         previewHeight: previewRect.height,
         scale,
         backgroundColor: selectedThemeData?.colors?.background
       });
       
-      // Add a small delay to ensure theme is fully applied
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      console.log(`[Render] Calling to${outputFormat === 'svg' ? 'Svg' : 'Png'}...`);
+      console.log(`[Render] Calling to${captureFormat === 'svg' ? 'Svg' : 'Png'}...`);
       
       // Capture the preview container as PNG or SVG at the target resolution
-      const renderFunction = outputFormat === 'svg' ? toSvg : toPng;
-      const dataUrl = await renderFunction(previewContainerRef.current, {
-        quality: outputFormat === 'png' ? 1.0 : undefined,
-        pixelRatio: outputFormat === 'png' ? scale : 1,
+      const renderFunction = captureFormat === 'svg' ? toSvg : toPng;
+      const dataUrl = await renderFunction(containerToCapture, {
+        quality: captureFormat === 'png' ? 1.0 : undefined,
+        pixelRatio: captureFormat === 'png' ? scale : 1,
         width: previewRect.width,
         height: previewRect.height,
         backgroundColor: selectedThemeData?.colors?.background,
@@ -159,31 +140,29 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
         }
       });
       
-      console.log(`[Render] ${outputFormat.toUpperCase()} captured successfully, data URL length:`, dataUrl.length);
+      console.log(`[Render] ${captureFormat.toUpperCase()} captured successfully, data URL length:`, dataUrl.length);
       
       if (!dataUrl || dataUrl.length < 100) {
-        throw new Error(`${outputFormat.toUpperCase()} capture produced empty or invalid data`);
+        throw new Error(`${captureFormat.toUpperCase()} capture produced empty or invalid data`);
       }
-
-      console.log(`[Render] ${outputFormat.toUpperCase()} captured successfully`);
 
       console.log('[Render] Uploading to server...');
       // Upload to server
       const { data: uploadData, error } = await supabase.functions.invoke('diagram-render', {
         body: {
           documentId,
-          styleTheme: selectedTheme,
-          width,
-          height,
+          styleTheme: captureTheme,
+          width: captureWidth,
+          height: captureHeight,
           imageData: dataUrl,
-          format: outputFormat
+          format: captureFormat
         }
       });
 
       if (error) throw error;
 
       console.log('[Render] Upload successful:', uploadData);
-      toast.success(`Diagram rendered successfully as ${outputFormat.toUpperCase()}!`);
+      toast.success(`Diagram rendered successfully as ${captureFormat.toUpperCase()}!`);
       
       onOpenChange(false);
 
