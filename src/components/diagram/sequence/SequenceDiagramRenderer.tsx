@@ -158,6 +158,9 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [selectedAnchorId, setSelectedAnchorId] = useState<string | null>(null);
   const [anchorTooltipPosition, setAnchorTooltipPosition] = useState<{ x: number; y: number } | null>(null);
   const [processCreationMode, setProcessCreationMode] = useState<'none' | 'selecting-process'>('none');
+  
+  // Interactivity state for Controls toggle
+  const [isInteractive, setIsInteractive] = useState(true);
 
   const processManagement = useProcessManagement({
     processes: data.processes || [],
@@ -2071,10 +2074,10 @@ const FitViewHelper: React.FC<{
           onViewportChange={onViewportChange}
           minZoom={0.1}
           maxZoom={2}
-          nodesDraggable={!readOnly && !isRenderMode}
-          nodesConnectable={!readOnly && !isRenderMode}
-          edgesReconnectable={!readOnly && !isRenderMode}
-          elementsSelectable={!readOnly && !isRenderMode}
+          nodesDraggable={!readOnly && !isRenderMode && isInteractive}
+          nodesConnectable={!readOnly && !isRenderMode && isInteractive}
+          edgesReconnectable={!readOnly && !isRenderMode && isInteractive}
+          elementsSelectable={!readOnly && !isRenderMode && isInteractive}
           defaultEdgeOptions={{
             type: 'smoothstep',
           }}
@@ -2086,7 +2089,7 @@ const FitViewHelper: React.FC<{
           <Background />
           {!isRenderMode && (
             <>
-              <Controls />
+              <Controls onInteractiveChange={setIsInteractive} />
               <MiniMap
                 nodeColor={() => '#f1f5f9'}
                 className="bg-white border border-slate-200"
