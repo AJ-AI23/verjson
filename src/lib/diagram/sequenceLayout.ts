@@ -744,33 +744,54 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
       let newY = intendedTopY;
       
       // Find the slot where this node should be inserted based on its intended Y position
-      // Track the level above and below the intended position
-      let levelAbove: YLevel | null = null;
-      let levelBelow: YLevel | null = null;
-      let insertIndex = yLevels.length;
+      // Track the level above and below the intended position, with their indices
+      let levelAboveIndex = -1;
+      let levelBelowIndex = -1;
       
       for (let i = 0; i < yLevels.length; i++) {
         const level = yLevels[i];
         const levelCenterY = level.y + level.height / 2;
         
         if (levelCenterY <= intendedY) {
-          // This level is above or at the intended position
-          levelAbove = level;
-        } else if (!levelBelow) {
-          // This is the first level below the intended position
-          levelBelow = level;
-          insertIndex = i;
+          // This level's center is at or above the intended position
+          // Keep track of the highest index level that's still above us
+          levelAboveIndex = i;
+        } else if (levelBelowIndex === -1) {
+          // This is the first level whose center is below the intended position
+          levelBelowIndex = i;
         }
       }
       
-      // Now check for collisions and adjust position while respecting the slot
+      // The insert index should be right after levelAbove (if it exists)
+      // This ensures we insert in the correct slot
+      let insertIndex = levelAboveIndex >= 0 ? levelAboveIndex + 1 : 0;
+      
+      // Now check for collisions with the level above and adjust Y position
+      if (levelAboveIndex >= 0) {
+        const levelAbove = yLevels[levelAboveIndex];
+        const levelAboveBottom = levelAbove.y + levelAbove.height;
+        
+        // Check if there's horizontal overlap with the level above
+        const hasHorizontalOverlap = levelAbove.nodesWithRanges.some(existing => 
+          lifelineRangesOverlap(nodeRange, existing.range, lifelinePositions)
+        );
+        
+        if (hasHorizontalOverlap) {
+          // If we would overlap with the level above, push our position down
+          if (newY < levelAboveBottom + SPACING_BETWEEN_ROWS) {
+            newY = levelAboveBottom + SPACING_BETWEEN_ROWS;
+          }
+        }
+      }
+      
+      // Check if we can share a level with nodes that don't overlap horizontally
       for (let i = 0; i < yLevels.length; i++) {
         const level = yLevels[i];
         const levelBottom = level.y + level.height;
         
-        // Check if the intended position overlaps with this level
-        const intendedBottom = newY + nodeHeight;
-        const overlapsVertically = !(intendedBottom + SPACING_BETWEEN_ROWS <= level.y || newY >= levelBottom + SPACING_BETWEEN_ROWS);
+        // Check if our current position overlaps with this level
+        const currentBottom = newY + nodeHeight;
+        const overlapsVertically = !(currentBottom + SPACING_BETWEEN_ROWS <= level.y || newY >= levelBottom + SPACING_BETWEEN_ROWS);
         
         if (overlapsVertically) {
           // Check if there's horizontal overlap (lifeline ranges)
@@ -778,31 +799,13 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
             lifelineRangesOverlap(nodeRange, existing.range, lifelinePositions)
           );
           
-          if (hasHorizontalOverlap) {
-            // There's a collision - decide whether to push above or below based on intended position
-            const levelCenterY = level.y + level.height / 2;
-            
-            if (intendedY >= levelCenterY) {
-              // Intended position is at or below this level's center - push new node below
-              newY = levelBottom + SPACING_BETWEEN_ROWS;
-              // Update insert index to be after this level
-              insertIndex = Math.max(insertIndex, i + 1);
-            } else {
-              // Intended position is above this level's center - keep above and let level be pushed later
-              // Don't change newY, but make sure insertIndex is correct
-              insertIndex = Math.min(insertIndex, i);
-            }
-          } else {
-            // No horizontal overlap, this node can be at this Y level
-            // Add to this level instead of creating new
+          if (!hasHorizontalOverlap) {
+            // No horizontal overlap, this node can share this Y level
             assignedLevel = level;
             level.height = Math.max(level.height, nodeHeight);
             level.nodesWithRanges.push({ nodeId: node.id, range: nodeRange });
             break;
           }
-        } else if (newY < level.y && insertIndex > i) {
-          // This new level should be inserted before this one
-          insertIndex = i;
         }
       }
       
