@@ -1067,10 +1067,14 @@ const MousePositionTracker: React.FC<{
         const anchorData = movedNode?.data as any;
         const originalLifelineId = anchorData?.lifelineId;
         
+        // Get the current layout position of this anchor (accounts for process box offsets)
+        const anchorLayoutNode = layoutNodes.find(n => n.id === moveChange.id);
+        const originalAnchorX = anchorLayoutNode ? anchorLayoutNode.position.x + 8 : 0; // Center of 16px anchor
+        
         // Find which lifeline this anchor should snap to based on X position
         const anchorX = moveChange.position.x + 8; // Add half width to get center
         let closestLifelineId = originalLifelineId;
-        let closestLifelineX = 0;
+        let closestLifelineX = originalAnchorX; // Default to current position
         let minDistance = Infinity;
         
         // Use layout positions (which account for process box offsets) to find closest lifeline
@@ -1089,27 +1093,24 @@ const MousePositionTracker: React.FC<{
           }
         });
         
-        // If drop position is too far from any lifeline, snap back to original
+        // If drop position is too far from any lifeline, snap back to original position from layout
         const SNAP_THRESHOLD = 150; // Max distance in pixels to consider a valid snap
         const shouldSnapBack = minDistance > SNAP_THRESHOLD;
         
         if (shouldSnapBack) {
-          // Revert to original lifeline
+          // Revert to original lifeline and use the anchor's layout position (includes process offset)
           closestLifelineId = originalLifelineId;
-          const originalLifelineLayoutNode = lifelineLayoutNodes.find(n => n.id === `lifeline-${originalLifelineId}`);
-          const lifelineIndex = sortedLifelines.findIndex(l => l.id === originalLifelineId);
-          closestLifelineX = originalLifelineLayoutNode 
-            ? originalLifelineLayoutNode.position.x + 150 
-            : lifelineIndex * (300 + 100) + 150;
-          console.log('↩️ [ANCHOR DROP] Snapping back to original lifeline - drop too far:', {
+          closestLifelineX = originalAnchorX;
+          console.log('↩️ [ANCHOR DROP] Snapping back to original position - drop too far:', {
             anchorId: moveChange.id,
             minDistance,
             threshold: SNAP_THRESHOLD,
-            originalLifelineId
+            originalLifelineId,
+            originalAnchorX
           });
         }
         
-        // Snap anchor to lifeline X position
+        // Snap anchor to correct X position
         const snappedX = closestLifelineX - 8; // Center the 16px anchor
         
         // Check if we're swapping BEFORE updating diagram nodes
