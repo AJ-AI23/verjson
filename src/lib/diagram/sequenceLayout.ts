@@ -718,8 +718,14 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
       if (!hasOverlap) {
         // Check if the level's Y is close enough to the intended Y (within reasonable tolerance)
         // This allows nodes to share a level if they're roughly at the same Y
+        // BUT only if the intended position is within the level's vertical bounds
         const levelCenterY = level.y + (level.height / 2);
-        const tolerance = Math.max(level.height, nodeHeight) / 2 + SPACING_BETWEEN_ROWS;
+        const levelTop = level.y;
+        const levelBottom = level.y + level.height;
+        
+        // Only allow sharing if the intended Y falls within or very close to the level's vertical range
+        // Use a much tighter tolerance - only share if positions are nearly the same
+        const tolerance = 20; // Much tighter tolerance for sharing
         
         if (Math.abs(levelCenterY - intendedY) <= tolerance) {
           // This node can share this Y level
