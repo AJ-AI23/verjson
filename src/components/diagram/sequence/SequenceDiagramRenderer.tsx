@@ -1200,15 +1200,15 @@ const MousePositionTracker: React.FC<{
             const draggedAnchor = updatedAnchors[anchorIndex];
             
             if (isSwapping) {
-              // Only invert the anchorType values to change arrow direction
-              // Keep lifelineIds and processIds unchanged
+              // When swapping to the same lifeline as the other anchor, swap their lifelineIds
+              // Keep anchorType unchanged - the layout will handle edge handle positions based on lifeline X positions
               updatedAnchors[anchorIndex] = {
                 ...draggedAnchor,
-                anchorType: draggedAnchor.anchorType === 'source' ? 'target' : 'source'
+                lifelineId: otherAnchor.lifelineId
               };
               updatedAnchors[otherAnchorIndex] = {
                 ...otherAnchor,
-                anchorType: otherAnchor.anchorType === 'source' ? 'target' : 'source'
+                lifelineId: draggedOriginalLifeline
               };
             } else {
               // Update the dragged anchor to new lifeline
