@@ -816,14 +816,34 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
         // Insert at the correct position to maintain Y-sorted order
         yLevels.splice(insertIndex, 0, assignedLevel);
         
-        // Adjust subsequent levels if they now overlap with this new level
+        // Adjust subsequent levels if they overlap with this new level or cascading levels
+        // We need to cascade: if level N is pushed down, check if it now overlaps with level N+1
         for (let i = insertIndex + 1; i < yLevels.length; i++) {
-          const prevLevel = yLevels[i - 1];
           const currentLevel = yLevels[i];
-          const prevBottom = prevLevel.y + prevLevel.height;
           
-          if (currentLevel.y < prevBottom + SPACING_BETWEEN_ROWS) {
-            currentLevel.y = prevBottom + SPACING_BETWEEN_ROWS;
+          // Check against all previous levels (not just the immediately previous one)
+          // to find the maximum bottom Y of any level that overlaps horizontally
+          let maxOverlappingBottom = 0;
+          
+          for (let j = 0; j < i; j++) {
+            const prevLevel = yLevels[j];
+            const prevBottom = prevLevel.y + prevLevel.height;
+            
+            // Check if this level has horizontal overlap with the previous level
+            const hasHorizontalOverlap = currentLevel.nodesWithRanges.some(curr =>
+              prevLevel.nodesWithRanges.some(prev =>
+                lifelineRangesOverlap(curr.range, prev.range, lifelinePositions)
+              )
+            );
+            
+            if (hasHorizontalOverlap) {
+              maxOverlappingBottom = Math.max(maxOverlappingBottom, prevBottom);
+            }
+          }
+          
+          // Only push down if there's a collision with an overlapping level
+          if (maxOverlappingBottom > 0 && currentLevel.y < maxOverlappingBottom + SPACING_BETWEEN_ROWS) {
+            currentLevel.y = maxOverlappingBottom + SPACING_BETWEEN_ROWS;
           }
         }
       }
@@ -834,21 +854,37 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
     positions.set(node.id, assignedLevel.y + (nodeHeight / 2));
   });
   
-  // Compact the levels to remove unnecessary gaps
+  // Compact the levels to remove unnecessary gaps while respecting horizontal overlap
   // This handles cases where nodes were deleted and left empty vertical space
   if (yLevels.length > 0) {
-    // Start from the minimum Y position
-    let currentY = startY - (yLevels[0].height / 2);
-    
+    // For each level, find the maximum bottom Y of all previous levels that overlap horizontally
     for (let i = 0; i < yLevels.length; i++) {
       const level = yLevels[i];
       const oldY = level.y;
       
-      // Position this level right after the previous one (with proper spacing)
-      if (i === 0) {
-        level.y = currentY;
-      } else {
-        level.y = currentY;
+      // Find the minimum Y this level can be at (must be below any overlapping levels)
+      let minY = startY - (level.height / 2); // Default: start position
+      
+      for (let j = 0; j < i; j++) {
+        const prevLevel = yLevels[j];
+        
+        // Check if this level has horizontal overlap with the previous level
+        const hasHorizontalOverlap = level.nodesWithRanges.some(curr =>
+          prevLevel.nodesWithRanges.some(prev =>
+            lifelineRangesOverlap(curr.range, prev.range, lifelinePositions)
+          )
+        );
+        
+        if (hasHorizontalOverlap) {
+          const prevBottom = prevLevel.y + prevLevel.height;
+          minY = Math.max(minY, prevBottom + SPACING_BETWEEN_ROWS);
+        }
+      }
+      
+      // Only move the level up if it can go higher (compacting)
+      // Never move it down - that would have been handled in the insertion logic
+      if (minY < level.y) {
+        level.y = minY;
       }
       
       // Update positions for all nodes at this level if the level moved
@@ -861,9 +897,6 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
           }
         });
       }
-      
-      // Calculate the start Y for the next level
-      currentY = level.y + level.height + SPACING_BETWEEN_ROWS;
     }
   }
   
