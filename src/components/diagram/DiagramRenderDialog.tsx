@@ -90,18 +90,6 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   const availableThemes = styles?.themes ? Object.keys(styles.themes) : ['light', 'dark'];
 
   const handleRender = async () => {
-    if (!isReadyRef.current) {
-      toast.error('Please wait for preview to load');
-      return;
-    }
-
-    if (!previewContainerRef.current) {
-      toast.error('Preview container not found');
-      return;
-    }
-
-    // Capture all values upfront - NO STATE CHANGES before capture
-    const containerToCapture = previewContainerRef.current;
     const selectedThemeData = styles?.themes?.[selectedTheme] || defaultThemes[selectedTheme as 'light' | 'dark'];
     const captureWidth = width;
     const captureHeight = height;
@@ -109,32 +97,53 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
     const captureTheme = selectedTheme;
 
     try {
-      // Find the React Flow viewport element within the preview
-      const reactFlowViewport = containerToCapture.querySelector('.react-flow__viewport');
-      if (!reactFlowViewport) {
-        throw new Error('React Flow viewport not found in preview');
-      }
+      // Create an offscreen container at the exact target dimensions
+      const offscreenContainer = document.createElement('div');
+      offscreenContainer.style.cssText = `
+        position: fixed;
+        left: -9999px;
+        top: -9999px;
+        width: ${captureWidth}px;
+        height: ${captureHeight}px;
+        background-color: ${selectedThemeData?.colors?.background || '#ffffff'};
+        overflow: hidden;
+      `;
+      document.body.appendChild(offscreenContainer);
+
+      // Render the diagram into the offscreen container
+      const { createRoot } = await import('react-dom/client');
+      const root = createRoot(offscreenContainer);
       
-      // Get the actual dimensions of the preview container
-      const previewRect = containerToCapture.getBoundingClientRect();
-      const scale = captureWidth / previewRect.width;
-      
-      console.log('[Render] Capture settings:', { 
-        targetWidth: captureWidth, 
-        targetHeight: captureHeight, 
-        previewWidth: previewRect.width,
-        previewHeight: previewRect.height,
-        scale,
-        backgroundColor: selectedThemeData?.colors?.background
+      await new Promise<void>((resolve) => {
+        root.render(
+          <ReactFlowProvider>
+            <SequenceDiagramRenderer
+              data={data}
+              styles={previewStyles}
+              theme={captureTheme}
+              readOnly={true}
+              isRenderMode={true}
+              hasUserInteractedWithViewport={false}
+              onRenderReady={() => {
+                // Give it a bit more time to fully render and fit
+                setTimeout(resolve, 300);
+              }}
+              onFitViewReady={(fitView) => {
+                // Auto fit the view in the offscreen container
+                setTimeout(() => fitView(), 100);
+              }}
+            />
+          </ReactFlowProvider>
+        );
       });
-      
-      // Capture FIRST, before any state changes
+
+      // Capture the offscreen container at its actual size (1:1 pixel ratio)
       const renderFunction = captureFormat === 'svg' ? toSvg : toPng;
-      const dataUrl = await renderFunction(containerToCapture, {
+      const dataUrl = await renderFunction(offscreenContainer, {
         quality: captureFormat === 'png' ? 1.0 : undefined,
-        pixelRatio: captureFormat === 'png' ? scale : 1,
-        width: previewRect.width,
-        height: previewRect.height,
+        pixelRatio: 1,
+        width: captureWidth,
+        height: captureHeight,
         backgroundColor: selectedThemeData?.colors?.background,
         cacheBust: true,
         filter: (node) => {
@@ -146,6 +155,10 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
           return true;
         }
       });
+
+      // Cleanup
+      root.unmount();
+      document.body.removeChild(offscreenContainer);
       
       if (!dataUrl || dataUrl.length < 100) {
         throw new Error(`${captureFormat.toUpperCase()} capture produced empty or invalid data`);
