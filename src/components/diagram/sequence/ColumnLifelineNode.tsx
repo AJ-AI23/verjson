@@ -92,10 +92,11 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, se
 
   return (
     <div
-      className="flex flex-col items-center pointer-events-none"
+      className="flex flex-col items-center"
       style={{
         width: '200px',
-        transform: 'translateX(-50%)'
+        transform: 'translateX(-50%)',
+        pointerEvents: 'none'
       }}
     >
       {/* Column Header */}
@@ -107,7 +108,7 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, se
           borderColor: selected && !isRenderMode ? '#3b82f6' : (styles?.colors.nodeBorder || '#64748b'),
           color: styles?.colors.nodeText || '#0f172a',
           boxShadow: selected && !isRenderMode ? '0 0 0 2px rgba(59, 130, 246, 0.3)' : undefined,
-          cursor: isRenderMode ? 'default' : undefined
+          cursor: isRenderMode ? 'default' : 'pointer'
         }}
       >
         <div className="font-semibold text-sm">

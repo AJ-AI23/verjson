@@ -191,8 +191,11 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       draggable: false,
       selectable: false,
       focusable: false,
+      width: 200,
+      height: 60,
       style: {
-        zIndex: -1
+        zIndex: -1,
+        pointerEvents: 'none' as const
       }
     };
   });
