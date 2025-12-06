@@ -375,17 +375,34 @@ const FitViewHelper: React.FC<{
     // Node can be placed anywhere - lifeline will auto-extend
     const constrainedNodeY = nodeY;
     
-    const newNodeBottom = constrainedNodeY + nodeHeight;
+    const newNodeBottom = constrainedNodeY + nodeHeight / 2;
+    const newNodeTop = constrainedNodeY - nodeHeight / 2;
     
     const updatedNodes = diagramNodes.map(node => {
       const existingNodeY = node.yPosition || 0;
-      // If existing node overlaps with new node position, move it down
-      if (existingNodeY >= constrainedNodeY - minSpacing && existingNodeY < newNodeBottom + minSpacing) {
-        const newY = newNodeBottom + minSpacing; // Node can extend infinitely
+      const existingNodeHeight = nodeHeightsRef.current.get(node.id) || nodeHeight;
+      const existingNodeMidpoint = existingNodeY;
+      const existingNodeTop = existingNodeY - existingNodeHeight / 2;
+      const existingNodeBottom = existingNodeY + existingNodeHeight / 2;
+      
+      // Only push down nodes where:
+      // 1. The click position is ABOVE the existing node's midpoint (we want to insert above it)
+      // 2. AND the new node would overlap with the existing node
+      const clickedAboveMidpoint = constrainedNodeY < existingNodeMidpoint;
+      const wouldOverlap = newNodeBottom + minSpacing > existingNodeTop;
+      
+      if (clickedAboveMidpoint && wouldOverlap) {
+        const newY = newNodeBottom + minSpacing + existingNodeHeight / 2;
+        console.log('📦 [handleAddNodeOnLifeline] Pushing node down:', {
+          nodeId: node.id,
+          oldY: existingNodeY,
+          newY,
+          reason: 'clicked above midpoint and would overlap'
+        });
         return {
           ...node,
           yPosition: newY,
-          anchors: node.anchors // Anchors don't need yPosition - calculated from node position
+          anchors: node.anchors
         };
       }
       return node;
