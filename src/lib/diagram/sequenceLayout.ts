@@ -702,6 +702,10 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
     const targetLifelineId = node.anchors[1].lifelineId;
     const nodeRange: [string, string] = [sourceLifelineId, targetLifelineId];
     
+    // Get the intended Y position from the node (this is the center Y)
+    const intendedY = node.yPosition !== undefined ? node.yPosition : startY + (nodeHeight / 2);
+    const intendedTopY = intendedY - (nodeHeight / 2);
+    
     // Try to find an existing Y level where this node can fit (no overlap)
     let assignedLevel: YLevel | null = null;
     
@@ -712,27 +716,83 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
       );
       
       if (!hasOverlap) {
-        // This node can share this Y level
-        assignedLevel = level;
-        // Update level height if this node is taller
-        level.height = Math.max(level.height, nodeHeight);
-        level.nodesWithRanges.push({ nodeId: node.id, range: nodeRange });
-        break;
+        // Check if the level's Y is close enough to the intended Y (within reasonable tolerance)
+        // This allows nodes to share a level if they're roughly at the same Y
+        const levelCenterY = level.y + (level.height / 2);
+        const tolerance = Math.max(level.height, nodeHeight) / 2 + SPACING_BETWEEN_ROWS;
+        
+        if (Math.abs(levelCenterY - intendedY) <= tolerance) {
+          // This node can share this Y level
+          assignedLevel = level;
+          // Update level height if this node is taller
+          level.height = Math.max(level.height, nodeHeight);
+          level.nodesWithRanges.push({ nodeId: node.id, range: nodeRange });
+          break;
+        }
       }
     }
     
     if (!assignedLevel) {
-      // Need to create a new Y level
-      const newY = yLevels.length === 0 
-        ? startY 
-        : yLevels[yLevels.length - 1].y + yLevels[yLevels.length - 1].height + SPACING_BETWEEN_ROWS;
+      // Need to create a new Y level at the intended position
+      // But first, ensure it doesn't overlap with existing levels
+      let newY = intendedTopY;
       
-      assignedLevel = {
-        y: newY,
-        height: nodeHeight,
-        nodesWithRanges: [{ nodeId: node.id, range: nodeRange }]
-      };
-      yLevels.push(assignedLevel);
+      // Find where this level should be inserted and check for collisions
+      let insertIndex = yLevels.length;
+      for (let i = 0; i < yLevels.length; i++) {
+        const level = yLevels[i];
+        const levelBottom = level.y + level.height;
+        
+        // Check if the intended position overlaps with this level
+        const intendedBottom = newY + nodeHeight;
+        const overlapsVertically = !(intendedBottom + SPACING_BETWEEN_ROWS <= level.y || newY >= levelBottom + SPACING_BETWEEN_ROWS);
+        
+        if (overlapsVertically) {
+          // Check if there's horizontal overlap (lifeline ranges)
+          const hasHorizontalOverlap = level.nodesWithRanges.some(existing => 
+            lifelineRangesOverlap(nodeRange, existing.range, lifelinePositions)
+          );
+          
+          if (hasHorizontalOverlap) {
+            // Need to push this new level below the conflicting one
+            newY = levelBottom + SPACING_BETWEEN_ROWS;
+          } else {
+            // No horizontal overlap, this node can be at this Y level
+            // Add to this level instead of creating new
+            assignedLevel = level;
+            level.height = Math.max(level.height, nodeHeight);
+            level.nodesWithRanges.push({ nodeId: node.id, range: nodeRange });
+            break;
+          }
+        } else if (newY < level.y) {
+          // This new level should be inserted before this one
+          insertIndex = i;
+          break;
+        }
+      }
+      
+      if (!assignedLevel) {
+        // Create the new level
+        assignedLevel = {
+          y: newY,
+          height: nodeHeight,
+          nodesWithRanges: [{ nodeId: node.id, range: nodeRange }]
+        };
+        
+        // Insert at the correct position to maintain Y-sorted order
+        yLevels.splice(insertIndex, 0, assignedLevel);
+        
+        // Adjust subsequent levels if they now overlap with this new level
+        for (let i = insertIndex + 1; i < yLevels.length; i++) {
+          const prevLevel = yLevels[i - 1];
+          const currentLevel = yLevels[i];
+          const prevBottom = prevLevel.y + prevLevel.height;
+          
+          if (currentLevel.y < prevBottom + SPACING_BETWEEN_ROWS) {
+            currentLevel.y = prevBottom + SPACING_BETWEEN_ROWS;
+          }
+        }
+      }
     }
     
     // Store the CENTER Y position of the node (not the top)
