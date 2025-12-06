@@ -56,12 +56,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if PNG format is requested
+    // Check if image format is requested
     const format = url.searchParams.get('format');
     const styleTheme = url.searchParams.get('style_theme') || 'light';
 
-    if (format === 'png') {
-      // Fetch rendered PNG from storage
+    if (format === 'png' || format === 'svg') {
+      // Fetch rendered image from storage
       const { data: renderData, error: renderError } = await supabase
         .from('diagram_renders')
         .select('storage_path')
@@ -71,20 +71,28 @@ Deno.serve(async (req) => {
 
       if (renderError || !renderData) {
         return new Response(
-          JSON.stringify({ error: 'PNG render not found. Please render the diagram first.' }),
+          JSON.stringify({ error: `${format.toUpperCase()} render not found. Please render the diagram first.` }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
+      }
+
+      // Determine the correct storage path based on format
+      // PNG renders are stored as-is, SVG would have .svg extension
+      let storagePath = renderData.storage_path;
+      if (format === 'svg') {
+        // Check if SVG version exists (replace .png with .svg in path)
+        storagePath = renderData.storage_path.replace(/\.png$/, '.svg');
       }
 
       // Get the image from storage
       const { data: imageData, error: imageError } = await supabase.storage
         .from('diagram-renders')
-        .download(renderData.storage_path);
+        .download(storagePath);
 
       if (imageError || !imageData) {
         return new Response(
-          JSON.stringify({ error: 'Failed to retrieve image' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: `${format.toUpperCase()} render not found. Please render the diagram first.` }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -93,16 +101,18 @@ Deno.serve(async (req) => {
         .from('document_access_logs')
         .insert({
           document_id: documentId,
-          access_type: 'public_png_view',
+          access_type: `public_${format}_view`,
           user_agent: req.headers.get('user-agent'),
           referrer: req.headers.get('referer')
         });
+
+      const contentType = format === 'svg' ? 'image/svg+xml' : 'image/png';
 
       return new Response(imageData, {
         status: 200,
         headers: {
           ...corsHeaders,
-          'Content-Type': 'image/png',
+          'Content-Type': contentType,
           'Cache-Control': 'public, max-age=3600'
         }
       });
