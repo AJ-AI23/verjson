@@ -100,7 +100,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       return;
     }
 
-    // Capture the container reference and all values before any state changes
+    // Capture all values upfront - NO STATE CHANGES before capture
     const containerToCapture = previewContainerRef.current;
     const selectedThemeData = styles?.themes?.[selectedTheme] || defaultThemes[selectedTheme as 'light' | 'dark'];
     const captureWidth = width;
@@ -108,32 +108,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
     const captureFormat = outputFormat;
     const captureTheme = selectedTheme;
 
-    // Capture the current viewport transform to restore if needed
-    const viewportElement = containerToCapture.querySelector('.react-flow__viewport') as HTMLElement;
-    const originalTransform = viewportElement?.style.transform;
-    console.log('[Render] Captured original viewport transform:', originalTransform);
-
-    // Set rendering state AFTER we've captured everything
-    setIsRendering(true);
-    
-    // Use requestAnimationFrame to let React finish any updates, then restore transform if it changed
-    await new Promise<void>(resolve => {
-      requestAnimationFrame(() => {
-        if (viewportElement && viewportElement.style.transform !== originalTransform) {
-          console.log('[Render] Transform changed! Restoring original:', originalTransform, '-> current:', viewportElement.style.transform);
-          viewportElement.style.transform = originalTransform;
-        }
-        resolve();
-      });
-    });
-
     try {
-      console.log('[Render] Starting capture with theme:', {
-        captureTheme,
-        hasThemeData: !!selectedThemeData,
-        backgroundColor: selectedThemeData?.colors?.background
-      });
-      
       // Find the React Flow viewport element within the preview
       const reactFlowViewport = containerToCapture.querySelector('.react-flow__viewport');
       if (!reactFlowViewport) {
@@ -153,9 +128,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
         backgroundColor: selectedThemeData?.colors?.background
       });
       
-      console.log(`[Render] Calling to${captureFormat === 'svg' ? 'Svg' : 'Png'}...`);
-      
-      // Capture the preview container as PNG or SVG at the target resolution
+      // Capture FIRST, before any state changes
       const renderFunction = captureFormat === 'svg' ? toSvg : toPng;
       const dataUrl = await renderFunction(containerToCapture, {
         quality: captureFormat === 'png' ? 1.0 : undefined,
@@ -165,7 +138,6 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
         backgroundColor: selectedThemeData?.colors?.background,
         cacheBust: true,
         filter: (node) => {
-          // Filter out any overlays or controls that shouldn't be captured
           if (node.classList) {
             return !node.classList.contains('react-flow__controls') &&
                    !node.classList.contains('react-flow__minimap') &&
@@ -175,13 +147,13 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
         }
       });
       
-      console.log(`[Render] ${captureFormat.toUpperCase()} captured successfully, data URL length:`, dataUrl.length);
-      
       if (!dataUrl || dataUrl.length < 100) {
         throw new Error(`${captureFormat.toUpperCase()} capture produced empty or invalid data`);
       }
 
-      console.log('[Render] Uploading to server...');
+      // NOW set loading state for the upload phase
+      setIsRendering(true);
+
       // Upload to server
       const { data: uploadData, error } = await supabase.functions.invoke('diagram-render', {
         body: {
@@ -196,9 +168,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
 
       if (error) throw error;
 
-      console.log('[Render] Upload successful:', uploadData);
       toast.success(`Diagram rendered successfully as ${captureFormat.toUpperCase()}!`);
-      
       onOpenChange(false);
 
     } catch (error) {
@@ -206,7 +176,6 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       toast.error(error instanceof Error ? error.message : 'Failed to render diagram');
     } finally {
       setIsRendering(false);
-      console.log('[Render] Render process complete');
     }
   };
 
