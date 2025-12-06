@@ -1875,20 +1875,34 @@ const MousePositionTracker: React.FC<{
     let updatedNodes = diagramNodes;
     
     if (orderChanged) {
-      // For each node, check if its anchors need to be swapped
+      // For each node, check if the relative position of its two lifelines has flipped
+      // If lifeline A was left of B before, but now A is right of B, we need to swap anchor types
       updatedNodes = diagramNodes.map(node => {
         const [anchor1, anchor2] = node.anchors;
-        const lifeline1Order = newOrderMap.get(anchor1.lifelineId) || 0;
-        const lifeline2Order = newOrderMap.get(anchor2.lifelineId) || 0;
         
-        // Determine which anchor should be source/target based on lifeline order
-        // Left lifeline (lower order) should be source
-        const shouldSwap = 
-          (lifeline1Order > lifeline2Order && anchor1.anchorType === 'source') ||
-          (lifeline1Order < lifeline2Order && anchor1.anchorType === 'target');
+        // Get old and new orders for both lifelines
+        const lifeline1OldOrder = oldOrderMap.get(anchor1.lifelineId) ?? 0;
+        const lifeline2OldOrder = oldOrderMap.get(anchor2.lifelineId) ?? 0;
+        const lifeline1NewOrder = newOrderMap.get(anchor1.lifelineId) ?? 0;
+        const lifeline2NewOrder = newOrderMap.get(anchor2.lifelineId) ?? 0;
         
-        if (shouldSwap) {
-          console.log('🔄 [handleLifelineUpdate] Swapping anchors for node:', node.id);
+        // Check if the relative order has flipped
+        // wasAnchor1Left: true if anchor1's lifeline was to the left of anchor2's lifeline before
+        // isAnchor1Left: true if anchor1's lifeline is to the left of anchor2's lifeline now
+        const wasAnchor1Left = lifeline1OldOrder < lifeline2OldOrder;
+        const isAnchor1Left = lifeline1NewOrder < lifeline2NewOrder;
+        
+        // If both are on same lifeline (same order), no swap needed
+        if (lifeline1NewOrder === lifeline2NewOrder) {
+          return node;
+        }
+        
+        // Only swap if the relative position has changed (flipped)
+        const relativePositionFlipped = wasAnchor1Left !== isAnchor1Left;
+        
+        if (relativePositionFlipped) {
+          console.log('🔄 [handleLifelineUpdate] Relative position flipped for node:', node.id, 
+            { wasAnchor1Left, isAnchor1Left, anchor1Lifeline: anchor1.lifelineId, anchor2Lifeline: anchor2.lifelineId });
           return {
             ...node,
             anchors: [
