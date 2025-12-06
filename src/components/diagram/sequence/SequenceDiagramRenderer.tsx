@@ -583,6 +583,13 @@ const MousePositionTracker: React.FC<{
       const oldHeight = prev.get(nodeId);
       if (oldHeight !== height) {
         console.log('📏 [handleNodeHeightChange] Height changed, updating:', { nodeId, oldHeight, newHeight: height });
+        
+        // Trigger layout recalculation when height changes after initial load
+        // This ensures anchors are repositioned correctly when node heights change
+        if (initialHeightsAppliedRef.current) {
+          // Use setTimeout to batch multiple height changes in same frame
+          setTimeout(() => setLayoutVersion(v => v + 1), 0);
+        }
       }
       const newHeights = new Map(prev);
       newHeights.set(nodeId, height);
