@@ -49,7 +49,6 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   // Sync active theme with selected theme
   React.useEffect(() => {
     setActiveTheme(selectedTheme);
-    setInitialRenderComplete(false);
   }, [selectedTheme]);
 
   // Trigger fitView when switching to preview tab on mobile
@@ -316,29 +315,18 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
               hasUserInteractedWithViewport={hasUserInteracted}
               onRenderReady={() => {
                 console.log('[DiagramRenderDialog] onRenderReady - Diagram fully rendered');
-                const viewport = { x: 0, y: 0, zoom: 1 };
-                setPreviewViewport(viewport);
-                
-                // Force proper layout by toggling theme after initial mount
-                if (!initialRenderComplete) {
-                  setTimeout(() => {
-                    console.log('[DiagramRenderDialog] Toggling theme to force layout recalculation');
-                    // Toggle to opposite theme temporarily
-                    const tempTheme = activeTheme === 'light' ? 'dark' : 'light';
-                    setActiveTheme(tempTheme);
-                    setTimeout(() => {
-                      setActiveTheme(selectedTheme);
-                      setInitialRenderComplete(true);
-                    }, 50);
-                  }, 100);
-                }
+                setPreviewViewport({ x: 0, y: 0, zoom: 1 });
+                setInitialRenderComplete(true);
               }}
               onFitViewReady={(fitView) => {
-                console.log('[DiagramRenderDialog] onFitViewReady called, storing fitView reference');
+                console.log('[DiagramRenderDialog] onFitViewReady called');
                 previewFitViewRef.current = fitView;
+                // Auto fit view once on initial load
+                if (!initialRenderComplete) {
+                  setTimeout(() => fitView(), 100);
+                }
               }}
               onViewportChange={(viewport) => {
-                console.log('[DiagramRenderDialog] Viewport changed - USER INTERACTION', viewport);
                 setPreviewViewport(viewport);
                 setHasUserInteracted(true);
               }}
