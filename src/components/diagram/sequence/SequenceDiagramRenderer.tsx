@@ -1953,21 +1953,25 @@ const FitViewHelper: React.FC<{
       y: event.clientY - bounds.top
     };
     
-    let elementId = node.id;
+    let elementId: string;
     let elementDescription: string | undefined;
     
     switch (node.type) {
       case 'sequenceNode': {
+        elementId = node.id;
         const diagramNode = diagramNodes.find(n => n.id === node.id);
         elementDescription = diagramNode?.description;
         break;
       }
       case 'columnLifeline': {
-        const lifeline = lifelines.find(l => l.id === node.id);
-        elementDescription = lifeline?.description;
+        // Lifeline data is stored in node.data.column
+        const lifelineData = (node.data as any)?.column;
+        elementId = lifelineData?.id || node.id;
+        elementDescription = lifelineData?.description;
         break;
       }
       case 'anchorNode': {
+        elementId = node.id;
         // Anchor nodes have format like "anchor-xxx" - find the parent node
         const parentNode = diagramNodes.find(n => 
           n.anchors.some(a => a.id === node.id)
@@ -1979,7 +1983,10 @@ const FitViewHelper: React.FC<{
         break;
       }
       case 'processNode': {
-        const process = (data.processes || []).find(p => p.id === node.id);
+        // Process ID is stored in node.data.processId
+        const processId = (node.data as any)?.processId;
+        elementId = processId || node.id;
+        const process = (data.processes || []).find(p => p.id === processId);
         elementDescription = process?.description;
         break;
       }
@@ -1992,7 +1999,7 @@ const FitViewHelper: React.FC<{
       description: elementDescription,
       position: viewportPos
     });
-  }, [diagramNodes, lifelines, data.processes]);
+  }, [diagramNodes, data.processes]);
 
   const handleNodeMouseLeave = useCallback(() => {
     setHoveredElement(null);
