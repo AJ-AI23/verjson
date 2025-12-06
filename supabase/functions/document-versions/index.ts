@@ -168,7 +168,7 @@ async function validateDocumentAccess(supabaseClient: any, documentId: string, u
     logger.debug('🏠 Step 2: Checking document ownership via documents table');
     const { data: document, error: docError } = await supabaseClient
       .from('documents')
-      .select('created_by, workspace_id, user_id')
+      .select('workspace_id, user_id')
       .eq('id', documentId)
       .maybeSingle();
 
@@ -177,15 +177,14 @@ async function validateDocumentAccess(supabaseClient: any, documentId: string, u
       error: docError?.message,
       errorCode: docError?.code,
       hasDocument: !!document,
-      isOwnerViaCreatedBy: document ? document.created_by === userId : false,
       isOwnerViaUserId: document ? document.user_id === userId : false
     });
 
     if (docError) {
       logger.debug('⚠️ Error accessing documents table (might be due to RLS)', { error: docError });
     } else if (document) {
-      // Check both created_by and user_id fields for ownership
-      if (document.created_by === userId || document.user_id === userId) {
+      // Check user_id field for ownership
+      if (document.user_id === userId) {
         logger.debug('✅ User is document owner', { documentId, userId });
         return { hasAccess: true, role: 'owner' };
       }
