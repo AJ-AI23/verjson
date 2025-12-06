@@ -367,12 +367,10 @@ const FitViewHelper: React.FC<{
     
     // Find nodes that need to be moved down
     const nodeHeight = 70;
-    const anchorHeight = 16;
     const minSpacing = 50;
-    const LIFELINE_HEADER_HEIGHT = 100;
     
-    // Position node starting at click position + half node height + half anchor height offset
-    const nodeY = yPosition + (nodeHeight / 2) + (anchorHeight / 2);
+    // yPosition is where the user clicked - this should be the node's center
+    const nodeY = yPosition;
     
     // Node can be placed anywhere - lifeline will auto-extend
     const constrainedNodeY = nodeY;
