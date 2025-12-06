@@ -820,6 +820,10 @@ const MousePositionTracker: React.FC<{
         if (!prev || edge.id !== prev.id || edge.source !== prev.source || edge.target !== prev.target) {
           return true;
         }
+        // Check if handles changed (important for anchor position swaps)
+        if (edge.sourceHandle !== prev.sourceHandle || edge.targetHandle !== prev.targetHandle) {
+          return true;
+        }
         // Check if edge data changed (e.g., theme)
         const edgeData = edge.data as any;
         const prevData = prev.data as any;
