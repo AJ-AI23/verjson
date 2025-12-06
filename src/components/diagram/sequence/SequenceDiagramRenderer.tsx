@@ -610,9 +610,9 @@ const FitViewHelper: React.FC<{
         const dataVersion = lifeline ? `${lifeline.name}-${lifeline.description}-${lifeline.color}-${lifeline.anchorColor}-${lifeline.order}-${currentTheme}` : currentTheme;
         return {
           ...node,
-          draggable: !readOnly && !isRenderMode,
-          selectable: !readOnly && !isRenderMode,
-          selected: isSelected && !isRenderMode,
+          draggable: !readOnly && !isRenderMode && isInteractive,
+          selectable: !readOnly && !isRenderMode && isInteractive,
+          selected: isSelected && !isRenderMode && isInteractive,
           data: {
             ...node.data,
             customLifelineColors,
@@ -635,7 +635,7 @@ const FitViewHelper: React.FC<{
         
         return {
           ...node,
-          draggable: !readOnly && !isRenderMode,
+          draggable: !readOnly && !isRenderMode && isInteractive,
           data: {
             ...node.data,
             onHeightChange: handleNodeHeightChange,
@@ -658,9 +658,9 @@ const FitViewHelper: React.FC<{
         
         return {
           ...node,
-          draggable: !readOnly && !isRenderMode,
-          selectable: !readOnly && !isRenderMode,
-          selected: node.id === selectedAnchorId && !isRenderMode,
+          draggable: !readOnly && !isRenderMode && isInteractive,
+          selectable: !readOnly && !isRenderMode && isInteractive,
+          selected: node.id === selectedAnchorId && !isRenderMode && isInteractive,
           data: {
             ...node.data,
             isInProcess,
@@ -683,9 +683,9 @@ const FitViewHelper: React.FC<{
         
         return {
           ...node,
-          draggable: !readOnly && !isRenderMode,
-          selectable: !readOnly && !isRenderMode,
-          selected: isSelected && !isRenderMode,
+          draggable: !readOnly && !isRenderMode && isInteractive,
+          selectable: !readOnly && !isRenderMode && isInteractive,
+          selected: isSelected && !isRenderMode && isInteractive,
           style: {
             ...node.style,
             opacity: isHighlighted ? 1 : undefined,
@@ -702,7 +702,7 @@ const FitViewHelper: React.FC<{
       
       return node;
     });
-  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, customLifelineColors, lifelineHeight, selectedAnchorId, processManagement, processCreationMode, activeTheme, selectedProcessId, handleProcessSelect, selectedLifelineId, lifelines, currentTheme, diagramNodes]);
+  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, customLifelineColors, lifelineHeight, selectedAnchorId, processManagement, processCreationMode, activeTheme, selectedProcessId, handleProcessSelect, selectedLifelineId, lifelines, currentTheme, diagramNodes, isInteractive]);
 
   // Process edges to add render mode properties
   const edgesWithRenderMode = useMemo(() => {
