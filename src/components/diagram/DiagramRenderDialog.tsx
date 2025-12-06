@@ -100,7 +100,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       return;
     }
 
-    // Capture the container reference before any async operations
+    // Capture the container reference and all values before any state changes
     const containerToCapture = previewContainerRef.current;
     const selectedThemeData = styles?.themes?.[selectedTheme] || defaultThemes[selectedTheme as 'light' | 'dark'];
     const captureWidth = width;
@@ -108,7 +108,24 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
     const captureFormat = outputFormat;
     const captureTheme = selectedTheme;
 
+    // Capture the current viewport transform to restore if needed
+    const viewportElement = containerToCapture.querySelector('.react-flow__viewport') as HTMLElement;
+    const originalTransform = viewportElement?.style.transform;
+    console.log('[Render] Captured original viewport transform:', originalTransform);
+
+    // Set rendering state AFTER we've captured everything
     setIsRendering(true);
+    
+    // Use requestAnimationFrame to let React finish any updates, then restore transform if it changed
+    await new Promise<void>(resolve => {
+      requestAnimationFrame(() => {
+        if (viewportElement && viewportElement.style.transform !== originalTransform) {
+          console.log('[Render] Transform changed! Restoring original:', originalTransform, '-> current:', viewportElement.style.transform);
+          viewportElement.style.transform = originalTransform;
+        }
+        resolve();
+      });
+    });
 
     try {
       console.log('[Render] Starting capture with theme:', {
@@ -193,13 +210,16 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
     }
   };
 
-  // Prepare preview styles with correct theme
-  const previewStyles: DiagramStyles = {
+  // Memoize preview styles to prevent unnecessary re-renders
+  const previewStyles: DiagramStyles = useMemo(() => ({
     themes: styles?.themes || defaultThemes
-  };
+  }), [styles?.themes]);
 
   // Get the active theme colors
-  const activeThemeData = previewStyles.themes[selectedTheme] || previewStyles.themes['light'] || defaultLightTheme;
+  const activeThemeData = useMemo(() => 
+    previewStyles.themes[selectedTheme] || previewStyles.themes['light'] || defaultLightTheme,
+    [previewStyles.themes, selectedTheme]
+  );
 
   const handleFitView = () => {
     console.log('[DiagramRenderDialog] Fit to View button clicked - MANUAL fitView call');
