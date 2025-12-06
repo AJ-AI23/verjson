@@ -750,18 +750,18 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
       
       for (let i = 0; i < yLevels.length; i++) {
         const level = yLevels[i];
-        const levelCenterY = level.y + level.height / 2;
+        const levelBottom = level.y + level.height;
         
-        // Use the level's center as the breakpoint:
-        // - If our intended Y is BELOW the level's center, this level is above us
-        // - If our intended Y is ABOVE the level's center, this level is below us
-        if (intendedY > levelCenterY) {
-          // Our intended position is below this level's center
-          // So this level is above us
+        // Use the level's BOTTOM edge as the threshold:
+        // - If our click Y is at or below the level's top (level.y), this level is "above" us
+        // - This means clicking anywhere within or below a node's slot will insert AFTER that node
+        if (intendedY >= level.y) {
+          // Our intended position is at or below this level's top
+          // So this level is above us (new node goes after it)
           levelAboveIndex = i;
         } else if (levelBelowIndex === -1) {
-          // Our intended position is at or above this level's center
-          // So this level is at or below us
+          // Our intended position is above this level's top
+          // So this level is below us
           levelBelowIndex = i;
         }
       }
