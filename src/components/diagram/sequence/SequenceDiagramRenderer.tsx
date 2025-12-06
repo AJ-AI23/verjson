@@ -1276,8 +1276,12 @@ const MousePositionTracker: React.FC<{
               const isTheDraggedAnchor = n.id === moveChange.id;
               
               if (isSwapping) {
-                // When swapping anchorType (arrow direction), positions don't change at all
-                // Only the anchorType property changes in the data model
+                // When swapping anchorType (arrow direction), restore from layout positions
+                // React Flow has already moved the node, so we need to reset to original layout position
+                const anchorLayoutNode = layoutNodes.find(ln => ln.id === n.id);
+                if (anchorLayoutNode) {
+                  return { ...n, position: { ...anchorLayoutNode.position } };
+                }
                 return n;
               } else {
                 // Normal drag - only update dragged anchor position
