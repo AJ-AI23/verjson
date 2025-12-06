@@ -161,7 +161,21 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   
   // Interactivity state for Controls toggle
   const [isInteractive, setIsInteractive] = useState(true);
-
+  
+  // Clear all selections when interactivity is disabled
+  useEffect(() => {
+    if (!isInteractive) {
+      setSelectedNodeIds([]);
+      setToolbarPosition(null);
+      setSelectedAnchorId(null);
+      setAnchorTooltipPosition(null);
+      setProcessCreationMode('none');
+      setSelectedProcessId(null);
+      setProcessToolbarPosition(null);
+      setSelectedLifelineId(null);
+      setLifelineToolbarPosition(null);
+    }
+  }, [isInteractive]);
   const processManagement = useProcessManagement({
     processes: data.processes || [],
     nodes: diagramNodes,
@@ -616,8 +630,8 @@ const FitViewHelper: React.FC<{
           data: {
             ...node.data,
             customLifelineColors,
-            onAddNode: (lifelineId: string, yPosition: number) => handleAddNodeOnLifeline(lifelineId, yPosition, lifelineHeight),
-            readOnly: readOnly || isRenderMode,
+            onAddNode: isInteractive ? (lifelineId: string, yPosition: number) => handleAddNodeOnLifeline(lifelineId, yPosition, lifelineHeight) : undefined,
+            readOnly: readOnly || isRenderMode || !isInteractive,
             lifelineHeight: lifelineHeight,
             dataVersion,
             styles: activeTheme,
@@ -1919,13 +1933,13 @@ const FitViewHelper: React.FC<{
 
   const onEdgeClick = useCallback((_: any, edge: Edge) => {
     // Edges are auto-generated, so we don't support editing them directly
-    if (readOnly) return;
-  }, [readOnly]);
+    if (readOnly || !isInteractive) return;
+  }, [readOnly, isInteractive]);
 
   const onConnect = useCallback((connection: Connection) => {
     // Edges are auto-generated from anchors, manual connections not supported
-    if (readOnly || !onDataChange) return;
-  }, [readOnly, onDataChange]);
+    if (readOnly || !onDataChange || !isInteractive) return;
+  }, [readOnly, onDataChange, isInteractive]);
 
   const handleNodeUpdate = useCallback((nodeId: string, updates: Partial<DiagramNode>) => {
     if (!onDataChange) return;
