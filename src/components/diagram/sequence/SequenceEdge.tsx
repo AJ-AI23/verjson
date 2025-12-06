@@ -44,7 +44,7 @@ export const SequenceEdge: React.FC<EdgeProps> = ({
   const edgeStyle = {
     ...style,
     stroke: style.stroke || styles?.colors.edgeStroke || '#64748b',
-    strokeWidth: style.strokeWidth || 2
+    strokeWidth: style.strokeWidth || 2.5
   };
 
   return (
