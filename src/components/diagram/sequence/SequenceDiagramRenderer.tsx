@@ -134,6 +134,8 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   
   const [dragStartPositions, setDragStartPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
   const dragStartPositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+  // Store original diagram yPositions at drag start for snapback
+  const dragStartYPositionsRef = useRef<Map<string, number>>(new Map());
   const [nodeHeights, setNodeHeights] = useState<Map<string, number>>(new Map());
   const nodeHeightsRef = useRef<Map<string, number>>(new Map());
   const initialHeightsAppliedRef = useRef(false);
@@ -867,6 +869,16 @@ const FitViewHelper: React.FC<{
       });
       dragStartPositionsRef.current = startPositions;
       setDragStartPositions(startPositions);
+      
+      // Store original diagram yPositions for snapback (before any sync updates)
+      const startYPositions = new Map<string, number>();
+      diagramNodes.forEach(n => {
+        if (n.yPosition !== undefined) {
+          startYPositions.set(n.id, n.yPosition);
+        }
+      });
+      dragStartYPositionsRef.current = startYPositions;
+      console.log('📍 [DRAG START] Stored original yPositions:', Object.fromEntries(startYPositions));
     }
     
     // Detect drag end
@@ -918,15 +930,20 @@ const FitViewHelper: React.FC<{
         // Adjust index since we'll remove the dragged node
         const adjustedNewIndex = newOrderIndex > originalIndex ? newOrderIndex - 1 : newOrderIndex;
         
-        // If order didn't change, just trigger re-render with original data to snap back
-        // No need to recalculate - the layout engine will use existing yPositions
+        // If order didn't change, restore original yPositions to trigger snapback
+        // Use the positions stored at drag START (before any sync updates)
         if (adjustedNewIndex === originalIndex) {
-          console.log('📋 [DROP] Order unchanged, triggering re-render for snapback');
-          // Force re-render by creating new object references with same values
-          onDataChange({ 
-            ...data, 
-            nodes: diagramNodes.map(n => ({ ...n, anchors: [...n.anchors] }))
-          });
+          console.log('📋 [DROP] Order unchanged, restoring original yPositions for snapback');
+          const originalYPositions = dragStartYPositionsRef.current;
+          
+          // Restore original yPositions from drag start
+          const restoredNodes = diagramNodes.map(n => ({
+            ...n,
+            yPosition: originalYPositions.get(n.id) ?? n.yPosition,
+            anchors: n.anchors // Keep tuple type
+          }));
+          
+          onDataChange({ ...data, nodes: restoredNodes });
           return;
         }
         
