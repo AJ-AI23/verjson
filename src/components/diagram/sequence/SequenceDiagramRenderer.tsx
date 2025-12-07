@@ -940,7 +940,7 @@ const FitViewHelper: React.FC<{
           slots[placedSlot].push(node);
         });
         
-        // Update all node and anchor positions in React Flow
+        // Update all node, anchor, and process positions in React Flow
         setNodes(currentNodes =>
           currentNodes.map(n => {
             if (n.type === 'sequenceNode') {
@@ -960,6 +960,56 @@ const FitViewHelper: React.FC<{
                 if (pos) {
                   const nodeCenterY = slotToY(pos.slot);
                   return { ...n, position: { ...n.position, y: nodeCenterY - 8 } };
+                }
+              }
+            }
+            if (n.type === 'processNode') {
+              // Recalculate process box position based on its anchors
+              const processData = n.data as any;
+              const processAnchors = processData?.anchorIds || [];
+              
+              if (processAnchors.length > 0) {
+                // Find Y positions of all anchors in this process
+                const anchorYPositions: number[] = [];
+                processAnchors.forEach((anchorId: string) => {
+                  // Find which node this anchor belongs to
+                  const anchorNode = diagramNodes.find(dn => 
+                    dn.anchors?.some(a => a.id === anchorId)
+                  );
+                  if (anchorNode) {
+                    const pos = positions.get(anchorNode.id);
+                    if (pos) {
+                      anchorYPositions.push(slotToY(pos.slot));
+                    }
+                  }
+                });
+                
+                if (anchorYPositions.length > 0) {
+                  const minY = Math.min(...anchorYPositions);
+                  const maxY = Math.max(...anchorYPositions);
+                  const ANCHOR_MARGIN = 15;
+                  
+                  // Get node heights for top/bottom calculations
+                  const topNodeId = diagramNodes.find(dn => {
+                    const pos = positions.get(dn.id);
+                    return pos && slotToY(pos.slot) === minY;
+                  })?.id;
+                  const bottomNodeId = diagramNodes.find(dn => {
+                    const pos = positions.get(dn.id);
+                    return pos && slotToY(pos.slot) === maxY;
+                  })?.id;
+                  
+                  const topNodeHeight = topNodeId ? (nodeHeights.get(topNodeId) || 70) : 70;
+                  const bottomNodeHeight = bottomNodeId ? (nodeHeights.get(bottomNodeId) || 70) : 70;
+                  
+                  const processTop = minY - (topNodeHeight / 2) - ANCHOR_MARGIN;
+                  const processHeight = (maxY + (bottomNodeHeight / 2) + ANCHOR_MARGIN) - processTop;
+                  
+                  return { 
+                    ...n, 
+                    position: { ...n.position, y: processTop },
+                    data: { ...n.data, height: processHeight }
+                  };
                 }
               }
             }
