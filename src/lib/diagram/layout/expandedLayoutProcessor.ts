@@ -35,10 +35,7 @@ export const processProperty = (
   const isExplicitlyExpanded = collapsedPaths[propPath] === false;
   const isCollapsed = isExplicitlyCollapsed || (!isExplicitlyExpanded && true); // Default to true if not set
   
-  console.log(`Processing property ${propName}, path: ${propPath}, collapsed: ${isCollapsed}`);
-  
   if (isCollapsed) {
-    console.log(`Skipping collapsed property: ${propName} at path ${propPath}`);
     return;
   }
   
@@ -58,7 +55,6 @@ export const processProperty = (
       const nestedCollapsed = collapsedPaths[nestedPath] !== false; // Default to true
       
       if (nestedCollapsed) {
-        console.log(`Nested properties at ${nestedPath} are collapsed, marking node`);
         propNode.data.isCollapsed = true;
         return;
       }
@@ -104,7 +100,6 @@ export const processProperty = (
       const itemsCollapsed = collapsedPaths[itemsPath] !== false; // Default to true
       
       if (itemsCollapsed) {
-        console.log(`Array items at ${itemsPath} are collapsed, marking node`);
         propNode.data.isCollapsed = true;
         return;
       }

@@ -445,21 +445,11 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     );
     
     if (!node) {
-      console.error('❌ [SequenceLayout] No node found for anchor:', {
-        anchorId: anchor.id,
-        lifelineId: anchor.lifelineId,
-        anchorType: anchor.anchorType
-      });
       return;
     }
     
     // Validate that node has both anchors
     if (!node.anchors || node.anchors.length !== 2) {
-      console.error('❌ [SequenceLayout] Node has invalid anchors:', {
-        nodeId: node.id,
-        nodeLabel: node.label,
-        anchorCount: node.anchors?.length || 0
-      });
       return;
     }
     
@@ -475,18 +465,6 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     // - Anchor on RIGHT side of node (thisX > otherX) → connect from LEFT edge point of anchor
     const isAnchorOnLeftOfNode = thisAnchorX < otherAnchorX;
     const anchorEdgeHandle = isAnchorOnLeftOfNode ? 'right' : 'left';
-    
-    // Log edge creation details
-    console.log(`🔗 [Edge] Creating edge for anchor ${anchor.id}:`, {
-      anchorId: anchor.id,
-      anchorType: anchor.anchorType,
-      lifelineId: anchor.lifelineId,
-      thisAnchorX,
-      otherAnchorX,
-      isAnchorOnLeftOfNode,
-      anchorEdgeHandle,
-      nodeId: node.id
-    });
     
     if (anchor.anchorType === 'source') {
       // Edge from anchor to node (arrow points TO the node)
@@ -523,15 +501,6 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     }
   });
   
-  // Final validation
-  if (layoutEdges.length === 0 && nodesWithPositions.length > 0) {
-    console.error('❌ [SequenceLayout] NO EDGES CREATED despite having nodes!', {
-      nodeCount: nodesWithPositions.length,
-      anchorCount: anchors.length,
-      nodesWithAnchors: nodesWithPositions.filter(n => n.anchors && n.anchors.length === 2).length
-    });
-  }
-
   // Calculate process nodes if processes exist
   const processNodes: Node[] = [];
   if (options.processes && options.processes.length > 0) {
@@ -547,7 +516,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       );
       processNodes.push(...processLayout);
     } catch (error) {
-      console.error('Error creating process layout:', error);
+      // Error creating process layout
     }
   }
 
@@ -578,16 +547,6 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   
   // Add generous padding at the bottom to ensure lifeline extends well beyond last anchor
   const calculatedLifelineHeight = maxBottomY + 300;
-  
-  console.log('🔍 [Lifeline Height Calculation]:', {
-    anchorCount: anchorNodes.length,
-    layoutNodesCount: layoutNodes.length,
-    processNodesCount: processNodes.length,
-    maxBottomY,
-    calculatedLifelineHeight,
-    sampleAnchorPositions: anchorNodes.slice(0, 3).map(n => ({ id: n.id, y: n.position.y })),
-    lastThreeAnchors: anchorNodes.slice(-3).map(n => ({ id: n.id, y: n.position.y }))
-  });
   
   // Update lifeline nodes with calculated height
   lifelineNodes.forEach(lifelineNode => {
@@ -953,7 +912,6 @@ const calculateProcessLayout = (
   // First pass: collect all process segments with their Y ranges
   processes.forEach(process => {
     if (!process || !process.anchorIds || process.anchorIds.length === 0) {
-      console.warn('Process missing anchorIds:', process);
       return;
     }
 
@@ -1106,7 +1064,6 @@ const calculateProcessLayout = (
       
       const lifelineX = lifelinePositions.get(group.lifelineId);
       if (lifelineX === undefined) {
-        console.warn('Lifeline position not found for process:', group.lifelineId);
         return;
       }
 

@@ -185,11 +185,7 @@ export const generateOpenApiLayout = (
         maxIndividualArrayItems
       );
     }
-  } else {
-    console.log('[OPENAPI LAYOUT] No OpenAPI properties are expanded, skipping OpenAPI structure');
   }
-  
-  console.log(`[OPENAPI LAYOUT] Finished - generated ${result.nodes.length} nodes, ${result.edges.length} edges`);
   
   return result;
 };
@@ -245,8 +241,6 @@ function processComponentsSchemas(
   parentPath: string,
   maxIndividualProperties: number = 5
 ) {
-  console.log(`[OPENAPI LAYOUT] Processing ${Object.keys(schemas).length} schemas with grouping, maxIndividualProperties: ${maxIndividualProperties}`);
-  
   // Count how many schemas are already individually expanded
   const schemaEntries = Object.entries(schemas);
   const expandedSchemasCount = schemaEntries.filter(([schemaName]) => {
@@ -256,13 +250,6 @@ function processComponentsSchemas(
   
   // Only group if we're not showing individual expanded schemas
   const shouldGroup = expandedSchemasCount === 0 && schemaEntries.length > maxIndividualProperties;
-  
-  console.log('🔥 [OPENAPI LAYOUT] Schema grouping decision:', {
-    parentPath,
-    expandedSchemasCount,
-    totalSchemas: schemaEntries.length,
-    shouldGroup
-  });
   
   // Track nodes before processing to identify newly created schema nodes
   const nodeCountBefore = result.nodes.length;
@@ -279,8 +266,6 @@ function processComponentsSchemas(
     parentPath,
     []
   );
-  
-  console.log(`[OPENAPI LAYOUT] Created ${groupingResult.totalNodesCreated} nodes for ${groupingResult.nodesProcessed} schemas`);
   
   // Get the newly created schema nodes
   const newSchemaNodes = result.nodes.slice(nodeCountBefore);
@@ -304,8 +289,6 @@ function processComponentsSchemas(
     }
     
     if (isSchemaExpanded && schemaData?.properties) {
-      console.log(`🔥 [OPENAPI LAYOUT] Schema "${schemaName}" is expanded, checking properties expansion`);
-      
       const propertiesPath = `${schemaPath}.properties`;
       const propertiesExpanded = collapsedPaths[propertiesPath] === false;
       
@@ -323,18 +306,10 @@ function processComponentsSchemas(
       
       const hasIndividualPropertyExpanded = expandedPropertyNames.size > 0;
       
-      console.log(`🔥 [OPENAPI LAYOUT] Properties analysis for "${schemaName}":`, {
-        propertiesExpanded,
-        hasIndividualPropertyExpanded,
-        expandedPropertyNames: Array.from(expandedPropertyNames)
-      });
-      
       if (propertiesExpanded) {
         // Properties container is expanded - show non-expanded properties inline
         const allPropertyNames = Object.keys(schemaData.properties);
         const nonExpandedProperties = allPropertyNames.filter(name => !expandedPropertyNames.has(name));
-        
-        console.log(`🔥 [OPENAPI LAYOUT] Properties for "${schemaName}": ${allPropertyNames.length} total, ${expandedPropertyNames.size} expanded, ${nonExpandedProperties.length} inline`);
         
         // Show non-expanded properties as a list inside the schema box
         if (nonExpandedProperties.length > 0) {
@@ -361,8 +336,6 @@ function processComponentsSchemas(
         
         // Create separate boxes ONLY for explicitly expanded properties
         if (hasIndividualPropertyExpanded) {
-          console.log(`🔥 [OPENAPI LAYOUT] Creating separate boxes for ${expandedPropertyNames.size} explicitly expanded properties`);
-          
           // Filter to only include expanded properties
           const expandedPropertiesOnly = Object.fromEntries(
             Object.entries(schemaData.properties).filter(([propName]) => expandedPropertyNames.has(propName))
@@ -420,8 +393,6 @@ function processJsonSchemaProperties(
     }
   );
   
-  console.log(`[OPENAPI LAYOUT] Created ${groupingResult.totalNodesCreated} property nodes for ${groupingResult.nodesProcessed} properties in schema`);
-  
   // Handle schema references for created nodes
   if (allSchemas) {
     result.nodes.forEach(node => {
@@ -442,7 +413,6 @@ function processJsonSchemaProperties(
           );
           
           result.edges.push(referenceEdge);
-          console.log(`🔗 [REFERENCE] Created reference edge: ${node.id} -> ${referencedSchemaName}`);
         }
       }
     });
@@ -461,8 +431,6 @@ function processOpenApiPaths(
   collapsedPaths: CollapsedState,
   parentPath: string
 ) {
-  console.log(`🔥 [OPENAPI LAYOUT] Processing paths:`, Object.keys(paths));
-  
   const pathNames = Object.keys(paths);
   const startX = xPos - (pathNames.length * xSpacing) / 2 + xSpacing / 2;
   
@@ -475,12 +443,8 @@ function processOpenApiPaths(
     const isIndividualPathExpanded = collapsedPaths[individualPathPath] === false || 
       (collapsedPaths[individualPathPath] && typeof collapsedPaths[individualPathPath] === 'object');
     
-    console.log(`🔥 [OPENAPI LAYOUT] Path "${pathName}": expanded=${isIndividualPathExpanded}`);
-    
     if (isIndividualPathExpanded) {
       // EXPANDED MODE: Show individual method boxes for this path
-      console.log(`🔥 [OPENAPI LAYOUT] Creating individual method boxes for path: ${pathName}`);
-      
       const methods = Object.entries(pathData || {})
         .filter(([method]) => ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'].includes(method.toLowerCase()));
       
@@ -507,16 +471,12 @@ function processOpenApiPaths(
           result.nodes.push(methodNode);
           result.edges.push(edge);
           
-          console.log(`🔥 [OPENAPI LAYOUT] Created individual method node: ${method.toUpperCase()} ${pathName}`);
-          
           // Process responses and request bodies for individual method nodes
           processMethodDetails(methodData, methodNode, methodX, yPos, result, collapsedPaths, methodPath);
         }
       });
     } else {
       // CONSOLIDATED MODE: Show single endpoint box with all methods
-      console.log(`🔥 [OPENAPI LAYOUT] Creating consolidated endpoint box for path: ${pathName}`);
-      
       const endpointNode = createEndpointNode(
         pathName,
         pathData,
@@ -528,8 +488,6 @@ function processOpenApiPaths(
       
       result.nodes.push(endpointNode);
       result.edges.push(edge);
-      
-      console.log(`🔥 [OPENAPI LAYOUT] Created consolidated endpoint node for: ${pathName}`);
     }
   });
 }
@@ -563,7 +521,6 @@ function processMethodDetails(
     result.nodes.push(parametersNode);
     result.edges.push(parametersEdge);
     
-    console.log(`🔥 [OPENAPI LAYOUT] Created parameters node for method`);
     yOffset += 120;
   }
   
@@ -580,7 +537,6 @@ function processMethodDetails(
     result.nodes.push(tagsNode);
     result.edges.push(tagsEdge);
     
-    console.log(`🔥 [OPENAPI LAYOUT] Created tags node for method`);
     yOffset += 100;
   }
   
@@ -596,8 +552,6 @@ function processMethodDetails(
     
     result.nodes.push(securityNode);
     result.edges.push(securityEdge);
-    
-    console.log(`🔥 [OPENAPI LAYOUT] Created security node for method`);
   }
   
   // Reset yOffset for right column (request body and responses)
@@ -615,8 +569,6 @@ function processMethodDetails(
     
     result.nodes.push(requestBodyNode);
     result.edges.push(requestBodyEdge);
-    
-    console.log(`🔥 [OPENAPI LAYOUT] Created request body node for method`);
     
     // Process request body schema if expanded
     const requestBodySchema = methodData.requestBody.content['application/json'].schema;
@@ -654,8 +606,6 @@ function processMethodDetails(
     const responsesPath = `${methodPath}.responses`;
     const responsesExpanded = collapsedPaths[responsesPath] === false;
     
-    console.log(`🔥 [OPENAPI LAYOUT] Responses path: ${responsesPath}, responses expanded: ${responsesExpanded}`);
-    
     const responseEntries = Object.entries(methodData.responses)
       .filter(([_, responseData]: [string, any]) => 
         responseData?.content?.['application/json']
@@ -672,8 +622,6 @@ function processMethodDetails(
       
       if (responsesExpanded) {
         // RESPONSES EXPANDED: Check which individual responses are expanded
-        console.log(`🔥 [OPENAPI LAYOUT] Responses expanded - checking for individual expansions`);
-        
         responseEntries.forEach(([statusCode, responseData]) => {
           const individualResponsePath = `${responsesPath}.${statusCode}`;
           const responseExpanded = collapsedPaths[individualResponsePath] === false;
@@ -703,8 +651,6 @@ function processMethodDetails(
         result.nodes.push(consolidatedResponseNode);
         result.edges.push(responseEdge);
         
-        console.log(`🔥 [OPENAPI LAYOUT] Created consolidated response node with dashed border`);
-        
         // Now create individual response boxes as children of the consolidated box
         let individualYOffset = yOffset + 150;
         responseEntries.forEach(([statusCode, responseData]: [string, any], responseIndex) => {
@@ -726,8 +672,6 @@ function processMethodDetails(
             result.nodes.push(responseNode);
             result.edges.push(responseEdge);
             
-            console.log(`🔥 [OPENAPI LAYOUT] Created individual response node for ${statusCode} as child of consolidated box`);
-            
             // Process content types for this response
             const contentPath = `${individualResponsePath}.content`;
             const contentExpanded = collapsedPaths[contentPath] === false;
@@ -743,8 +687,6 @@ function processMethodDetails(
               
               if (contentExpanded) {
                 // CONTENT EXPANDED: Check which individual content types are expanded
-                console.log(`🔥 [OPENAPI LAYOUT] Content expanded for response ${statusCode} - checking for individual content type expansions`);
-                
                 contentTypes.forEach(contentType => {
                   const contentTypePath = `${contentPath}.${contentType}`;
                   const contentTypeExpanded = collapsedPaths[contentTypePath] === false;
@@ -766,8 +708,6 @@ function processMethodDetails(
                 
                 result.nodes.push(consolidatedContentTypeNode);
                 result.edges.push(contentTypeEdge);
-                
-                console.log(`🔥 [OPENAPI LAYOUT] Created consolidated content type node for response ${statusCode}`);
                 
                 // Create individual content type boxes for expanded ones
                 let contentTypeYOffset = individualYOffset + 300;
@@ -793,8 +733,6 @@ function processMethodDetails(
                     result.nodes.push(contentTypeNode);
                     result.edges.push(ctEdge);
                     
-                    console.log(`🔥 [OPENAPI LAYOUT] Created individual content type node for ${contentType}`);
-                    
                     // If schema is expanded, create schema node
                     if (schemaExpanded && responseData.content[contentType].schema) {
                       const schema = responseData.content[contentType].schema;
@@ -813,15 +751,11 @@ function processMethodDetails(
                       result.edges.push(schemaEdge);
                       
                       handleSchemaReferences(schema, schemaNode.id, result);
-                      
-                      console.log(`🔥 [OPENAPI LAYOUT] Created schema node for content type ${contentType}`);
                     }
                   }
                 });
               } else {
                 // CONTENT NOT EXPANDED: Show single consolidated content types box
-                console.log(`🔥 [OPENAPI LAYOUT] Creating consolidated content types box for response ${statusCode}`);
-                
                 const consolidatedContentTypeNode = createConsolidatedContentTypeNode(
                   allContentTypes,
                   rightColumnX + (responseIndex * 150),
@@ -832,8 +766,6 @@ function processMethodDetails(
                 
                 result.nodes.push(consolidatedContentTypeNode);
                 result.edges.push(contentTypeEdge);
-                
-                console.log(`🔥 [OPENAPI LAYOUT] Created consolidated content type node for response ${statusCode}`);
               }
             }
           }
@@ -850,8 +782,6 @@ function processMethodDetails(
         yOffset += 150;
       } else {
         // RESPONSES COLLAPSED: Show single consolidated box for all responses
-        console.log(`🔥 [OPENAPI LAYOUT] Creating consolidated response box for all responses`);
-        
         const consolidatedResponseNode = createConsolidatedResponseNode(
           allResponses,
           rightColumnX,

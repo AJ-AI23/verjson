@@ -83,12 +83,6 @@ export function processArrayItemsWithGrouping(
       const itemPath = `${parentPath}.${itemIndex}`;
       const isExpanded = collapsedPaths ? collapsedPaths[itemPath] === false : false;
       
-      console.log(`[ARRAY GROUPING] Item ${itemIndex} - path: ${itemPath}, isExpanded: ${isExpanded}`, {
-        collapsedPaths,
-        hasPath: collapsedPaths?.[itemPath],
-        parentPath
-      });
-      
       const itemNode = createItemNode(
         items[itemIndex],
         itemIndex,
@@ -125,12 +119,6 @@ export function processArrayItemsWithGrouping(
       // Check if this item is expanded
       const itemPath = `${parentPath}.${index}`;
       const isExpanded = collapsedPaths ? collapsedPaths[itemPath] === false : false;
-      
-      console.log(`[ARRAY GROUPING] Item ${index} - path: ${itemPath}, isExpanded: ${isExpanded}`, {
-        collapsedPaths,
-        hasPath: collapsedPaths?.[itemPath],
-        parentPath
-      });
       
       const itemNode = createItemNode(
         item,
