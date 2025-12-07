@@ -891,12 +891,10 @@ const FitViewHelper: React.FC<{
           const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
           const nodeHeight = actualHeight || nodeConfig?.defaultHeight || 70;
           
-          // Allow dragging above existing nodes, only prevent going into header area
-          const LIFELINE_HEADER_HEIGHT = 100;
-          const minY = LIFELINE_HEADER_HEIGHT + 10; // Minimal padding from header
-          
+          // Allow dragging above existing nodes - no minimum constraint during drag
+          // The final position will be calculated after drop
           const newY = change.position?.y || node.position.y;
-          const constrainedY = Math.max(minY, newY);
+          const constrainedY = newY; // No Y constraint during drag
           
           // Lock X position to the original position from when drag started
           // This prevents nodes from being dragged outside their lifeline lane
@@ -1217,14 +1215,12 @@ const FitViewHelper: React.FC<{
         const nodeConfig = movedDiagramNode ? getNodeTypeConfig(movedDiagramNode.type) : null;
         const nodeHeight = nodeConfig?.defaultHeight || 70;
         
-        // Allow dragging above existing nodes, only prevent going into header area
-        const LIFELINE_HEADER_HEIGHT = 100;
-        const MIN_Y_POSITION = LIFELINE_HEADER_HEIGHT + 10; // Minimal padding from header
+        // Allow dragging above existing nodes - minimal constraint
         const GRID_SIZE = 10; // Snap to 10px grid
         
-        // Snap to grid and constrain to minimum position only
+        // Snap to grid with no minimum Y constraint
         const snappedY = Math.round(moveChange.position.y / GRID_SIZE) * GRID_SIZE;
-        const constrainedY = Math.max(MIN_Y_POSITION, snappedY);
+        const constrainedY = snappedY; // No minimum constraint
         
         // If multi-select, update all selected nodes
         if (selectedNodeIds.includes(moveChange.id) && selectedNodeIds.length > 1) {
@@ -1241,7 +1237,7 @@ const FitViewHelper: React.FC<{
               const currentY = n.yPosition || 0;
               const newTopY = n.id === moveChange.id ? constrainedY : (currentY - nHeight / 2) + deltaY;
               const snappedNewTopY = Math.round(newTopY / GRID_SIZE) * GRID_SIZE;
-              const constrainedNewTopY = Math.max(MIN_Y_POSITION, snappedNewTopY); // No max constraint
+              const constrainedNewTopY = snappedNewTopY; // No min constraint
               const centerY = constrainedNewTopY + (nHeight / 2);
               
               // Store CENTER Y as yPosition for consistent sorting
@@ -1264,7 +1260,7 @@ const FitViewHelper: React.FC<{
           const verticalSpacing = 20;
           const topNodeConfig = getNodeTypeConfig(sortedUpdatedNodes[0]?.type || 'endpoint');
           const topNodeHeight = nodeHeights.get(sortedUpdatedNodes[0]?.id) || topNodeConfig?.defaultHeight || 70;
-          const topNodeCenterY = sortedUpdatedNodes[0]?.yPosition || (LIFELINE_HEADER_HEIGHT + 40 + topNodeHeight / 2);
+          const topNodeCenterY = sortedUpdatedNodes[0]?.yPosition || (100 + 40 + topNodeHeight / 2);
           let currentY = topNodeCenterY - (topNodeHeight / 2);
           
           const recalculatedNodes = sortedUpdatedNodes.map(node => {
@@ -1330,7 +1326,7 @@ const FitViewHelper: React.FC<{
           const verticalSpacing = 20;
           const topNodeConfig = getNodeTypeConfig(sortedUpdatedNodes[0]?.type || 'endpoint');
           const topNodeHeight = nodeHeights.get(sortedUpdatedNodes[0]?.id) || topNodeConfig?.defaultHeight || 70;
-          const topNodeCenterY = sortedUpdatedNodes[0]?.yPosition || (LIFELINE_HEADER_HEIGHT + 40 + topNodeHeight / 2);
+          const topNodeCenterY = sortedUpdatedNodes[0]?.yPosition || (100 + 40 + topNodeHeight / 2);
           let currentY = topNodeCenterY - (topNodeHeight / 2);
           
           const recalculatedNodes = sortedUpdatedNodes.map(node => {
