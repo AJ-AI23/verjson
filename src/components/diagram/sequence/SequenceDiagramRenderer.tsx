@@ -854,6 +854,24 @@ const FitViewHelper: React.FC<{
     const draggingChange = changes.find((c: any) => c.type === 'position' && c.dragging);
     let draggedSlot = 0;
     
+    // Pre-calculate slot heights based on current node heights (before placement)
+    // This helps determine which slot the cursor is in
+    const preSlotHeights: number[] = [];
+    for (let s = 0; s < MAX_SLOTS; s++) {
+      preSlotHeights.push(DEFAULT_NODE_HEIGHT);
+    }
+    // Update with actual node heights based on their current slots
+    diagramNodes.forEach(node => {
+      const nodeY = node.yPosition ?? 0;
+      const avgSlotHeight = DEFAULT_NODE_HEIGHT + SLOT_GAP;
+      const estimatedSlot = Math.max(0, Math.round((nodeY - SLOT_START_Y) / avgSlotHeight));
+      const clampedSlot = Math.min(MAX_SLOTS - 1, estimatedSlot);
+      const nodeH = nodeHeights.get(node.id) || DEFAULT_NODE_HEIGHT;
+      if (nodeH > preSlotHeights[clampedSlot]) {
+        preSlotHeights[clampedSlot] = nodeH;
+      }
+    });
+    
     if (draggingChange) {
       const draggedNode = nodes.find(n => n.id === draggingChange.id);
       if (draggedNode?.type === 'sequenceNode') {
@@ -861,10 +879,21 @@ const FitViewHelper: React.FC<{
         const newY = draggingChange.position?.y || draggedNode.position.y;
         const draggedCenterY = newY + (draggedNodeHeight / 2);
         
-        // Calculate rough slot based on Y position (will be refined after placement)
-        // Use a simple heuristic: estimate slot based on average slot height
-        const avgSlotHeight = DEFAULT_NODE_HEIGHT + SLOT_GAP;
-        draggedSlot = Math.max(0, Math.round((draggedCenterY - SLOT_START_Y) / avgSlotHeight));
+        // Calculate slot by finding which slot boundary the cursor center falls into
+        // Account for accumulated heights of previous slots
+        let accumulatedY = SLOT_START_Y;
+        draggedSlot = 0;
+        for (let s = 0; s < MAX_SLOTS; s++) {
+          const slotHeight = preSlotHeights[s];
+          const slotEnd = accumulatedY + slotHeight + SLOT_GAP;
+          if (draggedCenterY < slotEnd) {
+            draggedSlot = s;
+            break;
+          }
+          accumulatedY = slotEnd;
+          draggedSlot = s + 1;
+        }
+        draggedSlot = Math.min(MAX_SLOTS - 1, draggedSlot);
       }
     }
     
