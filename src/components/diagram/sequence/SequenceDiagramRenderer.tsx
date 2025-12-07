@@ -844,9 +844,9 @@ const FitViewHelper: React.FC<{
   }, [edgesWithRenderMode, setEdges]);
 
   const onNodesChangeHandler = useCallback((changes: any) => {
-    // Debug: Log every call to this handler
+    // Debug: Log every call to this handler with full change details
     console.log('🔧 [onNodesChangeHandler] Called with', changes.length, 'changes:', 
-      changes.map((c: any) => ({ type: c.type, id: c.id, dragging: c.dragging }))
+      changes.map((c: any) => ({ type: c.type, id: c.id, dragging: c.dragging, hasPosition: !!c.position, position: c.position }))
     );
     
     // Block position and selection changes when interactivity is disabled
