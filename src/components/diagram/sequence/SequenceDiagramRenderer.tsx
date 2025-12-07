@@ -881,13 +881,11 @@ const FitViewHelper: React.FC<{
       // Update positions with order-based conflict resolution
       // Nodes maintain their order unless dragged past another node
       if (onDataChange) {
-        const SLOT_HEIGHT = 100; // Each slot is 100 units
+        // CRITICAL: Use SAME constants as calculateEvenSpacing in sequenceLayout.ts
         const LIFELINE_HEADER_HEIGHT = 100;
-        const MIN_TOP_MARGIN = 40;
-        // CRITICAL: This MUST match calculateEvenSpacing's startY calculation in sequenceLayout.ts
-        // calculateEvenSpacing uses: startY = LIFELINE_HEADER_HEIGHT + 40 = 140
-        // Then adds nodeHeight/2 to get CENTER Y, resulting in ~175 for first node
-        const MIN_Y_POSITION = LIFELINE_HEADER_HEIGHT + MIN_TOP_MARGIN; // = 140, matches layout startY
+        const START_Y = LIFELINE_HEADER_HEIGHT + 40; // = 140, matches layout startY
+        const SPACING_BETWEEN_ROWS = 50; // matches layout SPACING_BETWEEN_ROWS
+        
         const sequenceNodes = nodes.filter(n => n.type === 'sequenceNode');
         
         // Find the dragged node
@@ -925,46 +923,42 @@ const FitViewHelper: React.FC<{
         // Adjust index since we'll remove the dragged node
         const adjustedNewIndex = newOrderIndex > originalIndex ? newOrderIndex - 1 : newOrderIndex;
         
-        // CRITICAL: If order didn't change, snap the node back to its original position
-        // This prevents small drags from affecting spacing while ensuring visual snapback
-        if (adjustedNewIndex === originalIndex) {
-          console.log('📋 [DROP] Order unchanged, snapping back to original position');
-          // Force the dragged node back to its original yPosition
-          const restoredNodes = diagramNodes.map(node => ({
-            ...node,
-            anchors: node.anchors
-          }));
-          onDataChange({ ...data, nodes: restoredNodes });
-          return;
-        }
-        
-        // Remove dragged node from its original position and insert at new position
+        // Reorder nodes (even if order unchanged, we need to recalculate positions consistently)
         const reorderedNodes = nodesByOriginalOrder.filter(n => n.id !== dragEndChange.id);
         const draggedNode = nodesByOriginalOrder.find(n => n.id === dragEndChange.id)!;
-        
         reorderedNodes.splice(adjustedNewIndex, 0, draggedNode);
         
-        console.log('📋 [DROP] Node order CHANGED:', {
+        console.log('📋 [DROP] Node order:', {
           originalOrder: nodesByOriginalOrder.map(n => n.id),
           draggedNode: dragEndChange.id,
           originalIndex,
           newOrderIndex: adjustedNewIndex,
+          orderChanged: adjustedNewIndex !== originalIndex,
           finalOrder: reorderedNodes.map(n => n.id)
         });
         
-        // Only reassign Y positions when order actually changed
-        // Use the existing positions from the sorted nodes to maintain spacing
-        const updatedNodes = reorderedNodes.map((node, index) => {
-          // Get the yPosition of the node that was originally at this index
-          const originalNodeAtIndex = nodesByOriginalOrder[index];
+        // Calculate Y positions using SAME logic as calculateEvenSpacing
+        // This ensures consistent spacing matching the initial layout
+        let currentY = START_Y;
+        const updatedNodes = reorderedNodes.map((node) => {
+          const nodeConfig = getNodeTypeConfig(node.type);
+          const measuredHeight = nodeHeights.get(node.id);
+          const nodeHeight = measuredHeight || nodeConfig?.defaultHeight || 70;
+          
+          // Calculate CENTER Y for this node (startY is top of first level)
+          const centerY = currentY + (nodeHeight / 2);
+          
+          // Move to next level: current node's bottom + spacing
+          currentY = currentY + nodeHeight + SPACING_BETWEEN_ROWS;
+          
           return {
             ...node,
-            yPosition: originalNodeAtIndex?.yPosition || (MIN_Y_POSITION + (index * SLOT_HEIGHT)),
+            yPosition: centerY,
             anchors: node.anchors
           };
         });
         
-        console.log('📝 [DROP] Repositioned nodes - swapped positions');
+        console.log('📝 [DROP] Repositioned nodes with layout-matching spacing');
         onDataChange({ ...data, nodes: updatedNodes });
       }
     }
