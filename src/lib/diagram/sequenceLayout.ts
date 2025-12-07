@@ -463,7 +463,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       style: {
         zIndex: 10
       },
-      draggable: true // Enable dragging for sequence nodes
+      draggable: false // Disable dragging - positions are controlled by layout
     };
   });
 
