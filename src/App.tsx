@@ -9,6 +9,7 @@ import { Toaster } from '@/components/ui/toaster';
 import Index from '@/pages/Index';
 import Auth from '@/pages/Auth';
 import { PublicDiagram } from '@/pages/PublicDiagram';
+import ApiDocs from '@/pages/ApiDocs';
 import NotFound from '@/pages/NotFound';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
                     <Route path="/" element={<Index />} />
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/public/diagram/:documentId" element={<PublicDiagram />} />
+                    <Route path="/api-docs" element={<ApiDocs />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Router>
