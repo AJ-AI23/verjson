@@ -631,7 +631,7 @@ const FitViewHelper: React.FC<{
         const dataVersion = lifeline ? `${lifeline.name}-${lifeline.description}-${lifeline.color}-${lifeline.anchorColor}-${lifeline.order}-${currentTheme}` : currentTheme;
         return {
           ...node,
-          draggable: false, // Lifelines should never be draggable - their position is fixed
+          draggable: !readOnly && !isRenderMode && isInteractive,
           selectable: !readOnly && !isRenderMode && isInteractive,
           selected: isSelected && !isRenderMode && isInteractive,
           data: {
