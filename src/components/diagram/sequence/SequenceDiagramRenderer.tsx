@@ -16,7 +16,7 @@ import {
 } from '@xyflow/react';
 import { SequenceDiagramData, DiagramNode, DiagramEdge, DiagramNodeType, Lifeline, AnchorNode as AnchorNodeType } from '@/types/diagram';
 import { DiagramStyles, defaultLightTheme } from '@/types/diagramStyles';
-import { calculateSequenceLayout } from '@/lib/diagram/sequenceLayout';
+import { calculateSequenceLayout, calculateProcessLayout } from '@/lib/diagram/sequenceLayout';
 import { getNodeTypeConfig } from '@/lib/diagram/sequenceNodeTypes';
 import { SequenceNode } from './SequenceNode';
 import { SequenceEdge } from './SequenceEdge';
@@ -940,9 +940,51 @@ const FitViewHelper: React.FC<{
           slots[placedSlot].push(node);
         });
         
-        // Update all node and anchor positions in React Flow
-        setNodes(currentNodes =>
-          currentNodes.map(n => {
+        // Build calculated Y positions map for process layout (center Y)
+        const calculatedYPositions = new Map<string, number>();
+        positions.forEach((pos, nodeId) => {
+          calculatedYPositions.set(nodeId, slotToY(pos.slot));
+        });
+        
+        // Build nodes with updated yPosition for process layout calculation
+        const nodesWithUpdatedPositions: DiagramNode[] = diagramNodes.map(node => ({
+          ...node,
+          yPosition: calculatedYPositions.get(node.id) ?? node.yPosition
+        }));
+        
+        // Extract anchors from nodes
+        const allAnchors: AnchorNodeType[] = nodesWithUpdatedPositions.flatMap(node => 
+          node.anchors?.map(anchor => ({ ...anchor })) || []
+        );
+        
+        // Calculate process layout with new positions
+        const LIFELINE_WIDTH = 300;
+        const lifelineXPositions = new Map<string, number>();
+        let currentX = 150; // NODE_HORIZONTAL_PADDING
+        sortedLifelines.forEach((lifeline) => {
+          lifelineXPositions.set(lifeline.id, currentX);
+          currentX += LIFELINE_WIDTH + 100; // + horizontalSpacing
+        });
+        
+        const newProcessNodes = data.processes && data.processes.length > 0
+          ? calculateProcessLayout(
+              data.processes,
+              allAnchors,
+              nodesWithUpdatedPositions,
+              lifelineXPositions,
+              activeTheme,
+              nodeHeights,
+              calculatedYPositions
+            )
+          : [];
+        
+        // Update all node, anchor, and process positions in React Flow
+        setNodes(currentNodes => {
+          // Filter out old process nodes
+          const nonProcessNodes = currentNodes.filter(n => n.type !== 'processNode');
+          
+          // Update sequence and anchor nodes
+          const updatedNodes = nonProcessNodes.map(n => {
             if (n.type === 'sequenceNode') {
               const pos = positions.get(n.id);
               if (pos) {
@@ -964,8 +1006,11 @@ const FitViewHelper: React.FC<{
               }
             }
             return n;
-          })
-        );
+          });
+          
+          // Add updated process nodes
+          return [...updatedNodes, ...newProcessNodes];
+        });
       }
     }
     
