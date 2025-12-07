@@ -766,20 +766,34 @@ const FitViewHelper: React.FC<{
         });
         
         // Helper to check if two nodes overlap in lifeline range
+        // Two nodes overlap if their lifeline ranges share ANY common lifeline
+        // e.g., node spanning lifelines 0-1 and node spanning 1-2 overlap because both touch lifeline 1
         const nodesOverlap = (node1: DiagramNode, node2: DiagramNode): boolean => {
           if (!node1.anchors || !node2.anchors) return false;
           
-          const n1Start = lifelinePositions.get(node1.anchors[0].lifelineId) || 0;
-          const n1End = lifelinePositions.get(node1.anchors[1].lifelineId) || 0;
-          const n2Start = lifelinePositions.get(node2.anchors[0].lifelineId) || 0;
-          const n2End = lifelinePositions.get(node2.anchors[1].lifelineId) || 0;
+          const n1Start = lifelinePositions.get(node1.anchors[0].lifelineId) ?? -1;
+          const n1End = lifelinePositions.get(node1.anchors[1].lifelineId) ?? -1;
+          const n2Start = lifelinePositions.get(node2.anchors[0].lifelineId) ?? -1;
+          const n2End = lifelinePositions.get(node2.anchors[1].lifelineId) ?? -1;
+          
+          // If any position is -1, we couldn't find the lifeline
+          if (n1Start === -1 || n1End === -1 || n2Start === -1 || n2End === -1) {
+            console.log('⚠️ nodesOverlap: missing lifeline position', { n1Start, n1End, n2Start, n2End });
+            return false;
+          }
           
           const min1 = Math.min(n1Start, n1End);
           const max1 = Math.max(n1Start, n1End);
           const min2 = Math.min(n2Start, n2End);
           const max2 = Math.max(n2Start, n2End);
           
-          return !(max1 < min2 || max2 < min1);
+          // Overlap if ranges touch or intersect (using <= not <)
+          // [0,1] and [1,2] overlap because they share position 1
+          const overlaps = !(max1 < min2 || max2 < min1);
+          
+          console.log('📊 nodesOverlap check:', node1.label, `[${min1}-${max1}]`, 'vs', node2.label, `[${min2}-${max2}]`, '-> overlaps:', overlaps);
+          
+          return overlaps;
         };
         
         // Create slot assignments: convert visual Y positions to slot indices
