@@ -925,10 +925,16 @@ const FitViewHelper: React.FC<{
         // Adjust index since we'll remove the dragged node
         const adjustedNewIndex = newOrderIndex > originalIndex ? newOrderIndex - 1 : newOrderIndex;
         
-        // CRITICAL: If order didn't change, don't update anything - preserve existing positions
-        // This prevents small drags from affecting spacing
+        // CRITICAL: If order didn't change, snap the node back to its original position
+        // This prevents small drags from affecting spacing while ensuring visual snapback
         if (adjustedNewIndex === originalIndex) {
-          console.log('📋 [DROP] Order unchanged, preserving original positions');
+          console.log('📋 [DROP] Order unchanged, snapping back to original position');
+          // Force the dragged node back to its original yPosition
+          const restoredNodes = diagramNodes.map(node => ({
+            ...node,
+            anchors: node.anchors
+          }));
+          onDataChange({ ...data, nodes: restoredNodes });
           return;
         }
         
