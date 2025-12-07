@@ -42,7 +42,24 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({
   if (!localNode) return null;
 
   const handleUpdate = (field: string, value: any) => {
-    setLocalNode(prev => prev ? { ...prev, [field]: value } : null);
+    setLocalNode(prev => {
+      if (!prev) return null;
+      
+      // When changing type to 'endpoint', initialize method and path if not set
+      if (field === 'type' && value === 'endpoint') {
+        return {
+          ...prev,
+          [field]: value,
+          data: {
+            ...prev.data,
+            method: prev.data?.method || 'GET',
+            path: prev.data?.path || '/api/endpoint'
+          }
+        };
+      }
+      
+      return { ...prev, [field]: value };
+    });
   };
 
   const handleDataUpdate = (field: string, value: any) => {
