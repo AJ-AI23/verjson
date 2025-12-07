@@ -1376,8 +1376,13 @@ const FitViewHelper: React.FC<{
             }
           }
         }
+      } else if (movedNode?.type === 'sequenceNode') {
+        // SKIP - Sequence node position updates are handled by the drag end handler (lines 884-976)
+        // which uses calculateEvenSpacing for consistent positioning.
+        // Do NOT process here to avoid conflicting position calculations.
+        console.log('⏭️ [MoveChange] Skipping sequence node - handled by drag end handler');
       } else {
-        // Regular node position update - also update connected anchors
+        // Regular non-sequence node position update
         const movedDiagramNode = diagramNodes.find(n => n.id === moveChange.id);
         const nodeConfig = movedDiagramNode ? getNodeTypeConfig(movedDiagramNode.type) : null;
         const nodeHeight = nodeConfig?.defaultHeight || 70;
