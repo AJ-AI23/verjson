@@ -883,7 +883,7 @@ const FitViewHelper: React.FC<{
           nodeLanesMap.set(n.id, lanes);
           
           const isDragged = n.id === dragEndNodeId ? ' [DRAGGED]' : '';
-          console.log(`  "${diagramNode.label}"${isDragged}: slot=${desiredSlot}, lanes=[${lanes.join(',')}]`);
+          console.log(`  ${n.id}${isDragged}: slot=${desiredSlot}, lanes=[${lanes.join(',')}]`);
         });
         
         // PLACEMENT ORDER:
@@ -904,7 +904,7 @@ const FitViewHelper: React.FC<{
           const draggedFinalSlot = placeNode(dragEndNodeId, draggedDesiredSlot, draggedLanes);
           finalSlots.set(dragEndNodeId, draggedFinalSlot);
           
-          console.log(`  1. "${draggedDiagramNode.label}" [DRAGGED]: desired=${draggedDesiredSlot} → final=${draggedFinalSlot}, lanes=[${draggedLanes.join(',')}]`);
+          console.log(`  1. ${dragEndNodeId} [DRAGGED]: desired=${draggedDesiredSlot} → final=${draggedFinalSlot}, lanes=[${draggedLanes.join(',')}]`);
         }
         
         // Place other nodes in order of their desired slots
@@ -919,7 +919,7 @@ const FitViewHelper: React.FC<{
           finalSlots.set(node.id, finalSlot);
           
           const pushed = finalSlot !== desiredSlot ? ` ⬇️ PUSHED` : '';
-          console.log(`  ${idx + 2}. "${node.label}": desired=${desiredSlot} → final=${finalSlot}, lanes=[${lanes.join(',')}]${pushed}`);
+          console.log(`  ${idx + 2}. ${node.id}: desired=${desiredSlot} → final=${finalSlot}, lanes=[${lanes.join(',')}]${pushed}`);
         });
         
         // Show final matrix state
@@ -934,8 +934,7 @@ const FitViewHelper: React.FC<{
           for (let lane = 0; lane < laneCount; lane++) {
             const occupant = slotMap.get(lane);
             if (occupant) {
-              const node = diagramNodes.find(n => n.id === occupant);
-              cellsStr.push(`lane${lane}="${node?.label || occupant}"`);
+              cellsStr.push(`lane${lane}=${occupant}`);
             } else {
               cellsStr.push(`lane${lane}=empty`);
             }
@@ -953,8 +952,7 @@ const FitViewHelper: React.FC<{
         console.log('FINAL Y POSITIONS:');
         console.log('───────────────────────────────────────────────────────────');
         finalSlots.forEach((slot, nodeId) => {
-          const node = diagramNodes.find(n => n.id === nodeId);
-          console.log(`  "${node?.label || nodeId}": slot=${slot}, yPosition=${slot * SLOT_HEIGHT}`);
+          console.log(`  ${nodeId}: slot=${slot}, yPosition=${slot * SLOT_HEIGHT}`);
         });
         console.log('═══════════════════════════════════════════════════════════');
         
