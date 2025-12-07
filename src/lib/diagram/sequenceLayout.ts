@@ -765,7 +765,7 @@ export const calculateLifelineLayout = (lifelines: Lifeline[], horizontalSpacing
 };
 
 // Calculate layout for process nodes
-const calculateProcessLayout = (
+export const calculateProcessLayout = (
   processes: ProcessNode[],
   anchors: AnchorNode[],
   nodes: DiagramNode[],
