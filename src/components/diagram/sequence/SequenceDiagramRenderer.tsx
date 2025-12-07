@@ -809,52 +809,152 @@ const FitViewHelper: React.FC<{
     }
     
     // Constrain sequence node movement to vertical only during drag AND snap to slots
-    const SLOT_HEIGHT = 120; // Must match sequenceLayout.ts
+    const SLOT_GAP = 50; // Gap between slots - must match sequenceLayout.ts
     const SLOT_START_Y = 140; // LIFELINE_HEADER_HEIGHT (100) + margin (40) - must match sequenceLayout.ts
+    const MAX_SLOTS = 50;
+    const DEFAULT_NODE_HEIGHT = 70;
     
-    // Convert center Y to slot index
-    const yToSlot = (centerY: number): number => {
-      return Math.max(0, Math.round((centerY - SLOT_START_Y) / SLOT_HEIGHT));
+    // Build lifeline position map for lane calculation
+    const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
+    const lifelinePositions = new Map<string, number>();
+    sortedLifelines.forEach((lifeline, index) => {
+      lifelinePositions.set(lifeline.id, index);
+    });
+    
+    // Compute span for a node
+    const computeSpan = (node: DiagramNode) => {
+      if (!node.anchors || node.anchors.length < 2) return null;
+      const ll0Pos = lifelinePositions.get(node.anchors[0].lifelineId);
+      const ll1Pos = lifelinePositions.get(node.anchors[1].lifelineId);
+      if (ll0Pos === undefined || ll1Pos === undefined) return null;
+      const leftLane = Math.min(ll0Pos, ll1Pos);
+      const rightLane = Math.max(ll0Pos, ll1Pos) - 1;
+      return { leftLane, rightLane, width: rightLane - leftLane + 1 };
     };
     
-    // Convert slot index to center Y
+    // Check conflicts
+    const conflicts = (span: any, slotNodes: any[], positions: Map<string, any>) => {
+      for (const n of slotNodes) {
+        const other = positions.get(n.id);
+        if (!other) continue;
+        const ok = (span.rightLane + 2 <= other.leftLane) || (other.rightLane + 2 <= span.leftLane);
+        if (!ok) return true;
+      }
+      return false;
+    };
+    
+    // Calculate spans for all nodes
+    const nodeSpans = new Map<string, any>();
+    diagramNodes.forEach(node => {
+      const span = computeSpan(node);
+      if (span) nodeSpans.set(node.id, span);
+    });
+    
+    // Find the dragging node to determine target slot
+    const draggingChange = changes.find((c: any) => c.type === 'position' && c.dragging);
+    let draggedSlot = 0;
+    
+    if (draggingChange) {
+      const draggedNode = nodes.find(n => n.id === draggingChange.id);
+      if (draggedNode?.type === 'sequenceNode') {
+        const draggedNodeHeight = nodeHeights.get(draggingChange.id) || DEFAULT_NODE_HEIGHT;
+        const newY = draggingChange.position?.y || draggedNode.position.y;
+        const draggedCenterY = newY + (draggedNodeHeight / 2);
+        
+        // Calculate rough slot based on Y position (will be refined after placement)
+        // Use a simple heuristic: estimate slot based on average slot height
+        const avgSlotHeight = DEFAULT_NODE_HEIGHT + SLOT_GAP;
+        draggedSlot = Math.max(0, Math.round((draggedCenterY - SLOT_START_Y) / avgSlotHeight));
+      }
+    }
+    
+    // Matrix layout: place dragged node first, then others in order
+    const positions = new Map<string, any>();
+    const slots: DiagramNode[][] = Array.from({ length: MAX_SLOTS }, () => []);
+    
+    // Place dragged node at its target slot
+    if (draggingChange) {
+      const draggedDiagramNode = diagramNodes.find(n => n.id === draggingChange.id);
+      if (draggedDiagramNode && nodeSpans.has(draggingChange.id)) {
+        const span = nodeSpans.get(draggingChange.id);
+        const clampedSlot = Math.min(MAX_SLOTS - 1, Math.max(0, draggedSlot));
+        positions.set(draggingChange.id, { slot: clampedSlot, ...span });
+        slots[clampedSlot].push(draggedDiagramNode);
+      }
+    }
+    
+    // Sort other nodes by original Y position
+    const otherNodes = diagramNodes
+      .filter(n => n.id !== draggingChange?.id && nodeSpans.has(n.id))
+      .sort((a, b) => (a.yPosition ?? 0) - (b.yPosition ?? 0));
+    
+    // Place other nodes at first available slot
+    otherNodes.forEach(node => {
+      const span = nodeSpans.get(node.id);
+      let placedSlot = 0;
+      for (let s = 0; s < MAX_SLOTS; s++) {
+        if (!conflicts(span, slots[s], positions)) {
+          placedSlot = s;
+          break;
+        }
+      }
+      positions.set(node.id, { slot: placedSlot, ...span });
+      slots[placedSlot].push(node);
+    });
+    
+    // Calculate dynamic slot heights based on the tallest node in each slot
+    const slotHeights: number[] = [];
+    for (let s = 0; s < MAX_SLOTS; s++) {
+      if (slots[s].length === 0) {
+        slotHeights.push(DEFAULT_NODE_HEIGHT);
+      } else {
+        let maxHeight = 0;
+        slots[s].forEach(node => {
+          const h = nodeHeights.get(node.id) || DEFAULT_NODE_HEIGHT;
+          if (h > maxHeight) maxHeight = h;
+        });
+        slotHeights.push(maxHeight);
+      }
+    }
+    
+    // Calculate cumulative Y positions for each slot (center Y)
+    const slotCenterYPositions: number[] = [];
+    let currentY = SLOT_START_Y;
+    for (let s = 0; s < MAX_SLOTS; s++) {
+      const slotHeight = slotHeights[s];
+      const centerY = currentY + (slotHeight / 2);
+      slotCenterYPositions.push(centerY);
+      currentY += slotHeight + SLOT_GAP;
+    }
+    
+    // Helper to get center Y for a slot
     const slotToY = (slot: number): number => {
-      return SLOT_START_Y + (slot * SLOT_HEIGHT);
+      return slotCenterYPositions[Math.min(slot, slotCenterYPositions.length - 1)];
     };
     
+    // Constrain the dragging node's position
     const constrainedChanges = changes.map((change: any) => {
       if (change.type === 'position' && change.dragging) {
         const node = nodes.find(n => n.id === change.id);
         if (node?.type === 'sequenceNode') {
-          // Get node height to calculate constraints
-          const actualHeight = nodeHeights.get(node.id);
-          const diagramNode = diagramNodes.find(n => n.id === node.id);
-          const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
-          const nodeHeight = actualHeight || nodeConfig?.defaultHeight || 70;
-          
-          const newY = change.position?.y || node.position.y;
-          
-          // Calculate center Y from top Y
-          const centerY = newY + (nodeHeight / 2);
-          
-          // Snap to nearest slot
-          const slot = yToSlot(centerY);
-          const snappedCenterY = slotToY(slot);
-          
-          // Convert back to top Y for React Flow positioning
-          const snappedTopY = snappedCenterY - (nodeHeight / 2);
-          
-          // Lock X position to the original position from when drag started
-          const startPos = dragStartPositions.get(node.id);
-          const lockedX = startPos?.x ?? node.position.x;
-          
-          return {
-            ...change,
-            position: {
-              x: lockedX,
-              y: snappedTopY
-            }
-          };
+          const pos = positions.get(change.id);
+          if (pos) {
+            const snappedCenterY = slotToY(pos.slot);
+            const nodeH = nodeHeights.get(change.id) || DEFAULT_NODE_HEIGHT;
+            const snappedTopY = snappedCenterY - (nodeH / 2);
+            
+            // Lock X position to the original position from when drag started
+            const startPos = dragStartPositions.get(node.id);
+            const lockedX = startPos?.x ?? node.position.x;
+            
+            return {
+              ...change,
+              position: {
+                x: lockedX,
+                y: snappedTopY
+              }
+            };
+          }
         }
       }
       return change;
@@ -862,156 +962,79 @@ const FitViewHelper: React.FC<{
 
     handleNodesChange(constrainedChanges);
     
-    // Real-time matrix recalculation during drag
-    const dragChange = constrainedChanges.find((c: any) => c.type === 'position' && c.dragging);
-    if (dragChange) {
-      const draggedNode = nodes.find(n => n.id === dragChange.id);
-      if (draggedNode?.type === 'sequenceNode') {
-        const draggedNodeHeight = nodeHeights.get(dragChange.id) || 70;
-        const draggedCenterY = dragChange.position.y + (draggedNodeHeight / 2);
-        const draggedSlot = yToSlot(draggedCenterY);
+    // Real-time update of all nodes during drag
+    if (draggingChange) {
+      // Build calculated Y positions map for process layout (center Y)
+      const calculatedYPositions = new Map<string, number>();
+      positions.forEach((pos, nodeId) => {
+        calculatedYPositions.set(nodeId, slotToY(pos.slot));
+      });
+      
+      // Build nodes with updated yPosition for process layout calculation
+      const nodesWithUpdatedPositions: DiagramNode[] = diagramNodes.map(node => ({
+        ...node,
+        yPosition: calculatedYPositions.get(node.id) ?? node.yPosition
+      }));
+      
+      // Extract anchors from nodes
+      const allAnchors: AnchorNodeType[] = nodesWithUpdatedPositions.flatMap(node => 
+        node.anchors?.map(anchor => ({ ...anchor })) || []
+      );
+      
+      // Calculate process layout with new positions
+      const LIFELINE_WIDTH = 300;
+      const lifelineXPositions = new Map<string, number>();
+      let lifelineX = 150; // NODE_HORIZONTAL_PADDING
+      sortedLifelines.forEach((lifeline) => {
+        lifelineXPositions.set(lifeline.id, lifelineX);
+        lifelineX += LIFELINE_WIDTH + 100; // + horizontalSpacing
+      });
+      
+      const newProcessNodes = data.processes && data.processes.length > 0
+        ? calculateProcessLayout(
+            data.processes,
+            allAnchors,
+            nodesWithUpdatedPositions,
+            lifelineXPositions,
+            activeTheme,
+            nodeHeights,
+            calculatedYPositions
+          )
+        : [];
+      
+      // Update all node, anchor, and process positions in React Flow
+      setNodes(currentNodes => {
+        // Filter out old process nodes
+        const nonProcessNodes = currentNodes.filter(n => n.type !== 'processNode');
         
-        // Build lifeline position map for lane calculation
-        const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
-        const lifelinePositions = new Map<string, number>();
-        sortedLifelines.forEach((lifeline, index) => {
-          lifelinePositions.set(lifeline.id, index);
-        });
-        
-        // Compute span for a node
-        const computeSpan = (node: DiagramNode) => {
-          if (!node.anchors || node.anchors.length < 2) return null;
-          const ll0Pos = lifelinePositions.get(node.anchors[0].lifelineId);
-          const ll1Pos = lifelinePositions.get(node.anchors[1].lifelineId);
-          if (ll0Pos === undefined || ll1Pos === undefined) return null;
-          const leftLane = Math.min(ll0Pos, ll1Pos);
-          const rightLane = Math.max(ll0Pos, ll1Pos) - 1;
-          return { leftLane, rightLane, width: rightLane - leftLane + 1 };
-        };
-        
-        // Check conflicts
-        const conflicts = (span: any, slotNodes: any[], positions: Map<string, any>) => {
-          for (const n of slotNodes) {
-            const other = positions.get(n.id);
-            if (!other) continue;
-            const ok = (span.rightLane + 2 <= other.leftLane) || (other.rightLane + 2 <= span.leftLane);
-            if (!ok) return true;
-          }
-          return false;
-        };
-        
-        // Calculate spans for all nodes
-        const nodeSpans = new Map<string, any>();
-        diagramNodes.forEach(node => {
-          const span = computeSpan(node);
-          if (span) nodeSpans.set(node.id, span);
-        });
-        
-        // Matrix layout: place dragged node first, then others in order
-        const MAX_SLOTS = 50;
-        const positions = new Map<string, any>();
-        const slots: DiagramNode[][] = Array.from({ length: MAX_SLOTS }, () => []);
-        
-        // Place dragged node at its current slot
-        const draggedDiagramNode = diagramNodes.find(n => n.id === dragChange.id);
-        if (draggedDiagramNode && nodeSpans.has(dragChange.id)) {
-          const span = nodeSpans.get(dragChange.id);
-          const clampedSlot = Math.min(MAX_SLOTS - 1, Math.max(0, draggedSlot));
-          positions.set(dragChange.id, { slot: clampedSlot, ...span });
-          slots[clampedSlot].push(draggedDiagramNode);
-        }
-        
-        // Sort other nodes by original Y position
-        const otherNodes = diagramNodes
-          .filter(n => n.id !== dragChange.id && nodeSpans.has(n.id))
-          .sort((a, b) => (a.yPosition ?? 0) - (b.yPosition ?? 0));
-        
-        // Place other nodes at first available slot
-        otherNodes.forEach(node => {
-          const span = nodeSpans.get(node.id);
-          let placedSlot = 0;
-          for (let s = 0; s < MAX_SLOTS; s++) {
-            if (!conflicts(span, slots[s], positions)) {
-              placedSlot = s;
-              break;
+        // Update sequence and anchor nodes
+        const updatedNodes = nonProcessNodes.map(n => {
+          if (n.type === 'sequenceNode') {
+            const pos = positions.get(n.id);
+            if (pos) {
+              const nodeCenterY = slotToY(pos.slot);
+              const nodeH = nodeHeights.get(n.id) || DEFAULT_NODE_HEIGHT;
+              const topY = nodeCenterY - (nodeH / 2);
+              return { ...n, position: { ...n.position, y: topY } };
             }
           }
-          positions.set(node.id, { slot: placedSlot, ...span });
-          slots[placedSlot].push(node);
-        });
-        
-        // Build calculated Y positions map for process layout (center Y)
-        const calculatedYPositions = new Map<string, number>();
-        positions.forEach((pos, nodeId) => {
-          calculatedYPositions.set(nodeId, slotToY(pos.slot));
-        });
-        
-        // Build nodes with updated yPosition for process layout calculation
-        const nodesWithUpdatedPositions: DiagramNode[] = diagramNodes.map(node => ({
-          ...node,
-          yPosition: calculatedYPositions.get(node.id) ?? node.yPosition
-        }));
-        
-        // Extract anchors from nodes
-        const allAnchors: AnchorNodeType[] = nodesWithUpdatedPositions.flatMap(node => 
-          node.anchors?.map(anchor => ({ ...anchor })) || []
-        );
-        
-        // Calculate process layout with new positions
-        const LIFELINE_WIDTH = 300;
-        const lifelineXPositions = new Map<string, number>();
-        let currentX = 150; // NODE_HORIZONTAL_PADDING
-        sortedLifelines.forEach((lifeline) => {
-          lifelineXPositions.set(lifeline.id, currentX);
-          currentX += LIFELINE_WIDTH + 100; // + horizontalSpacing
-        });
-        
-        const newProcessNodes = data.processes && data.processes.length > 0
-          ? calculateProcessLayout(
-              data.processes,
-              allAnchors,
-              nodesWithUpdatedPositions,
-              lifelineXPositions,
-              activeTheme,
-              nodeHeights,
-              calculatedYPositions
-            )
-          : [];
-        
-        // Update all node, anchor, and process positions in React Flow
-        setNodes(currentNodes => {
-          // Filter out old process nodes
-          const nonProcessNodes = currentNodes.filter(n => n.type !== 'processNode');
-          
-          // Update sequence and anchor nodes
-          const updatedNodes = nonProcessNodes.map(n => {
-            if (n.type === 'sequenceNode') {
-              const pos = positions.get(n.id);
+          if (n.type === 'anchorNode') {
+            const anchorData = n.data as any;
+            const connectedNodeId = anchorData?.connectedNodeId;
+            if (connectedNodeId) {
+              const pos = positions.get(connectedNodeId);
               if (pos) {
                 const nodeCenterY = slotToY(pos.slot);
-                const nodeH = nodeHeights.get(n.id) || 70;
-                const topY = nodeCenterY - (nodeH / 2);
-                return { ...n, position: { ...n.position, y: topY } };
+                return { ...n, position: { ...n.position, y: nodeCenterY - 8 } };
               }
             }
-            if (n.type === 'anchorNode') {
-              const anchorData = n.data as any;
-              const connectedNodeId = anchorData?.connectedNodeId;
-              if (connectedNodeId) {
-                const pos = positions.get(connectedNodeId);
-                if (pos) {
-                  const nodeCenterY = slotToY(pos.slot);
-                  return { ...n, position: { ...n.position, y: nodeCenterY - 8 } };
-                }
-              }
-            }
-            return n;
-          });
-          
-          // Add updated process nodes
-          return [...updatedNodes, ...newProcessNodes];
+          }
+          return n;
         });
-      }
+        
+        // Add updated process nodes
+        return [...updatedNodes, ...newProcessNodes];
+      });
     }
     
     if (onNodesChange) {

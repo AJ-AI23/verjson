@@ -579,6 +579,7 @@ function lifelineRangesOverlap(range1: [string, string], range2: [string, string
 
 // Matrix-based layout algorithm: nodes are placed in slots (rows) with horizontal lane-based conflict detection
 // This ensures nodes compact toward the top while maintaining proper spacing when they overlap horizontally
+// Now uses dynamic slot heights based on actual node heights
 function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, number>, lifelines?: Lifeline[]): Map<string, number> {
   const positions = new Map<string, number>();
   
@@ -586,9 +587,10 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
     return positions;
   }
   
-  const SLOT_HEIGHT = 120; // Each slot is 120 units (node height ~70 + spacing ~50)
+  const SLOT_GAP = 50; // Gap between slots
   const SLOT_START_Y = LIFELINE_HEADER_HEIGHT + 40; // First slot starts after lifeline header + margin
   const MAX_SLOTS = 50; // Maximum number of slots
+  const DEFAULT_NODE_HEIGHT = 70;
   
   // Build lifeline position map (lifeline ID -> lane index)
   const lifelinePositions = new Map<string, number>();
@@ -613,16 +615,6 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
     rightLane: number;
     width: number;
   }
-  
-  // Convert Y position to slot index (0-based)
-  const yToSlot = (centerY: number): number => {
-    return Math.max(0, Math.round((centerY - SLOT_START_Y) / SLOT_HEIGHT));
-  };
-  
-  // Convert slot index back to Y position (center Y)
-  const slotToY = (slot: number): number => {
-    return SLOT_START_Y + (slot * SLOT_HEIGHT);
-  };
   
   // Compute horizontal span for a node (which lanes it occupies)
   const computeSpan = (node: DiagramNode): NodeSpan | null => {
@@ -716,9 +708,34 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
     slots[placedSlot].push(node);
   });
   
+  // Calculate dynamic slot heights based on the tallest node in each slot
+  const slotHeights: number[] = [];
+  for (let s = 0; s < MAX_SLOTS; s++) {
+    if (slots[s].length === 0) {
+      slotHeights.push(DEFAULT_NODE_HEIGHT);
+    } else {
+      let maxHeight = 0;
+      slots[s].forEach(node => {
+        const h = nodeHeights?.get(node.id) || DEFAULT_NODE_HEIGHT;
+        if (h > maxHeight) maxHeight = h;
+      });
+      slotHeights.push(maxHeight);
+    }
+  }
+  
+  // Calculate cumulative Y positions for each slot (center Y)
+  const slotCenterYPositions: number[] = [];
+  let currentY = SLOT_START_Y;
+  for (let s = 0; s < MAX_SLOTS; s++) {
+    const slotHeight = slotHeights[s];
+    const centerY = currentY + (slotHeight / 2);
+    slotCenterYPositions.push(centerY);
+    currentY += slotHeight + SLOT_GAP;
+  }
+  
   // Convert slots to Y positions (center Y)
   nodePositions.forEach((pos, nodeId) => {
-    positions.set(nodeId, slotToY(pos.slot));
+    positions.set(nodeId, slotCenterYPositions[pos.slot]);
   });
   
   return positions;
