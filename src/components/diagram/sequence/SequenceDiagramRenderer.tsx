@@ -891,10 +891,17 @@ const FitViewHelper: React.FC<{
           const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
           const nodeHeight = actualHeight || nodeConfig?.defaultHeight || 70;
           
-          // Allow dragging above existing nodes - no minimum constraint during drag
-          // The final position will be calculated after drop
+          // Constrain node's center Y to be below lifeline header bottom + margin
+          const LIFELINE_HEADER_HEIGHT = 100;
+          const HEADER_MARGIN = 20; // Gap between header and first node
+          // Node position is TOP Y, center Y = topY + height/2
+          // We want: centerY >= LIFELINE_HEADER_HEIGHT + HEADER_MARGIN
+          // So: topY + height/2 >= LIFELINE_HEADER_HEIGHT + HEADER_MARGIN
+          // topY >= LIFELINE_HEADER_HEIGHT + HEADER_MARGIN - height/2
+          const minTopY = LIFELINE_HEADER_HEIGHT + HEADER_MARGIN - (nodeHeight / 2);
+          
           const newY = change.position?.y || node.position.y;
-          const constrainedY = newY; // No Y constraint during drag
+          const constrainedY = Math.max(minTopY, newY);
           
           // Lock X position to the original position from when drag started
           // This prevents nodes from being dragged outside their lifeline lane
@@ -1215,12 +1222,17 @@ const FitViewHelper: React.FC<{
         const nodeConfig = movedDiagramNode ? getNodeTypeConfig(movedDiagramNode.type) : null;
         const nodeHeight = nodeConfig?.defaultHeight || 70;
         
-        // Allow dragging above existing nodes - minimal constraint
+        // Constrain node's center Y to be below lifeline header bottom + margin
+        const LIFELINE_HEADER_HEIGHT = 100;
+        const HEADER_MARGIN = 20; // Gap between header and first node
         const GRID_SIZE = 10; // Snap to 10px grid
+        // Node position is TOP Y, center Y = topY + height/2
+        // We want: centerY >= LIFELINE_HEADER_HEIGHT + HEADER_MARGIN
+        const minTopY = LIFELINE_HEADER_HEIGHT + HEADER_MARGIN - (nodeHeight / 2);
         
-        // Snap to grid with no minimum Y constraint
+        // Snap to grid and constrain to minimum position
         const snappedY = Math.round(moveChange.position.y / GRID_SIZE) * GRID_SIZE;
-        const constrainedY = snappedY; // No minimum constraint
+        const constrainedY = Math.max(minTopY, snappedY);
         
         // If multi-select, update all selected nodes
         if (selectedNodeIds.includes(moveChange.id) && selectedNodeIds.length > 1) {
@@ -1237,7 +1249,9 @@ const FitViewHelper: React.FC<{
               const currentY = n.yPosition || 0;
               const newTopY = n.id === moveChange.id ? constrainedY : (currentY - nHeight / 2) + deltaY;
               const snappedNewTopY = Math.round(newTopY / GRID_SIZE) * GRID_SIZE;
-              const constrainedNewTopY = snappedNewTopY; // No min constraint
+              // Constrain center Y to be below header + margin
+              const minTopY = LIFELINE_HEADER_HEIGHT + HEADER_MARGIN - (nHeight / 2);
+              const constrainedNewTopY = Math.max(minTopY, snappedNewTopY);
               const centerY = constrainedNewTopY + (nHeight / 2);
               
               // Store CENTER Y as yPosition for consistent sorting

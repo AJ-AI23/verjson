@@ -630,9 +630,11 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
     const nodeRange: [string, string] = [sourceLifelineId, targetLifelineId];
     
     // Get the intended Y position from the node (this is the center Y)
-    // No minimum constraint - allow nodes to be positioned anywhere below header
+    // Constrain center Y to be below lifeline header + margin
+    const HEADER_MARGIN = 20;
+    const minCenterY = LIFELINE_HEADER_HEIGHT + HEADER_MARGIN;
     const rawIntendedY = node.yPosition !== undefined ? node.yPosition : startY + (nodeHeight / 2);
-    const intendedY = rawIntendedY; // No minimum constraint
+    const intendedY = Math.max(rawIntendedY, minCenterY);
     const intendedTopY = intendedY - (nodeHeight / 2);
     
     // Try to find an existing Y level where this node can fit (no overlap)
