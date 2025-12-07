@@ -764,13 +764,14 @@ const FitViewHelper: React.FC<{
       if (onDataChange) {
         const SLOT_HEIGHT = 100; // Each slot is 100 units
         const SLOT_START_Y = 120; // First slot starts after lifeline header (100) + margin (20)
+        const MAX_SLOTS = 50; // Maximum number of slots
         const sequenceNodes = nodes.filter(n => n.type === 'sequenceNode');
         
         console.log('═══════════════════════════════════════════════════════════');
-        console.log('🔲 2D MATRIX SLOT SYSTEM - Drag End');
+        console.log('🔲 MATRIX LAYOUT ALGORITHM - Drag End');
         console.log('═══════════════════════════════════════════════════════════');
         
-        // Build lifeline position map (lifeline ID -> order index)
+        // Build lifeline position map (lifeline ID -> lane index)
         const lifelinePositions = new Map<string, number>();
         const sortedLifelines = [...data.lifelines].sort((a, b) => a.order - b.order);
         sortedLifelines.forEach((lifeline, index) => {
@@ -790,92 +791,82 @@ const FitViewHelper: React.FC<{
           return SLOT_START_Y + (slot * SLOT_HEIGHT);
         };
         
-        // Helper: Get which lanes a node occupies (lanes are gaps between lifelines)
-        const getNodeLanes = (node: DiagramNode): number[] => {
-          if (!node.anchors || node.anchors.length < 2) return [];
+        // Type for node span (horizontal bounds)
+        interface NodeSpan {
+          leftLane: number;
+          rightLane: number;
+          width: number;
+        }
+        
+        // Type for node position in the matrix
+        interface NodePosition {
+          slot: number;
+          leftLane: number;
+          rightLane: number;
+          width: number;
+        }
+        
+        // Compute horizontal span for a node (which lanes it occupies)
+        const computeSpan = (node: DiagramNode): NodeSpan | null => {
+          if (!node.anchors || node.anchors.length < 2) return null;
           
           const ll0Pos = lifelinePositions.get(node.anchors[0].lifelineId);
           const ll1Pos = lifelinePositions.get(node.anchors[1].lifelineId);
           
           if (ll0Pos === undefined || ll1Pos === undefined) {
             console.warn(`⚠️ Node ${node.id}: missing lifeline position`);
-            return [];
+            return null;
           }
           
-          const minLL = Math.min(ll0Pos, ll1Pos);
-          const maxLL = Math.max(ll0Pos, ll1Pos);
+          // Lanes are gaps between lifelines (0 = gap between lifeline 0 and 1)
+          const leftLane = Math.min(ll0Pos, ll1Pos);
+          const rightLane = Math.max(ll0Pos, ll1Pos) - 1; // -1 because lane is the gap
+          const width = rightLane - leftLane + 1;
           
-          const lanes: number[] = [];
-          for (let i = minLL; i < maxLL; i++) {
-            lanes.push(i);
-          }
-          
-          return lanes;
+          return { leftLane, rightLane, width };
         };
         
-        // 2D Matrix: Map<slot, Map<lane, nodeId>>
-        const matrix = new Map<number, Map<number, string>>();
-        
-        const ensureSlotExists = (slot: number) => {
-          if (!matrix.has(slot)) {
-            matrix.set(slot, new Map<number, string>());
-          }
-        };
-        
-        const isCellFree = (slot: number, lane: number, excludeNodeId?: string): boolean => {
-          if (!matrix.has(slot)) return true;
-          const occupant = matrix.get(slot)!.get(lane);
-          return !occupant || occupant === excludeNodeId;
-        };
-        
-        const clearNodeFromMatrix = (nodeId: string) => {
-          matrix.forEach((slotMap) => {
-            slotMap.forEach((occupant, lane) => {
-              if (occupant === nodeId) {
-                slotMap.delete(lane);
-              }
-            });
-          });
-        };
-        
-        const placeNode = (nodeId: string, desiredSlot: number, lanes: number[]): number => {
-          if (lanes.length === 0) return desiredSlot;
-          
-          let slot = Math.max(0, desiredSlot); // Ensure non-negative
-          const MAX_ATTEMPTS = 50;
-          let attempts = 0;
-          
-          while (attempts < MAX_ATTEMPTS) {
-            attempts++;
-            const canPlace = lanes.every(lane => isCellFree(slot, lane, nodeId));
+        // Check if a span conflicts with any node already placed in the same slot
+        // Rule: There must be at least 1 empty lane gap between nodes horizontally
+        const conflicts = (
+          span: NodeSpan, 
+          slotNodes: DiagramNode[], 
+          positions: Map<string, NodePosition>
+        ): boolean => {
+          for (const n of slotNodes) {
+            const other = positions.get(n.id);
+            if (!other) continue;
             
-            if (canPlace) {
-              clearNodeFromMatrix(nodeId);
-              ensureSlotExists(slot);
-              lanes.forEach(lane => {
-                matrix.get(slot)!.set(lane, nodeId);
-              });
-              return slot;
-            }
-            slot++;
+            const aLeft = span.leftLane;
+            const aRight = span.rightLane;
+            const bLeft = other.leftLane;
+            const bRight = other.rightLane;
+            
+            // We require at least 2 lanes gap: aRight + 2 <= bLeft OR bRight + 2 <= aLeft
+            const ok = (aRight + 2 <= bLeft) || (bRight + 2 <= aLeft);
+            
+            if (!ok) return true;
           }
-          return slot;
+          return false;
         };
         
-        // Calculate initial desired slots from current positions
+        // Calculate preferred slot for each node
         const dragEndNodeId = dragEndChange.id;
         const dragEndPosition = dragEndChange.position;
         
-        const nodeDesiredSlots = new Map<string, number>();
-        const nodeLanesMap = new Map<string, number[]>();
+        const nodePreferredSlots = new Map<string, number>();
+        const nodeSpans = new Map<string, NodeSpan>();
         
         console.log('───────────────────────────────────────────────────────────');
-        console.log('BEFORE PLACEMENT - Desired slots:');
+        console.log('NODE SPANS & PREFERRED SLOTS:');
         console.log('───────────────────────────────────────────────────────────');
         
         sequenceNodes.forEach(n => {
           const diagramNode = diagramNodes.find(dn => dn.id === n.id);
           if (!diagramNode) return;
+          
+          const span = computeSpan(diagramNode);
+          if (!span) return;
           
           const nodeConfig = getNodeTypeConfig(diagramNode.type);
           const nodeHeight = nodeHeights.get(n.id) || nodeConfig?.defaultHeight || 70;
@@ -887,83 +878,100 @@ const FitViewHelper: React.FC<{
             centerY = diagramNode.yPosition || (n.position.y + nodeHeight / 2);
           }
           
-          const desiredSlot = yToSlot(centerY);
-          const lanes = getNodeLanes(diagramNode);
+          const preferredSlot = yToSlot(centerY);
           
-          nodeDesiredSlots.set(n.id, desiredSlot);
-          nodeLanesMap.set(n.id, lanes);
+          nodePreferredSlots.set(n.id, preferredSlot);
+          nodeSpans.set(n.id, span);
           
           const isDragged = n.id === dragEndNodeId ? ' [DRAGGED]' : '';
-          console.log(`  ${n.id}${isDragged}: slot=${desiredSlot}, lanes=[${lanes.join(',')}]`);
+          console.log(`  ${n.id}${isDragged}: preferredSlot=${preferredSlot}, lanes=[${span.leftLane}-${span.rightLane}], width=${span.width}`);
         });
         
-        // PLACEMENT ORDER:
-        // 1. Place the dragged node FIRST at its desired slot (it takes priority)
-        // 2. Place other nodes in order of their desired slots (top to bottom)
-        
-        const finalSlots = new Map<string, number>();
+        // Layout algorithm: place dragged node first at its preferred slot,
+        // then place other nodes in original order at the first available slot from top
+        const positions = new Map<string, NodePosition>();
+        const slots: DiagramNode[][] = Array.from({ length: MAX_SLOTS }, () => []);
         
         console.log('───────────────────────────────────────────────────────────');
         console.log('PLACEMENT PROCESS:');
         console.log('───────────────────────────────────────────────────────────');
         
-        // Place dragged node first
+        // 1. Place dragged node first at its preferred slot
         const draggedDiagramNode = diagramNodes.find(n => n.id === dragEndNodeId);
-        if (draggedDiagramNode) {
-          const draggedDesiredSlot = nodeDesiredSlots.get(dragEndNodeId) || 0;
-          const draggedLanes = nodeLanesMap.get(dragEndNodeId) || [];
-          const draggedFinalSlot = placeNode(dragEndNodeId, draggedDesiredSlot, draggedLanes);
-          finalSlots.set(dragEndNodeId, draggedFinalSlot);
+        if (draggedDiagramNode && nodeSpans.has(dragEndNodeId)) {
+          const span = nodeSpans.get(dragEndNodeId)!;
+          const preferredSlot = Math.min(MAX_SLOTS - 1, Math.max(0, nodePreferredSlots.get(dragEndNodeId) || 0));
           
-          console.log(`  1. ${dragEndNodeId} [DRAGGED]: desired=${draggedDesiredSlot} → final=${draggedFinalSlot}, lanes=[${draggedLanes.join(',')}]`);
+          positions.set(dragEndNodeId, {
+            slot: preferredSlot,
+            leftLane: span.leftLane,
+            rightLane: span.rightLane,
+            width: span.width
+          });
+          slots[preferredSlot].push(draggedDiagramNode);
+          
+          console.log(`  1. ${dragEndNodeId} [DRAGGED]: placed at slot=${preferredSlot}, lanes=[${span.leftLane}-${span.rightLane}]`);
         }
         
-        // Place other nodes in order of their desired slots
-        const otherNodes = diagramNodes
-          .filter(n => n.id !== dragEndNodeId && nodeDesiredSlots.has(n.id))
-          .sort((a, b) => (nodeDesiredSlots.get(a.id) || 0) - (nodeDesiredSlots.get(b.id) || 0));
+        // 2. Place other nodes in original order, finding first slot that fits from top
+        const otherNodes = diagramNodes.filter(n => n.id !== dragEndNodeId && nodeSpans.has(n.id));
         
         otherNodes.forEach((node, idx) => {
-          const desiredSlot = nodeDesiredSlots.get(node.id) || 0;
-          const lanes = nodeLanesMap.get(node.id) || [];
-          const finalSlot = placeNode(node.id, desiredSlot, lanes);
-          finalSlots.set(node.id, finalSlot);
+          const span = nodeSpans.get(node.id)!;
+          let placedSlot: number | null = null;
           
-          const pushed = finalSlot !== desiredSlot ? ` ⬇️ PUSHED` : '';
-          console.log(`  ${idx + 2}. ${node.id}: desired=${desiredSlot} → final=${finalSlot}, lanes=[${lanes.join(',')}]${pushed}`);
-        });
-        
-        // Show final matrix state
-        console.log('───────────────────────────────────────────────────────────');
-        console.log('AFTER PLACEMENT - Final matrix:');
-        console.log('───────────────────────────────────────────────────────────');
-        
-        const allSlots = Array.from(matrix.keys()).sort((a, b) => a - b);
-        allSlots.forEach(slot => {
-          const slotMap = matrix.get(slot)!;
-          const cellsStr: string[] = [];
-          for (let lane = 0; lane < laneCount; lane++) {
-            const occupant = slotMap.get(lane);
-            if (occupant) {
-              cellsStr.push(`lane${lane}=${occupant}`);
-            } else {
-              cellsStr.push(`lane${lane}=empty`);
+          // Try each slot from 0 upward, find first one without conflicts
+          for (let s = 0; s < MAX_SLOTS; s++) {
+            if (!conflicts(span, slots[s], positions)) {
+              placedSlot = s;
+              break;
             }
           }
-          console.log(`  slot ${slot}: ${cellsStr.join(', ')}`);
+          
+          // Fallback to last slot if nothing fits
+          if (placedSlot === null) {
+            placedSlot = MAX_SLOTS - 1;
+          }
+          
+          positions.set(node.id, {
+            slot: placedSlot,
+            leftLane: span.leftLane,
+            rightLane: span.rightLane,
+            width: span.width
+          });
+          slots[placedSlot].push(node);
+          
+          console.log(`  ${idx + 2}. ${node.id}: placed at slot=${placedSlot}, lanes=[${span.leftLane}-${span.rightLane}]`);
         });
         
-        // Convert slots back to Y positions using slotToY
+        // Show final slot assignments
+        console.log('───────────────────────────────────────────────────────────');
+        console.log('FINAL SLOT ASSIGNMENTS:');
+        console.log('───────────────────────────────────────────────────────────');
+        
+        const usedSlots = slots
+          .map((nodes, slotIdx) => ({ slotIdx, nodes }))
+          .filter(({ nodes }) => nodes.length > 0);
+        
+        usedSlots.forEach(({ slotIdx, nodes: slotNodes }) => {
+          const nodeStrs = slotNodes.map(n => {
+            const pos = positions.get(n.id);
+            return `${n.id}[${pos?.leftLane}-${pos?.rightLane}]`;
+          });
+          console.log(`  slot ${slotIdx}: ${nodeStrs.join(', ')}`);
+        });
+        
+        // Convert slots back to Y positions
         const finalPositions = new Map<string, number>();
-        finalSlots.forEach((slot, nodeId) => {
-          finalPositions.set(nodeId, slotToY(slot));
+        positions.forEach((pos, nodeId) => {
+          finalPositions.set(nodeId, slotToY(pos.slot));
         });
         
         console.log('───────────────────────────────────────────────────────────');
         console.log('FINAL Y POSITIONS:');
         console.log('───────────────────────────────────────────────────────────');
-        finalSlots.forEach((slot, nodeId) => {
-          console.log(`  ${nodeId}: slot=${slot}, yPosition=${slotToY(slot)}`);
+        positions.forEach((pos, nodeId) => {
+          console.log(`  ${nodeId}: slot=${pos.slot}, yPosition=${slotToY(pos.slot)}`);
         });
         console.log('═══════════════════════════════════════════════════════════');
         
