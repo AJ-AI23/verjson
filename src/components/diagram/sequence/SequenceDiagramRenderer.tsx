@@ -152,9 +152,6 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [layoutVersion, setLayoutVersion] = useState(0); // Force layout recalculation
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const previousLayoutRef = useRef<{ nodes: Node[]; edges: Edge[]; calculatedYPositions?: Map<string, number> }>({ nodes: [], edges: [] });
-  // Track intended Y position during drag (accounts for cursor offset from constraint)
-  const dragIntendedYRef = useRef<Map<string, number>>(new Map());
-  const lastDragPositionRef = useRef<Map<string, number>>(new Map());
   const [hoveredElement, setHoveredElement] = useState<{ id: string; description?: string; position: { x: number; y: number } } | null>(null);
 
   // Process management state
@@ -737,7 +734,7 @@ const FitViewHelper: React.FC<{
     
     // Store initial positions when drag starts
     const dragStartChange = changes.find((c: any) => c.type === 'position' && c.dragging === true);
-    if (dragStartChange && !isDraggingRef.current) {
+    if (dragStartChange) {
       isDraggingRef.current = true;
       setIsDragging(true);
       
@@ -749,13 +746,6 @@ const FitViewHelper: React.FC<{
         }
       });
       setDragStartPositions(startPositions);
-      
-      // Initialize intended Y tracking with the node's current position
-      const draggedNode = nodes.find(n => n.id === dragStartChange.id);
-      if (draggedNode) {
-        dragIntendedYRef.current.set(dragStartChange.id, draggedNode.position.y);
-        lastDragPositionRef.current.set(dragStartChange.id, dragStartChange.position?.y ?? draggedNode.position.y);
-      }
     }
     
     // Detect drag end for sequence nodes
@@ -775,39 +765,24 @@ const FitViewHelper: React.FC<{
         // The matrix layout in calculateSequenceLayout will handle the rest
         if (onDataChange) {
           const dragEndNodeId = dragEndChange.id;
+          const dragEndPosition = dragEndChange.position;
           
-          // Get node height to calculate center Y - exactly same logic as during drag
-          const SLOT_GAP = 50;
-          const SLOT_START_Y = 140;
-          const DEFAULT_NODE_HEIGHT = 70;
-          
+          // Get node height to calculate center Y
           const diagramNode = diagramNodes.find(n => n.id === dragEndNodeId);
           const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
-          const nodeHeight = nodeHeights.get(dragEndNodeId) || nodeConfig?.defaultHeight || DEFAULT_NODE_HEIGHT;
+          const nodeHeight = nodeHeights.get(dragEndNodeId) || nodeConfig?.defaultHeight || 70;
           
-          // Use the tracked intended Y position (which accounts for cursor movement, not constrained position)
-          const intendedY = dragIntendedYRef.current.get(dragEndNodeId) ?? dragEndChange.position.y;
-          const newCenterY = intendedY + (nodeHeight / 2);
+          // Calculate the new center Y position for the dragged node
+          const newCenterY = dragEndPosition.y + (nodeHeight / 2);
           
-          // Calculate which slot this maps to - same formula as during drag
-          const avgSlotHeight = DEFAULT_NODE_HEIGHT + SLOT_GAP;
-          const targetSlot = Math.max(0, Math.round((newCenterY - SLOT_START_Y) / avgSlotHeight));
-          
-          // Convert slot back to yPosition for storage (this ensures consistency)
-          const slotY = SLOT_START_Y + (targetSlot * avgSlotHeight);
-          
-          console.log(`🔲 MATRIX: Updating ${dragEndNodeId} yPosition to ${slotY} (slot ${targetSlot}, intendedY ${intendedY}), triggering layout recalc`);
-          
-          // Clear the tracking refs
-          dragIntendedYRef.current.delete(dragEndNodeId);
-          lastDragPositionRef.current.delete(dragEndNodeId);
+          console.log(`🔲 MATRIX: Updating ${dragEndNodeId} yPosition to ${newCenterY}, triggering layout recalc`);
           
           // Update only the dragged node's yPosition - the matrix layout will recalculate all positions
           const updatedNodes = diagramNodes.map(node => {
             if (node.id === dragEndNodeId) {
               return {
                 ...node,
-                yPosition: slotY
+                yPosition: newCenterY
               };
             }
             return node;
@@ -878,36 +853,16 @@ const FitViewHelper: React.FC<{
     // Find the dragging node to determine target slot
     const draggingChange = changes.find((c: any) => c.type === 'position' && c.dragging);
     let draggedSlot = 0;
-    let intendedY = 0;
     
     if (draggingChange) {
       const draggedNode = nodes.find(n => n.id === draggingChange.id);
       if (draggedNode?.type === 'sequenceNode') {
-        // Get the node height - same logic as drag end
-        const diagramNode = diagramNodes.find(n => n.id === draggingChange.id);
-        const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
-        const draggedNodeHeight = nodeHeights.get(draggingChange.id) || nodeConfig?.defaultHeight || DEFAULT_NODE_HEIGHT;
+        const draggedNodeHeight = nodeHeights.get(draggingChange.id) || DEFAULT_NODE_HEIGHT;
+        const newY = draggingChange.position?.y || draggedNode.position.y;
+        const draggedCenterY = newY + (draggedNodeHeight / 2);
         
-        // Track the intended Y position by accumulating cursor deltas
-        // This accounts for the fact that we constrain the visual position but the cursor keeps moving
-        const currentReportedY = draggingChange.position?.y ?? draggedNode.position.y;
-        const lastReportedY = lastDragPositionRef.current.get(draggingChange.id) ?? currentReportedY;
-        const delta = currentReportedY - lastReportedY;
-        
-        // Get previous intended Y or start from current position
-        const previousIntendedY = dragIntendedYRef.current.get(draggingChange.id) ?? draggedNode.position.y;
-        intendedY = previousIntendedY + delta;
-        
-        // Clamp intended Y to reasonable bounds
-        intendedY = Math.max(SLOT_START_Y - 50, intendedY);
-        
-        // Update tracking refs
-        dragIntendedYRef.current.set(draggingChange.id, intendedY);
-        lastDragPositionRef.current.set(draggingChange.id, currentReportedY);
-        
-        const draggedCenterY = intendedY + (draggedNodeHeight / 2);
-        
-        // Calculate rough slot based on intended Y position
+        // Calculate rough slot based on Y position (will be refined after placement)
+        // Use a simple heuristic: estimate slot based on average slot height
         const avgSlotHeight = DEFAULT_NODE_HEIGHT + SLOT_GAP;
         draggedSlot = Math.max(0, Math.round((draggedCenterY - SLOT_START_Y) / avgSlotHeight));
       }
