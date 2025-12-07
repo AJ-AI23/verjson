@@ -975,15 +975,20 @@ const FitViewHelper: React.FC<{
       }
     }
     
-    // Constrain sequence node movement to vertical only during drag AND on drop
-    // The key insight: we must constrain both when dragging=true AND when dragging=false (the drop)
+    // Constrain sequence node movement to vertical only during drag
+    // On DROP (dragging=false), we skip position updates entirely - let the layout engine handle it
     const constrainedChanges = changes.map((change: any) => {
       if (change.type === 'position' && change.position) {
         const node = nodes.find(n => n.id === change.id);
         if (node?.type === 'sequenceNode') {
-          // Multi-node drag disabled - only single node swapping is supported
+          // On DROP: Skip this position change entirely - the layout engine will recalculate
+          // This is critical for snapback to work correctly
+          if (change.dragging === false) {
+            console.log('🔄 [DROP POSITION] Skipping position update for layout recalculation', change.id);
+            return { ...change, type: 'skip' }; // Mark to skip
+          }
           
-          // Get node height to calculate constraints
+          // During DRAG: Apply constraints
           const actualHeight = nodeHeights.get(node.id);
           const diagramNode = diagramNodes.find(n => n.id === node.id);
           const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
@@ -997,7 +1002,6 @@ const FitViewHelper: React.FC<{
           const constrainedY = Math.max(minY, newY);
           
           // Get original X position from drag start ref (immediate access, not async state)
-          // This ensures nodes snap back to their correct lane position
           const storedPosition = dragStartPositionsRef.current.get(change.id);
           const originalX = storedPosition?.x ?? node.position.x;
           
@@ -1009,7 +1013,6 @@ const FitViewHelper: React.FC<{
             usingX: originalX 
           });
           
-          // Keep original X position, only allow Y to change within constraints
           return {
             ...change,
             position: {
@@ -1021,11 +1024,14 @@ const FitViewHelper: React.FC<{
       }
       return change;
     });
+    
+    // Filter out skipped changes
+    const filteredChanges = constrainedChanges.filter((c: any) => c.type !== 'skip');
 
-    handleNodesChange(constrainedChanges);
+    handleNodesChange(filteredChanges);
     
      // Update anchors during drag
-    const dragChange = constrainedChanges.find((c: any) => c.type === 'position' && c.dragging);
+    const dragChange = filteredChanges.find((c: any) => c.type === 'position' && c.dragging);
     if (dragChange) {
       const draggedNode = nodes.find(n => n.id === dragChange.id);
       if (draggedNode?.type === 'sequenceNode') {
@@ -1057,7 +1063,7 @@ const FitViewHelper: React.FC<{
     }
     
     // Sync position changes back to data
-    const moveChange = constrainedChanges.find((c: any) => c.type === 'position' && c.position && !c.dragging);
+    const moveChange = filteredChanges.find((c: any) => c.type === 'position' && c.position && !c.dragging);
     if (moveChange && onDataChange) {
       // Check if this is an anchor node
       const movedNode = nodes.find(n => n.id === moveChange.id);
