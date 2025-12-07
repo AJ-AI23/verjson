@@ -699,7 +699,7 @@ const FitViewHelper: React.FC<{
         
         return {
           ...node,
-          draggable: !readOnly && !isRenderMode && isInteractive,
+          draggable: false, // Process nodes should never be draggable - their position is calculated from anchors
           selectable: !readOnly && !isRenderMode && isInteractive,
           selected: isSelected && !isRenderMode && isInteractive,
           style: {
