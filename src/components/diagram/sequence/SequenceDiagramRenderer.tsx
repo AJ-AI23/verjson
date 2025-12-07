@@ -16,7 +16,7 @@ import {
 } from '@xyflow/react';
 import { SequenceDiagramData, DiagramNode, DiagramEdge, DiagramNodeType, Lifeline, AnchorNode as AnchorNodeType } from '@/types/diagram';
 import { DiagramStyles, defaultLightTheme } from '@/types/diagramStyles';
-import { calculateSequenceLayout, calculateEvenSpacing } from '@/lib/diagram/sequenceLayout';
+import { calculateSequenceLayout } from '@/lib/diagram/sequenceLayout';
 import { getNodeTypeConfig } from '@/lib/diagram/sequenceNodeTypes';
 import { SequenceNode } from './SequenceNode';
 import { SequenceEdge } from './SequenceEdge';
@@ -133,9 +133,6 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [lifelineToolbarPosition, setLifelineToolbarPosition] = useState<{ x: number; y: number } | null>(null);
   
   const [dragStartPositions, setDragStartPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
-  const dragStartPositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
-  // Store original diagram yPositions at drag start for snapback
-  const dragStartYPositionsRef = useRef<Map<string, number>>(new Map());
   const [nodeHeights, setNodeHeights] = useState<Map<string, number>>(new Map());
   const nodeHeightsRef = useRef<Map<string, number>>(new Map());
   const initialHeightsAppliedRef = useRef(false);
@@ -654,15 +651,9 @@ const FitViewHelper: React.FC<{
           ? `${currentTheme}-${diagramNode.label}-${diagramNode.type}-${JSON.stringify(diagramNode.data || {})}`
           : currentTheme;
         
-        const isDraggable = !readOnly && !isRenderMode && isInteractive;
-        // Log draggable state for first node only to avoid spam
-        if (node.id === diagramNodes[0]?.id) {
-          console.log('🎯 [sequenceNode draggable]', { nodeId: node.id, isDraggable, readOnly, isRenderMode, isInteractive });
-        }
-        
         return {
           ...node,
-          draggable: isDraggable,
+          draggable: !readOnly && !isRenderMode && isInteractive,
           selectable: !readOnly && !isRenderMode && isInteractive,
           selected: node.selected && isInteractive,
           data: {
@@ -757,29 +748,21 @@ const FitViewHelper: React.FC<{
 
   // Update nodes when layout changes and apply handlers - with deduplication
   useEffect(() => {
-    // CRITICAL: Skip node updates during active drag to prevent React Flow drag interruption
-    if (isDraggingRef.current) {
-      console.log('⏸️ [Nodes Update] Skipping during drag');
-      return;
-    }
-    
     // Skip if nodes haven't actually changed (deep comparison of IDs, positions, and data)
     const nodesChanged = nodesWithHandlers.length !== prevNodesRef.current.length ||
       nodesWithHandlers.some((node, i) => {
         const prev = prevNodesRef.current[i];
         if (!prev) return true;
         
-        // Check basic properties including draggable
+        // Check basic properties
         if (node.id !== prev.id || 
             node.type !== prev.type ||
             node.position.x !== prev.position.x ||
-            node.position.y !== prev.position.y ||
-            node.draggable !== prev.draggable) {
+            node.position.y !== prev.position.y) {
           console.log('📝 [Node Change Detected] Basic properties changed:', { 
             nodeId: node.id, 
             type: node.type,
-            posChanged: node.position.y !== prev.position.y,
-            draggableChanged: node.draggable !== prev.draggable
+            posChanged: node.position.y !== prev.position.y 
           });
           return true;
         }
@@ -844,14 +827,8 @@ const FitViewHelper: React.FC<{
   }, [edgesWithRenderMode, setEdges]);
 
   const onNodesChangeHandler = useCallback((changes: any) => {
-    // Debug: Log every call to this handler with full change details
-    console.log('🔧 [onNodesChangeHandler] Called with', changes.length, 'changes:', 
-      changes.map((c: any) => ({ type: c.type, id: c.id, dragging: c.dragging, hasPosition: !!c.position, position: c.position }))
-    );
-    
     // Block position and selection changes when interactivity is disabled
     if (!isInteractive) {
-      console.log('🔧 [onNodesChangeHandler] Blocked - isInteractive is false');
       const allowedChanges = changes.filter((c: any) => 
         c.type !== 'position' && c.type !== 'select'
       );
@@ -872,239 +849,188 @@ const FitViewHelper: React.FC<{
       })));
     }
     
-    // Store initial positions when drag starts (only on first drag frame)
+    // Store initial positions when drag starts
     const dragStartChange = changes.find((c: any) => c.type === 'position' && c.dragging === true);
-    if (dragStartChange && !isDraggingRef.current) {
+    if (dragStartChange) {
       console.log('🟢 [DRAG START]', dragStartChange.id);
       isDraggingRef.current = true;
       setIsDragging(true);
       
-      // Store positions in ref for immediate access (state is async)
       const startPositions = new Map<string, { x: number; y: number }>();
       nodes.forEach(n => {
-        // Store positions for ALL sequence nodes to preserve X during drag
-        if (n.type === 'sequenceNode' || n.type === 'columnLifeline') {
+        // Store positions for sequence nodes and lifeline columns
+        if ((selectedNodeIds.includes(n.id) && n.type === 'sequenceNode') || n.type === 'columnLifeline') {
           startPositions.set(n.id, { x: n.position.x, y: n.position.y });
         }
       });
-      dragStartPositionsRef.current = startPositions;
       setDragStartPositions(startPositions);
-      
-      // Store original diagram yPositions for snapback (before any sync updates)
-      const startYPositions = new Map<string, number>();
-      diagramNodes.forEach(n => {
-        if (n.yPosition !== undefined) {
-          startYPositions.set(n.id, n.yPosition);
-        }
-      });
-      dragStartYPositionsRef.current = startYPositions;
-      console.log('📍 [DRAG START] Stored original yPositions:', Object.fromEntries(startYPositions));
     }
     
     // Detect drag end
-    const allDropChanges = changes.filter((c: any) => c.type === 'position' && c.dragging === false);
-    if (allDropChanges.length > 0) {
-      console.log('🔴 [POTENTIAL DROP] All changes with dragging=false:', allDropChanges.map((c: any) => ({
-        id: c.id,
-        hasPosition: !!c.position,
-        position: c.position
-      })));
-    }
-    
     const dragEndChange = changes.find((c: any) => c.type === 'position' && c.dragging === false && c.position);
     if (dragEndChange && dragEndChange.type === 'position') {
-      console.log('🔴 [DRAG END] Detected drop for node:', dragEndChange.id, 'isDraggingRef was:', isDraggingRef.current);
+      console.log('🔴 [DRAG END] Setting isDraggingRef.current = false');
       isDraggingRef.current = false;
       // Always reset isDragging state and force layout recalculation on any drag end
       setIsDragging(false);
       setLayoutVersion(v => v + 1);
       
-      // Update positions with order-based conflict resolution
-      // Nodes maintain their order unless dragged past another node
+      // Update positions with slot-based cascading conflict resolution
       if (onDataChange) {
+        const SLOT_HEIGHT = 100; // Each slot is 100 units
         const sequenceNodes = nodes.filter(n => n.type === 'sequenceNode');
         
-        console.log('🔍 [DROP DEBUG] Starting drop analysis:', {
-          draggedNodeId: dragEndChange.id,
-          totalSequenceNodes: sequenceNodes.length,
-          totalDiagramNodes: diagramNodes.length
+        // Build lifeline position map for overlap detection
+        const lifelinePositions = new Map<string, number>();
+        const sortedLifelines = [...data.lifelines].sort((a, b) => a.order - b.order);
+        sortedLifelines.forEach((lifeline, index) => {
+          lifelinePositions.set(lifeline.id, index);
         });
         
-        // Find the dragged node
-        const draggedFlowNode = sequenceNodes.find(n => n.id === dragEndChange.id);
-        if (!draggedFlowNode) {
-          console.log('⚠️ [DROP] Dragged node not found in sequenceNodes');
-          return;
-        }
+        // Helper to check if two nodes overlap in lifeline range
+        const nodesOverlap = (node1: DiagramNode, node2: DiagramNode): boolean => {
+          if (!node1.anchors || !node2.anchors) return false;
+          
+          const n1Start = lifelinePositions.get(node1.anchors[0].lifelineId) || 0;
+          const n1End = lifelinePositions.get(node1.anchors[1].lifelineId) || 0;
+          const n2Start = lifelinePositions.get(node2.anchors[0].lifelineId) || 0;
+          const n2End = lifelinePositions.get(node2.anchors[1].lifelineId) || 0;
+          
+          const min1 = Math.min(n1Start, n1End);
+          const max1 = Math.max(n1Start, n1End);
+          const min2 = Math.min(n2Start, n2End);
+          const max2 = Math.max(n2Start, n2End);
+          
+          return !(max1 < min2 || max2 < min1);
+        };
         
-        // Get dragged node's new center Y position
-        const draggedDiagramNode = diagramNodes.find(n => n.id === dragEndChange.id);
-        const draggedNodeConfig = draggedDiagramNode ? getNodeTypeConfig(draggedDiagramNode.type) : null;
-        const draggedNodeHeight = nodeHeights.get(dragEndChange.id) || draggedNodeConfig?.defaultHeight || 70;
-        const draggedCenterY = draggedFlowNode.position.y + (draggedNodeHeight / 2);
-        
-        console.log('🔍 [DROP DEBUG] Dragged node info:', {
-          draggedFlowNodePosition: draggedFlowNode.position,
-          draggedNodeHeight,
-          draggedCenterY,
-          diagramNodeYPosition: draggedDiagramNode?.yPosition
+        // Create slot assignments: convert visual Y positions to slot indices
+        // IMPORTANT: visual Y is top of node, but we need to convert to center Y for document
+        const nodeToSlot = new Map<string, number>();
+        sequenceNodes.forEach(n => {
+          const diagramNode = diagramNodes.find(dn => dn.id === n.id);
+          const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
+          const nodeHeight = nodeHeights.get(n.id) || nodeConfig?.defaultHeight || 70;
+          
+          const visualTopY = n.position.y;
+          const centerY = visualTopY + (nodeHeight / 2); // Convert top Y to center Y
+          const slot = Math.round(centerY / SLOT_HEIGHT);
+          nodeToSlot.set(n.id, slot);
         });
         
-        // Get all nodes sorted by their ORIGINAL yPosition (before drag)
-        const nodesByOriginalOrder = [...diagramNodes].sort((a, b) => (a.yPosition || 0) - (b.yPosition || 0));
-        
-        console.log('🔍 [DROP DEBUG] Nodes by original order:', nodesByOriginalOrder.map(n => ({
-          id: n.id,
-          label: n.label?.substring(0, 20),
-          yPosition: n.yPosition
-        })));
-        
-        // Find the dragged node's original index
-        const originalIndex = nodesByOriginalOrder.findIndex(n => n.id === dragEndChange.id);
-        
-        // Find where the dragged node should be inserted based on its new position
-        // Only count nodes that the dragged node has FULLY passed (crossed their center)
-        let newOrderIndex = 0;
-        console.log('🔍 [DROP DEBUG] Checking order change - draggedCenterY:', draggedCenterY);
-        
-        for (let i = 0; i < nodesByOriginalOrder.length; i++) {
-          const node = nodesByOriginalOrder[i];
-          if (node.id === dragEndChange.id) {
-            console.log(`  [${i}] ${node.id} (DRAGGED NODE) - skipping`);
-            continue;
+        // Find which node was dragged (the one that moved most from its original yPosition)
+        let draggedNodeId: string | null = null;
+        let maxDelta = 0;
+        diagramNodes.forEach(node => {
+          const originalCenterY = node.yPosition || 0;
+          const flowNode = nodes.find(n => n.id === node.id);
+          if (flowNode) {
+            const nodeConfig = getNodeTypeConfig(node.type);
+            const nodeHeight = nodeHeights.get(node.id) || nodeConfig?.defaultHeight || 70;
+            const visualTopY = flowNode.position.y;
+            const currentCenterY = visualTopY + (nodeHeight / 2);
+            const delta = Math.abs(currentCenterY - originalCenterY);
+            if (delta > maxDelta) {
+              maxDelta = delta;
+              draggedNodeId = node.id;
+            }
           }
+        });
+        
+        // Build slot occupancy: which nodes are at which slots
+        const slotOccupants = new Map<number, Set<string>>();
+        nodeToSlot.forEach((slot, nodeId) => {
+          if (!slotOccupants.has(slot)) {
+            slotOccupants.set(slot, new Set());
+          }
+          slotOccupants.get(slot)!.add(nodeId);
+        });
+        
+        // Cascade conflicts starting from the dragged node's slot
+        if (draggedNodeId) {
+          const draggedNode = diagramNodes.find(n => n.id === draggedNodeId);
+          const draggedSlot = nodeToSlot.get(draggedNodeId)!;
           
-          const nodeCenterY = node.yPosition || 0;
-          const passed = draggedCenterY > nodeCenterY;
-          console.log(`  [${i}] ${node.id}: centerY=${nodeCenterY}, passed=${passed}`);
+          // Process slots from dragged slot downward to cascade conflicts
+          const maxSlot = Math.max(...Array.from(nodeToSlot.values()));
           
-          if (passed) {
-            newOrderIndex = i + 1;
+          for (let currentSlot = draggedSlot; currentSlot <= maxSlot + 10; currentSlot++) {
+            const occupants = slotOccupants.get(currentSlot);
+            if (!occupants || occupants.size === 0) continue;
+            
+            // Check for conflicts at this slot
+            const occupantsList = Array.from(occupants);
+            let hasConflict = false;
+            
+            for (let i = 0; i < occupantsList.length; i++) {
+              for (let j = i + 1; j < occupantsList.length; j++) {
+                const node1 = diagramNodes.find(n => n.id === occupantsList[i]);
+                const node2 = diagramNodes.find(n => n.id === occupantsList[j]);
+                
+                if (node1 && node2 && nodesOverlap(node1, node2)) {
+                  hasConflict = true;
+                  // Push the second node down to next slot
+                  const nodeIdToPush = occupantsList[j];
+                  occupants.delete(nodeIdToPush);
+                  nodeToSlot.set(nodeIdToPush, currentSlot + 1);
+                  
+                  if (!slotOccupants.has(currentSlot + 1)) {
+                    slotOccupants.set(currentSlot + 1, new Set());
+                  }
+                  slotOccupants.get(currentSlot + 1)!.add(nodeIdToPush);
+                  
+                  console.log(`🔄 [CONFLICT] Moved node ${nodeIdToPush} from slot ${currentSlot} to ${currentSlot + 1}`);
+                  break;
+                }
+              }
+              if (hasConflict) break;
+            }
           }
         }
         
-        // Adjust index since we'll remove the dragged node
-        const adjustedNewIndex = newOrderIndex > originalIndex ? newOrderIndex - 1 : newOrderIndex;
-        
-        console.log('🔍 [DROP DEBUG] Order calculation result:', {
-          originalIndex,
-          newOrderIndex,
-          adjustedNewIndex,
-          orderChanged: adjustedNewIndex !== originalIndex
+        // Convert slots back to Y positions
+        const finalPositions = new Map<string, number>();
+        nodeToSlot.forEach((slot, nodeId) => {
+          finalPositions.set(nodeId, slot * SLOT_HEIGHT);
         });
         
-        // If order didn't change, restore original yPositions to trigger snapback
-        // Use the positions stored at drag START (before any sync updates)
-        if (adjustedNewIndex === originalIndex) {
-          console.log('📋 [DROP] Order unchanged, restoring original yPositions for snapback');
-          const originalYPositions = dragStartYPositionsRef.current;
-          
-          console.log('🔍 [DROP DEBUG] Original yPositions from drag start:', Object.fromEntries(originalYPositions));
-          
-          // Restore original yPositions from drag start
-          const restoredNodes = diagramNodes.map(n => ({
-            ...n,
-            yPosition: originalYPositions.get(n.id) ?? n.yPosition,
-            anchors: n.anchors // Keep tuple type
-          }));
-          
-          console.log('🔍 [DROP DEBUG] Restored nodes yPositions:', restoredNodes.map(n => ({
-            id: n.id,
-            yPosition: n.yPosition
-          })));
-          
-          onDataChange({ ...data, nodes: restoredNodes });
-          return;
-        }
-        
-        // Reorder nodes only when order actually changed
-        const reorderedNodes = nodesByOriginalOrder.filter(n => n.id !== dragEndChange.id);
-        const draggedNode = nodesByOriginalOrder.find(n => n.id === dragEndChange.id)!;
-        reorderedNodes.splice(adjustedNewIndex, 0, draggedNode);
-        
-        console.log('📋 [DROP] Node order CHANGED:', {
-          originalOrder: nodesByOriginalOrder.map(n => n.id),
-          draggedNode: dragEndChange.id,
-          originalIndex,
-          newOrderIndex: adjustedNewIndex,
-          finalOrder: reorderedNodes.map(n => n.id)
-        });
-        
-        // Use the SAME calculateEvenSpacing function as the layout engine
-        // This ensures 100% consistent spacing between drop and initial render
-        const calculatedPositions = calculateEvenSpacing(reorderedNodes, nodeHeights, lifelines);
-        
-        console.log('🔍 [DROP DEBUG] Calculated new positions:', Object.fromEntries(calculatedPositions));
-        
-        const updatedNodes = reorderedNodes.map((node) => ({
+        // Update nodes with final positions
+        const updatedNodes = diagramNodes.map(node => ({
           ...node,
-          yPosition: calculatedPositions.get(node.id) || node.yPosition,
+          yPosition: finalPositions.get(node.id) || node.yPosition || 0,
           anchors: node.anchors
         }));
         
-        console.log('📝 [DROP] Repositioned nodes:', updatedNodes.map(n => ({
-          id: n.id,
-          newYPosition: n.yPosition
-        })));
-        
+        console.log('📝 [DROP] Repositioned nodes with cascading slot-based conflict resolution');
         onDataChange({ ...data, nodes: updatedNodes });
       }
     }
     
     // Constrain sequence node movement to vertical only during drag
-    // On DROP, use the layout-calculated position to ensure proper snapback
     const constrainedChanges = changes.map((change: any) => {
-      if (change.type === 'position' && change.position) {
+      if (change.type === 'position' && change.dragging) {
         const node = nodes.find(n => n.id === change.id);
         if (node?.type === 'sequenceNode') {
-          // Get original X position from drag start ref
-          const storedPosition = dragStartPositionsRef.current.get(change.id);
-          const originalX = storedPosition?.x ?? node.position.x;
+          // Multi-node drag disabled - only single node swapping is supported
           
-          if (change.dragging === false) {
-            // On DROP: Use the layout-calculated position for snapback
-            // The previousLayoutRef contains the last calculated positions
-            const layoutNode = previousLayoutRef.current.nodes.find(n => n.id === change.id);
-            if (layoutNode) {
-              console.log('🔄 [DROP POSITION] Using layout position for snapback', {
-                nodeId: change.id,
-                droppedY: change.position.y,
-                layoutY: layoutNode.position.y
-              });
-              return {
-                ...change,
-                position: {
-                  x: originalX,
-                  y: layoutNode.position.y
-                }
-              };
-            }
-          }
-          
-          // During DRAG: Apply constraints
+          // Get node height to calculate constraints
           const actualHeight = nodeHeights.get(node.id);
           const diagramNode = diagramNodes.find(n => n.id === node.id);
           const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
           const nodeHeight = actualHeight || nodeConfig?.defaultHeight || 70;
           
+          // Only constrain top boundary - lifeline will auto-extend downward
           const LIFELINE_HEADER_HEIGHT = 100;
-          const minY = LIFELINE_HEADER_HEIGHT + 40;
+          const minY = LIFELINE_HEADER_HEIGHT + 40; // Top constraint
           
           const newY = change.position?.y || node.position.y;
           const constrainedY = Math.max(minY, newY);
           
-          console.log('🔒 [POSITION CONSTRAIN]', { 
-            nodeId: change.id, 
-            dragging: change.dragging,
-            storedX: storedPosition?.x, 
-            attemptedX: change.position.x,
-            usingX: originalX 
-          });
-          
+          // Keep original X position, only allow Y to change within constraints
           return {
             ...change,
             position: {
-              x: originalX,
+              x: node.position.x,
               y: constrainedY
             }
           };
@@ -2141,19 +2067,14 @@ const FitViewHelper: React.FC<{
   }, []);
 
   // Log rendering information
-  const sequenceNodes = nodes?.filter(n => n.type === 'sequenceNode') || [];
   console.log('[SequenceRenderer] Rendering with:', {
     isRenderMode,
     nodesCount: nodes?.length || 0,
     edgesCount: edges?.length || 0,
     hasActiveTheme: !!activeTheme,
     backgroundColor: activeTheme?.colors.background,
-    sequenceNodesWithDraggable: sequenceNodes.slice(0, 3).map(n => ({ 
-      id: n.id, 
-      type: n.type, 
-      draggable: n.draggable,
-      position: n.position 
-    })),
+    firstThreeNodes: nodes?.slice(0, 3).map(n => ({ id: n.id, type: n.type, position: n.position })),
+    firstThreeEdges: edges?.slice(0, 3).map(e => ({ id: e.id, source: e.source, target: e.target }))
   });
 
   return (
@@ -2181,9 +2102,6 @@ const FitViewHelper: React.FC<{
           onEdgeClick={onEdgeClick}
           onNodeMouseEnter={handleNodeMouseEnter}
           onNodeMouseLeave={handleNodeMouseLeave}
-          onNodeDragStart={(event, node) => console.log('🚀 [ReactFlow onNodeDragStart]', node.id)}
-          onNodeDrag={(event, node) => console.log('🔄 [ReactFlow onNodeDrag]', node.id, node.position)}
-          onNodeDragStop={(event, node) => console.log('🛑 [ReactFlow onNodeDragStop]', node.id)}
           onConnect={onConnect}
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}

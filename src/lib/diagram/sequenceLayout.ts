@@ -462,8 +462,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       },
       style: {
         zIndex: 10
-      }
-      // Note: draggable is controlled by SequenceDiagramRenderer.nodesWithHandlers, not here
+      },
+      draggable: true // Enable dragging for sequence nodes
     };
   });
 
@@ -651,8 +651,7 @@ function lifelineRangesOverlap(range1: [string, string], range2: [string, string
 }
 
 // Calculate spacing that allows nodes to share Y positions when they don't overlap horizontally
-// Exported for use in drop handlers to ensure consistent spacing
-export function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, number>, lifelines?: Lifeline[]): Map<string, number> {
+function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, number>, lifelines?: Lifeline[]): Map<string, number> {
   const positions = new Map<string, number>();
   
   if (nodes.length === 0) {
