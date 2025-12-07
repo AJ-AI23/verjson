@@ -760,260 +760,246 @@ const FitViewHelper: React.FC<{
       setIsDragging(false);
       setLayoutVersion(v => v + 1);
       
-      // Update positions with slot-based cascading conflict resolution
+      // Update positions with 2D MATRIX-BASED slot system
       if (onDataChange) {
         const SLOT_HEIGHT = 100; // Each slot is 100 units
         const sequenceNodes = nodes.filter(n => n.type === 'sequenceNode');
         
-        console.log('SLOT-BASED POSITIONING: Drag end detected');
+        console.log('🔲 2D MATRIX POSITIONING: Drag end detected');
         console.log('Sequence nodes count:', sequenceNodes.length);
         
-        // Build lifeline position map for overlap detection
+        // Build lifeline position map (lifeline ID -> order index)
         const lifelinePositions = new Map<string, number>();
         const sortedLifelines = [...data.lifelines].sort((a, b) => a.order - b.order);
         sortedLifelines.forEach((lifeline, index) => {
           lifelinePositions.set(lifeline.id, index);
         });
         
-        // Helper to check if two nodes overlap in lifeline range
-        // Two nodes overlap if their lifeline ranges share ANY common lifeline
-        // e.g., node spanning lifelines 0-1 and node spanning 1-2 overlap because both touch lifeline 1
-        const nodesOverlap = (node1: DiagramNode, node2: DiagramNode): boolean => {
-          if (!node1.anchors || !node2.anchors) return false;
+        const laneCount = Math.max(1, sortedLifelines.length - 1);
+        console.log('🔲 Lane count:', laneCount, 'Lifelines:', sortedLifelines.length);
+        
+        // Helper: Get which lanes a node occupies (lanes are gaps between lifelines)
+        const getNodeLanes = (node: DiagramNode): number[] => {
+          if (!node.anchors || node.anchors.length < 2) return [];
           
-          const n1Start = lifelinePositions.get(node1.anchors[0].lifelineId) ?? -1;
-          const n1End = lifelinePositions.get(node1.anchors[1].lifelineId) ?? -1;
-          const n2Start = lifelinePositions.get(node2.anchors[0].lifelineId) ?? -1;
-          const n2End = lifelinePositions.get(node2.anchors[1].lifelineId) ?? -1;
+          const ll0Pos = lifelinePositions.get(node.anchors[0].lifelineId);
+          const ll1Pos = lifelinePositions.get(node.anchors[1].lifelineId);
           
-          // If any position is -1, we couldn't find the lifeline
-          if (n1Start === -1 || n1End === -1 || n2Start === -1 || n2End === -1) {
-            console.log('⚠️ nodesOverlap: missing lifeline position', { n1Start, n1End, n2Start, n2End });
-            return false;
+          if (ll0Pos === undefined || ll1Pos === undefined) {
+            console.warn('⚠️ getNodeLanes: missing lifeline position for node', node.label);
+            return [];
           }
           
-          const min1 = Math.min(n1Start, n1End);
-          const max1 = Math.max(n1Start, n1End);
-          const min2 = Math.min(n2Start, n2End);
-          const max2 = Math.max(n2Start, n2End);
+          const minLL = Math.min(ll0Pos, ll1Pos);
+          const maxLL = Math.max(ll0Pos, ll1Pos);
           
-          // Overlap if ranges touch or intersect (using <= not <)
-          // [0,1] and [1,2] overlap because they share position 1
-          const overlaps = !(max1 < min2 || max2 < min1);
+          // Lanes occupied = gaps between minLL and maxLL
+          // If node spans lifeline 0 to lifeline 2, it occupies lanes 0 and 1
+          const lanes: number[] = [];
+          for (let i = minLL; i < maxLL; i++) {
+            lanes.push(i);
+          }
           
-          console.log('📊 nodesOverlap check:', node1.label, `[${min1}-${max1}]`, 'vs', node2.label, `[${min2}-${max2}]`, '-> overlaps:', overlaps);
-          
-          return overlaps;
+          return lanes;
         };
         
-        // Create slot assignments: convert visual Y positions to slot indices
-        // IMPORTANT: visual Y is top of node, but we need to convert to center Y for document
-        // Use dragEndChange.position for the dragged node since React Flow hasn't updated yet
+        // 2D Matrix: Map<slot, Map<lane, nodeId>>
+        const matrix = new Map<number, Map<number, string>>();
+        
+        // Initialize a slot row if needed
+        const ensureSlotExists = (slot: number) => {
+          if (!matrix.has(slot)) {
+            matrix.set(slot, new Map<number, string>());
+          }
+        };
+        
+        // Check if a cell is free (not occupied by another node)
+        const isCellFree = (slot: number, lane: number, excludeNodeId?: string): boolean => {
+          if (!matrix.has(slot)) return true;
+          const occupant = matrix.get(slot)!.get(lane);
+          return !occupant || occupant === excludeNodeId;
+        };
+        
+        // Clear all cells occupied by a node
+        const clearNodeFromMatrix = (nodeId: string) => {
+          matrix.forEach((slotMap) => {
+            slotMap.forEach((occupant, lane) => {
+              if (occupant === nodeId) {
+                slotMap.delete(lane);
+              }
+            });
+          });
+        };
+        
+        // Try to place a node at a given slot, return the actual slot it was placed at
+        const placeNode = (nodeId: string, desiredSlot: number, lanes: number[]): number => {
+          if (lanes.length === 0) {
+            console.warn('⚠️ placeNode: no lanes for node', nodeId);
+            return desiredSlot;
+          }
+          
+          let slot = desiredSlot;
+          const MAX_ATTEMPTS = 50;
+          let attempts = 0;
+          
+          while (attempts < MAX_ATTEMPTS) {
+            attempts++;
+            
+            // Check if ALL lanes at this slot are free for this node
+            const canPlace = lanes.every(lane => isCellFree(slot, lane, nodeId));
+            
+            if (canPlace) {
+              // Clear any previous position for this node
+              clearNodeFromMatrix(nodeId);
+              
+              // Occupy all lanes at this slot
+              ensureSlotExists(slot);
+              lanes.forEach(lane => {
+                matrix.get(slot)!.set(lane, nodeId);
+              });
+              
+              return slot;
+            }
+            
+            // Conflict - try next slot down
+            slot++;
+          }
+          
+          console.warn('⚠️ placeNode: hit max attempts for node', nodeId);
+          return slot;
+        };
+        
+        // Calculate initial desired slots from current positions
         const dragEndNodeId = dragEndChange.id;
         const dragEndPosition = dragEndChange.position;
         
-        const nodeToSlot = new Map<string, number>();
-        const initialSlotDebug: Array<{id: string, label: string, visualTopY: number, centerY: number, slot: number, originalYPosition: number}> = [];
+        const nodeDesiredSlots = new Map<string, number>();
+        const nodeSlotDebug: Array<{id: string, label: string, lanes: number[], desiredSlot: number}> = [];
         
         sequenceNodes.forEach(n => {
           const diagramNode = diagramNodes.find(dn => dn.id === n.id);
-          const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
+          if (!diagramNode) return;
+          
+          const nodeConfig = getNodeTypeConfig(diagramNode.type);
           const nodeHeight = nodeHeights.get(n.id) || nodeConfig?.defaultHeight || 70;
           
           let centerY: number;
-          let visualTopY: number;
-          
           if (n.id === dragEndNodeId) {
-            // For dragged node: use the NEW position from dragEndChange
-            visualTopY = dragEndPosition.y;
-            centerY = visualTopY + (nodeHeight / 2);
+            // For dragged node: use NEW position from dragEndChange
+            centerY = dragEndPosition.y + (nodeHeight / 2);
           } else {
-            // For non-dragged nodes: use document's yPosition (which is center Y)
-            // This is the source of truth, not React Flow's potentially stale visual position
-            centerY = diagramNode?.yPosition || (n.position.y + nodeHeight / 2);
-            visualTopY = centerY - (nodeHeight / 2);
+            // For non-dragged nodes: use document's yPosition (center Y)
+            centerY = diagramNode.yPosition || (n.position.y + nodeHeight / 2);
           }
           
-          const slot = Math.round(centerY / SLOT_HEIGHT);
-          nodeToSlot.set(n.id, slot);
+          const desiredSlot = Math.round(centerY / SLOT_HEIGHT);
+          const lanes = getNodeLanes(diagramNode);
           
-          initialSlotDebug.push({
+          nodeDesiredSlots.set(n.id, desiredSlot);
+          nodeSlotDebug.push({
             id: n.id,
-            label: diagramNode?.label || n.id,
-            visualTopY,
-            centerY,
-            slot,
-            originalYPosition: diagramNode?.yPosition || 0
+            label: diagramNode.label || n.id,
+            lanes,
+            desiredSlot
           });
         });
         
-        console.log('📍 INITIAL SLOT ASSIGNMENTS (before conflict resolution):');
-        console.table(initialSlotDebug.sort((a, b) => a.slot - b.slot));
+        console.log('📍 DESIRED SLOTS (before matrix placement):');
+        console.table(nodeSlotDebug.sort((a, b) => a.desiredSlot - b.desiredSlot));
         
-        // Find which node was dragged (the one that moved most from its original yPosition)
-        let draggedNodeId: string | null = null;
-        let maxDelta = 0;
-        diagramNodes.forEach(node => {
-          const originalCenterY = node.yPosition || 0;
-          const flowNode = nodes.find(n => n.id === node.id);
-          if (flowNode) {
-            const nodeConfig = getNodeTypeConfig(node.type);
-            const nodeHeight = nodeHeights.get(node.id) || nodeConfig?.defaultHeight || 70;
-            const visualTopY = flowNode.position.y;
-            const currentCenterY = visualTopY + (nodeHeight / 2);
-            const delta = Math.abs(currentCenterY - originalCenterY);
-            if (delta > maxDelta) {
-              maxDelta = delta;
-              draggedNodeId = node.id;
-            }
-          }
-        });
+        // PLACEMENT ORDER:
+        // 1. Place the dragged node FIRST at its desired slot (it takes priority)
+        // 2. Place other nodes in order of their desired slots (top to bottom)
         
-        const draggedDiagramNode = diagramNodes.find(n => n.id === draggedNodeId);
-        console.log('🖱️ DRAGGED NODE:', {
-          id: draggedNodeId,
-          label: draggedDiagramNode?.label,
-          maxDelta,
-          originalSlot: nodeToSlot.get(draggedNodeId || '')
-        });
+        const finalSlots = new Map<string, number>();
         
-        // Build slot occupancy: which nodes are at which slots
-        const slotOccupants = new Map<number, Set<string>>();
-        nodeToSlot.forEach((slot, nodeId) => {
-          if (!slotOccupants.has(slot)) {
-            slotOccupants.set(slot, new Set());
-          }
-          slotOccupants.get(slot)!.add(nodeId);
-        });
-        
-        console.log('🏠 SLOT OCCUPANCY (before conflict resolution):');
-        const occupancyDebug: Array<{slot: number, nodes: string[]}> = [];
-        slotOccupants.forEach((occupants, slot) => {
-          const nodeLabels = Array.from(occupants).map(id => {
-            const node = diagramNodes.find(n => n.id === id);
-            return node?.label || id;
+        // Place dragged node first
+        const draggedDiagramNode = diagramNodes.find(n => n.id === dragEndNodeId);
+        if (draggedDiagramNode) {
+          const draggedDesiredSlot = nodeDesiredSlots.get(dragEndNodeId) || 0;
+          const draggedLanes = getNodeLanes(draggedDiagramNode);
+          const draggedFinalSlot = placeNode(dragEndNodeId, draggedDesiredSlot, draggedLanes);
+          finalSlots.set(dragEndNodeId, draggedFinalSlot);
+          
+          console.log('🖱️ DRAGGED NODE placed:', {
+            label: draggedDiagramNode.label,
+            desiredSlot: draggedDesiredSlot,
+            finalSlot: draggedFinalSlot,
+            lanes: draggedLanes
           });
-          occupancyDebug.push({ slot, nodes: nodeLabels });
-        });
-        console.table(occupancyDebug.sort((a, b) => a.slot - b.slot));
-        
-        // Resolve ALL conflicts across all slots using iterative cascade
-        // Keep iterating until no more conflicts exist (pushed nodes may create new conflicts)
-        let conflictResolved = true;
-        let iterationCount = 0;
-        const MAX_ITERATIONS = 20; // Safety limit
-        
-        while (conflictResolved && iterationCount < MAX_ITERATIONS) {
-          conflictResolved = false;
-          iterationCount++;
-          
-          const allSlots = Array.from(nodeToSlot.values());
-          const minSlot = allSlots.length > 0 ? Math.min(...allSlots) : 0;
-          const maxSlot = allSlots.length > 0 ? Math.max(...allSlots) : 0;
-          
-          console.log(`⚡ CONFLICT RESOLUTION iteration ${iterationCount}: slots ${minSlot} to ${maxSlot}`);
-          
-          // Rebuild slot occupancy from current nodeToSlot state
-          const slotOccupants = new Map<number, Set<string>>();
-          nodeToSlot.forEach((slot, nodeId) => {
-            if (!slotOccupants.has(slot)) {
-              slotOccupants.set(slot, new Set());
-            }
-            slotOccupants.get(slot)!.add(nodeId);
-          });
-          
-          // Debug: show all slot assignments
-          console.log('📋 Current slot assignments:', Array.from(nodeToSlot.entries()).map(([id, slot]) => {
-            const node = diagramNodes.find(n => n.id === id);
-            return { id, label: node?.label, slot };
-          }));
-          
-          for (let currentSlot = minSlot; currentSlot <= maxSlot; currentSlot++) {
-            const occupants = slotOccupants.get(currentSlot);
-            if (!occupants || occupants.size <= 1) continue;
-            
-            console.log(`🔍 Slot ${currentSlot} has ${occupants.size} occupants:`, Array.from(occupants).map(id => {
-              const node = diagramNodes.find(n => n.id === id);
-              const ll0 = node?.anchors?.[0]?.lifelineId;
-              const ll1 = node?.anchors?.[1]?.lifelineId;
-              return { id, label: node?.label, lifelines: `${lifelinePositions.get(ll0 || '')}-${lifelinePositions.get(ll1 || '')}` };
-            }));
-            
-            const occupantsList = Array.from(occupants);
-            
-            for (let i = 0; i < occupantsList.length; i++) {
-              for (let j = i + 1; j < occupantsList.length; j++) {
-                const node1 = diagramNodes.find(n => n.id === occupantsList[i]);
-                const node2 = diagramNodes.find(n => n.id === occupantsList[j]);
-                
-                if (node1 && node2 && nodesOverlap(node1, node2)) {
-                  // Determine which node to push: prefer pushing the one that's NOT the dragged node
-                  // If neither is dragged, push the one with higher current slot (later in sequence)
-                  let nodeIdToPush = occupantsList[j];
-                  if (occupantsList[j] === draggedNodeId) {
-                    nodeIdToPush = occupantsList[i];
-                  }
-                  
-                  const nodeToPush = diagramNodes.find(n => n.id === nodeIdToPush);
-                  console.log('💥 CONFLICT at slot', currentSlot, ':', {
-                    node1: node1.label,
-                    node2: node2.label,
-                    pushing: nodeToPush?.label,
-                    toSlot: currentSlot + 1
-                  });
-                  
-                  // Move to next slot
-                  nodeToSlot.set(nodeIdToPush, currentSlot + 1);
-                  conflictResolved = true; // Need another iteration to check cascading conflicts
-                  break;
-                }
-              }
-              if (conflictResolved) break;
-            }
-            if (conflictResolved) break;
-          }
         }
         
-        if (iterationCount >= MAX_ITERATIONS) {
-          console.warn('⚠️ Conflict resolution hit max iterations');
-        }
+        // Place other nodes in order of their desired slots (top to bottom)
+        const otherNodes = diagramNodes
+          .filter(n => n.id !== dragEndNodeId && nodeDesiredSlots.has(n.id))
+          .sort((a, b) => (nodeDesiredSlots.get(a.id) || 0) - (nodeDesiredSlots.get(b.id) || 0));
         
-        // Convert slots back to Y positions
+        otherNodes.forEach(node => {
+          const desiredSlot = nodeDesiredSlots.get(node.id) || 0;
+          const lanes = getNodeLanes(node);
+          const finalSlot = placeNode(node.id, desiredSlot, lanes);
+          finalSlots.set(node.id, finalSlot);
+          
+          if (finalSlot !== desiredSlot) {
+            console.log('⬇️ NODE PUSHED:', {
+              label: node.label,
+              desiredSlot,
+              finalSlot,
+              lanes
+            });
+          }
+        });
+        
+        // Debug: show final matrix state
+        console.log('🔲 FINAL MATRIX STATE:');
+        const matrixDebug: Array<{slot: number, lanes: string}> = [];
+        const allSlots = Array.from(matrix.keys()).sort((a, b) => a - b);
+        allSlots.forEach(slot => {
+          const slotMap = matrix.get(slot)!;
+          const laneOccupancy: string[] = [];
+          for (let lane = 0; lane < laneCount; lane++) {
+            const occupant = slotMap.get(lane);
+            if (occupant) {
+              const node = diagramNodes.find(n => n.id === occupant);
+              laneOccupancy.push(`L${lane}:${node?.label || occupant}`);
+            }
+          }
+          if (laneOccupancy.length > 0) {
+            matrixDebug.push({ slot, lanes: laneOccupancy.join(', ') });
+          }
+        });
+        console.table(matrixDebug);
+        
+        // Convert slots back to Y positions (center Y)
         const finalPositions = new Map<string, number>();
-        nodeToSlot.forEach((slot, nodeId) => {
+        finalSlots.forEach((slot, nodeId) => {
           finalPositions.set(nodeId, slot * SLOT_HEIGHT);
         });
         
         // Final debug output
-        const finalDebug: Array<{id: string, label: string, finalSlot: number, finalYPosition: number}> = [];
-        nodeToSlot.forEach((slot, nodeId) => {
+        console.log('✅ FINAL POSITIONS:');
+        const finalDebug: Array<{id: string, label: string, finalSlot: number, yPosition: number}> = [];
+        finalSlots.forEach((slot, nodeId) => {
           const node = diagramNodes.find(n => n.id === nodeId);
           finalDebug.push({
             id: nodeId,
             label: node?.label || nodeId,
             finalSlot: slot,
-            finalYPosition: slot * SLOT_HEIGHT
+            yPosition: slot * SLOT_HEIGHT
           });
         });
-        
-        console.log('✅ FINAL SLOT ASSIGNMENTS (after conflict resolution):');
         console.table(finalDebug.sort((a, b) => a.finalSlot - b.finalSlot));
         
         // Update nodes with final positions
         const updatedNodes = diagramNodes.map(node => ({
           ...node,
-          yPosition: finalPositions.get(node.id) || node.yPosition || 0,
+          yPosition: finalPositions.get(node.id) ?? node.yPosition ?? 0,
           anchors: node.anchors
         }));
         
-        console.log('📝 UPDATED NODES for onDataChange:', updatedNodes.map(n => {
-          return { id: n.id, label: n.label, yPosition: n.yPosition };
-        }));
-        
         // Store pushed positions to apply AFTER handleNodesChange
-        // (calling setNodes here gets overwritten by handleNodesChange later)
         pushedNodePositionsRef.current = finalPositions;
-        pushedNodeDraggedIdRef.current = draggedNodeId;
+        pushedNodeDraggedIdRef.current = dragEndNodeId;
         
         onDataChange({ ...data, nodes: updatedNodes });
       }
