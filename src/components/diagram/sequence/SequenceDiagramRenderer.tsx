@@ -878,138 +878,69 @@ const FitViewHelper: React.FC<{
       setIsDragging(false);
       setLayoutVersion(v => v + 1);
       
-      // Update positions with slot-based cascading conflict resolution
+      // Update positions with order-based conflict resolution
+      // Nodes maintain their order unless dragged past another node
       if (onDataChange) {
         const SLOT_HEIGHT = 100; // Each slot is 100 units
         const LIFELINE_HEADER_HEIGHT = 100;
         const MIN_TOP_MARGIN = 40;
-        const MIN_Y_POSITION = LIFELINE_HEADER_HEIGHT + MIN_TOP_MARGIN + 35; // Minimum Y for first slot (center position)
+        const MIN_Y_POSITION = LIFELINE_HEADER_HEIGHT + MIN_TOP_MARGIN + 35; // Minimum Y for first slot
         const sequenceNodes = nodes.filter(n => n.type === 'sequenceNode');
         
-        // Build lifeline position map for overlap detection
-        const lifelinePositions = new Map<string, number>();
-        const sortedLifelines = [...data.lifelines].sort((a, b) => a.order - b.order);
-        sortedLifelines.forEach((lifeline, index) => {
-          lifelinePositions.set(lifeline.id, index);
-        });
+        // Find the dragged node
+        const draggedFlowNode = sequenceNodes.find(n => n.id === dragEndChange.id);
+        if (!draggedFlowNode) {
+          console.log('⚠️ [DROP] Dragged node not found in sequenceNodes');
+          return;
+        }
         
-        // Helper to check if two nodes overlap in lifeline range
-        const nodesOverlap = (node1: DiagramNode, node2: DiagramNode): boolean => {
-          if (!node1.anchors || !node2.anchors) return false;
-          
-          const n1Start = lifelinePositions.get(node1.anchors[0].lifelineId) || 0;
-          const n1End = lifelinePositions.get(node1.anchors[1].lifelineId) || 0;
-          const n2Start = lifelinePositions.get(node2.anchors[0].lifelineId) || 0;
-          const n2End = lifelinePositions.get(node2.anchors[1].lifelineId) || 0;
-          
-          const min1 = Math.min(n1Start, n1End);
-          const max1 = Math.max(n1Start, n1End);
-          const min2 = Math.min(n2Start, n2End);
-          const max2 = Math.max(n2Start, n2End);
-          
-          return !(max1 < min2 || max2 < min1);
-        };
+        // Get dragged node's new center Y position
+        const draggedDiagramNode = diagramNodes.find(n => n.id === dragEndChange.id);
+        const draggedNodeConfig = draggedDiagramNode ? getNodeTypeConfig(draggedDiagramNode.type) : null;
+        const draggedNodeHeight = nodeHeights.get(dragEndChange.id) || draggedNodeConfig?.defaultHeight || 70;
+        const draggedCenterY = draggedFlowNode.position.y + (draggedNodeHeight / 2);
         
-        // Create slot assignments: convert visual Y positions to slot indices
-        // Slots are relative to the minimum Y position (after header)
-        const nodeToSlot = new Map<string, number>();
-        sequenceNodes.forEach(n => {
-          const diagramNode = diagramNodes.find(dn => dn.id === n.id);
-          const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
-          const nodeHeight = nodeHeights.get(n.id) || nodeConfig?.defaultHeight || 70;
-          
-          const visualTopY = n.position.y;
-          const centerY = visualTopY + (nodeHeight / 2); // Convert top Y to center Y
-          // Calculate slot relative to minimum Y position, ensuring slot >= 0
-          const relativeY = Math.max(0, centerY - MIN_Y_POSITION);
-          const slot = Math.round(relativeY / SLOT_HEIGHT);
-          nodeToSlot.set(n.id, slot);
-        });
+        // Get all nodes sorted by their ORIGINAL yPosition (before drag)
+        const nodesByOriginalOrder = [...diagramNodes].sort((a, b) => (a.yPosition || 0) - (b.yPosition || 0));
         
-        // Find which node was dragged (the one that moved most from its original yPosition)
-        let draggedNodeId: string | null = null;
-        let maxDelta = 0;
-        diagramNodes.forEach(node => {
-          const originalCenterY = node.yPosition || 0;
-          const flowNode = nodes.find(n => n.id === node.id);
-          if (flowNode) {
-            const nodeConfig = getNodeTypeConfig(node.type);
-            const nodeHeight = nodeHeights.get(node.id) || nodeConfig?.defaultHeight || 70;
-            const visualTopY = flowNode.position.y;
-            const currentCenterY = visualTopY + (nodeHeight / 2);
-            const delta = Math.abs(currentCenterY - originalCenterY);
-            if (delta > maxDelta) {
-              maxDelta = delta;
-              draggedNodeId = node.id;
-            }
-          }
-        });
-        
-        // Build slot occupancy: which nodes are at which slots
-        const slotOccupants = new Map<number, Set<string>>();
-        nodeToSlot.forEach((slot, nodeId) => {
-          if (!slotOccupants.has(slot)) {
-            slotOccupants.set(slot, new Set());
-          }
-          slotOccupants.get(slot)!.add(nodeId);
-        });
-        
-        // Cascade conflicts starting from the dragged node's slot
-        if (draggedNodeId) {
-          const draggedNode = diagramNodes.find(n => n.id === draggedNodeId);
-          const draggedSlot = nodeToSlot.get(draggedNodeId)!;
+        // Find where the dragged node should be inserted based on its new position
+        let newOrderIndex = 0;
+        for (let i = 0; i < nodesByOriginalOrder.length; i++) {
+          const node = nodesByOriginalOrder[i];
+          if (node.id === dragEndChange.id) continue; // Skip the dragged node itself
           
-          // Process slots from dragged slot downward to cascade conflicts
-          const maxSlot = Math.max(...Array.from(nodeToSlot.values()));
-          
-          for (let currentSlot = draggedSlot; currentSlot <= maxSlot + 10; currentSlot++) {
-            const occupants = slotOccupants.get(currentSlot);
-            if (!occupants || occupants.size === 0) continue;
-            
-            // Check for conflicts at this slot
-            const occupantsList = Array.from(occupants);
-            let hasConflict = false;
-            
-            for (let i = 0; i < occupantsList.length; i++) {
-              for (let j = i + 1; j < occupantsList.length; j++) {
-                const node1 = diagramNodes.find(n => n.id === occupantsList[i]);
-                const node2 = diagramNodes.find(n => n.id === occupantsList[j]);
-                
-                if (node1 && node2 && nodesOverlap(node1, node2)) {
-                  hasConflict = true;
-                  // Push the second node down to next slot
-                  const nodeIdToPush = occupantsList[j];
-                  occupants.delete(nodeIdToPush);
-                  nodeToSlot.set(nodeIdToPush, currentSlot + 1);
-                  
-                  if (!slotOccupants.has(currentSlot + 1)) {
-                    slotOccupants.set(currentSlot + 1, new Set());
-                  }
-                  slotOccupants.get(currentSlot + 1)!.add(nodeIdToPush);
-                  
-                  console.log(`🔄 [CONFLICT] Moved node ${nodeIdToPush} from slot ${currentSlot} to ${currentSlot + 1}`);
-                  break;
-                }
-              }
-              if (hasConflict) break;
-            }
+          const nodeCenterY = node.yPosition || 0;
+          if (draggedCenterY > nodeCenterY) {
+            newOrderIndex = i + 1;
           }
         }
         
-        // Convert slots back to Y positions (add back the minimum Y offset)
-        const finalPositions = new Map<string, number>();
-        nodeToSlot.forEach((slot, nodeId) => {
-          finalPositions.set(nodeId, MIN_Y_POSITION + (slot * SLOT_HEIGHT));
+        // Remove dragged node from its original position and insert at new position
+        const reorderedNodes = nodesByOriginalOrder.filter(n => n.id !== dragEndChange.id);
+        const draggedNode = nodesByOriginalOrder.find(n => n.id === dragEndChange.id)!;
+        
+        // Adjust index since we removed the dragged node
+        const originalIndex = nodesByOriginalOrder.findIndex(n => n.id === dragEndChange.id);
+        const adjustedNewIndex = newOrderIndex > originalIndex ? newOrderIndex - 1 : newOrderIndex;
+        
+        reorderedNodes.splice(adjustedNewIndex, 0, draggedNode);
+        
+        console.log('📋 [DROP] Node order:', {
+          originalOrder: nodesByOriginalOrder.map(n => n.id),
+          draggedNode: dragEndChange.id,
+          originalIndex,
+          newOrderIndex: adjustedNewIndex,
+          finalOrder: reorderedNodes.map(n => n.id)
         });
         
-        // Update nodes with final positions
-        const updatedNodes = diagramNodes.map(node => ({
+        // Assign Y positions based on order (consistent spacing)
+        const updatedNodes = reorderedNodes.map((node, index) => ({
           ...node,
-          yPosition: finalPositions.get(node.id) || node.yPosition || 0,
+          yPosition: MIN_Y_POSITION + (index * SLOT_HEIGHT),
           anchors: node.anchors
         }));
         
-        console.log('📝 [DROP] Repositioned nodes with cascading slot-based conflict resolution');
+        console.log('📝 [DROP] Repositioned nodes with order-based positioning');
         onDataChange({ ...data, nodes: updatedNodes });
       }
     }
