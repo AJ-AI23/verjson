@@ -449,25 +449,27 @@ const FitViewHelper: React.FC<{
   }, [lifelines, diagramNodes, activeTheme, isRenderMode, onDataChange, data, isDragging, layoutVersion]);
 
   // Sync calculated positions back to document when they change
-  useEffect(() => {
-    if (!calculatedYPositions || !onDataChange || isDraggingRef.current) return;
-    
-    // Check if any positions have changed
-    let hasChanges = false;
-    const updatedNodes = diagramNodes.map(node => {
-      const calculatedY = calculatedYPositions.get(node.id);
-      if (calculatedY !== undefined && calculatedY !== node.yPosition) {
-        hasChanges = true;
-        return { ...node, yPosition: calculatedY };
-      }
-      return node;
-    });
-    
-    // Only update if there are actual changes
-    if (hasChanges) {
-      onDataChange({ ...data, nodes: updatedNodes });
-    }
-  }, [calculatedYPositions, onDataChange, diagramNodes, data, isDragging]);
+  // DISABLED: This was causing position overwrites after drag operations
+  // The drag handler already updates positions correctly via onDataChange
+  // useEffect(() => {
+  //   if (!calculatedYPositions || !onDataChange || isDraggingRef.current) return;
+  //   
+  //   // Check if any positions have changed
+  //   let hasChanges = false;
+  //   const updatedNodes = diagramNodes.map(node => {
+  //     const calculatedY = calculatedYPositions.get(node.id);
+  //     if (calculatedY !== undefined && calculatedY !== node.yPosition) {
+  //       hasChanges = true;
+  //       return { ...node, yPosition: calculatedY };
+  //     }
+  //     return node;
+  //   });
+  //   
+  //   // Only update if there are actual changes
+  //   if (hasChanges) {
+  //     onDataChange({ ...data, nodes: updatedNodes });
+  //   }
+  // }, [calculatedYPositions, onDataChange, diagramNodes, data, isDragging]);
 
   // Handle node height changes
   const handleNodeHeightChange = useCallback((nodeId: string, height: number) => {
