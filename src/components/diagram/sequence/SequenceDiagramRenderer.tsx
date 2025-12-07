@@ -133,6 +133,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const [lifelineToolbarPosition, setLifelineToolbarPosition] = useState<{ x: number; y: number } | null>(null);
   
   const [dragStartPositions, setDragStartPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
+  const dragStartPositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
   const [nodeHeights, setNodeHeights] = useState<Map<string, number>>(new Map());
   const nodeHeightsRef = useRef<Map<string, number>>(new Map());
   const initialHeightsAppliedRef = useRef(false);
@@ -849,20 +850,22 @@ const FitViewHelper: React.FC<{
       })));
     }
     
-    // Store initial positions when drag starts
+    // Store initial positions when drag starts (only on first drag frame)
     const dragStartChange = changes.find((c: any) => c.type === 'position' && c.dragging === true);
-    if (dragStartChange) {
+    if (dragStartChange && !isDraggingRef.current) {
       console.log('🟢 [DRAG START]', dragStartChange.id);
       isDraggingRef.current = true;
       setIsDragging(true);
       
+      // Store positions in ref for immediate access (state is async)
       const startPositions = new Map<string, { x: number; y: number }>();
       nodes.forEach(n => {
-        // Store positions for ALL sequence nodes (not just selected) to preserve X during drag
+        // Store positions for ALL sequence nodes to preserve X during drag
         if (n.type === 'sequenceNode' || n.type === 'columnLifeline') {
           startPositions.set(n.id, { x: n.position.x, y: n.position.y });
         }
       });
+      dragStartPositionsRef.current = startPositions;
       setDragStartPositions(startPositions);
     }
     
@@ -1026,10 +1029,12 @@ const FitViewHelper: React.FC<{
           const newY = change.position?.y || node.position.y;
           const constrainedY = Math.max(minY, newY);
           
-          // Get original X position from drag start, not from current node state
+          // Get original X position from drag start ref (immediate access, not async state)
           // This ensures nodes snap back to their correct lane position
-          const storedPosition = dragStartPositions.get(change.id);
+          const storedPosition = dragStartPositionsRef.current.get(change.id);
           const originalX = storedPosition?.x ?? node.position.x;
+          
+          console.log('🔒 [DRAG CONSTRAIN]', { nodeId: change.id, storedX: storedPosition?.x, currentX: node.position.x, usingX: originalX });
           
           // Keep original X position from layout, only allow Y to change within constraints
           return {
