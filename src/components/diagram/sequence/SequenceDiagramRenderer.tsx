@@ -1279,6 +1279,22 @@ const FitViewHelper: React.FC<{
             };
           });
           
+          // Immediately snap X positions back to layout-calculated positions
+          setNodes(currentNodes => {
+            return currentNodes.map(n => {
+              if (n.type === 'sequenceNode' && selectedNodeIds.includes(n.id)) {
+                const layoutNode = layoutNodes.find(ln => ln.id === n.id);
+                const correctX = layoutNode?.position.x ?? n.position.x;
+                const recalcNode = recalculatedNodes.find(rn => rn.id === n.id);
+                const height = nodeHeights.get(n.id) || 70;
+                const centerY = recalcNode?.yPosition ?? n.position.y + (height / 2);
+                const topY = centerY - (height / 2);
+                return { ...n, position: { x: correctX, y: topY } };
+              }
+              return n;
+            });
+          });
+          
           onDataChange({ ...data, nodes: recalculatedNodes });
         } else {
           // Single node update
@@ -1326,6 +1342,7 @@ const FitViewHelper: React.FC<{
           });
           
           // Immediately update node and anchor positions visually
+          // Also snap X position back to layout-calculated position
           setNodes(currentNodes => {
             const nodeTopYMap = new Map<string, number>();
             const anchorPositionMap = new Map<string, number>();
@@ -1340,7 +1357,10 @@ const FitViewHelper: React.FC<{
             return currentNodes.map(n => {
               const anchorData = n.data as any;
               if (n.type === 'sequenceNode' && nodeTopYMap.has(n.id)) {
-                return { ...n, position: { ...n.position, y: nodeTopYMap.get(n.id)! } };
+                // Snap X position back to the layout-calculated position
+                const layoutNode = layoutNodes.find(ln => ln.id === n.id);
+                const correctX = layoutNode?.position.x ?? n.position.x;
+                return { ...n, position: { x: correctX, y: nodeTopYMap.get(n.id)! } };
               }
               if (n.type === 'anchorNode' && anchorData?.connectedNodeId && anchorPositionMap.has(n.id)) {
                 return { ...n, position: { ...n.position, y: anchorPositionMap.get(n.id)! - 8 } };
