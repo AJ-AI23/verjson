@@ -918,17 +918,28 @@ const FitViewHelper: React.FC<{
         // Adjust index since we'll remove the dragged node
         const adjustedNewIndex = newOrderIndex > originalIndex ? newOrderIndex - 1 : newOrderIndex;
         
-        // Reorder nodes (even if order unchanged, we need to recalculate positions consistently)
+        // If order didn't change, just trigger re-render with original data to snap back
+        // No need to recalculate - the layout engine will use existing yPositions
+        if (adjustedNewIndex === originalIndex) {
+          console.log('📋 [DROP] Order unchanged, triggering re-render for snapback');
+          // Force re-render by creating new object references with same values
+          onDataChange({ 
+            ...data, 
+            nodes: diagramNodes.map(n => ({ ...n, anchors: [...n.anchors] }))
+          });
+          return;
+        }
+        
+        // Reorder nodes only when order actually changed
         const reorderedNodes = nodesByOriginalOrder.filter(n => n.id !== dragEndChange.id);
         const draggedNode = nodesByOriginalOrder.find(n => n.id === dragEndChange.id)!;
         reorderedNodes.splice(adjustedNewIndex, 0, draggedNode);
         
-        console.log('📋 [DROP] Node order:', {
+        console.log('📋 [DROP] Node order CHANGED:', {
           originalOrder: nodesByOriginalOrder.map(n => n.id),
           draggedNode: dragEndChange.id,
           originalIndex,
           newOrderIndex: adjustedNewIndex,
-          orderChanged: adjustedNewIndex !== originalIndex,
           finalOrder: reorderedNodes.map(n => n.id)
         });
         
