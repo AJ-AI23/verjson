@@ -763,6 +763,7 @@ const FitViewHelper: React.FC<{
       // Update positions with 2D MATRIX-BASED slot system
       if (onDataChange) {
         const SLOT_HEIGHT = 100; // Each slot is 100 units
+        const SLOT_START_Y = 120; // First slot starts after lifeline header (100) + margin (20)
         const sequenceNodes = nodes.filter(n => n.type === 'sequenceNode');
         
         console.log('═══════════════════════════════════════════════════════════');
@@ -777,7 +778,17 @@ const FitViewHelper: React.FC<{
         });
         
         const laneCount = Math.max(1, sortedLifelines.length - 1);
-        console.log(`Grid: ${laneCount} lanes (${sortedLifelines.length} lifelines)`);
+        console.log(`Grid: ${laneCount} lanes, slotHeight=${SLOT_HEIGHT}, slotStartY=${SLOT_START_Y}`);
+        
+        // Convert Y position to slot index (0-based, relative to content area)
+        const yToSlot = (centerY: number): number => {
+          return Math.max(0, Math.round((centerY - SLOT_START_Y) / SLOT_HEIGHT));
+        };
+        
+        // Convert slot index back to Y position (center Y)
+        const slotToY = (slot: number): number => {
+          return SLOT_START_Y + (slot * SLOT_HEIGHT);
+        };
         
         // Helper: Get which lanes a node occupies (lanes are gaps between lifelines)
         const getNodeLanes = (node: DiagramNode): number[] => {
@@ -787,7 +798,7 @@ const FitViewHelper: React.FC<{
           const ll1Pos = lifelinePositions.get(node.anchors[1].lifelineId);
           
           if (ll0Pos === undefined || ll1Pos === undefined) {
-            console.warn(`⚠️ Node "${node.label}": missing lifeline position`);
+            console.warn(`⚠️ Node ${node.id}: missing lifeline position`);
             return [];
           }
           
@@ -830,7 +841,7 @@ const FitViewHelper: React.FC<{
         const placeNode = (nodeId: string, desiredSlot: number, lanes: number[]): number => {
           if (lanes.length === 0) return desiredSlot;
           
-          let slot = desiredSlot;
+          let slot = Math.max(0, desiredSlot); // Ensure non-negative
           const MAX_ATTEMPTS = 50;
           let attempts = 0;
           
@@ -876,7 +887,7 @@ const FitViewHelper: React.FC<{
             centerY = diagramNode.yPosition || (n.position.y + nodeHeight / 2);
           }
           
-          const desiredSlot = Math.round(centerY / SLOT_HEIGHT);
+          const desiredSlot = yToSlot(centerY);
           const lanes = getNodeLanes(diagramNode);
           
           nodeDesiredSlots.set(n.id, desiredSlot);
@@ -942,17 +953,17 @@ const FitViewHelper: React.FC<{
           console.log(`  slot ${slot}: ${cellsStr.join(', ')}`);
         });
         
-        // Convert slots back to Y positions
+        // Convert slots back to Y positions using slotToY
         const finalPositions = new Map<string, number>();
         finalSlots.forEach((slot, nodeId) => {
-          finalPositions.set(nodeId, slot * SLOT_HEIGHT);
+          finalPositions.set(nodeId, slotToY(slot));
         });
         
         console.log('───────────────────────────────────────────────────────────');
         console.log('FINAL Y POSITIONS:');
         console.log('───────────────────────────────────────────────────────────');
         finalSlots.forEach((slot, nodeId) => {
-          console.log(`  ${nodeId}: slot=${slot}, yPosition=${slot * SLOT_HEIGHT}`);
+          console.log(`  ${nodeId}: slot=${slot}, yPosition=${slotToY(slot)}`);
         });
         console.log('═══════════════════════════════════════════════════════════');
         
