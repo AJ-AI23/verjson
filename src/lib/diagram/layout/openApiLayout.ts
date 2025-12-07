@@ -37,18 +37,12 @@ export const generateOpenApiLayout = (
   maxIndividualProperties: number = 5,
   maxIndividualArrayItems: number = 4
 ): DiagramElements => {
-  console.log(`🔥 [OPENAPI LAYOUT] Starting with maxDepth: ${maxDepth}, maxIndividualProperties: ${maxIndividualProperties}`);
-  console.log(`🔥 [OPENAPI LAYOUT] CollapsedPaths:`, collapsedPaths);
-  console.log(`🔥 [OPENAPI LAYOUT] Schema keys:`, Object.keys(schema));
-  console.log(`🔥 [OPENAPI LAYOUT] Schema paths:`, schema.paths ? Object.keys(schema.paths) : 'none');
-  
   const result: DiagramElements = {
     nodes: [],
     edges: []
   };
 
   if (!schema || !isOpenApiSchema(schema)) {
-    console.log(`[OPENAPI LAYOUT] Early return - not a valid OpenAPI schema`);
     return result;
   }
 
@@ -57,7 +51,6 @@ export const generateOpenApiLayout = (
   
   // If root is collapsed, we should skip generating child nodes
   if (rootCollapsed) {
-    console.log('Root is collapsed, skipping OpenAPI structure generation');
     return result;
   }
   
@@ -73,18 +66,8 @@ export const generateOpenApiLayout = (
   // If root is expanded (not collapsed), we should show OpenAPI structure boxes
   const shouldShowOpenApiStructure = !rootCollapsed || hasExpandedOpenApiProps;
   
-  console.log(`🔥 [OPENAPI LAYOUT] Root collapsed: ${rootCollapsed}`);
-  console.log(`🔥 [OPENAPI LAYOUT] Has expanded OpenAPI properties: ${hasExpandedOpenApiProps}`);
-  console.log(`🔥 [OPENAPI LAYOUT] Should show OpenAPI structure: ${shouldShowOpenApiStructure}`);
-  console.log(`🔥 [OPENAPI LAYOUT] Expanded OpenAPI paths:`, 
-    Object.keys(collapsedPaths)
-      .filter(path => path.startsWith('root.') && !path.startsWith('root.properties') && path !== 'root')
-      .map(path => ({ path, expanded: collapsedPaths[path] === false }))
-  );
-  
   // Process OpenAPI properties if root is expanded or if we have specific expanded properties
   if (shouldShowOpenApiStructure) {
-    console.log('[OPENAPI LAYOUT] Root properties are explicitly expanded, processing OpenAPI structure');
     
     let yOffset = 150;
     const nodeSpacing = 400;
@@ -98,15 +81,12 @@ export const generateOpenApiLayout = (
       const infoExplicitlyExpanded = collapsedPaths[infoPath] === false || 
         (collapsedPaths[infoPath] && typeof collapsedPaths[infoPath] === 'object');
       
-      console.log(`🔥 [OPENAPI LAYOUT] Info path: ${infoPath}, explicitly expanded: ${infoExplicitlyExpanded}`);
-      
       // Always create info box when showing OpenAPI structure, pass expanded state
       const infoNode = createInfoNode(schema.info, -400, yOffset, infoExplicitlyExpanded);
       const infoEdge = createEdge('root', infoNode.id, undefined, false, {}, 'default');
       result.nodes.push(infoNode);
       result.edges.push(infoEdge);
       specialNodes.push('info');
-      console.log(`🔥 [OPENAPI LAYOUT] Created info node with ID: ${infoNode.id}, expanded: ${infoExplicitlyExpanded}`);
       
       // If info is explicitly expanded, process its internal structure (if any)
       // Note: Info typically doesn't have expandable children, but keeping this for consistency
@@ -118,23 +98,18 @@ export const generateOpenApiLayout = (
       const componentsExplicitlyExpanded = collapsedPaths[componentsPath] === false || 
         (collapsedPaths[componentsPath] && typeof collapsedPaths[componentsPath] === 'object');
       
-      console.log(`🔥 [OPENAPI LAYOUT] Components path: ${componentsPath}, explicitly expanded: ${componentsExplicitlyExpanded}`);
-      
       // Always create components box when showing OpenAPI structure
       const componentsNode = createComponentsNode(schema.components.schemas, 0, yOffset, componentsExplicitlyExpanded);
       const componentsEdge = createEdge('root', componentsNode.id, undefined, false, {}, 'default');
       result.nodes.push(componentsNode);
       result.edges.push(componentsEdge);
       specialNodes.push('components');
-      console.log(`🔥 [OPENAPI LAYOUT] Created components node with ID: ${componentsNode.id}`);
       
       // Only create individual schema nodes if components is explicitly expanded
       if (componentsExplicitlyExpanded) {
         // Create individual schema nodes connected to components if components.schemas is expanded
         const componentsSchemasPath = 'root.components.schemas';
         const componentsSchemasExpanded = collapsedPaths[componentsSchemasPath] === false;
-        
-        console.log(`🔥 [OPENAPI LAYOUT] Components schemas path: ${componentsSchemasPath}, expanded: ${componentsSchemasExpanded}`);
         
         if (componentsSchemasExpanded) {
           processComponentsSchemas(
@@ -159,8 +134,6 @@ export const generateOpenApiLayout = (
       const pathsExplicitlyExpanded = collapsedPaths[pathsPath] === false || 
         (collapsedPaths[pathsPath] && typeof collapsedPaths[pathsPath] === 'object');
       
-      console.log(`🔥 [OPENAPI LAYOUT] Paths path: ${pathsPath}, explicitly expanded: ${pathsExplicitlyExpanded}`);
-      
       // Always create the Paths container box
       const pathsContainerNode = createPropertyNode(
         'Paths',
@@ -178,11 +151,9 @@ export const generateOpenApiLayout = (
       const pathsContainerEdge = createEdge('root', pathsContainerNode.id, undefined, false, {}, 'default');
       result.nodes.push(pathsContainerNode);
       result.edges.push(pathsContainerEdge);
-      console.log(`🔥 [OPENAPI LAYOUT] Created paths container node with ID: ${pathsContainerNode.id}`);
       
       // If paths is explicitly expanded, also create individual endpoint boxes connected to the container
       if (pathsExplicitlyExpanded) {
-        console.log(`🔥 [OPENAPI LAYOUT] Creating individual endpoint boxes connected to paths container`);
         processOpenApiPaths(
           schema.paths,
           pathsContainerNode.id, // Connect to paths container
@@ -194,7 +165,6 @@ export const generateOpenApiLayout = (
           collapsedPaths,
           'root.paths'
         );
-        console.log(`🔥 [OPENAPI LAYOUT] Processed individual paths connected to container`);
       }
     }
     

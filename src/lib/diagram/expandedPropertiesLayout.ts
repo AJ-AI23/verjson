@@ -39,7 +39,6 @@ export const generateExpandedLayout = (
   
   // If root is collapsed, we should skip generating child nodes
   if (rootCollapsed) {
-    console.log('Root is collapsed, skipping property nodes generation');
     return result;
   }
   
@@ -96,7 +95,6 @@ function processProperties(
     // Update node to show it's collapsed in the editor if applicable
     if (isCollapsed) {
       propNode.data.isCollapsed = true;
-      console.log(`Node ${fullPath} is marked as collapsed in diagram`);
     }
     
     // Add edge from parent to property

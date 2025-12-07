@@ -38,19 +38,6 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
 
   // Validate and extract anchors from nodes
   
-  // Check for nodes without anchors
-  const nodesWithoutAnchors = nodes.filter(node => !node.anchors || node.anchors.length !== 2);
-  if (nodesWithoutAnchors.length > 0) {
-    console.error('❌ [SequenceLayout] Nodes missing anchors detected:', {
-      nodesWithoutAnchors: nodesWithoutAnchors.map(n => ({
-        id: n.id,
-        label: n.label,
-        hasAnchors: !!n.anchors,
-        anchorCount: n.anchors?.length || 0
-      }))
-    });
-  }
-  
   // Extract all anchors from nodes
   const anchors: AnchorNode[] = nodes.flatMap(node => 
     node.anchors?.map(anchor => ({ ...anchor })) || []
@@ -58,7 +45,6 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
 
   // Guard against undefined lifelines
   if (!lifelines || lifelines.length === 0) {
-    console.warn('⚠️ No lifelines provided to calculateSequenceLayout');
     return { nodes: [], edges: [] };
   }
 
@@ -417,24 +403,6 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       // Add margins: dynamic left margin based on processes, fixed right margin
       const totalLeftMargin = BASE_MARGIN + leftProcessMargin;
       const totalRightMargin = RIGHT_MARGIN;
-      
-      // Debug logging - log all first 5 nodes
-      if (index < 5) {
-        console.log(`🔍 Node ${node.id} (index ${index}):`, {
-          leftLifeline: leftLifelineId,
-          leftProcessMargin,
-          topY,
-          nodeHeight,
-          totalLeftMargin,
-          overlappingProcessCount: options.processes?.filter(process => {
-            const processAnchorsOnLifeline = process.anchorIds.filter(id => {
-              const anchor = anchors.find(a => a.id === id);
-              return anchor?.lifelineId === leftLifelineId;
-            });
-            return processAnchorsOnLifeline.length > 0;
-          }).length || 0
-        });
-      }
       
       startX = leftX + totalLeftMargin;
       width = Math.abs(rightX - leftX) - totalLeftMargin - totalRightMargin;

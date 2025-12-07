@@ -1193,25 +1193,11 @@ const FitViewHelper: React.FC<{
             
             // Only update if order actually changed
             if (newOrder !== oldOrder) {
-              console.log('🔄 [LifelineDrag] Updating lifeline order:', {
-                lifelineId,
-                oldOrder,
-                newOrder,
-                newX
-              });
-              
               handleLifelineUpdate(lifelineId, { order: newOrder });
             } else {
               // Order didn't change - force snap back to correct position from layout
               const currentLifelineLayout = lifelineLayoutNodes.find(n => n.id === `lifeline-${lifelineId}`);
               const correctX = currentLifelineLayout?.position.x || (oldOrder * (300 + 100) + 150);
-              
-              console.log('↩️ [LifelineDrag] Snapping back to correct position:', {
-                lifelineId,
-                order: oldOrder,
-                correctX,
-                attemptedX: newX
-              });
               
               // Force update nodes to snap back to correct position
               setNodes(currentNodes => 
@@ -1408,7 +1394,6 @@ const FitViewHelper: React.FC<{
       // Get process ID from node data (reliable method)
       const processId = node.data?.processId as string;
       if (!processId) {
-        console.error('Process node missing processId in data:', node);
         return;
       }
       processManagement.addAnchorToProcess(selectedAnchorId, processId);
