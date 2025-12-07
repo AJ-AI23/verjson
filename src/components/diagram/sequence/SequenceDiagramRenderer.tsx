@@ -882,9 +882,18 @@ const FitViewHelper: React.FC<{
     }
     
     // Detect drag end
+    const allDropChanges = changes.filter((c: any) => c.type === 'position' && c.dragging === false);
+    if (allDropChanges.length > 0) {
+      console.log('🔴 [POTENTIAL DROP] All changes with dragging=false:', allDropChanges.map((c: any) => ({
+        id: c.id,
+        hasPosition: !!c.position,
+        position: c.position
+      })));
+    }
+    
     const dragEndChange = changes.find((c: any) => c.type === 'position' && c.dragging === false && c.position);
     if (dragEndChange && dragEndChange.type === 'position') {
-      console.log('🔴 [DRAG END] Setting isDraggingRef.current = false');
+      console.log('🔴 [DRAG END] Detected drop for node:', dragEndChange.id, 'isDraggingRef was:', isDraggingRef.current);
       isDraggingRef.current = false;
       // Always reset isDragging state and force layout recalculation on any drag end
       setIsDragging(false);
