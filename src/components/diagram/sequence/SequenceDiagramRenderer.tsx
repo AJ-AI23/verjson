@@ -913,14 +913,28 @@ const FitViewHelper: React.FC<{
           console.log(`  1. ${dragEndNodeId} [DRAGGED]: placed at slot=${preferredSlot}, lanes=[${span.leftLane}-${span.rightLane}]`);
         }
         
-        // 2. Place other nodes in original order, finding first slot that fits from top
-        const otherNodes = diagramNodes.filter(n => n.id !== dragEndNodeId && nodeSpans.has(n.id));
+        // 2. Sort OTHER nodes by their ORIGINAL slot position (preserves relative order)
+        const otherNodes = diagramNodes
+          .filter(n => n.id !== dragEndNodeId && nodeSpans.has(n.id))
+          .sort((a, b) => {
+            // Sort by original yPosition to preserve relative ordering
+            const aY = a.yPosition ?? 0;
+            const bY = b.yPosition ?? 0;
+            return aY - bY;
+          });
         
+        console.log(`  Processing ${otherNodes.length} other nodes in order:`);
+        otherNodes.forEach((node, idx) => {
+          const origSlot = yToSlot(node.yPosition ?? 0);
+          console.log(`    ${idx + 1}. ${node.id} (original slot=${origSlot})`);
+        });
+        
+        // 3. Place each other node at the first available slot from top
         otherNodes.forEach((node, idx) => {
           const span = nodeSpans.get(node.id)!;
           let placedSlot: number | null = null;
           
-          // Try each slot from 0 upward, find first one without conflicts
+          // Scan from slot 0 upward, find first slot without conflicts
           for (let s = 0; s < MAX_SLOTS; s++) {
             if (!conflicts(span, slots[s], positions)) {
               placedSlot = s;
