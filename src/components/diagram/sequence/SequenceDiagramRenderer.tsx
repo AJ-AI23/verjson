@@ -654,9 +654,15 @@ const FitViewHelper: React.FC<{
           ? `${currentTheme}-${diagramNode.label}-${diagramNode.type}-${JSON.stringify(diagramNode.data || {})}`
           : currentTheme;
         
+        const isDraggable = !readOnly && !isRenderMode && isInteractive;
+        // Log draggable state for first node only to avoid spam
+        if (node.id === diagramNodes[0]?.id) {
+          console.log('🎯 [sequenceNode draggable]', { nodeId: node.id, isDraggable, readOnly, isRenderMode, isInteractive });
+        }
+        
         return {
           ...node,
-          draggable: !readOnly && !isRenderMode && isInteractive,
+          draggable: isDraggable,
           selectable: !readOnly && !isRenderMode && isInteractive,
           selected: node.selected && isInteractive,
           data: {
