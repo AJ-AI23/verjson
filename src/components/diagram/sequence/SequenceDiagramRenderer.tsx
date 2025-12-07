@@ -1009,9 +1009,10 @@ const FitViewHelper: React.FC<{
       }
     }
     
-    // Constrain sequence node movement to vertical only during drag
+    // Constrain sequence node movement to vertical only during drag AND on drop
+    // The key insight: we must constrain both when dragging=true AND when dragging=false (the drop)
     const constrainedChanges = changes.map((change: any) => {
-      if (change.type === 'position' && change.dragging) {
+      if (change.type === 'position' && change.position) {
         const node = nodes.find(n => n.id === change.id);
         if (node?.type === 'sequenceNode') {
           // Multi-node drag disabled - only single node swapping is supported
@@ -1034,9 +1035,15 @@ const FitViewHelper: React.FC<{
           const storedPosition = dragStartPositionsRef.current.get(change.id);
           const originalX = storedPosition?.x ?? node.position.x;
           
-          console.log('🔒 [DRAG CONSTRAIN]', { nodeId: change.id, storedX: storedPosition?.x, currentX: node.position.x, usingX: originalX });
+          console.log('🔒 [POSITION CONSTRAIN]', { 
+            nodeId: change.id, 
+            dragging: change.dragging,
+            storedX: storedPosition?.x, 
+            attemptedX: change.position.x,
+            usingX: originalX 
+          });
           
-          // Keep original X position from layout, only allow Y to change within constraints
+          // Keep original X position, only allow Y to change within constraints
           return {
             ...change,
             position: {
