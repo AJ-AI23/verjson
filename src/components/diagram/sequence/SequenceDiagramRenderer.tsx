@@ -895,6 +895,12 @@ const FitViewHelper: React.FC<{
       if (onDataChange) {
         const sequenceNodes = nodes.filter(n => n.type === 'sequenceNode');
         
+        console.log('🔍 [DROP DEBUG] Starting drop analysis:', {
+          draggedNodeId: dragEndChange.id,
+          totalSequenceNodes: sequenceNodes.length,
+          totalDiagramNodes: diagramNodes.length
+        });
+        
         // Find the dragged node
         const draggedFlowNode = sequenceNodes.find(n => n.id === dragEndChange.id);
         if (!draggedFlowNode) {
@@ -908,8 +914,21 @@ const FitViewHelper: React.FC<{
         const draggedNodeHeight = nodeHeights.get(dragEndChange.id) || draggedNodeConfig?.defaultHeight || 70;
         const draggedCenterY = draggedFlowNode.position.y + (draggedNodeHeight / 2);
         
+        console.log('🔍 [DROP DEBUG] Dragged node info:', {
+          draggedFlowNodePosition: draggedFlowNode.position,
+          draggedNodeHeight,
+          draggedCenterY,
+          diagramNodeYPosition: draggedDiagramNode?.yPosition
+        });
+        
         // Get all nodes sorted by their ORIGINAL yPosition (before drag)
         const nodesByOriginalOrder = [...diagramNodes].sort((a, b) => (a.yPosition || 0) - (b.yPosition || 0));
+        
+        console.log('🔍 [DROP DEBUG] Nodes by original order:', nodesByOriginalOrder.map(n => ({
+          id: n.id,
+          label: n.label?.substring(0, 20),
+          yPosition: n.yPosition
+        })));
         
         // Find the dragged node's original index
         const originalIndex = nodesByOriginalOrder.findIndex(n => n.id === dragEndChange.id);
@@ -917,12 +936,20 @@ const FitViewHelper: React.FC<{
         // Find where the dragged node should be inserted based on its new position
         // Only count nodes that the dragged node has FULLY passed (crossed their center)
         let newOrderIndex = 0;
+        console.log('🔍 [DROP DEBUG] Checking order change - draggedCenterY:', draggedCenterY);
+        
         for (let i = 0; i < nodesByOriginalOrder.length; i++) {
           const node = nodesByOriginalOrder[i];
-          if (node.id === dragEndChange.id) continue; // Skip the dragged node itself
+          if (node.id === dragEndChange.id) {
+            console.log(`  [${i}] ${node.id} (DRAGGED NODE) - skipping`);
+            continue;
+          }
           
           const nodeCenterY = node.yPosition || 0;
-          if (draggedCenterY > nodeCenterY) {
+          const passed = draggedCenterY > nodeCenterY;
+          console.log(`  [${i}] ${node.id}: centerY=${nodeCenterY}, passed=${passed}`);
+          
+          if (passed) {
             newOrderIndex = i + 1;
           }
         }
@@ -930,11 +957,20 @@ const FitViewHelper: React.FC<{
         // Adjust index since we'll remove the dragged node
         const adjustedNewIndex = newOrderIndex > originalIndex ? newOrderIndex - 1 : newOrderIndex;
         
+        console.log('🔍 [DROP DEBUG] Order calculation result:', {
+          originalIndex,
+          newOrderIndex,
+          adjustedNewIndex,
+          orderChanged: adjustedNewIndex !== originalIndex
+        });
+        
         // If order didn't change, restore original yPositions to trigger snapback
         // Use the positions stored at drag START (before any sync updates)
         if (adjustedNewIndex === originalIndex) {
           console.log('📋 [DROP] Order unchanged, restoring original yPositions for snapback');
           const originalYPositions = dragStartYPositionsRef.current;
+          
+          console.log('🔍 [DROP DEBUG] Original yPositions from drag start:', Object.fromEntries(originalYPositions));
           
           // Restore original yPositions from drag start
           const restoredNodes = diagramNodes.map(n => ({
@@ -942,6 +978,11 @@ const FitViewHelper: React.FC<{
             yPosition: originalYPositions.get(n.id) ?? n.yPosition,
             anchors: n.anchors // Keep tuple type
           }));
+          
+          console.log('🔍 [DROP DEBUG] Restored nodes yPositions:', restoredNodes.map(n => ({
+            id: n.id,
+            yPosition: n.yPosition
+          })));
           
           onDataChange({ ...data, nodes: restoredNodes });
           return;
@@ -964,13 +1005,19 @@ const FitViewHelper: React.FC<{
         // This ensures 100% consistent spacing between drop and initial render
         const calculatedPositions = calculateEvenSpacing(reorderedNodes, nodeHeights, lifelines);
         
+        console.log('🔍 [DROP DEBUG] Calculated new positions:', Object.fromEntries(calculatedPositions));
+        
         const updatedNodes = reorderedNodes.map((node) => ({
           ...node,
           yPosition: calculatedPositions.get(node.id) || node.yPosition,
           anchors: node.anchors
         }));
         
-        console.log('📝 [DROP] Repositioned nodes using calculateEvenSpacing');
+        console.log('📝 [DROP] Repositioned nodes:', updatedNodes.map(n => ({
+          id: n.id,
+          newYPosition: n.yPosition
+        })));
+        
         onDataChange({ ...data, nodes: updatedNodes });
       }
     }
