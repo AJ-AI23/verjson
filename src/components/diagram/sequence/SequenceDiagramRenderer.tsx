@@ -755,8 +755,8 @@ const FitViewHelper: React.FC<{
         const SLOT_HEIGHT = 100; // Each slot is 100 units
         const sequenceNodes = nodes.filter(n => n.type === 'sequenceNode');
         
-        console.log('🎯 SLOT-BASED POSITIONING: Drag end detected');
-        console.log('📊 Sequence nodes count:', sequenceNodes.length);
+        console.log('SLOT-BASED POSITIONING: Drag end detected');
+        console.log('Sequence nodes count:', sequenceNodes.length);
         
         // Build lifeline position map for overlap detection
         const lifelinePositions = new Map<string, number>();
@@ -857,17 +857,15 @@ const FitViewHelper: React.FC<{
         });
         console.table(occupancyDebug.sort((a, b) => a.slot - b.slot));
         
-        // Cascade conflicts starting from the dragged node's slot
-        if (draggedNodeId) {
-          const draggedNode = diagramNodes.find(n => n.id === draggedNodeId);
-          const draggedSlot = nodeToSlot.get(draggedNodeId)!;
-          
-          // Process slots from dragged slot downward to cascade conflicts
-          const maxSlot = Math.max(...Array.from(nodeToSlot.values()));
-          
-          console.log('⚡ CONFLICT RESOLUTION: Processing slots', draggedSlot, 'to', maxSlot + 10);
-          
-          for (let currentSlot = draggedSlot; currentSlot <= maxSlot + 10; currentSlot++) {
+        // Resolve ALL conflicts across all slots (not just from dragged node)
+        // This ensures that overlapping nodes in neighboring lifelines are separated
+        const allSlots = Array.from(nodeToSlot.values());
+        const minSlot = allSlots.length > 0 ? Math.min(...allSlots) : 0;
+        const maxSlot = allSlots.length > 0 ? Math.max(...allSlots) : 0;
+        
+        console.log('⚡ CONFLICT RESOLUTION: Processing ALL slots from', minSlot, 'to', maxSlot + 10);
+        
+        for (let currentSlot = minSlot; currentSlot <= maxSlot + 10; currentSlot++) {
             const occupants = slotOccupants.get(currentSlot);
             if (!occupants || occupants.size === 0) continue;
             
@@ -905,7 +903,6 @@ const FitViewHelper: React.FC<{
                 }
               }
               if (hasConflict) break;
-            }
           }
         }
         
@@ -937,11 +934,9 @@ const FitViewHelper: React.FC<{
           anchors: node.anchors
         }));
         
-        console.log('📝 UPDATED NODES for onDataChange:', updatedNodes.map(n => ({
-          id: n.id,
-          label: n.label,
-          yPosition: n.yPosition
-        })));
+        console.log('📝 UPDATED NODES for onDataChange:', updatedNodes.map(n => {
+          return { id: n.id, label: n.label, yPosition: n.yPosition };
+        }));
         
         onDataChange({ ...data, nodes: updatedNodes });
       }
