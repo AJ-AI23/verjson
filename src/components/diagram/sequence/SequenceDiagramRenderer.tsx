@@ -802,6 +802,10 @@ const FitViewHelper: React.FC<{
         
         // Create slot assignments: convert visual Y positions to slot indices
         // IMPORTANT: visual Y is top of node, but we need to convert to center Y for document
+        // Use dragEndChange.position for the dragged node since React Flow hasn't updated yet
+        const dragEndNodeId = dragEndChange.id;
+        const dragEndPosition = dragEndChange.position;
+        
         const nodeToSlot = new Map<string, number>();
         const initialSlotDebug: Array<{id: string, label: string, visualTopY: number, centerY: number, slot: number, originalYPosition: number}> = [];
         
@@ -810,7 +814,9 @@ const FitViewHelper: React.FC<{
           const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
           const nodeHeight = nodeHeights.get(n.id) || nodeConfig?.defaultHeight || 70;
           
-          const visualTopY = n.position.y;
+          // Use the NEW position from dragEndChange for the dragged node
+          // Other nodes use their current position
+          const visualTopY = n.id === dragEndNodeId ? dragEndPosition.y : n.position.y;
           const centerY = visualTopY + (nodeHeight / 2); // Convert top Y to center Y
           const slot = Math.round(centerY / SLOT_HEIGHT);
           nodeToSlot.set(n.id, slot);
@@ -1033,14 +1039,64 @@ const FitViewHelper: React.FC<{
     
     // Apply pushed node positions AFTER handleNodesChange (otherwise they get overwritten)
     const pushedPositions = pushedNodePositionsRef.current;
-    const draggedNodeId = pushedNodeDraggedIdRef.current;
+    const pushedDraggedNodeId = pushedNodeDraggedIdRef.current;
     
-    // Update anchors during drag AND apply pushed node positions
+    // Apply pushed node positions if any exist (from drag end conflict resolution)
+    if (pushedPositions.size > 0) {
+      console.log('🚀 Applying pushed positions for', pushedPositions.size, 'nodes');
+      setNodes(currentNodes =>
+        currentNodes.map(n => {
+          // Skip the dragged node - its position is already correct
+          if (n.id === pushedDraggedNodeId) return n;
+          
+          // Update pushed sequence nodes
+          if (n.type === 'sequenceNode') {
+            const newYPosition = pushedPositions.get(n.id);
+            if (newYPosition !== undefined) {
+              const pushedDiagramNode = diagramNodes.find(dn => dn.id === n.id);
+              const pushedNodeConfig = pushedDiagramNode ? getNodeTypeConfig(pushedDiagramNode.type) : null;
+              const pushedNodeHeight = nodeHeights.get(n.id) || pushedNodeConfig?.defaultHeight || 70;
+              
+              // Convert center Y (yPosition) back to top Y for React Flow
+              const newTopY = newYPosition - (pushedNodeHeight / 2);
+              
+              if (Math.abs(n.position.y - newTopY) > 1) {
+                console.log('🔄 Moving pushed node:', n.id, 'from', n.position.y, 'to', newTopY);
+                return { ...n, position: { ...n.position, y: newTopY } };
+              }
+            }
+          }
+          
+          // Update anchors for pushed nodes
+          if (n.type === 'anchorNode') {
+            const anchorData = n.data as any;
+            const connectedNodeId = anchorData?.connectedNodeId;
+            if (connectedNodeId && connectedNodeId !== pushedDraggedNodeId) {
+              const newYPosition = pushedPositions.get(connectedNodeId);
+              if (newYPosition !== undefined) {
+                const newAnchorY = newYPosition - 8;
+                if (Math.abs(n.position.y - newAnchorY) > 1) {
+                  console.log('🔄 Moving anchor for pushed node:', n.id, 'from', n.position.y, 'to', newAnchorY);
+                  return { ...n, position: { ...n.position, y: newAnchorY } };
+                }
+              }
+            }
+          }
+          
+          return n;
+        })
+      );
+      
+      // Clear pushed positions after applying
+      pushedNodePositionsRef.current = new Map();
+      pushedNodeDraggedIdRef.current = null;
+    }
+    
+    // Update anchors during drag (separate from pushed positions)
     const dragChange = constrainedChanges.find((c: any) => c.type === 'position' && c.dragging);
     if (dragChange) {
       const draggedNode = nodes.find(n => n.id === dragChange.id);
       if (draggedNode?.type === 'sequenceNode') {
-        // Use actual measured height, fall back to default if not yet measured
         const actualHeight = nodeHeights.get(dragChange.id);
         const diagramNode = diagramNodes.find(n => n.id === dragChange.id);
         const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
@@ -1048,63 +1104,19 @@ const FitViewHelper: React.FC<{
         const newY = dragChange.position.y;
         const nodeCenterY = newY + (nodeHeight / 2);
         
-        // Update anchor positions for dragged node AND apply pushed node positions
+        // Update anchor positions for the dragged node during drag
         if (!(selectedNodeIds.includes(dragChange.id) && selectedNodeIds.length > 1)) {
           setNodes(currentNodes =>
             currentNodes.map(n => {
-              // Update anchors for dragged node
               const anchorData = n.data as any;
               if (n.type === 'anchorNode' && anchorData?.connectedNodeId === dragChange.id) {
                 return { ...n, position: { x: n.position.x, y: nodeCenterY - 8 } };
               }
-              
-              // Apply pushed node positions (skip the dragged node)
-              if (pushedPositions.size > 0 && n.id !== draggedNodeId) {
-                // Update pushed sequence nodes
-                if (n.type === 'sequenceNode') {
-                  const newYPosition = pushedPositions.get(n.id);
-                  if (newYPosition !== undefined) {
-                    const pushedDiagramNode = diagramNodes.find(dn => dn.id === n.id);
-                    const pushedNodeConfig = pushedDiagramNode ? getNodeTypeConfig(pushedDiagramNode.type) : null;
-                    const pushedNodeHeight = nodeHeights.get(n.id) || pushedNodeConfig?.defaultHeight || 70;
-                    
-                    // Convert center Y (yPosition) back to top Y for React Flow
-                    const newTopY = newYPosition - (pushedNodeHeight / 2);
-                    
-                    if (Math.abs(n.position.y - newTopY) > 1) {
-                      console.log('🔄 Moving pushed node:', n.id, 'from', n.position.y, 'to', newTopY);
-                      return { ...n, position: { ...n.position, y: newTopY } };
-                    }
-                  }
-                }
-                
-                // Update anchors for pushed nodes
-                if (n.type === 'anchorNode') {
-                  const connectedNodeId = anchorData?.connectedNodeId;
-                  if (connectedNodeId && connectedNodeId !== draggedNodeId) {
-                    const newYPosition = pushedPositions.get(connectedNodeId);
-                    if (newYPosition !== undefined) {
-                      const newAnchorY = newYPosition - 8;
-                      if (Math.abs(n.position.y - newAnchorY) > 1) {
-                        console.log('🔄 Moving anchor for pushed node:', n.id, 'from', n.position.y, 'to', newAnchorY);
-                        return { ...n, position: { ...n.position, y: newAnchorY } };
-                      }
-                    }
-                  }
-                }
-              }
-              
               return n;
             })
           );
         }
       }
-    }
-    
-    // Clear pushed positions after applying
-    if (pushedPositions.size > 0) {
-      pushedNodePositionsRef.current = new Map();
-      pushedNodeDraggedIdRef.current = null;
     }
     
     if (onNodesChange) {
