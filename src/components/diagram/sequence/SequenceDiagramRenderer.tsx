@@ -1216,8 +1216,26 @@ const FitViewHelper: React.FC<{
             }
           }
         }
+      } else if (movedNode?.type === 'sequenceNode') {
+        // Sequence node positions are handled by the slot-based drag-end logic above (lines 746-877)
+        // Do NOT recalculate here as it would overwrite the slot-based positions
+        // Just update anchor positions visually to match the new node position
+        const movedDiagramNode = diagramNodes.find(n => n.id === moveChange.id);
+        const nodeConfig = movedDiagramNode ? getNodeTypeConfig(movedDiagramNode.type) : null;
+        const nodeHeight = nodeHeights.get(moveChange.id) || nodeConfig?.defaultHeight || 70;
+        const nodeCenterY = moveChange.position.y + (nodeHeight / 2);
+        
+        setNodes(currentNodes =>
+          currentNodes.map(n => {
+            const anchorData = n.data as any;
+            if (n.type === 'anchorNode' && anchorData?.connectedNodeId === moveChange.id) {
+              return { ...n, position: { x: n.position.x, y: nodeCenterY - 8 } };
+            }
+            return n;
+          })
+        );
       } else {
-        // Regular node position update - also update connected anchors
+        // Other node types (not anchor, lifeline, or sequence) - should not happen in sequence diagrams
         const movedDiagramNode = diagramNodes.find(n => n.id === moveChange.id);
         const nodeConfig = movedDiagramNode ? getNodeTypeConfig(movedDiagramNode.type) : null;
         const nodeHeight = nodeConfig?.defaultHeight || 70;
