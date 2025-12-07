@@ -13,7 +13,6 @@ export const addNotationToSchema = (
   }
 
   const updatedSchema = JSON.parse(JSON.stringify(schema)); // Deep clone
-  console.log('Adding notation to path:', path, 'with notation:', notation);
   
   // Handle root level notations
   if (path === 'root') {
@@ -24,7 +23,6 @@ export const addNotationToSchema = (
       ...notation,
       id: `notation-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     });
-    console.log('Added notation to root, result:', updatedSchema.$notations);
     return updatedSchema;
   }
   
@@ -44,7 +42,6 @@ export const addNotationToSchema = (
       ...notation,
       id: `notation-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     });
-    console.log('Added notation to path:', pathKey, 'result:', updatedSchema.paths[pathKey].$notations);
     return updatedSchema;
   }
   
@@ -60,7 +57,6 @@ export const addNotationToSchema = (
       ...notation,
       id: `notation-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     });
-    console.log('Added notation to info, result:', updatedSchema.info.$notations);
     return updatedSchema;
   }
 
@@ -86,10 +82,8 @@ export const addNotationToSchema = (
           ...notation,
           id: `notation-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
         });
-        console.log('Added notation to property:', part, 'result:', current.properties[part].$notations);
         return updatedSchema;
       } else {
-        console.warn(`Target property ${part} not found in current object`);
         return updatedSchema;
       }
     } else {
@@ -99,7 +93,6 @@ export const addNotationToSchema = (
       } else if (current.items && part === 'items') {
         current = current.items;
       } else {
-        console.warn(`Could not navigate to path part: ${part} in path: ${path}`);
         return updatedSchema;
       }
     }
@@ -112,8 +105,6 @@ export const addNotationToSchema = (
  * Gets the property path from a node ID
  */
 export const getPropertyPathFromNodeId = (nodeId: string): string => {
-  console.log('Converting nodeId to path:', nodeId);
-  
   if (nodeId === 'root') {
     return 'root';
   }

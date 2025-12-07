@@ -112,15 +112,6 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       
       // Calculate pixel ratio to achieve target dimensions
       const pixelRatio = captureWidth / previewRect.width;
-      
-      console.log('[Render] Capturing preview:', { 
-        targetWidth: captureWidth, 
-        targetHeight: captureHeight, 
-        previewWidth: previewRect.width,
-        previewHeight: previewRect.height,
-        pixelRatio,
-        backgroundColor: selectedThemeData?.colors?.background
-      });
 
       // Capture the preview container directly
       const renderFunction = captureFormat === 'svg' ? toSvg : toPng;
@@ -163,7 +154,6 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       onOpenChange(false);
 
     } catch (error) {
-      console.error('[Render] Error occurred:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to render diagram');
     }
   };
@@ -180,7 +170,6 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   );
 
   const handleFitView = () => {
-    console.log('[DiagramRenderDialog] Fit to View button clicked - MANUAL fitView call');
     if (previewFitViewRef.current) {
       previewFitViewRef.current();
     }
