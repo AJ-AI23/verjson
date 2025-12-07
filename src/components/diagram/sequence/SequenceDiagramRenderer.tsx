@@ -976,16 +976,33 @@ const FitViewHelper: React.FC<{
     }
     
     // Constrain sequence node movement to vertical only during drag
-    // On DROP (dragging=false), we skip position updates entirely - let the layout engine handle it
+    // On DROP, use the layout-calculated position to ensure proper snapback
     const constrainedChanges = changes.map((change: any) => {
       if (change.type === 'position' && change.position) {
         const node = nodes.find(n => n.id === change.id);
         if (node?.type === 'sequenceNode') {
-          // On DROP: Skip this position change entirely - the layout engine will recalculate
-          // This is critical for snapback to work correctly
+          // Get original X position from drag start ref
+          const storedPosition = dragStartPositionsRef.current.get(change.id);
+          const originalX = storedPosition?.x ?? node.position.x;
+          
           if (change.dragging === false) {
-            console.log('🔄 [DROP POSITION] Skipping position update for layout recalculation', change.id);
-            return { ...change, type: 'skip' }; // Mark to skip
+            // On DROP: Use the layout-calculated position for snapback
+            // The previousLayoutRef contains the last calculated positions
+            const layoutNode = previousLayoutRef.current.nodes.find(n => n.id === change.id);
+            if (layoutNode) {
+              console.log('🔄 [DROP POSITION] Using layout position for snapback', {
+                nodeId: change.id,
+                droppedY: change.position.y,
+                layoutY: layoutNode.position.y
+              });
+              return {
+                ...change,
+                position: {
+                  x: originalX,
+                  y: layoutNode.position.y
+                }
+              };
+            }
           }
           
           // During DRAG: Apply constraints
@@ -994,16 +1011,11 @@ const FitViewHelper: React.FC<{
           const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
           const nodeHeight = actualHeight || nodeConfig?.defaultHeight || 70;
           
-          // Only constrain top boundary - lifeline will auto-extend downward
           const LIFELINE_HEADER_HEIGHT = 100;
-          const minY = LIFELINE_HEADER_HEIGHT + 40; // Top constraint
+          const minY = LIFELINE_HEADER_HEIGHT + 40;
           
           const newY = change.position?.y || node.position.y;
           const constrainedY = Math.max(minY, newY);
-          
-          // Get original X position from drag start ref (immediate access, not async state)
-          const storedPosition = dragStartPositionsRef.current.get(change.id);
-          const originalX = storedPosition?.x ?? node.position.x;
           
           console.log('🔒 [POSITION CONSTRAIN]', { 
             nodeId: change.id, 
@@ -1024,14 +1036,11 @@ const FitViewHelper: React.FC<{
       }
       return change;
     });
-    
-    // Filter out skipped changes
-    const filteredChanges = constrainedChanges.filter((c: any) => c.type !== 'skip');
 
-    handleNodesChange(filteredChanges);
+    handleNodesChange(constrainedChanges);
     
      // Update anchors during drag
-    const dragChange = filteredChanges.find((c: any) => c.type === 'position' && c.dragging);
+    const dragChange = constrainedChanges.find((c: any) => c.type === 'position' && c.dragging);
     if (dragChange) {
       const draggedNode = nodes.find(n => n.id === dragChange.id);
       if (draggedNode?.type === 'sequenceNode') {
@@ -1063,7 +1072,7 @@ const FitViewHelper: React.FC<{
     }
     
     // Sync position changes back to data
-    const moveChange = filteredChanges.find((c: any) => c.type === 'position' && c.position && !c.dragging);
+    const moveChange = constrainedChanges.find((c: any) => c.type === 'position' && c.position && !c.dragging);
     if (moveChange && onDataChange) {
       // Check if this is an anchor node
       const movedNode = nodes.find(n => n.id === moveChange.id);
