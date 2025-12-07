@@ -408,7 +408,11 @@ const FitViewHelper: React.FC<{
         { id: anchorId1, lifelineId: sourceLifelineId, anchorType: 'source' },
         { id: anchorId2, lifelineId: targetLifelineId, anchorType: 'target' }
       ],
-      yPosition: constrainedNodeY
+      yPosition: constrainedNodeY,
+      data: {
+        method: 'GET',
+        path: '/api/endpoint'
+      }
     };
     
     const finalNodes = [...updatedNodes, newNode];
