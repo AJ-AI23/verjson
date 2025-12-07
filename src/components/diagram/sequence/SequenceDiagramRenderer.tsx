@@ -2133,14 +2133,19 @@ const FitViewHelper: React.FC<{
   }, []);
 
   // Log rendering information
+  const sequenceNodes = nodes?.filter(n => n.type === 'sequenceNode') || [];
   console.log('[SequenceRenderer] Rendering with:', {
     isRenderMode,
     nodesCount: nodes?.length || 0,
     edgesCount: edges?.length || 0,
     hasActiveTheme: !!activeTheme,
     backgroundColor: activeTheme?.colors.background,
-    firstThreeNodes: nodes?.slice(0, 3).map(n => ({ id: n.id, type: n.type, position: n.position })),
-    firstThreeEdges: edges?.slice(0, 3).map(e => ({ id: e.id, source: e.source, target: e.target }))
+    sequenceNodesWithDraggable: sequenceNodes.slice(0, 3).map(n => ({ 
+      id: n.id, 
+      type: n.type, 
+      draggable: n.draggable,
+      position: n.position 
+    })),
   });
 
   return (
