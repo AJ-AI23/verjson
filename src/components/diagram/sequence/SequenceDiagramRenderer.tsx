@@ -906,9 +906,22 @@ const FitViewHelper: React.FC<{
             slotOccupants.get(slot)!.add(nodeId);
           });
           
+          // Debug: show all slot assignments
+          console.log('📋 Current slot assignments:', Array.from(nodeToSlot.entries()).map(([id, slot]) => {
+            const node = diagramNodes.find(n => n.id === id);
+            return { id, label: node?.label, slot };
+          }));
+          
           for (let currentSlot = minSlot; currentSlot <= maxSlot; currentSlot++) {
             const occupants = slotOccupants.get(currentSlot);
             if (!occupants || occupants.size <= 1) continue;
+            
+            console.log(`🔍 Slot ${currentSlot} has ${occupants.size} occupants:`, Array.from(occupants).map(id => {
+              const node = diagramNodes.find(n => n.id === id);
+              const ll0 = node?.anchors?.[0]?.lifelineId;
+              const ll1 = node?.anchors?.[1]?.lifelineId;
+              return { id, label: node?.label, lifelines: `${lifelinePositions.get(ll0 || '')}-${lifelinePositions.get(ll1 || '')}` };
+            }));
             
             const occupantsList = Array.from(occupants);
             
