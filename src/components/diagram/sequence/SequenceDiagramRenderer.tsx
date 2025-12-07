@@ -814,10 +814,20 @@ const FitViewHelper: React.FC<{
           const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
           const nodeHeight = nodeHeights.get(n.id) || nodeConfig?.defaultHeight || 70;
           
-          // Use the NEW position from dragEndChange for the dragged node
-          // Other nodes use their current position
-          const visualTopY = n.id === dragEndNodeId ? dragEndPosition.y : n.position.y;
-          const centerY = visualTopY + (nodeHeight / 2); // Convert top Y to center Y
+          let centerY: number;
+          let visualTopY: number;
+          
+          if (n.id === dragEndNodeId) {
+            // For dragged node: use the NEW position from dragEndChange
+            visualTopY = dragEndPosition.y;
+            centerY = visualTopY + (nodeHeight / 2);
+          } else {
+            // For non-dragged nodes: use document's yPosition (which is center Y)
+            // This is the source of truth, not React Flow's potentially stale visual position
+            centerY = diagramNode?.yPosition || (n.position.y + nodeHeight / 2);
+            visualTopY = centerY - (nodeHeight / 2);
+          }
+          
           const slot = Math.round(centerY / SLOT_HEIGHT);
           nodeToSlot.set(n.id, slot);
           
