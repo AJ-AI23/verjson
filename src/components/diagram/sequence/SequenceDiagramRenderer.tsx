@@ -1817,6 +1817,8 @@ const FitViewHelper: React.FC<{
 
   // Handle node hover for tooltip
   const handleNodeMouseEnter = useCallback((event: React.MouseEvent, node: Node) => {
+    // Disable tooltips in render mode to prevent viewport resets
+    if (isRenderMode) return;
     const container = document.querySelector('.react-flow');
     if (!container) return;
     
@@ -1872,7 +1874,7 @@ const FitViewHelper: React.FC<{
       description: elementDescription,
       position: viewportPos
     });
-  }, [diagramNodes, data.processes]);
+  }, [diagramNodes, data.processes, isRenderMode]);
 
   const handleNodeMouseLeave = useCallback(() => {
     setHoveredElement(null);
