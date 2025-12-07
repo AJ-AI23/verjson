@@ -157,6 +157,7 @@ const handler = async (req: Request): Promise<Response> => {
             created_at,
             updated_at,
             import_url,
+            is_public,
             crowdin_integration_id,
             crowdin_integration:document_crowdin_integrations!documents_crowdin_integration_id_fkey(
               id,
