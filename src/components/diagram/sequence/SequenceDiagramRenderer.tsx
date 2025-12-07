@@ -891,9 +891,9 @@ const FitViewHelper: React.FC<{
           const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
           const nodeHeight = actualHeight || nodeConfig?.defaultHeight || 70;
           
-          // Only constrain top boundary - lifeline will auto-extend downward
+          // Allow dragging above existing nodes, only prevent going into header area
           const LIFELINE_HEADER_HEIGHT = 100;
-          const minY = LIFELINE_HEADER_HEIGHT + 40; // Top constraint
+          const minY = LIFELINE_HEADER_HEIGHT + 10; // Minimal padding from header
           
           const newY = change.position?.y || node.position.y;
           const constrainedY = Math.max(minY, newY);
@@ -1217,9 +1217,9 @@ const FitViewHelper: React.FC<{
         const nodeConfig = movedDiagramNode ? getNodeTypeConfig(movedDiagramNode.type) : null;
         const nodeHeight = nodeConfig?.defaultHeight || 70;
         
-        // Only constrain vertical position to be below lifeline headers - lifeline will auto-extend downward
+        // Allow dragging above existing nodes, only prevent going into header area
         const LIFELINE_HEADER_HEIGHT = 100;
-        const MIN_Y_POSITION = LIFELINE_HEADER_HEIGHT + 20; // 20px padding below header
+        const MIN_Y_POSITION = LIFELINE_HEADER_HEIGHT + 10; // Minimal padding from header
         const GRID_SIZE = 10; // Snap to 10px grid
         
         // Snap to grid and constrain to minimum position only
@@ -1260,8 +1260,12 @@ const FitViewHelper: React.FC<{
           );
           
           // Recalculate positions with proper vertical spacing
+          // Use the topmost node's position as the starting point to allow moving above existing nodes
           const verticalSpacing = 20;
-          let currentY = LIFELINE_HEADER_HEIGHT + 40;
+          const topNodeConfig = getNodeTypeConfig(sortedUpdatedNodes[0]?.type || 'endpoint');
+          const topNodeHeight = nodeHeights.get(sortedUpdatedNodes[0]?.id) || topNodeConfig?.defaultHeight || 70;
+          const topNodeCenterY = sortedUpdatedNodes[0]?.yPosition || (LIFELINE_HEADER_HEIGHT + 40 + topNodeHeight / 2);
+          let currentY = topNodeCenterY - (topNodeHeight / 2);
           
           const recalculatedNodes = sortedUpdatedNodes.map(node => {
             const nodeConfig = getNodeTypeConfig(node.type);
@@ -1322,8 +1326,12 @@ const FitViewHelper: React.FC<{
           );
           
           // Recalculate positions with proper vertical spacing
+          // Use the topmost node's position as the starting point to allow moving above existing nodes
           const verticalSpacing = 20;
-          let currentY = LIFELINE_HEADER_HEIGHT + 40;
+          const topNodeConfig = getNodeTypeConfig(sortedUpdatedNodes[0]?.type || 'endpoint');
+          const topNodeHeight = nodeHeights.get(sortedUpdatedNodes[0]?.id) || topNodeConfig?.defaultHeight || 70;
+          const topNodeCenterY = sortedUpdatedNodes[0]?.yPosition || (LIFELINE_HEADER_HEIGHT + 40 + topNodeHeight / 2);
+          let currentY = topNodeCenterY - (topNodeHeight / 2);
           
           const recalculatedNodes = sortedUpdatedNodes.map(node => {
             const nodeConfig = getNodeTypeConfig(node.type);
