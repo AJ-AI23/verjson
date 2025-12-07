@@ -265,14 +265,8 @@ const FitViewHelper: React.FC<{
   // Expose fitView and getViewport functions to parent for preview
   useEffect(() => {
     if (nodesCount > 0 && edgesCount > 0 && allNodesMeasured) {
-      console.log('[FitViewHelper] Exposing fitView and getViewport functions to parent', { 
-        allNodesMeasured, 
-        sequenceNodesCount, 
-        measuredHeightsCount 
-      });
       if (onFitViewReady) {
         onFitViewReady(() => {
-          console.log('[FitViewHelper] fitView CALLED via onFitViewReady callback');
           fitView({ padding: 0.1, duration: 200 });
         });
       }
@@ -286,28 +280,15 @@ const FitViewHelper: React.FC<{
   // AND all nodes have been measured
   useEffect(() => {
     if (isRenderMode && nodesCount > 0 && edgesCount > 0 && !hasInitialViewport && !hasUserInteracted && allNodesMeasured) {
-      console.log('[FitViewHelper] AUTO-FIT TRIGGERED - Nodes measured and edges ready, fitting view...', { 
-        nodesCount, 
-        edgesCount,
-        hasUserInteracted,
-        hasInitialViewport,
-        sequenceNodesCount,
-        measuredHeightsCount,
-        allNodesMeasured
-      });
       setTimeout(() => {
         try {
-          console.log('[FitViewHelper] CALLING fitView() - AUTO-FIT');
           fitView({ padding: 0.1, duration: 0 });
-          console.log('[FitViewHelper] fitView called successfully');
           setTimeout(() => {
             if (onReady) {
-              console.log('[FitViewHelper] Calling onReady callback');
               onReady();
             }
           }, 300);
         } catch (error) {
-          console.error('[FitViewHelper] Error in fitView:', error);
           // Still call onReady even if fitView fails
           if (onReady) {
             onReady();
@@ -316,25 +297,11 @@ const FitViewHelper: React.FC<{
       }, 100);
     } else if (isRenderMode && nodesCount > 0 && edgesCount > 0 && hasInitialViewport) {
       // If we have initial viewport, just wait for layout then signal ready
-      console.log('[FitViewHelper] Using initial viewport, skipping fit', { hasInitialViewport, hasUserInteracted });
       setTimeout(() => {
         if (onReady) {
-          console.log('[FitViewHelper] Calling onReady callback with fixed viewport');
           onReady();
         }
       }, 200);
-    } else if (isRenderMode && nodesCount > 0 && edgesCount > 0 && hasUserInteracted) {
-      console.log('[FitViewHelper] SKIPPING AUTO-FIT - User has interacted', { hasUserInteracted });
-    } else if (isRenderMode) {
-      console.log('[FitViewHelper] Waiting for nodes/edges or height measurements...', { 
-        nodesCount, 
-        edgesCount, 
-        hasUserInteracted, 
-        hasInitialViewport,
-        sequenceNodesCount,
-        measuredHeightsCount,
-        allNodesMeasured
-      });
     }
   }, [isRenderMode, nodesCount, edgesCount, fitView, onReady, hasInitialViewport, hasUserInteracted, allNodesMeasured, sequenceNodesCount, measuredHeightsCount]);
   
@@ -343,15 +310,7 @@ const FitViewHelper: React.FC<{
 
   // Add node on lifeline callback
   const handleAddNodeOnLifeline = useCallback((sourceLifelineId: string, yPosition: number, lifelineHeight: number) => {
-    console.log('🆕 [handleAddNodeOnLifeline] Called:', {
-      sourceLifelineId,
-      yPosition,
-      currentNodeCount: diagramNodes.length,
-      hasOnDataChange: !!onDataChange
-    });
-    
     if (!onDataChange || lifelines.length === 0) {
-      console.warn('⚠️ [handleAddNodeOnLifeline] Aborted - missing onDataChange or no lifelines');
       return;
     }
     
@@ -416,11 +375,6 @@ const FitViewHelper: React.FC<{
     };
     
     const finalNodes = [...updatedNodes, newNode];
-    console.log('💾 [handleAddNodeOnLifeline] Calling onDataChange with new node:', {
-      newNodeId: nodeId,
-      totalNodes: finalNodes.length,
-      newNodeLabel: newNode.label
-    });
     onDataChange({ ...data, lifelines: updatedLifelines, nodes: finalNodes });
   }, [diagramNodes, lifelines, data, onDataChange]);
 
@@ -428,23 +382,8 @@ const FitViewHelper: React.FC<{
   const { nodes: layoutNodes, edges: layoutEdges, calculatedYPositions } = useMemo(() => {
     // Skip recalculation during active drag operations - use ref for synchronous check
     if (isDraggingRef.current) {
-      console.log('⏸️ [Layout] Skipping recalculation during drag');
       return previousLayoutRef.current;
     }
-    
-    console.log('🔄 [Layout] Recalculating layout:', {
-      nodeCount: diagramNodes.length,
-      lifelineCount: lifelines.length,
-      isDragging,
-      layoutVersion,
-      nodeHeightsCount: nodeHeights.size,
-      nodeHeightsEntries: Array.from(nodeHeights.entries()).map(([id, h]) => ({ id, height: h })),
-      sampleNode: diagramNodes[0] ? {
-        id: diagramNodes[0].id,
-        label: diagramNodes[0].label,
-        data: diagramNodes[0].data
-      } : null
-    });
     
     const layout = calculateSequenceLayout({
       lifelines,
@@ -458,19 +397,11 @@ const FitViewHelper: React.FC<{
     
     // Validate edge creation and attempt recovery if needed
     if (layout.edges.length === 0 && diagramNodes.length > 0) {
-      console.error('❌ [SequenceDiagramRenderer] No edges created! Attempting recovery...');
-      
       // Check if nodes have anchors
       const nodesWithoutAnchors = diagramNodes.filter(n => !n.anchors || n.anchors.length !== 2);
       if (nodesWithoutAnchors.length > 0) {
-        console.error('❌ [SequenceDiagramRenderer] Found nodes without proper anchors:', 
-          nodesWithoutAnchors.map(n => ({ id: n.id, label: n.label }))
-        );
-        
         // Attempt to regenerate anchors for nodes that are missing them
         if (onDataChange && lifelines.length > 0) {
-          console.warn('⚠️ [SequenceDiagramRenderer] Attempting to auto-repair missing anchors...');
-          
           const repairedNodes = diagramNodes.map(node => {
             if (!node.anchors || node.anchors.length !== 2) {
               // Auto-generate anchors between first two lifelines
@@ -506,16 +437,10 @@ const FitViewHelper: React.FC<{
           
           // Update document with repaired nodes
           setTimeout(() => {
-            console.log('✅ [SequenceDiagramRenderer] Updating document with repaired anchors');
             onDataChange({ ...data, nodes: repairedNodes });
           }, 0);
         }
       }
-    } else {
-      console.log('✅ [SequenceDiagramRenderer] Layout calculated successfully:', {
-        nodesCount: layout.nodes.length,
-        edgesCount: layout.edges.length
-      });
     }
     
     // Store layout for use during drag
@@ -540,22 +465,15 @@ const FitViewHelper: React.FC<{
     
     // Only update if there are actual changes
     if (hasChanges) {
-      console.log('📝 [Position Sync] Syncing calculated positions back to document:', {
-        changedNodes: updatedNodes.filter((node, i) => node.yPosition !== diagramNodes[i].yPosition)
-          .map(n => ({ id: n.id, oldY: diagramNodes.find(dn => dn.id === n.id)?.yPosition, newY: n.yPosition }))
-      });
       onDataChange({ ...data, nodes: updatedNodes });
     }
   }, [calculatedYPositions, onDataChange, diagramNodes, data, isDragging]);
 
   // Handle node height changes
   const handleNodeHeightChange = useCallback((nodeId: string, height: number) => {
-    console.log('📏 [handleNodeHeightChange] Node height measured:', { nodeId, height });
     setNodeHeights(prev => {
       const oldHeight = prev.get(nodeId);
       if (oldHeight !== height) {
-        console.log('📏 [handleNodeHeightChange] Height changed, updating:', { nodeId, oldHeight, newHeight: height });
-        
         // Trigger layout recalculation when height changes after initial load
         // This ensures anchors are repositioned correctly when node heights change
         if (initialHeightsAppliedRef.current) {
@@ -607,18 +525,6 @@ const FitViewHelper: React.FC<{
 
   // Attach handlers to nodes
   const nodesWithHandlers = useMemo(() => {
-    console.log('🔄 [nodesWithHandlers] Recalculating with:', {
-      layoutNodesCount: layoutNodes.length,
-      diagramNodesCount: diagramNodes.length,
-      currentTheme,
-      sampleDiagramNode: diagramNodes[0] ? {
-        id: diagramNodes[0].id,
-        label: diagramNodes[0].label,
-        type: diagramNodes[0].type,
-        data: diagramNodes[0].data
-      } : null
-    });
-    
     return layoutNodes.map(node => {
       if (node.type === 'columnLifeline') {
         const lifelineData = node.data as any;
@@ -759,11 +665,6 @@ const FitViewHelper: React.FC<{
             node.type !== prev.type ||
             node.position.x !== prev.position.x ||
             node.position.y !== prev.position.y) {
-          console.log('📝 [Node Change Detected] Basic properties changed:', { 
-            nodeId: node.id, 
-            type: node.type,
-            posChanged: node.position.y !== prev.position.y 
-          });
           return true;
         }
         
@@ -773,12 +674,6 @@ const FitViewHelper: React.FC<{
           const prevData = prev.data as any;
           // Compare dataVersion which changes when properties or theme changes
           if (nodeData?.dataVersion !== prevData?.dataVersion) {
-            console.log('📝 [Node Change Detected] dataVersion changed:', { 
-              nodeId: node.id, 
-              type: node.type,
-              oldVersion: prevData?.dataVersion,
-              newVersion: nodeData?.dataVersion 
-            });
             return true;
           }
         }
@@ -787,13 +682,6 @@ const FitViewHelper: React.FC<{
       });
     
     if (nodesChanged) {
-      console.log('📝 [Nodes Update] Updating nodes state:', {
-        count: nodesWithHandlers.length,
-        changedNodes: nodesWithHandlers.filter((node, i) => {
-          const prev = prevNodesRef.current[i];
-          return !prev || node.id !== prev.id || (node.data as any)?.dataVersion !== (prev.data as any)?.dataVersion;
-        }).map(n => ({ id: n.id, type: n.type }))
-      });
       prevNodesRef.current = nodesWithHandlers;
       setNodes(nodesWithHandlers);
     }
@@ -838,21 +726,9 @@ const FitViewHelper: React.FC<{
       return;
     }
     
-    // Log all position changes for debugging
-    const positionChanges = changes.filter((c: any) => c.type === 'position');
-    if (positionChanges.length > 0) {
-      console.log('📍 [POSITION CHANGES]:', positionChanges.map((c: any) => ({
-        id: c.id,
-        dragging: c.dragging,
-        hasPosition: !!c.position,
-        position: c.position
-      })));
-    }
-    
     // Store initial positions when drag starts
     const dragStartChange = changes.find((c: any) => c.type === 'position' && c.dragging === true);
     if (dragStartChange) {
-      console.log('🟢 [DRAG START]', dragStartChange.id);
       isDraggingRef.current = true;
       setIsDragging(true);
       
@@ -869,7 +745,6 @@ const FitViewHelper: React.FC<{
     // Detect drag end
     const dragEndChange = changes.find((c: any) => c.type === 'position' && c.dragging === false && c.position);
     if (dragEndChange && dragEndChange.type === 'position') {
-      console.log('🔴 [DRAG END] Setting isDraggingRef.current = false');
       isDraggingRef.current = false;
       // Always reset isDragging state and force layout recalculation on any drag end
       setIsDragging(false);
@@ -978,8 +853,6 @@ const FitViewHelper: React.FC<{
                     slotOccupants.set(currentSlot + 1, new Set());
                   }
                   slotOccupants.get(currentSlot + 1)!.add(nodeIdToPush);
-                  
-                  console.log(`🔄 [CONFLICT] Moved node ${nodeIdToPush} from slot ${currentSlot} to ${currentSlot + 1}`);
                   break;
                 }
               }
@@ -1001,7 +874,6 @@ const FitViewHelper: React.FC<{
           anchors: node.anchors
         }));
         
-        console.log('📝 [DROP] Repositioned nodes with cascading slot-based conflict resolution');
         onDataChange({ ...data, nodes: updatedNodes });
       }
     }
@@ -1093,16 +965,6 @@ const FitViewHelper: React.FC<{
         const anchorLayoutNode = layoutNodes.find(n => n.id === moveChange.id);
         const originalAnchorX = anchorLayoutNode ? anchorLayoutNode.position.x + 8 : 0; // Center of 16px anchor
         
-        console.log('🎯 [ANCHOR DROP] Starting snap calculation:', {
-          anchorId: moveChange.id,
-          dropPosition: moveChange.position,
-          originalLifelineId,
-          anchorLayoutNode: anchorLayoutNode ? { id: anchorLayoutNode.id, position: anchorLayoutNode.position } : null,
-          originalAnchorX,
-          layoutNodesCount: layoutNodes.length,
-          anchorNodesInLayout: layoutNodes.filter(n => n.type === 'anchorNode').map(n => ({ id: n.id, x: n.position.x }))
-        });
-        
         // Find which lifeline this anchor should snap to based on X position
         const anchorX = moveChange.position.x + 8; // Add half width to get center
         let closestLifelineId = originalLifelineId;
@@ -1113,11 +975,6 @@ const FitViewHelper: React.FC<{
         // Note: lifeline node position.x is where anchors are positioned (left edge of lifeline)
         const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
         const lifelineLayoutNodes = layoutNodes.filter(n => n.type === 'columnLifeline');
-        
-        console.log('📍 [ANCHOR DROP] Lifeline positions:', lifelineLayoutNodes.map(n => ({
-          id: n.id,
-          x: n.position.x
-        })));
         
         sortedLifelines.forEach((lifeline, index) => {
           // Get actual position from layout nodes - this is where anchors are positioned
@@ -1132,13 +989,6 @@ const FitViewHelper: React.FC<{
           }
         });
         
-        console.log('🔍 [ANCHOR DROP] Closest lifeline found:', {
-          anchorX,
-          closestLifelineId,
-          closestLifelineX,
-          minDistance
-        });
-        
         // Check if the anchor is part of a process - if so, it cannot be moved to a different lifeline
         const anchorIsInProcess = anchorData?.isInProcess || false;
         
@@ -1150,32 +1000,10 @@ const FitViewHelper: React.FC<{
           // Revert to original lifeline and use the anchor's layout position (includes process offset)
           closestLifelineId = originalLifelineId;
           closestLifelineX = originalAnchorX;
-          console.log('↩️ [ANCHOR DROP] Snapping back to original position' + (anchorIsInProcess ? ' - anchor is in process' : ' - drop too far') + ':', {
-            anchorId: moveChange.id,
-            minDistance,
-            threshold: SNAP_THRESHOLD,
-            anchorIsInProcess,
-            originalLifelineId,
-            originalAnchorX,
-            willSnapTo: closestLifelineX - 8
-          });
-        } else {
-          console.log('✅ [ANCHOR DROP] Valid snap to new lifeline:', {
-            anchorId: moveChange.id,
-            newLifelineId: closestLifelineId,
-            newX: closestLifelineX - 8
-          });
         }
         
         // Snap anchor to correct X position
         const snappedX = closestLifelineX - 8; // Center the 16px anchor
-        
-        console.log('📌 [ANCHOR DROP] Final snapped position:', {
-          anchorId: moveChange.id,
-          snappedX,
-          closestLifelineX,
-          originalAnchorX
-        });
         
         // Check if we're swapping BEFORE updating diagram nodes
         let isSwapping = false;
@@ -1834,16 +1662,10 @@ const FitViewHelper: React.FC<{
   const handleDeleteLifeline = useCallback(() => {
     if (!selectedLifelineId || !onDataChange) return;
     
-    // Remove lifeline and all connected nodes
     const updatedLifelines = lifelines.filter(l => l.id !== selectedLifelineId);
     const updatedNodes = diagramNodes.filter(node => 
       !node.anchors?.some(anchor => anchor.lifelineId === selectedLifelineId)
     );
-    
-    console.log('🗑️ [handleDeleteLifeline] Deleting lifeline and connected nodes:', {
-      lifelineId: selectedLifelineId,
-      deletedNodesCount: diagramNodes.length - updatedNodes.length
-    });
     
     onDataChange({ ...data, lifelines: updatedLifelines, nodes: updatedNodes });
     setSelectedLifelineId(null);
@@ -1853,61 +1675,44 @@ const FitViewHelper: React.FC<{
   const handleLifelineUpdate = useCallback((lifelineId: string, updates: Partial<Lifeline>) => {
     if (!onDataChange) return;
     
-    console.log('🔄 [handleLifelineUpdate] Updating lifeline:', { lifelineId, updates });
-    
-    // Create a map of old lifeline orders
     const oldOrderMap = new Map<string, number>();
     lifelines.forEach(l => oldOrderMap.set(l.id, l.order));
     
     let updatedLifelines: Lifeline[];
     let orderChanged = false;
     
-    // Handle order changes specially to maintain unique sequential orders
     if (updates.order !== undefined) {
       const oldOrder = oldOrderMap.get(lifelineId);
       const newOrder = updates.order;
       
       if (oldOrder !== newOrder) {
         orderChanged = true;
-        console.log('🔄 [handleLifelineUpdate] Reordering from', oldOrder, 'to', newOrder);
-        
-        // Update all lifelines to maintain sequential unique orders
         updatedLifelines = lifelines.map(l => {
           if (l.id === lifelineId) {
-            // This is the lifeline being moved
             return { ...l, ...updates };
           } else if (oldOrder !== undefined && newOrder < oldOrder) {
-            // Moving a lifeline earlier - shift affected lifelines forward
             if (l.order >= newOrder && l.order < oldOrder) {
               return { ...l, order: l.order + 1 };
             }
           } else if (oldOrder !== undefined && newOrder > oldOrder) {
-            // Moving a lifeline later - shift affected lifelines backward
             if (l.order > oldOrder && l.order <= newOrder) {
               return { ...l, order: l.order - 1 };
             }
           }
           return l;
         });
-        
-        console.log('🔄 [handleLifelineUpdate] Old lifelines:', lifelines.map(l => ({ id: l.id, order: l.order })));
-        console.log('🔄 [handleLifelineUpdate] New lifelines:', updatedLifelines.map(l => ({ id: l.id, order: l.order })));
       } else {
-        // Order didn't actually change, just update other properties
         updatedLifelines = lifelines.map(l =>
           l.id === lifelineId ? { ...l, ...updates } : l
         );
       }
     } else {
-      // No order change, just update the lifeline
       updatedLifelines = lifelines.map(l =>
         l.id === lifelineId ? { ...l, ...updates } : l
       );
     }
     
     if (orderChanged) {
-      // Force layout recalculation by incrementing version
-      // Note: We do NOT swap anchor types - arrow direction should be maintained as originally defined
       setLayoutVersion(prev => prev + 1);
     }
     
@@ -1920,16 +1725,10 @@ const FitViewHelper: React.FC<{
   const handleLifelineDelete = useCallback((lifelineId: string) => {
     if (!onDataChange) return;
     
-    // Remove lifeline and all connected nodes
     const updatedLifelines = lifelines.filter(l => l.id !== lifelineId);
     const updatedNodes = diagramNodes.filter(node => 
       !node.anchors?.some(anchor => anchor.lifelineId === lifelineId)
     );
-    
-    console.log('🗑️ [handleLifelineDelete] Deleting lifeline and connected nodes:', {
-      lifelineId,
-      deletedNodesCount: diagramNodes.length - updatedNodes.length
-    });
     
     onDataChange({ ...data, lifelines: updatedLifelines, nodes: updatedNodes });
   }, [lifelines, diagramNodes, data, onDataChange]);
@@ -1960,8 +1759,6 @@ const FitViewHelper: React.FC<{
   const handleNodeUpdate = useCallback((nodeId: string, updates: Partial<DiagramNode>) => {
     if (!onDataChange) return;
     
-    console.log('📝 [handleNodeUpdate] Updating node:', { nodeId, updates });
-    
     const updatedNodes = diagramNodes.map(n =>
       n.id === nodeId ? { ...n, ...updates } : n
     );
@@ -1972,15 +1769,10 @@ const FitViewHelper: React.FC<{
       setSelectedNode(updatedNode);
     }
     
-    console.log('📝 [handleNodeUpdate] Calling onDataChange with updated nodes');
     onDataChange({ ...data, nodes: updatedNodes });
     
     // Force layout recalculation after a delay to allow the node to re-render
-    // The ResizeObserver in handleNodeHeightChange will measure the new height
-    // and that will trigger another layout recalculation if the height changed.
-    // This initial recalculation ensures the layout updates for non-height changes too.
     setTimeout(() => {
-      console.log('🔄 [handleNodeUpdate] Triggering layout recalculation for node update');
       setLayoutVersion(v => v + 1);
     }, 150);
   }, [diagramNodes, data, onDataChange]);
@@ -2070,16 +1862,6 @@ const FitViewHelper: React.FC<{
     setHoveredElement(null);
   }, []);
 
-  // Log rendering information
-  console.log('[SequenceRenderer] Rendering with:', {
-    isRenderMode,
-    nodesCount: nodes?.length || 0,
-    edgesCount: edges?.length || 0,
-    hasActiveTheme: !!activeTheme,
-    backgroundColor: activeTheme?.colors.background,
-    firstThreeNodes: nodes?.slice(0, 3).map(n => ({ id: n.id, type: n.type, position: n.position })),
-    firstThreeEdges: edges?.slice(0, 3).map(e => ({ id: e.id, source: e.source, target: e.target }))
-  });
 
   return (
     <div className="w-full h-full flex flex-col" style={{ backgroundColor: activeTheme?.colors.background }}>

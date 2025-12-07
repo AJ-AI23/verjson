@@ -29,7 +29,6 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
   nodes = [],
   lifelines = []
 }) => {
-  console.log('🎨 DiagramStylesDialog render - isOpen:', isOpen);
   
   const [activeTab, setActiveTab] = useState<string>('light');
   const currentTheme = styles.themes[activeTab] || styles.themes.light;
