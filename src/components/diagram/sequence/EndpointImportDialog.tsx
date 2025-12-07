@@ -47,10 +47,7 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
 
   // Filter OpenAPI documents
   const openApiDocuments = useMemo(() => {
-    const filtered = documents?.filter(doc => doc.file_type === 'openapi') || [];
-    console.log('[EndpointImport] Total documents:', documents?.length);
-    console.log('[EndpointImport] OpenAPI documents:', filtered.length);
-    return filtered;
+    return documents?.filter(doc => doc.file_type === 'openapi') || [];
   }, [documents]);
 
   // Fetch document content when a document is selected
@@ -68,14 +65,11 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
         });
 
         if (error) {
-          console.error('[EndpointImport] Error fetching document:', error);
           setDocumentContent(null);
         } else {
-          console.log('[EndpointImport] Fetched document with versions:', data.document);
           setDocumentContent(data.document?.content);
         }
       } catch (err) {
-        console.error('[EndpointImport] Error:', err);
         setDocumentContent(null);
       } finally {
         setLoadingContent(false);
@@ -88,27 +82,20 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
   // Extract endpoints from selected document
   const endpoints = useMemo(() => {
     if (!selectedDocumentId || !documentContent) {
-      console.log('[EndpointImport] No content yet');
       return [];
     }
 
-    console.log('[EndpointImport] Document content type:', typeof documentContent);
-
-    // Handle both parsed JSON objects and JSON strings
     let content = documentContent;
     if (typeof content === 'string') {
       try {
         content = JSON.parse(content);
       } catch (e) {
-        console.error('[EndpointImport] Failed to parse document content:', e);
         return [];
       }
     }
 
     const extractedEndpoints: EndpointInfo[] = [];
     const paths = content.paths || {};
-
-    console.log('[EndpointImport] Paths found:', Object.keys(paths).length);
 
     Object.entries(paths).forEach(([path, pathItem]: [string, any]) => {
       const methods = ['get', 'post', 'put', 'patch', 'delete', 'options', 'head'];
@@ -128,7 +115,6 @@ export const EndpointImportDialog: React.FC<EndpointImportDialogProps> = ({
       });
     });
 
-    console.log('[EndpointImport] Extracted endpoints:', extractedEndpoints.length);
     return extractedEndpoints;
   }, [selectedDocumentId, documentContent, openApiDocuments]);
 
