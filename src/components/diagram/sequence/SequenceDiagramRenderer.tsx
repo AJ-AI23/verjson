@@ -1270,12 +1270,11 @@ const FitViewHelper: React.FC<{
           );
           
           // Recalculate positions with proper vertical spacing
-          // Use the topmost node's position as the starting point to allow moving above existing nodes
+          // Start from a fixed position below the header to ensure consistent layout
+          const LIFELINE_HEADER_HEIGHT = 100;
+          const HEADER_MARGIN = 20;
           const verticalSpacing = 20;
-          const topNodeConfig = getNodeTypeConfig(sortedUpdatedNodes[0]?.type || 'endpoint');
-          const topNodeHeight = nodeHeights.get(sortedUpdatedNodes[0]?.id) || topNodeConfig?.defaultHeight || 70;
-          const topNodeCenterY = sortedUpdatedNodes[0]?.yPosition || (100 + 40 + topNodeHeight / 2);
-          let currentY = topNodeCenterY - (topNodeHeight / 2);
+          let currentY = LIFELINE_HEADER_HEIGHT + HEADER_MARGIN;
           
           const recalculatedNodes = sortedUpdatedNodes.map(node => {
             const nodeConfig = getNodeTypeConfig(node.type);
@@ -1331,17 +1330,17 @@ const FitViewHelper: React.FC<{
           });
           
           // Reorder nodes by Y position to maintain correct array order
+          // The dragged node now has its NEW yPosition, so sorting will place it correctly
           const sortedUpdatedNodes = [...updatedNodes].sort((a, b) => 
             (a.yPosition || 0) - (b.yPosition || 0)
           );
           
           // Recalculate positions with proper vertical spacing
-          // Use the topmost node's position as the starting point to allow moving above existing nodes
+          // Start from a fixed position below the header to ensure consistent layout
+          const LIFELINE_HEADER_HEIGHT = 100;
+          const HEADER_MARGIN = 20;
           const verticalSpacing = 20;
-          const topNodeConfig = getNodeTypeConfig(sortedUpdatedNodes[0]?.type || 'endpoint');
-          const topNodeHeight = nodeHeights.get(sortedUpdatedNodes[0]?.id) || topNodeConfig?.defaultHeight || 70;
-          const topNodeCenterY = sortedUpdatedNodes[0]?.yPosition || (100 + 40 + topNodeHeight / 2);
-          let currentY = topNodeCenterY - (topNodeHeight / 2);
+          let currentY = LIFELINE_HEADER_HEIGHT + HEADER_MARGIN;
           
           const recalculatedNodes = sortedUpdatedNodes.map(node => {
             const nodeConfig = getNodeTypeConfig(node.type);
