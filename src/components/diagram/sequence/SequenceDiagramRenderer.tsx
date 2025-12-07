@@ -1011,12 +1011,40 @@ const FitViewHelper: React.FC<{
       );
       
       // Calculate process layout with new positions
+      // Use same dynamic spacing logic as calculateSequenceLayout
       const LIFELINE_WIDTH = 300;
+      const NODE_HORIZONTAL_PADDING = 150;
+      const horizontalSpacing = 100;
+      const PROCESS_BOX_WIDTH = 50;
+      const PROCESS_HORIZONTAL_GAP = 8;
+      
+      // Calculate process counts per lifeline for dynamic spacing
+      const lifelineProcessCounts = new Map<string, number>();
+      if (data.processes && data.processes.length > 0) {
+        sortedLifelines.forEach(lifeline => {
+          const processesOnLifeline = data.processes!.filter(process => {
+            return process.anchorIds.some(id => {
+              const anchor = allAnchors.find(a => a.id === id);
+              return anchor?.lifelineId === lifeline.id;
+            });
+          });
+          lifelineProcessCounts.set(lifeline.id, processesOnLifeline.length);
+        });
+      }
+      
       const lifelineXPositions = new Map<string, number>();
-      let lifelineX = 150; // NODE_HORIZONTAL_PADDING
+      let currentX = NODE_HORIZONTAL_PADDING;
       sortedLifelines.forEach((lifeline) => {
-        lifelineXPositions.set(lifeline.id, lifelineX);
-        lifelineX += LIFELINE_WIDTH + 100; // + horizontalSpacing
+        lifelineXPositions.set(lifeline.id, currentX);
+        
+        // Calculate spacing after this lifeline (same logic as sequenceLayout.ts)
+        const processCount = lifelineProcessCounts.get(lifeline.id) || 0;
+        const maxParallelOnThisLifeline = Math.min(processCount, 3);
+        const processSpacingForThisLifeline = maxParallelOnThisLifeline > 0 
+          ? (PROCESS_BOX_WIDTH * maxParallelOnThisLifeline) + (PROCESS_HORIZONTAL_GAP * (maxParallelOnThisLifeline - 1)) + 20
+          : 0;
+        
+        currentX += LIFELINE_WIDTH + horizontalSpacing + processSpacingForThisLifeline;
       });
       
       const newProcessNodes = data.processes && data.processes.length > 0
