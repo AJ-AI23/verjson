@@ -748,42 +748,63 @@ const FitViewHelper: React.FC<{
       setDragStartPositions(startPositions);
     }
     
-    // Detect drag end
+    // Detect drag end for sequence nodes
     const dragEndChange = changes.find((c: any) => c.type === 'position' && c.dragging === false && c.position);
     if (dragEndChange && dragEndChange.type === 'position') {
-      isDraggingRef.current = false;
-      // Always reset isDragging state and force layout recalculation on any drag end
-      setIsDragging(false);
-      setLayoutVersion(v => v + 1);
+      const draggedNode = nodes.find(n => n.id === dragEndChange.id);
       
-      // Update the dragged node's yPosition to its new desired position
-      // The matrix layout in calculateSequenceLayout will handle the rest
-      if (onDataChange) {
-        const dragEndNodeId = dragEndChange.id;
-        const dragEndPosition = dragEndChange.position;
+      console.log(`🔲 DRAG END detected for node: ${dragEndChange.id}, type: ${draggedNode?.type}`);
+      
+      // Only process drag end for sequence nodes
+      if (draggedNode?.type === 'sequenceNode') {
+        isDraggingRef.current = false;
+        setIsDragging(false);
+        setLayoutVersion(v => v + 1);
         
-        // Get node height to calculate center Y
-        const diagramNode = diagramNodes.find(n => n.id === dragEndNodeId);
-        const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
-        const nodeHeight = nodeHeights.get(dragEndNodeId) || nodeConfig?.defaultHeight || 70;
-        
-        // Calculate the new center Y position for the dragged node
-        const newCenterY = dragEndPosition.y + (nodeHeight / 2);
-        
-        console.log(`🔲 DRAG END: ${dragEndNodeId} moved to centerY=${newCenterY}`);
-        
-        // Update only the dragged node's yPosition - the matrix layout will recalculate all positions
-        const updatedNodes = diagramNodes.map(node => {
-          if (node.id === dragEndNodeId) {
-            return {
-              ...node,
-              yPosition: newCenterY
-            };
+        // Update the dragged node's yPosition to its new desired position
+        // The matrix layout in calculateSequenceLayout will handle the rest
+        if (onDataChange) {
+          const dragEndNodeId = dragEndChange.id;
+          const dragEndPosition = dragEndChange.position;
+          
+          // Get node height to calculate center Y
+          const diagramNode = diagramNodes.find(n => n.id === dragEndNodeId);
+          const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
+          const nodeHeight = nodeHeights.get(dragEndNodeId) || nodeConfig?.defaultHeight || 70;
+          
+          // Calculate the new center Y position for the dragged node
+          const newCenterY = dragEndPosition.y + (nodeHeight / 2);
+          
+          console.log(`🔲 MATRIX: Updating ${dragEndNodeId} yPosition to ${newCenterY}, triggering layout recalc`);
+          
+          // Update only the dragged node's yPosition - the matrix layout will recalculate all positions
+          const updatedNodes = diagramNodes.map(node => {
+            if (node.id === dragEndNodeId) {
+              return {
+                ...node,
+                yPosition: newCenterY
+              };
+            }
+            return node;
+          });
+          
+          onDataChange({ ...data, nodes: updatedNodes });
+          
+          // Don't apply the dropped position to React Flow - the layout will recalculate
+          // Filter out the position change for this node entirely
+          const filteredChanges = changes.filter((c: any) => 
+            !(c.type === 'position' && c.id === dragEndNodeId)
+          );
+          
+          if (filteredChanges.length > 0) {
+            handleNodesChange(filteredChanges);
           }
-          return node;
-        });
-        
-        onDataChange({ ...data, nodes: updatedNodes });
+          return; // Exit early, we handled this drag end
+        }
+      } else {
+        // For non-sequence nodes, just reset drag state
+        isDraggingRef.current = false;
+        setIsDragging(false);
       }
     }
     
