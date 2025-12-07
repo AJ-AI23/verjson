@@ -686,6 +686,12 @@ const FitViewHelper: React.FC<{
       });
     
     if (nodesChanged) {
+      // Log what we're about to apply
+      const sequenceNodePositions = nodesWithHandlers
+        .filter(n => n.type === 'sequenceNode')
+        .map(n => ({ id: n.id, y: n.position.y }));
+      console.log('🔄 useEffect syncing nodesWithHandlers to setNodes:', sequenceNodePositions);
+      
       prevNodesRef.current = nodesWithHandlers;
       setNodes(nodesWithHandlers);
     }
