@@ -802,9 +802,10 @@ const FitViewHelper: React.FC<{
           return; // Exit early, we handled this drag end
         }
       } else {
-        // For non-sequence nodes, just reset drag state
+        // For non-sequence nodes (like lifelines), reset drag state and trigger layout recalc
         isDraggingRef.current = false;
         setIsDragging(false);
+        setLayoutVersion(v => v + 1); // Trigger layout recalc to regenerate process nodes
       }
     }
     
