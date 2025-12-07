@@ -850,42 +850,28 @@ const FitViewHelper: React.FC<{
       if (span) nodeSpans.set(node.id, span);
     });
     
-    // Find the dragging node to determine target slot
+    // Find the dragging node info
     const draggingChange = changes.find((c: any) => c.type === 'position' && c.dragging);
-    let draggedSlot = 0;
+    let draggedCenterY = 0;
+    let draggedNodeId: string | null = null;
     
     if (draggingChange) {
       const draggedNode = nodes.find(n => n.id === draggingChange.id);
       if (draggedNode?.type === 'sequenceNode') {
+        draggedNodeId = draggingChange.id;
         const draggedNodeHeight = nodeHeights.get(draggingChange.id) || DEFAULT_NODE_HEIGHT;
         const newY = draggingChange.position?.y || draggedNode.position.y;
-        const draggedCenterY = newY + (draggedNodeHeight / 2);
-        
-        // Calculate rough slot based on Y position (will be refined after placement)
-        // Use a simple heuristic: estimate slot based on average slot height
-        const avgSlotHeight = DEFAULT_NODE_HEIGHT + SLOT_GAP;
-        draggedSlot = Math.max(0, Math.round((draggedCenterY - SLOT_START_Y) / avgSlotHeight));
+        draggedCenterY = newY + (draggedNodeHeight / 2);
       }
     }
     
-    // Matrix layout: place dragged node first, then others in order
+    // STEP 1: Place all OTHER nodes first (not the dragged one)
     const positions = new Map<string, any>();
     const slots: DiagramNode[][] = Array.from({ length: MAX_SLOTS }, () => []);
     
-    // Place dragged node at its target slot
-    if (draggingChange) {
-      const draggedDiagramNode = diagramNodes.find(n => n.id === draggingChange.id);
-      if (draggedDiagramNode && nodeSpans.has(draggingChange.id)) {
-        const span = nodeSpans.get(draggingChange.id);
-        const clampedSlot = Math.min(MAX_SLOTS - 1, Math.max(0, draggedSlot));
-        positions.set(draggingChange.id, { slot: clampedSlot, ...span });
-        slots[clampedSlot].push(draggedDiagramNode);
-      }
-    }
-    
     // Sort other nodes by original Y position
     const otherNodes = diagramNodes
-      .filter(n => n.id !== draggingChange?.id && nodeSpans.has(n.id))
+      .filter(n => n.id !== draggedNodeId && nodeSpans.has(n.id))
       .sort((a, b) => (a.yPosition ?? 0) - (b.yPosition ?? 0));
     
     // Place other nodes at first available slot
@@ -901,6 +887,72 @@ const FitViewHelper: React.FC<{
       positions.set(node.id, { slot: placedSlot, ...span });
       slots[placedSlot].push(node);
     });
+    
+    // STEP 2: Calculate slot heights and cumulative boundaries based on placed nodes
+    const slotHeightsWithoutDragged: number[] = [];
+    for (let s = 0; s < MAX_SLOTS; s++) {
+      if (slots[s].length === 0) {
+        slotHeightsWithoutDragged.push(DEFAULT_NODE_HEIGHT);
+      } else {
+        let maxHeight = 0;
+        slots[s].forEach(node => {
+          const h = nodeHeights.get(node.id) || DEFAULT_NODE_HEIGHT;
+          if (h > maxHeight) maxHeight = h;
+        });
+        slotHeightsWithoutDragged.push(maxHeight);
+      }
+    }
+    
+    // Calculate cumulative slot boundaries (top Y of each slot)
+    const slotBoundaries: number[] = [];
+    let boundaryY = SLOT_START_Y;
+    for (let s = 0; s < MAX_SLOTS; s++) {
+      slotBoundaries.push(boundaryY);
+      boundaryY += slotHeightsWithoutDragged[s] + SLOT_GAP;
+    }
+    
+    // STEP 3: Find which slot the dragged node should go into based on its Y position
+    let draggedSlot = 0;
+    if (draggedNodeId) {
+      // Find the slot whose center is closest to the dragged center Y
+      let minDistance = Infinity;
+      for (let s = 0; s < MAX_SLOTS; s++) {
+        const slotCenterY = slotBoundaries[s] + (slotHeightsWithoutDragged[s] / 2);
+        const distance = Math.abs(draggedCenterY - slotCenterY);
+        if (distance < minDistance) {
+          minDistance = distance;
+          draggedSlot = s;
+        }
+      }
+      
+      // Check if there's a conflict at this slot, if so find next available
+      const draggedDiagramNode = diagramNodes.find(n => n.id === draggedNodeId);
+      if (draggedDiagramNode && nodeSpans.has(draggedNodeId)) {
+        const span = nodeSpans.get(draggedNodeId);
+        
+        // If there's a conflict at the target slot, find the best available slot
+        if (conflicts(span, slots[draggedSlot], positions)) {
+          // Search outward from target slot to find nearest available
+          for (let offset = 1; offset < MAX_SLOTS; offset++) {
+            const slotAbove = draggedSlot - offset;
+            const slotBelow = draggedSlot + offset;
+            
+            if (slotAbove >= 0 && !conflicts(span, slots[slotAbove], positions)) {
+              draggedSlot = slotAbove;
+              break;
+            }
+            if (slotBelow < MAX_SLOTS && !conflicts(span, slots[slotBelow], positions)) {
+              draggedSlot = slotBelow;
+              break;
+            }
+          }
+        }
+        
+        // Place the dragged node
+        positions.set(draggedNodeId, { slot: draggedSlot, ...span });
+        slots[draggedSlot].push(draggedDiagramNode);
+      }
+    }
     
     // Calculate dynamic slot heights based on the tallest node in each slot
     const slotHeights: number[] = [];
