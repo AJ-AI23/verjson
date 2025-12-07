@@ -858,8 +858,8 @@ const FitViewHelper: React.FC<{
       
       const startPositions = new Map<string, { x: number; y: number }>();
       nodes.forEach(n => {
-        // Store positions for sequence nodes and lifeline columns
-        if ((selectedNodeIds.includes(n.id) && n.type === 'sequenceNode') || n.type === 'columnLifeline') {
+        // Store positions for the dragged node and any selected sequence nodes
+        if (n.id === dragStartChange.id || (selectedNodeIds.includes(n.id) && n.type === 'sequenceNode') || n.type === 'columnLifeline') {
           startPositions.set(n.id, { x: n.position.x, y: n.position.y });
         }
       });
