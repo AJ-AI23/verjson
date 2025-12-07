@@ -884,7 +884,10 @@ const FitViewHelper: React.FC<{
         const SLOT_HEIGHT = 100; // Each slot is 100 units
         const LIFELINE_HEADER_HEIGHT = 100;
         const MIN_TOP_MARGIN = 40;
-        const MIN_Y_POSITION = LIFELINE_HEADER_HEIGHT + MIN_TOP_MARGIN + 35; // Minimum Y for first slot
+        // CRITICAL: This MUST match calculateEvenSpacing's startY calculation in sequenceLayout.ts
+        // calculateEvenSpacing uses: startY = LIFELINE_HEADER_HEIGHT + 40 = 140
+        // Then adds nodeHeight/2 to get CENTER Y, resulting in ~175 for first node
+        const MIN_Y_POSITION = LIFELINE_HEADER_HEIGHT + MIN_TOP_MARGIN; // = 140, matches layout startY
         const sequenceNodes = nodes.filter(n => n.type === 'sequenceNode');
         
         // Find the dragged node
@@ -903,7 +906,11 @@ const FitViewHelper: React.FC<{
         // Get all nodes sorted by their ORIGINAL yPosition (before drag)
         const nodesByOriginalOrder = [...diagramNodes].sort((a, b) => (a.yPosition || 0) - (b.yPosition || 0));
         
+        // Find the dragged node's original index
+        const originalIndex = nodesByOriginalOrder.findIndex(n => n.id === dragEndChange.id);
+        
         // Find where the dragged node should be inserted based on its new position
+        // Only count nodes that the dragged node has FULLY passed (crossed their center)
         let newOrderIndex = 0;
         for (let i = 0; i < nodesByOriginalOrder.length; i++) {
           const node = nodesByOriginalOrder[i];
@@ -915,17 +922,23 @@ const FitViewHelper: React.FC<{
           }
         }
         
+        // Adjust index since we'll remove the dragged node
+        const adjustedNewIndex = newOrderIndex > originalIndex ? newOrderIndex - 1 : newOrderIndex;
+        
+        // CRITICAL: If order didn't change, don't update anything - preserve existing positions
+        // This prevents small drags from affecting spacing
+        if (adjustedNewIndex === originalIndex) {
+          console.log('📋 [DROP] Order unchanged, preserving original positions');
+          return;
+        }
+        
         // Remove dragged node from its original position and insert at new position
         const reorderedNodes = nodesByOriginalOrder.filter(n => n.id !== dragEndChange.id);
         const draggedNode = nodesByOriginalOrder.find(n => n.id === dragEndChange.id)!;
         
-        // Adjust index since we removed the dragged node
-        const originalIndex = nodesByOriginalOrder.findIndex(n => n.id === dragEndChange.id);
-        const adjustedNewIndex = newOrderIndex > originalIndex ? newOrderIndex - 1 : newOrderIndex;
-        
         reorderedNodes.splice(adjustedNewIndex, 0, draggedNode);
         
-        console.log('📋 [DROP] Node order:', {
+        console.log('📋 [DROP] Node order CHANGED:', {
           originalOrder: nodesByOriginalOrder.map(n => n.id),
           draggedNode: dragEndChange.id,
           originalIndex,
@@ -933,14 +946,19 @@ const FitViewHelper: React.FC<{
           finalOrder: reorderedNodes.map(n => n.id)
         });
         
-        // Assign Y positions based on order (consistent spacing)
-        const updatedNodes = reorderedNodes.map((node, index) => ({
-          ...node,
-          yPosition: MIN_Y_POSITION + (index * SLOT_HEIGHT),
-          anchors: node.anchors
-        }));
+        // Only reassign Y positions when order actually changed
+        // Use the existing positions from the sorted nodes to maintain spacing
+        const updatedNodes = reorderedNodes.map((node, index) => {
+          // Get the yPosition of the node that was originally at this index
+          const originalNodeAtIndex = nodesByOriginalOrder[index];
+          return {
+            ...node,
+            yPosition: originalNodeAtIndex?.yPosition || (MIN_Y_POSITION + (index * SLOT_HEIGHT)),
+            anchors: node.anchors
+          };
+        });
         
-        console.log('📝 [DROP] Repositioned nodes with order-based positioning');
+        console.log('📝 [DROP] Repositioned nodes - swapped positions');
         onDataChange({ ...data, nodes: updatedNodes });
       }
     }
