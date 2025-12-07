@@ -586,8 +586,8 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
     return positions;
   }
   
-  const SLOT_HEIGHT = 100; // Each slot is 100 units
-  const SLOT_START_Y = LIFELINE_HEADER_HEIGHT + 20; // First slot starts after lifeline header + margin
+  const SLOT_HEIGHT = 120; // Each slot is 120 units (node height ~70 + spacing ~50)
+  const SLOT_START_Y = LIFELINE_HEADER_HEIGHT + 40; // First slot starts after lifeline header + margin
   const MAX_SLOTS = 50; // Maximum number of slots
   
   // Build lifeline position map (lifeline ID -> lane index)
