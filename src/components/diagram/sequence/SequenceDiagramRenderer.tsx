@@ -755,6 +755,9 @@ const FitViewHelper: React.FC<{
         const SLOT_HEIGHT = 100; // Each slot is 100 units
         const sequenceNodes = nodes.filter(n => n.type === 'sequenceNode');
         
+        console.log('🎯 SLOT-BASED POSITIONING: Drag end detected');
+        console.log('📊 Sequence nodes count:', sequenceNodes.length);
+        
         // Build lifeline position map for overlap detection
         const lifelinePositions = new Map<string, number>();
         const sortedLifelines = [...data.lifelines].sort((a, b) => a.order - b.order);
@@ -782,6 +785,8 @@ const FitViewHelper: React.FC<{
         // Create slot assignments: convert visual Y positions to slot indices
         // IMPORTANT: visual Y is top of node, but we need to convert to center Y for document
         const nodeToSlot = new Map<string, number>();
+        const initialSlotDebug: Array<{id: string, label: string, visualTopY: number, centerY: number, slot: number, originalYPosition: number}> = [];
+        
         sequenceNodes.forEach(n => {
           const diagramNode = diagramNodes.find(dn => dn.id === n.id);
           const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
@@ -791,7 +796,19 @@ const FitViewHelper: React.FC<{
           const centerY = visualTopY + (nodeHeight / 2); // Convert top Y to center Y
           const slot = Math.round(centerY / SLOT_HEIGHT);
           nodeToSlot.set(n.id, slot);
+          
+          initialSlotDebug.push({
+            id: n.id,
+            label: diagramNode?.label || n.id,
+            visualTopY,
+            centerY,
+            slot,
+            originalYPosition: diagramNode?.yPosition || 0
+          });
         });
+        
+        console.log('📍 INITIAL SLOT ASSIGNMENTS (before conflict resolution):');
+        console.table(initialSlotDebug.sort((a, b) => a.slot - b.slot));
         
         // Find which node was dragged (the one that moved most from its original yPosition)
         let draggedNodeId: string | null = null;
@@ -812,6 +829,14 @@ const FitViewHelper: React.FC<{
           }
         });
         
+        const draggedDiagramNode = diagramNodes.find(n => n.id === draggedNodeId);
+        console.log('🖱️ DRAGGED NODE:', {
+          id: draggedNodeId,
+          label: draggedDiagramNode?.label,
+          maxDelta,
+          originalSlot: nodeToSlot.get(draggedNodeId || '')
+        });
+        
         // Build slot occupancy: which nodes are at which slots
         const slotOccupants = new Map<number, Set<string>>();
         nodeToSlot.forEach((slot, nodeId) => {
@@ -821,6 +846,17 @@ const FitViewHelper: React.FC<{
           slotOccupants.get(slot)!.add(nodeId);
         });
         
+        console.log('🏠 SLOT OCCUPANCY (before conflict resolution):');
+        const occupancyDebug: Array<{slot: number, nodes: string[]}> = [];
+        slotOccupants.forEach((occupants, slot) => {
+          const nodeLabels = Array.from(occupants).map(id => {
+            const node = diagramNodes.find(n => n.id === id);
+            return node?.label || id;
+          });
+          occupancyDebug.push({ slot, nodes: nodeLabels });
+        });
+        console.table(occupancyDebug.sort((a, b) => a.slot - b.slot));
+        
         // Cascade conflicts starting from the dragged node's slot
         if (draggedNodeId) {
           const draggedNode = diagramNodes.find(n => n.id === draggedNodeId);
@@ -828,6 +864,8 @@ const FitViewHelper: React.FC<{
           
           // Process slots from dragged slot downward to cascade conflicts
           const maxSlot = Math.max(...Array.from(nodeToSlot.values()));
+          
+          console.log('⚡ CONFLICT RESOLUTION: Processing slots', draggedSlot, 'to', maxSlot + 10);
           
           for (let currentSlot = draggedSlot; currentSlot <= maxSlot + 10; currentSlot++) {
             const occupants = slotOccupants.get(currentSlot);
@@ -846,6 +884,16 @@ const FitViewHelper: React.FC<{
                   hasConflict = true;
                   // Push the second node down to next slot
                   const nodeIdToPush = occupantsList[j];
+                  const nodeToPush = diagramNodes.find(n => n.id === nodeIdToPush);
+                  
+                  console.log('💥 CONFLICT at slot', currentSlot, ':', {
+                    node1: node1.label,
+                    node2: node2.label,
+                    pushing: nodeToPush?.label,
+                    fromSlot: currentSlot,
+                    toSlot: currentSlot + 1
+                  });
+                  
                   occupants.delete(nodeIdToPush);
                   nodeToSlot.set(nodeIdToPush, currentSlot + 1);
                   
@@ -867,12 +915,33 @@ const FitViewHelper: React.FC<{
           finalPositions.set(nodeId, slot * SLOT_HEIGHT);
         });
         
+        // Final debug output
+        const finalDebug: Array<{id: string, label: string, finalSlot: number, finalYPosition: number}> = [];
+        nodeToSlot.forEach((slot, nodeId) => {
+          const node = diagramNodes.find(n => n.id === nodeId);
+          finalDebug.push({
+            id: nodeId,
+            label: node?.label || nodeId,
+            finalSlot: slot,
+            finalYPosition: slot * SLOT_HEIGHT
+          });
+        });
+        
+        console.log('✅ FINAL SLOT ASSIGNMENTS (after conflict resolution):');
+        console.table(finalDebug.sort((a, b) => a.finalSlot - b.finalSlot));
+        
         // Update nodes with final positions
         const updatedNodes = diagramNodes.map(node => ({
           ...node,
           yPosition: finalPositions.get(node.id) || node.yPosition || 0,
           anchors: node.anchors
         }));
+        
+        console.log('📝 UPDATED NODES for onDataChange:', updatedNodes.map(n => ({
+          id: n.id,
+          label: n.label,
+          yPosition: n.yPosition
+        })));
         
         onDataChange({ ...data, nodes: updatedNodes });
       }
