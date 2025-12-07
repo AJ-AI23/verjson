@@ -866,19 +866,40 @@ const FitViewHelper: React.FC<{
         console.log('⚡ CONFLICT RESOLUTION: Processing ALL slots from', minSlot, 'to', maxSlot + 10);
         
         for (let currentSlot = minSlot; currentSlot <= maxSlot + 10; currentSlot++) {
-            const occupants = slotOccupants.get(currentSlot);
-            if (!occupants || occupants.size === 0) continue;
-            
-            // Check for conflicts at this slot
-            const occupantsList = Array.from(occupants);
-            let hasConflict = false;
-            
-            for (let i = 0; i < occupantsList.length; i++) {
-              for (let j = i + 1; j < occupantsList.length; j++) {
-                const node1 = diagramNodes.find(n => n.id === occupantsList[i]);
-                const node2 = diagramNodes.find(n => n.id === occupantsList[j]);
+          const occupants = slotOccupants.get(currentSlot);
+          if (!occupants || occupants.size === 0) continue;
+          
+          // Check for conflicts at this slot
+          const occupantsList = Array.from(occupants);
+          
+          if (occupantsList.length > 1) {
+            console.log('🔍 Checking slot', currentSlot, 'with occupants:', occupantsList.map(id => {
+              const node = diagramNodes.find(n => n.id === id);
+              const ll0 = node?.anchors?.[0]?.lifelineId;
+              const ll1 = node?.anchors?.[1]?.lifelineId;
+              return {
+                id,
+                label: node?.label,
+                lifeline0: ll0,
+                lifeline1: ll1,
+                pos0: lifelinePositions.get(ll0 || ''),
+                pos1: lifelinePositions.get(ll1 || '')
+              };
+            }));
+          }
+          
+          let hasConflict = false;
+          
+          for (let i = 0; i < occupantsList.length; i++) {
+            for (let j = i + 1; j < occupantsList.length; j++) {
+              const node1 = diagramNodes.find(n => n.id === occupantsList[i]);
+              const node2 = diagramNodes.find(n => n.id === occupantsList[j]);
+              
+              if (node1 && node2) {
+                const overlap = nodesOverlap(node1, node2);
+                console.log('  🔄 Comparing', node1.label, 'vs', node2.label, '-> overlap:', overlap);
                 
-                if (node1 && node2 && nodesOverlap(node1, node2)) {
+                if (overlap) {
                   hasConflict = true;
                   // Push the second node down to next slot
                   const nodeIdToPush = occupantsList[j];
@@ -902,7 +923,8 @@ const FitViewHelper: React.FC<{
                   break;
                 }
               }
-              if (hasConflict) break;
+            }
+            if (hasConflict) break;
           }
         }
         
