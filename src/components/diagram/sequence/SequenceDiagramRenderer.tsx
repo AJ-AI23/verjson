@@ -767,22 +767,33 @@ const FitViewHelper: React.FC<{
           const dragEndNodeId = dragEndChange.id;
           const dragEndPosition = dragEndChange.position;
           
-          // Get node height to calculate center Y
+          // Get node height to calculate center Y - exactly same logic as during drag
+          const SLOT_GAP = 50;
+          const SLOT_START_Y = 140;
+          const DEFAULT_NODE_HEIGHT = 70;
+          
           const diagramNode = diagramNodes.find(n => n.id === dragEndNodeId);
           const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
-          const nodeHeight = nodeHeights.get(dragEndNodeId) || nodeConfig?.defaultHeight || 70;
+          const nodeHeight = nodeHeights.get(dragEndNodeId) || nodeConfig?.defaultHeight || DEFAULT_NODE_HEIGHT;
           
           // Calculate the new center Y position for the dragged node
           const newCenterY = dragEndPosition.y + (nodeHeight / 2);
           
-          console.log(`🔲 MATRIX: Updating ${dragEndNodeId} yPosition to ${newCenterY}, triggering layout recalc`);
+          // Calculate which slot this maps to - same formula as during drag
+          const avgSlotHeight = DEFAULT_NODE_HEIGHT + SLOT_GAP;
+          const targetSlot = Math.max(0, Math.round((newCenterY - SLOT_START_Y) / avgSlotHeight));
+          
+          // Convert slot back to yPosition for storage (this ensures consistency)
+          const slotY = SLOT_START_Y + (targetSlot * avgSlotHeight);
+          
+          console.log(`🔲 MATRIX: Updating ${dragEndNodeId} yPosition to ${slotY} (slot ${targetSlot}), triggering layout recalc`);
           
           // Update only the dragged node's yPosition - the matrix layout will recalculate all positions
           const updatedNodes = diagramNodes.map(node => {
             if (node.id === dragEndNodeId) {
               return {
                 ...node,
-                yPosition: newCenterY
+                yPosition: slotY
               };
             }
             return node;
@@ -853,13 +864,19 @@ const FitViewHelper: React.FC<{
     // Find the dragging node to determine target slot
     const draggingChange = changes.find((c: any) => c.type === 'position' && c.dragging);
     let draggedSlot = 0;
+    let draggedCenterY = 0;
     
     if (draggingChange) {
       const draggedNode = nodes.find(n => n.id === draggingChange.id);
       if (draggedNode?.type === 'sequenceNode') {
-        const draggedNodeHeight = nodeHeights.get(draggingChange.id) || DEFAULT_NODE_HEIGHT;
-        const newY = draggingChange.position?.y || draggedNode.position.y;
-        const draggedCenterY = newY + (draggedNodeHeight / 2);
+        // Get the node height - same logic as drag end
+        const diagramNode = diagramNodes.find(n => n.id === draggingChange.id);
+        const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
+        const draggedNodeHeight = nodeHeights.get(draggingChange.id) || nodeConfig?.defaultHeight || DEFAULT_NODE_HEIGHT;
+        
+        // Use the exact same position calculation as drag end
+        const newY = draggingChange.position?.y ?? draggedNode.position.y;
+        draggedCenterY = newY + (draggedNodeHeight / 2);
         
         // Calculate rough slot based on Y position (will be refined after placement)
         // Use a simple heuristic: estimate slot based on average slot height
