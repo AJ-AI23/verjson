@@ -808,33 +808,43 @@ const FitViewHelper: React.FC<{
       }
     }
     
-    // Constrain sequence node movement to vertical only during drag
+    // Constrain sequence node movement to vertical only during drag AND snap to slots
+    const SLOT_HEIGHT = 120; // Must match sequenceLayout.ts
+    const SLOT_START_Y = 140; // LIFELINE_HEADER_HEIGHT (100) + margin (40) - must match sequenceLayout.ts
+    
+    // Convert center Y to slot index
+    const yToSlot = (centerY: number): number => {
+      return Math.max(0, Math.round((centerY - SLOT_START_Y) / SLOT_HEIGHT));
+    };
+    
+    // Convert slot index to center Y
+    const slotToY = (slot: number): number => {
+      return SLOT_START_Y + (slot * SLOT_HEIGHT);
+    };
+    
     const constrainedChanges = changes.map((change: any) => {
       if (change.type === 'position' && change.dragging) {
         const node = nodes.find(n => n.id === change.id);
         if (node?.type === 'sequenceNode') {
-          // Multi-node drag disabled - only single node swapping is supported
-          
           // Get node height to calculate constraints
           const actualHeight = nodeHeights.get(node.id);
           const diagramNode = diagramNodes.find(n => n.id === node.id);
           const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
           const nodeHeight = actualHeight || nodeConfig?.defaultHeight || 70;
           
-          // Constrain node's center Y to be below lifeline header bottom + margin
-          const LIFELINE_HEADER_HEIGHT = 100;
-          const HEADER_MARGIN = 20; // Gap between header and first node
-          // Node position is TOP Y, center Y = topY + height/2
-          // We want: centerY >= LIFELINE_HEADER_HEIGHT + HEADER_MARGIN
-          // So: topY + height/2 >= LIFELINE_HEADER_HEIGHT + HEADER_MARGIN
-          // topY >= LIFELINE_HEADER_HEIGHT + HEADER_MARGIN - height/2
-          const minTopY = LIFELINE_HEADER_HEIGHT + HEADER_MARGIN - (nodeHeight / 2);
-          
           const newY = change.position?.y || node.position.y;
-          const constrainedY = Math.max(minTopY, newY);
+          
+          // Calculate center Y from top Y
+          const centerY = newY + (nodeHeight / 2);
+          
+          // Snap to nearest slot
+          const slot = yToSlot(centerY);
+          const snappedCenterY = slotToY(slot);
+          
+          // Convert back to top Y for React Flow positioning
+          const snappedTopY = snappedCenterY - (nodeHeight / 2);
           
           // Lock X position to the original position from when drag started
-          // This prevents nodes from being dragged outside their lifeline lane
           const startPos = dragStartPositions.get(node.id);
           const lockedX = startPos?.x ?? node.position.x;
           
@@ -842,7 +852,7 @@ const FitViewHelper: React.FC<{
             ...change,
             position: {
               x: lockedX,
-              y: constrainedY
+              y: snappedTopY
             }
           };
         }
