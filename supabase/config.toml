@@ -13,6 +13,7 @@ port = 54324
 site_url = "http://localhost:3000"
 additional_redirect_urls = ["http://localhost:3000", "http://localhost:8080"]
 
+# Protected endpoints (require JWT authentication)
 [functions.workspace-management]
 verify_jwt = true
 
@@ -22,23 +23,42 @@ verify_jwt = true
 [functions.document-content]
 verify_jwt = true
 
+[functions.document-versions]
+verify_jwt = true
+
+[functions.document-security]
+verify_jwt = true
+
 [functions.permissions-management]
 verify_jwt = true
 
+[functions.notifications-management]
+verify_jwt = true
+
+[functions.user-profile]
+verify_jwt = true
+
+[functions.fetch-authenticated-url]
+verify_jwt = true
+
+[functions.crowdin-integration]
+verify_jwt = true
+
+[functions.diagram-render]
+verify_jwt = true
+
+[functions.plugin-config]
+verify_jwt = true
+
+# Public endpoints (no JWT required)
 [functions.public-document]
 verify_jwt = false
 
 [functions.public-diagram]
 verify_jwt = false
 
-[functions.crowdin-integration]
-verify_jwt = true
-
 [functions.yjs-sync]
 verify_jwt = false
-
-[functions.diagram-render]
-verify_jwt = true
 
 [functions.demo-session]
 verify_jwt = false
