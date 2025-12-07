@@ -769,15 +769,17 @@ const FitViewHelper: React.FC<{
         const prev = prevNodesRef.current[i];
         if (!prev) return true;
         
-        // Check basic properties
+        // Check basic properties including draggable
         if (node.id !== prev.id || 
             node.type !== prev.type ||
             node.position.x !== prev.position.x ||
-            node.position.y !== prev.position.y) {
+            node.position.y !== prev.position.y ||
+            node.draggable !== prev.draggable) {
           console.log('📝 [Node Change Detected] Basic properties changed:', { 
             nodeId: node.id, 
             type: node.type,
-            posChanged: node.position.y !== prev.position.y 
+            posChanged: node.position.y !== prev.position.y,
+            draggableChanged: node.draggable !== prev.draggable
           });
           return true;
         }
@@ -2179,6 +2181,9 @@ const FitViewHelper: React.FC<{
           onEdgeClick={onEdgeClick}
           onNodeMouseEnter={handleNodeMouseEnter}
           onNodeMouseLeave={handleNodeMouseLeave}
+          onNodeDragStart={(event, node) => console.log('🚀 [ReactFlow onNodeDragStart]', node.id)}
+          onNodeDrag={(event, node) => console.log('🔄 [ReactFlow onNodeDrag]', node.id, node.position)}
+          onNodeDragStop={(event, node) => console.log('🛑 [ReactFlow onNodeDragStop]', node.id)}
           onConnect={onConnect}
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
