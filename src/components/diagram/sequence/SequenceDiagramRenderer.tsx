@@ -1026,11 +1026,16 @@ const FitViewHelper: React.FC<{
           const newY = change.position?.y || node.position.y;
           const constrainedY = Math.max(minY, newY);
           
-          // Keep original X position, only allow Y to change within constraints
+          // Get original X position from layout, not from current node state
+          // This ensures nodes snap back to their correct lane position
+          const layoutNode = layoutNodes.find(n => n.id === change.id);
+          const originalX = layoutNode?.position.x ?? node.position.x;
+          
+          // Keep original X position from layout, only allow Y to change within constraints
           return {
             ...change,
             position: {
-              x: node.position.x,
+              x: originalX,
               y: constrainedY
             }
           };
