@@ -23,6 +23,14 @@ const Index = () => {
   const { content: documentContent, loading: contentLoading } = useDocumentContent(selectedDocument?.id);
   const { checkDocumentPinStatus } = useDocumentPinSecurity();
 
+  // Merge documentContent metadata (like is_public) into selectedDocument when loaded
+  useEffect(() => {
+    if (documentContent && selectedDocument && documentContent.id === selectedDocument.id) {
+      // Update selectedDocument with fresh data from documentContent (excludes content itself)
+      const { content, ...metadata } = documentContent;
+      setSelectedDocument(prev => prev ? { ...prev, ...metadata } : null);
+    }
+  }, [documentContent]);
   // Redirect to auth if not logged in - with delay to prevent race conditions
   useEffect(() => {
     if (!loading && !user) {
