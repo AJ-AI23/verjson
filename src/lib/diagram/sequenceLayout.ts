@@ -577,7 +577,8 @@ function lifelineRangesOverlap(range1: [string, string], range2: [string, string
   return !(max1 < min2 || max2 < min1);
 }
 
-// Calculate spacing that allows nodes to share Y positions when they don't overlap horizontally
+// Matrix-based layout algorithm: nodes are placed in slots (rows) with horizontal lane-based conflict detection
+// This ensures nodes compact toward the top while maintaining proper spacing when they overlap horizontally
 function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, number>, lifelines?: Lifeline[]): Map<string, number> {
   const positions = new Map<string, number>();
   
@@ -585,10 +586,11 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
     return positions;
   }
   
-  const startY = LIFELINE_HEADER_HEIGHT + 40;
-  const SPACING_BETWEEN_ROWS = 50; // Spacing between different Y levels
+  const SLOT_HEIGHT = 100; // Each slot is 100 units
+  const SLOT_START_Y = LIFELINE_HEADER_HEIGHT + 20; // First slot starts after lifeline header + margin
+  const MAX_SLOTS = 50; // Maximum number of slots
   
-  // Create a map of lifeline positions for overlap detection
+  // Build lifeline position map (lifeline ID -> lane index)
   const lifelinePositions = new Map<string, number>();
   if (lifelines) {
     const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
@@ -597,232 +599,127 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
     });
   }
   
-  // Track which nodes are at each Y level and their lifeline ranges
-  interface YLevel {
-    y: number;
-    height: number;
-    nodesWithRanges: Array<{ nodeId: string; range: [string, string] }>;
+  // Type for node span (horizontal bounds in lanes)
+  interface NodeSpan {
+    leftLane: number;
+    rightLane: number;
+    width: number;
   }
-  const yLevels: YLevel[] = [];
   
-  // Sort nodes by yPosition (all nodes should have yPosition at this point)
-  // Use array index as fallback for safety
-  const sortedNodes = [...nodes].sort((a, b) => {
-    const aPos = a.yPosition !== undefined ? a.yPosition : nodes.indexOf(a) * 120;
-    const bPos = b.yPosition !== undefined ? b.yPosition : nodes.indexOf(b) * 120;
-    return aPos - bPos;
+  // Type for node position in the matrix
+  interface NodePosition {
+    slot: number;
+    leftLane: number;
+    rightLane: number;
+    width: number;
+  }
+  
+  // Convert Y position to slot index (0-based)
+  const yToSlot = (centerY: number): number => {
+    return Math.max(0, Math.round((centerY - SLOT_START_Y) / SLOT_HEIGHT));
+  };
+  
+  // Convert slot index back to Y position (center Y)
+  const slotToY = (slot: number): number => {
+    return SLOT_START_Y + (slot * SLOT_HEIGHT);
+  };
+  
+  // Compute horizontal span for a node (which lanes it occupies)
+  const computeSpan = (node: DiagramNode): NodeSpan | null => {
+    if (!node.anchors || node.anchors.length < 2) return null;
+    
+    const ll0Pos = lifelinePositions.get(node.anchors[0].lifelineId);
+    const ll1Pos = lifelinePositions.get(node.anchors[1].lifelineId);
+    
+    if (ll0Pos === undefined || ll1Pos === undefined) {
+      return null;
+    }
+    
+    // Lanes are gaps between lifelines (0 = gap between lifeline 0 and 1)
+    const leftLane = Math.min(ll0Pos, ll1Pos);
+    const rightLane = Math.max(ll0Pos, ll1Pos) - 1; // -1 because lane is the gap
+    const width = rightLane - leftLane + 1;
+    
+    return { leftLane, rightLane, width };
+  };
+  
+  // Check if a span conflicts with any node already placed in the same slot
+  // Rule: There must be at least 1 empty lane gap between nodes horizontally
+  const conflicts = (
+    span: NodeSpan, 
+    slotNodes: DiagramNode[], 
+    nodePositions: Map<string, NodePosition>
+  ): boolean => {
+    for (const n of slotNodes) {
+      const other = nodePositions.get(n.id);
+      if (!other) continue;
+      
+      const aLeft = span.leftLane;
+      const aRight = span.rightLane;
+      const bLeft = other.leftLane;
+      const bRight = other.rightLane;
+      
+      // We require at least 2 lanes gap: aRight + 2 <= bLeft OR bRight + 2 <= aLeft
+      const ok = (aRight + 2 <= bLeft) || (bRight + 2 <= aLeft);
+      
+      if (!ok) return true;
+    }
+    return false;
+  };
+  
+  // Calculate spans for all nodes
+  const nodeSpans = new Map<string, NodeSpan>();
+  nodes.forEach(node => {
+    const span = computeSpan(node);
+    if (span) {
+      nodeSpans.set(node.id, span);
+    }
   });
   
-  // Assign Y positions based on sorted nodes, allowing sharing when no overlap
+  // Sort nodes by their current Y position to preserve relative ordering
+  const sortedNodes = [...nodes]
+    .filter(n => nodeSpans.has(n.id))
+    .sort((a, b) => {
+      const aY = a.yPosition ?? 0;
+      const bY = b.yPosition ?? 0;
+      return aY - bY;
+    });
+  
+  // Matrix layout: slots array and positions map
+  const nodePositions = new Map<string, NodePosition>();
+  const slots: DiagramNode[][] = Array.from({ length: MAX_SLOTS }, () => []);
+  
+  // Place each node at the first available slot from top
   sortedNodes.forEach((node) => {
-    if (!node || !node.anchors || node.anchors.length !== 2) {
-      positions.set(node.id, startY);
-      return;
-    }
+    const span = nodeSpans.get(node.id)!;
+    let placedSlot: number | null = null;
     
-    const nodeConfig = getNodeTypeConfig(node.type);
-    const measuredHeight = nodeHeights?.get(node.id);
-    const nodeHeight = measuredHeight || nodeConfig?.defaultHeight || 70;
-    
-    // Get the lifeline range this node spans
-    const sourceLifelineId = node.anchors[0].lifelineId;
-    const targetLifelineId = node.anchors[1].lifelineId;
-    const nodeRange: [string, string] = [sourceLifelineId, targetLifelineId];
-    
-    // Get the intended Y position from the node (this is the center Y)
-    // Constrain center Y to be below lifeline header + margin
-    const HEADER_MARGIN = 20;
-    const minCenterY = LIFELINE_HEADER_HEIGHT + HEADER_MARGIN;
-    const rawIntendedY = node.yPosition !== undefined ? node.yPosition : startY + (nodeHeight / 2);
-    const intendedY = Math.max(rawIntendedY, minCenterY);
-    const intendedTopY = intendedY - (nodeHeight / 2);
-    
-    // Try to find an existing Y level where this node can fit (no overlap)
-    let assignedLevel: YLevel | null = null;
-    
-    for (let levelIdx = 0; levelIdx < yLevels.length; levelIdx++) {
-      const level = yLevels[levelIdx];
-      // Check if this node overlaps with any node at this level
-      const hasOverlap = level.nodesWithRanges.some(existing => 
-        lifelineRangesOverlap(nodeRange, existing.range, lifelinePositions)
-      );
-      
-      if (!hasOverlap) {
-        // Check if the level's Y is close enough to the intended Y (within reasonable tolerance)
-        const levelCenterY = level.y + (level.height / 2);
-        const tolerance = 20;
-        
-        if (Math.abs(levelCenterY - intendedY) <= tolerance) {
-          assignedLevel = level;
-          level.height = Math.max(level.height, nodeHeight);
-          level.nodesWithRanges.push({ nodeId: node.id, range: nodeRange });
-          break;
-        }
+    // Scan from slot 0 upward, find first slot without conflicts
+    for (let s = 0; s < MAX_SLOTS; s++) {
+      if (!conflicts(span, slots[s], nodePositions)) {
+        placedSlot = s;
+        break;
       }
     }
     
-    if (!assignedLevel) {
-      // Need to create a new Y level at the intended position
-      // But first, ensure it doesn't overlap with existing levels
-      let newY = intendedTopY;
-      
-      // Find the slot where this node should be inserted based on its intended Y position
-      // Track the level above and below the intended position, with their indices
-      let levelAboveIndex = -1;
-      let levelBelowIndex = -1;
-      
-      for (let i = 0; i < yLevels.length; i++) {
-        const level = yLevels[i];
-        const levelCenterY = level.y + level.height / 2;
-        
-        // Use the level's center as the breakpoint:
-        // - If intendedY > levelCenterY → this level is "above" us, insert AFTER it
-        // - If intendedY <= levelCenterY → this level is "below" us, insert BEFORE it
-        // We determine order purely by Y position - horizontal overlap is handled later
-        // by pushing nodes apart, not by changing their order
-        if (intendedY > levelCenterY) {
-          // Intended position is below this level's center, so this level is "above" us
-          levelAboveIndex = i;
-        } else if (levelBelowIndex === -1) {
-          // Intended position is at or above this level's center, so this level is below us
-          levelBelowIndex = i;
-        }
-      }
-      
-      // The insert index should be right after levelAbove (if it exists)
-      // This ensures we insert in the correct slot - BELOW nodes whose center is above our click point
-      let insertIndex = levelAboveIndex >= 0 ? levelAboveIndex + 1 : 0;
-      
-      // Now check for collisions with the level above and adjust Y position
-      if (levelAboveIndex >= 0) {
-        const levelAbove = yLevels[levelAboveIndex];
-        const levelAboveBottom = levelAbove.y + levelAbove.height;
-        
-        // Check if there's horizontal overlap with the level above
-        const hasHorizontalOverlap = levelAbove.nodesWithRanges.some(existing => 
-          lifelineRangesOverlap(nodeRange, existing.range, lifelinePositions)
-        );
-        
-        if (hasHorizontalOverlap) {
-          // If we would overlap with the level above, push our position down
-          if (newY < levelAboveBottom + SPACING_BETWEEN_ROWS) {
-            newY = levelAboveBottom + SPACING_BETWEEN_ROWS;
-          }
-        }
-      }
-      
-      // Also check for collisions with the level below and adjust if needed
-      if (levelBelowIndex >= 0) {
-        const levelBelow = yLevels[levelBelowIndex];
-        
-        // Check if there's horizontal overlap with the level below
-        const hasHorizontalOverlap = levelBelow.nodesWithRanges.some(existing => 
-          lifelineRangesOverlap(nodeRange, existing.range, lifelinePositions)
-        );
-        
-        if (hasHorizontalOverlap) {
-          // If we would overlap with the level below, ensure we stay above it
-          const currentBottom = newY + nodeHeight;
-          if (currentBottom + SPACING_BETWEEN_ROWS > levelBelow.y) {
-            // We need to push the level below down - this will happen in the adjustment phase
-          }
-        }
-      }
-      
-      if (!assignedLevel) {
-        // Create the new level
-        assignedLevel = {
-          y: newY,
-          height: nodeHeight,
-          nodesWithRanges: [{ nodeId: node.id, range: nodeRange }]
-        };
-        
-        // Insert at the correct position to maintain Y-sorted order
-        yLevels.splice(insertIndex, 0, assignedLevel);
-        
-        // Adjust subsequent levels if they overlap with this new level or cascading levels
-        // We need to cascade: if level N is pushed down, check if it now overlaps with level N+1
-        for (let i = insertIndex + 1; i < yLevels.length; i++) {
-          const currentLevel = yLevels[i];
-          
-          // Check against all previous levels (not just the immediately previous one)
-          // to find the maximum bottom Y of any level that overlaps horizontally
-          let maxOverlappingBottom = 0;
-          
-          for (let j = 0; j < i; j++) {
-            const prevLevel = yLevels[j];
-            const prevBottom = prevLevel.y + prevLevel.height;
-            
-            // Check if this level has horizontal overlap with the previous level
-            const hasHorizontalOverlap = currentLevel.nodesWithRanges.some(curr =>
-              prevLevel.nodesWithRanges.some(prev =>
-                lifelineRangesOverlap(curr.range, prev.range, lifelinePositions)
-              )
-            );
-            
-            if (hasHorizontalOverlap) {
-              maxOverlappingBottom = Math.max(maxOverlappingBottom, prevBottom);
-            }
-          }
-          
-          // Only push down if there's a collision with an overlapping level
-          if (maxOverlappingBottom > 0 && currentLevel.y < maxOverlappingBottom + SPACING_BETWEEN_ROWS) {
-            currentLevel.y = maxOverlappingBottom + SPACING_BETWEEN_ROWS;
-          }
-        }
-      }
+    // Fallback to last slot if nothing fits
+    if (placedSlot === null) {
+      placedSlot = MAX_SLOTS - 1;
     }
     
-    // Store the CENTER Y position of the node (not the top)
-    // This ensures yPosition represents the center point for consistent positioning
-    positions.set(node.id, assignedLevel.y + (nodeHeight / 2));
+    nodePositions.set(node.id, {
+      slot: placedSlot,
+      leftLane: span.leftLane,
+      rightLane: span.rightLane,
+      width: span.width
+    });
+    slots[placedSlot].push(node);
   });
   
-  // Compact the levels to remove unnecessary gaps while respecting horizontal overlap
-  // This handles cases where nodes were deleted and left empty vertical space
-  if (yLevels.length > 0) {
-    // For each level, find the maximum bottom Y of all previous levels that overlap horizontally
-    for (let i = 0; i < yLevels.length; i++) {
-      const level = yLevels[i];
-      const oldY = level.y;
-      
-      // Find the minimum Y this level can be at (must be below any overlapping levels)
-      let minY = startY - (level.height / 2); // Default: start position
-      
-      for (let j = 0; j < i; j++) {
-        const prevLevel = yLevels[j];
-        
-        // Check if this level has horizontal overlap with the previous level
-        const hasHorizontalOverlap = level.nodesWithRanges.some(curr =>
-          prevLevel.nodesWithRanges.some(prev =>
-            lifelineRangesOverlap(curr.range, prev.range, lifelinePositions)
-          )
-        );
-        
-        if (hasHorizontalOverlap) {
-          const prevBottom = prevLevel.y + prevLevel.height;
-          minY = Math.max(minY, prevBottom + SPACING_BETWEEN_ROWS);
-        }
-      }
-      
-      // Only move the level up if it can go higher (compacting)
-      // Never move it down - that would have been handled in the insertion logic
-      if (minY < level.y) {
-        level.y = minY;
-      }
-      
-      // Update positions for all nodes at this level if the level moved
-      if (oldY !== level.y) {
-        const yDelta = level.y - oldY;
-        level.nodesWithRanges.forEach(({ nodeId }) => {
-          const currentPos = positions.get(nodeId);
-          if (currentPos !== undefined) {
-            positions.set(nodeId, currentPos + yDelta);
-          }
-        });
-      }
-    }
-  }
+  // Convert slots to Y positions (center Y)
+  nodePositions.forEach((pos, nodeId) => {
+    positions.set(nodeId, slotToY(pos.slot));
+  });
   
   return positions;
 }

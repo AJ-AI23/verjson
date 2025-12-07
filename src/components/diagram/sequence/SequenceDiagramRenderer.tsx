@@ -153,10 +153,6 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const previousLayoutRef = useRef<{ nodes: Node[]; edges: Edge[]; calculatedYPositions?: Map<string, number> }>({ nodes: [], edges: [] });
   const [hoveredElement, setHoveredElement] = useState<{ id: string; description?: string; position: { x: number; y: number } } | null>(null);
-  
-  // Refs for storing pushed node positions to apply after handleNodesChange
-  const pushedNodePositionsRef = useRef<Map<string, number>>(new Map());
-  const pushedNodeDraggedIdRef = useRef<string | null>(null);
 
   // Process management state
   const [selectedAnchorId, setSelectedAnchorId] = useState<string | null>(null);
@@ -760,245 +756,32 @@ const FitViewHelper: React.FC<{
       setIsDragging(false);
       setLayoutVersion(v => v + 1);
       
-      // Update positions with 2D MATRIX-BASED slot system
+      // Update the dragged node's yPosition to its new desired position
+      // The matrix layout in calculateSequenceLayout will handle the rest
       if (onDataChange) {
-        const SLOT_HEIGHT = 100; // Each slot is 100 units
-        const SLOT_START_Y = 120; // First slot starts after lifeline header (100) + margin (20)
-        const MAX_SLOTS = 50; // Maximum number of slots
-        const sequenceNodes = nodes.filter(n => n.type === 'sequenceNode');
-        
-        console.log('═══════════════════════════════════════════════════════════');
-        console.log('🔲 MATRIX LAYOUT ALGORITHM - Drag End');
-        console.log('═══════════════════════════════════════════════════════════');
-        
-        // Build lifeline position map (lifeline ID -> lane index)
-        const lifelinePositions = new Map<string, number>();
-        const sortedLifelines = [...data.lifelines].sort((a, b) => a.order - b.order);
-        sortedLifelines.forEach((lifeline, index) => {
-          lifelinePositions.set(lifeline.id, index);
-        });
-        
-        const laneCount = Math.max(1, sortedLifelines.length - 1);
-        console.log(`Grid: ${laneCount} lanes, slotHeight=${SLOT_HEIGHT}, slotStartY=${SLOT_START_Y}`);
-        
-        // Convert Y position to slot index (0-based, relative to content area)
-        const yToSlot = (centerY: number): number => {
-          return Math.max(0, Math.round((centerY - SLOT_START_Y) / SLOT_HEIGHT));
-        };
-        
-        // Convert slot index back to Y position (center Y)
-        const slotToY = (slot: number): number => {
-          return SLOT_START_Y + (slot * SLOT_HEIGHT);
-        };
-        
-        // Type for node span (horizontal bounds)
-        interface NodeSpan {
-          leftLane: number;
-          rightLane: number;
-          width: number;
-        }
-        
-        // Type for node position in the matrix
-        interface NodePosition {
-          slot: number;
-          leftLane: number;
-          rightLane: number;
-          width: number;
-        }
-        
-        // Compute horizontal span for a node (which lanes it occupies)
-        const computeSpan = (node: DiagramNode): NodeSpan | null => {
-          if (!node.anchors || node.anchors.length < 2) return null;
-          
-          const ll0Pos = lifelinePositions.get(node.anchors[0].lifelineId);
-          const ll1Pos = lifelinePositions.get(node.anchors[1].lifelineId);
-          
-          if (ll0Pos === undefined || ll1Pos === undefined) {
-            console.warn(`⚠️ Node ${node.id}: missing lifeline position`);
-            return null;
-          }
-          
-          // Lanes are gaps between lifelines (0 = gap between lifeline 0 and 1)
-          const leftLane = Math.min(ll0Pos, ll1Pos);
-          const rightLane = Math.max(ll0Pos, ll1Pos) - 1; // -1 because lane is the gap
-          const width = rightLane - leftLane + 1;
-          
-          return { leftLane, rightLane, width };
-        };
-        
-        // Check if a span conflicts with any node already placed in the same slot
-        // Rule: There must be at least 1 empty lane gap between nodes horizontally
-        const conflicts = (
-          span: NodeSpan, 
-          slotNodes: DiagramNode[], 
-          positions: Map<string, NodePosition>
-        ): boolean => {
-          for (const n of slotNodes) {
-            const other = positions.get(n.id);
-            if (!other) continue;
-            
-            const aLeft = span.leftLane;
-            const aRight = span.rightLane;
-            const bLeft = other.leftLane;
-            const bRight = other.rightLane;
-            
-            // We require at least 2 lanes gap: aRight + 2 <= bLeft OR bRight + 2 <= aLeft
-            const ok = (aRight + 2 <= bLeft) || (bRight + 2 <= aLeft);
-            
-            if (!ok) return true;
-          }
-          return false;
-        };
-        
-        // Calculate preferred slot for each node
         const dragEndNodeId = dragEndChange.id;
         const dragEndPosition = dragEndChange.position;
         
-        const nodePreferredSlots = new Map<string, number>();
-        const nodeSpans = new Map<string, NodeSpan>();
+        // Get node height to calculate center Y
+        const diagramNode = diagramNodes.find(n => n.id === dragEndNodeId);
+        const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
+        const nodeHeight = nodeHeights.get(dragEndNodeId) || nodeConfig?.defaultHeight || 70;
         
-        console.log('───────────────────────────────────────────────────────────');
-        console.log('NODE SPANS & PREFERRED SLOTS:');
-        console.log('───────────────────────────────────────────────────────────');
+        // Calculate the new center Y position for the dragged node
+        const newCenterY = dragEndPosition.y + (nodeHeight / 2);
         
-        sequenceNodes.forEach(n => {
-          const diagramNode = diagramNodes.find(dn => dn.id === n.id);
-          if (!diagramNode) return;
-          
-          const span = computeSpan(diagramNode);
-          if (!span) return;
-          
-          const nodeConfig = getNodeTypeConfig(diagramNode.type);
-          const nodeHeight = nodeHeights.get(n.id) || nodeConfig?.defaultHeight || 70;
-          
-          let centerY: number;
-          if (n.id === dragEndNodeId) {
-            centerY = dragEndPosition.y + (nodeHeight / 2);
-          } else {
-            centerY = diagramNode.yPosition || (n.position.y + nodeHeight / 2);
+        console.log(`🔲 DRAG END: ${dragEndNodeId} moved to centerY=${newCenterY}`);
+        
+        // Update only the dragged node's yPosition - the matrix layout will recalculate all positions
+        const updatedNodes = diagramNodes.map(node => {
+          if (node.id === dragEndNodeId) {
+            return {
+              ...node,
+              yPosition: newCenterY
+            };
           }
-          
-          const preferredSlot = yToSlot(centerY);
-          
-          nodePreferredSlots.set(n.id, preferredSlot);
-          nodeSpans.set(n.id, span);
-          
-          const isDragged = n.id === dragEndNodeId ? ' [DRAGGED]' : '';
-          console.log(`  ${n.id}${isDragged}: preferredSlot=${preferredSlot}, lanes=[${span.leftLane}-${span.rightLane}], width=${span.width}`);
+          return node;
         });
-        
-        // Layout algorithm: place dragged node first at its preferred slot,
-        // then place other nodes in original order at the first available slot from top
-        const positions = new Map<string, NodePosition>();
-        const slots: DiagramNode[][] = Array.from({ length: MAX_SLOTS }, () => []);
-        
-        console.log('───────────────────────────────────────────────────────────');
-        console.log('PLACEMENT PROCESS:');
-        console.log('───────────────────────────────────────────────────────────');
-        
-        // 1. Place dragged node first at its preferred slot
-        const draggedDiagramNode = diagramNodes.find(n => n.id === dragEndNodeId);
-        if (draggedDiagramNode && nodeSpans.has(dragEndNodeId)) {
-          const span = nodeSpans.get(dragEndNodeId)!;
-          const preferredSlot = Math.min(MAX_SLOTS - 1, Math.max(0, nodePreferredSlots.get(dragEndNodeId) || 0));
-          
-          positions.set(dragEndNodeId, {
-            slot: preferredSlot,
-            leftLane: span.leftLane,
-            rightLane: span.rightLane,
-            width: span.width
-          });
-          slots[preferredSlot].push(draggedDiagramNode);
-          
-          console.log(`  1. ${dragEndNodeId} [DRAGGED]: placed at slot=${preferredSlot}, lanes=[${span.leftLane}-${span.rightLane}]`);
-        }
-        
-        // 2. Sort OTHER nodes by their ORIGINAL slot position (preserves relative order)
-        const otherNodes = diagramNodes
-          .filter(n => n.id !== dragEndNodeId && nodeSpans.has(n.id))
-          .sort((a, b) => {
-            // Sort by original yPosition to preserve relative ordering
-            const aY = a.yPosition ?? 0;
-            const bY = b.yPosition ?? 0;
-            return aY - bY;
-          });
-        
-        console.log(`  Processing ${otherNodes.length} other nodes in order:`);
-        otherNodes.forEach((node, idx) => {
-          const origSlot = yToSlot(node.yPosition ?? 0);
-          console.log(`    ${idx + 1}. ${node.id} (original slot=${origSlot})`);
-        });
-        
-        // 3. Place each other node at the first available slot from top
-        otherNodes.forEach((node, idx) => {
-          const span = nodeSpans.get(node.id)!;
-          let placedSlot: number | null = null;
-          
-          // Scan from slot 0 upward, find first slot without conflicts
-          for (let s = 0; s < MAX_SLOTS; s++) {
-            if (!conflicts(span, slots[s], positions)) {
-              placedSlot = s;
-              break;
-            }
-          }
-          
-          // Fallback to last slot if nothing fits
-          if (placedSlot === null) {
-            placedSlot = MAX_SLOTS - 1;
-          }
-          
-          positions.set(node.id, {
-            slot: placedSlot,
-            leftLane: span.leftLane,
-            rightLane: span.rightLane,
-            width: span.width
-          });
-          slots[placedSlot].push(node);
-          
-          console.log(`  ${idx + 2}. ${node.id}: placed at slot=${placedSlot}, lanes=[${span.leftLane}-${span.rightLane}]`);
-        });
-        
-        // Show final slot assignments
-        console.log('───────────────────────────────────────────────────────────');
-        console.log('FINAL SLOT ASSIGNMENTS:');
-        console.log('───────────────────────────────────────────────────────────');
-        
-        const usedSlots = slots
-          .map((nodes, slotIdx) => ({ slotIdx, nodes }))
-          .filter(({ nodes }) => nodes.length > 0);
-        
-        usedSlots.forEach(({ slotIdx, nodes: slotNodes }) => {
-          const nodeStrs = slotNodes.map(n => {
-            const pos = positions.get(n.id);
-            return `${n.id}[${pos?.leftLane}-${pos?.rightLane}]`;
-          });
-          console.log(`  slot ${slotIdx}: ${nodeStrs.join(', ')}`);
-        });
-        
-        // Convert slots back to Y positions
-        const finalPositions = new Map<string, number>();
-        positions.forEach((pos, nodeId) => {
-          finalPositions.set(nodeId, slotToY(pos.slot));
-        });
-        
-        console.log('───────────────────────────────────────────────────────────');
-        console.log('FINAL Y POSITIONS:');
-        console.log('───────────────────────────────────────────────────────────');
-        positions.forEach((pos, nodeId) => {
-          console.log(`  ${nodeId}: slot=${pos.slot}, yPosition=${slotToY(pos.slot)}`);
-        });
-        console.log('═══════════════════════════════════════════════════════════');
-        
-        // Update nodes with final positions
-        const updatedNodes = diagramNodes.map(node => ({
-          ...node,
-          yPosition: finalPositions.get(node.id) ?? node.yPosition ?? 0,
-          anchors: node.anchors
-        }));
-        
-        // Store pushed positions to apply AFTER handleNodesChange
-        pushedNodePositionsRef.current = finalPositions;
-        pushedNodeDraggedIdRef.current = dragEndNodeId;
         
         onDataChange({ ...data, nodes: updatedNodes });
       }
@@ -1047,61 +830,6 @@ const FitViewHelper: React.FC<{
     });
 
     handleNodesChange(constrainedChanges);
-    
-    // Apply pushed node positions AFTER handleNodesChange (otherwise they get overwritten)
-    const pushedPositions = pushedNodePositionsRef.current;
-    const pushedDraggedNodeId = pushedNodeDraggedIdRef.current;
-    
-    // Apply pushed node positions if any exist (from drag end conflict resolution)
-    if (pushedPositions.size > 0) {
-      console.log('🚀 Applying pushed positions for', pushedPositions.size, 'nodes');
-      setNodes(currentNodes =>
-        currentNodes.map(n => {
-          // Skip the dragged node - its position is already correct
-          if (n.id === pushedDraggedNodeId) return n;
-          
-          // Update pushed sequence nodes
-          if (n.type === 'sequenceNode') {
-            const newYPosition = pushedPositions.get(n.id);
-            if (newYPosition !== undefined) {
-              const pushedDiagramNode = diagramNodes.find(dn => dn.id === n.id);
-              const pushedNodeConfig = pushedDiagramNode ? getNodeTypeConfig(pushedDiagramNode.type) : null;
-              const pushedNodeHeight = nodeHeights.get(n.id) || pushedNodeConfig?.defaultHeight || 70;
-              
-              // Convert center Y (yPosition) back to top Y for React Flow
-              const newTopY = newYPosition - (pushedNodeHeight / 2);
-              
-              if (Math.abs(n.position.y - newTopY) > 1) {
-                console.log('🔄 Moving pushed node:', n.id, 'from', n.position.y, 'to', newTopY);
-                return { ...n, position: { ...n.position, y: newTopY } };
-              }
-            }
-          }
-          
-          // Update anchors for pushed nodes
-          if (n.type === 'anchorNode') {
-            const anchorData = n.data as any;
-            const connectedNodeId = anchorData?.connectedNodeId;
-            if (connectedNodeId && connectedNodeId !== pushedDraggedNodeId) {
-              const newYPosition = pushedPositions.get(connectedNodeId);
-              if (newYPosition !== undefined) {
-                const newAnchorY = newYPosition - 8;
-                if (Math.abs(n.position.y - newAnchorY) > 1) {
-                  console.log('🔄 Moving anchor for pushed node:', n.id, 'from', n.position.y, 'to', newAnchorY);
-                  return { ...n, position: { ...n.position, y: newAnchorY } };
-                }
-              }
-            }
-          }
-          
-          return n;
-        })
-      );
-      
-      // Clear pushed positions after applying
-      pushedNodePositionsRef.current = new Map();
-      pushedNodeDraggedIdRef.current = null;
-    }
     
     // Update anchors during drag (separate from pushed positions)
     const dragChange = constrainedChanges.find((c: any) => c.type === 'position' && c.dragging);
