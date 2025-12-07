@@ -757,6 +757,12 @@ const FitViewHelper: React.FC<{
 
   // Update nodes when layout changes and apply handlers - with deduplication
   useEffect(() => {
+    // CRITICAL: Skip node updates during active drag to prevent React Flow drag interruption
+    if (isDraggingRef.current) {
+      console.log('⏸️ [Nodes Update] Skipping during drag');
+      return;
+    }
+    
     // Skip if nodes haven't actually changed (deep comparison of IDs, positions, and data)
     const nodesChanged = nodesWithHandlers.length !== prevNodesRef.current.length ||
       nodesWithHandlers.some((node, i) => {
