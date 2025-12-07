@@ -881,6 +881,9 @@ const FitViewHelper: React.FC<{
       // Update positions with slot-based cascading conflict resolution
       if (onDataChange) {
         const SLOT_HEIGHT = 100; // Each slot is 100 units
+        const LIFELINE_HEADER_HEIGHT = 100;
+        const MIN_TOP_MARGIN = 40;
+        const MIN_Y_POSITION = LIFELINE_HEADER_HEIGHT + MIN_TOP_MARGIN + 35; // Minimum Y for first slot (center position)
         const sequenceNodes = nodes.filter(n => n.type === 'sequenceNode');
         
         // Build lifeline position map for overlap detection
@@ -908,7 +911,7 @@ const FitViewHelper: React.FC<{
         };
         
         // Create slot assignments: convert visual Y positions to slot indices
-        // IMPORTANT: visual Y is top of node, but we need to convert to center Y for document
+        // Slots are relative to the minimum Y position (after header)
         const nodeToSlot = new Map<string, number>();
         sequenceNodes.forEach(n => {
           const diagramNode = diagramNodes.find(dn => dn.id === n.id);
@@ -917,7 +920,9 @@ const FitViewHelper: React.FC<{
           
           const visualTopY = n.position.y;
           const centerY = visualTopY + (nodeHeight / 2); // Convert top Y to center Y
-          const slot = Math.round(centerY / SLOT_HEIGHT);
+          // Calculate slot relative to minimum Y position, ensuring slot >= 0
+          const relativeY = Math.max(0, centerY - MIN_Y_POSITION);
+          const slot = Math.round(relativeY / SLOT_HEIGHT);
           nodeToSlot.set(n.id, slot);
         });
         
@@ -991,10 +996,10 @@ const FitViewHelper: React.FC<{
           }
         }
         
-        // Convert slots back to Y positions
+        // Convert slots back to Y positions (add back the minimum Y offset)
         const finalPositions = new Map<string, number>();
         nodeToSlot.forEach((slot, nodeId) => {
-          finalPositions.set(nodeId, slot * SLOT_HEIGHT);
+          finalPositions.set(nodeId, MIN_Y_POSITION + (slot * SLOT_HEIGHT));
         });
         
         // Update nodes with final positions
