@@ -153,9 +153,6 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const previousLayoutRef = useRef<{ nodes: Node[]; edges: Edge[]; calculatedYPositions?: Map<string, number> }>({ nodes: [], edges: [] });
   const [hoveredElement, setHoveredElement] = useState<{ id: string; description?: string; position: { x: number; y: number } } | null>(null);
-  
-  // Preview positions during drag - maps node ID to temporary yPosition
-  const [dragPreviewPositions, setDragPreviewPositions] = useState<Map<string, number>>(new Map());
 
   // Process management state
   const [selectedAnchorId, setSelectedAnchorId] = useState<string | null>(null);
@@ -383,22 +380,14 @@ const FitViewHelper: React.FC<{
 
   // Calculate layout with validation and recovery
   const { nodes: layoutNodes, edges: layoutEdges, calculatedYPositions } = useMemo(() => {
-    // During drag, use preview positions merged with diagram nodes
-    let nodesForLayout = diagramNodes;
-    
-    if (dragPreviewPositions.size > 0) {
-      nodesForLayout = diagramNodes.map(node => {
-        const previewY = dragPreviewPositions.get(node.id);
-        if (previewY !== undefined) {
-          return { ...node, yPosition: previewY };
-        }
-        return node;
-      });
+    // Skip recalculation during active drag operations - use ref for synchronous check
+    if (isDraggingRef.current) {
+      return previousLayoutRef.current;
     }
     
     const layout = calculateSequenceLayout({
       lifelines,
-      nodes: nodesForLayout,
+      nodes: diagramNodes,
       processes: data.processes || [],
       styles: activeTheme,
       fullStyles: styles,
@@ -457,7 +446,7 @@ const FitViewHelper: React.FC<{
     // Store layout for use during drag
     previousLayoutRef.current = layout;
     return layout;
-  }, [lifelines, diagramNodes, activeTheme, isRenderMode, onDataChange, data, isDragging, layoutVersion, dragPreviewPositions]);
+  }, [lifelines, diagramNodes, activeTheme, isRenderMode, onDataChange, data, isDragging, layoutVersion]);
 
   // Sync calculated positions back to document when they change
   useEffect(() => {
@@ -770,7 +759,6 @@ const FitViewHelper: React.FC<{
       if (draggedNode?.type === 'sequenceNode') {
         isDraggingRef.current = false;
         setIsDragging(false);
-        setDragPreviewPositions(new Map()); // Clear preview positions
         setLayoutVersion(v => v + 1);
         
         // Update the dragged node's yPosition to its new desired position
@@ -874,20 +862,110 @@ const FitViewHelper: React.FC<{
 
     handleNodesChange(constrainedChanges);
     
-    // Update preview positions during drag - triggers layout recalculation
+    // Real-time matrix recalculation during drag
     const dragChange = constrainedChanges.find((c: any) => c.type === 'position' && c.dragging);
     if (dragChange) {
       const draggedNode = nodes.find(n => n.id === dragChange.id);
       if (draggedNode?.type === 'sequenceNode') {
         const draggedNodeHeight = nodeHeights.get(dragChange.id) || 70;
         const draggedCenterY = dragChange.position.y + (draggedNodeHeight / 2);
+        const draggedSlot = yToSlot(draggedCenterY);
         
-        // Update preview position for the dragged node
-        setDragPreviewPositions(prev => {
-          const next = new Map(prev);
-          next.set(dragChange.id, draggedCenterY);
-          return next;
+        // Build lifeline position map for lane calculation
+        const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
+        const lifelinePositions = new Map<string, number>();
+        sortedLifelines.forEach((lifeline, index) => {
+          lifelinePositions.set(lifeline.id, index);
         });
+        
+        // Compute span for a node
+        const computeSpan = (node: DiagramNode) => {
+          if (!node.anchors || node.anchors.length < 2) return null;
+          const ll0Pos = lifelinePositions.get(node.anchors[0].lifelineId);
+          const ll1Pos = lifelinePositions.get(node.anchors[1].lifelineId);
+          if (ll0Pos === undefined || ll1Pos === undefined) return null;
+          const leftLane = Math.min(ll0Pos, ll1Pos);
+          const rightLane = Math.max(ll0Pos, ll1Pos) - 1;
+          return { leftLane, rightLane, width: rightLane - leftLane + 1 };
+        };
+        
+        // Check conflicts
+        const conflicts = (span: any, slotNodes: any[], positions: Map<string, any>) => {
+          for (const n of slotNodes) {
+            const other = positions.get(n.id);
+            if (!other) continue;
+            const ok = (span.rightLane + 2 <= other.leftLane) || (other.rightLane + 2 <= span.leftLane);
+            if (!ok) return true;
+          }
+          return false;
+        };
+        
+        // Calculate spans for all nodes
+        const nodeSpans = new Map<string, any>();
+        diagramNodes.forEach(node => {
+          const span = computeSpan(node);
+          if (span) nodeSpans.set(node.id, span);
+        });
+        
+        // Matrix layout: place dragged node first, then others in order
+        const MAX_SLOTS = 50;
+        const positions = new Map<string, any>();
+        const slots: DiagramNode[][] = Array.from({ length: MAX_SLOTS }, () => []);
+        
+        // Place dragged node at its current slot
+        const draggedDiagramNode = diagramNodes.find(n => n.id === dragChange.id);
+        if (draggedDiagramNode && nodeSpans.has(dragChange.id)) {
+          const span = nodeSpans.get(dragChange.id);
+          const clampedSlot = Math.min(MAX_SLOTS - 1, Math.max(0, draggedSlot));
+          positions.set(dragChange.id, { slot: clampedSlot, ...span });
+          slots[clampedSlot].push(draggedDiagramNode);
+        }
+        
+        // Sort other nodes by original Y position
+        const otherNodes = diagramNodes
+          .filter(n => n.id !== dragChange.id && nodeSpans.has(n.id))
+          .sort((a, b) => (a.yPosition ?? 0) - (b.yPosition ?? 0));
+        
+        // Place other nodes at first available slot
+        otherNodes.forEach(node => {
+          const span = nodeSpans.get(node.id);
+          let placedSlot = 0;
+          for (let s = 0; s < MAX_SLOTS; s++) {
+            if (!conflicts(span, slots[s], positions)) {
+              placedSlot = s;
+              break;
+            }
+          }
+          positions.set(node.id, { slot: placedSlot, ...span });
+          slots[placedSlot].push(node);
+        });
+        
+        // Update all node and anchor positions in React Flow
+        setNodes(currentNodes =>
+          currentNodes.map(n => {
+            if (n.type === 'sequenceNode') {
+              const pos = positions.get(n.id);
+              if (pos) {
+                const nodeCenterY = slotToY(pos.slot);
+                const nodeH = nodeHeights.get(n.id) || 70;
+                const topY = nodeCenterY - (nodeH / 2);
+                return { ...n, position: { ...n.position, y: topY } };
+              }
+            }
+            if (n.type === 'anchorNode') {
+              const anchorData = n.data as any;
+              const connectedNodeId = anchorData?.connectedNodeId;
+              if (connectedNodeId) {
+                const pos = positions.get(connectedNodeId);
+                if (pos) {
+                  const nodeCenterY = slotToY(pos.slot);
+                  return { ...n, position: { ...n.position, y: nodeCenterY - 8 } };
+                }
+              }
+            }
+            return n;
+          })
+        );
       }
     }
     
