@@ -16,7 +16,7 @@ import {
 } from '@xyflow/react';
 import { SequenceDiagramData, DiagramNode, DiagramEdge, DiagramNodeType, Lifeline, AnchorNode as AnchorNodeType } from '@/types/diagram';
 import { DiagramStyles, defaultLightTheme } from '@/types/diagramStyles';
-import { calculateSequenceLayout, calculateEvenSpacing } from '@/lib/diagram/sequenceLayout';
+import { calculateSequenceLayout } from '@/lib/diagram/sequenceLayout';
 import { getNodeTypeConfig } from '@/lib/diagram/sequenceNodeTypes';
 import { SequenceNode } from './SequenceNode';
 import { SequenceEdge } from './SequenceEdge';
@@ -134,8 +134,6 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   
   const [dragStartPositions, setDragStartPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
   const dragStartPositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
-  // Store original diagram yPositions at drag start for snapback
-  const dragStartYPositionsRef = useRef<Map<string, number>>(new Map());
   const [nodeHeights, setNodeHeights] = useState<Map<string, number>>(new Map());
   const nodeHeightsRef = useRef<Map<string, number>>(new Map());
   const initialHeightsAppliedRef = useRef(false);
@@ -869,16 +867,6 @@ const FitViewHelper: React.FC<{
       });
       dragStartPositionsRef.current = startPositions;
       setDragStartPositions(startPositions);
-      
-      // Store original diagram yPositions for snapback (before any sync updates)
-      const startYPositions = new Map<string, number>();
-      diagramNodes.forEach(n => {
-        if (n.yPosition !== undefined) {
-          startYPositions.set(n.id, n.yPosition);
-        }
-      });
-      dragStartYPositionsRef.current = startYPositions;
-      console.log('📍 [DRAG START] Stored original yPositions:', Object.fromEntries(startYPositions));
     }
     
     // Detect drag end
@@ -893,6 +881,13 @@ const FitViewHelper: React.FC<{
       // Update positions with order-based conflict resolution
       // Nodes maintain their order unless dragged past another node
       if (onDataChange) {
+        const SLOT_HEIGHT = 100; // Each slot is 100 units
+        const LIFELINE_HEADER_HEIGHT = 100;
+        const MIN_TOP_MARGIN = 40;
+        // CRITICAL: This MUST match calculateEvenSpacing's startY calculation in sequenceLayout.ts
+        // calculateEvenSpacing uses: startY = LIFELINE_HEADER_HEIGHT + 40 = 140
+        // Then adds nodeHeight/2 to get CENTER Y, resulting in ~175 for first node
+        const MIN_Y_POSITION = LIFELINE_HEADER_HEIGHT + MIN_TOP_MARGIN; // = 140, matches layout startY
         const sequenceNodes = nodes.filter(n => n.type === 'sequenceNode');
         
         // Find the dragged node
@@ -930,26 +925,17 @@ const FitViewHelper: React.FC<{
         // Adjust index since we'll remove the dragged node
         const adjustedNewIndex = newOrderIndex > originalIndex ? newOrderIndex - 1 : newOrderIndex;
         
-        // If order didn't change, restore original yPositions to trigger snapback
-        // Use the positions stored at drag START (before any sync updates)
+        // CRITICAL: If order didn't change, don't update anything - preserve existing positions
+        // This prevents small drags from affecting spacing
         if (adjustedNewIndex === originalIndex) {
-          console.log('📋 [DROP] Order unchanged, restoring original yPositions for snapback');
-          const originalYPositions = dragStartYPositionsRef.current;
-          
-          // Restore original yPositions from drag start
-          const restoredNodes = diagramNodes.map(n => ({
-            ...n,
-            yPosition: originalYPositions.get(n.id) ?? n.yPosition,
-            anchors: n.anchors // Keep tuple type
-          }));
-          
-          onDataChange({ ...data, nodes: restoredNodes });
+          console.log('📋 [DROP] Order unchanged, preserving original positions');
           return;
         }
         
-        // Reorder nodes only when order actually changed
+        // Remove dragged node from its original position and insert at new position
         const reorderedNodes = nodesByOriginalOrder.filter(n => n.id !== dragEndChange.id);
         const draggedNode = nodesByOriginalOrder.find(n => n.id === dragEndChange.id)!;
+        
         reorderedNodes.splice(adjustedNewIndex, 0, draggedNode);
         
         console.log('📋 [DROP] Node order CHANGED:', {
@@ -960,17 +946,19 @@ const FitViewHelper: React.FC<{
           finalOrder: reorderedNodes.map(n => n.id)
         });
         
-        // Use the SAME calculateEvenSpacing function as the layout engine
-        // This ensures 100% consistent spacing between drop and initial render
-        const calculatedPositions = calculateEvenSpacing(reorderedNodes, nodeHeights, lifelines);
+        // Only reassign Y positions when order actually changed
+        // Use the existing positions from the sorted nodes to maintain spacing
+        const updatedNodes = reorderedNodes.map((node, index) => {
+          // Get the yPosition of the node that was originally at this index
+          const originalNodeAtIndex = nodesByOriginalOrder[index];
+          return {
+            ...node,
+            yPosition: originalNodeAtIndex?.yPosition || (MIN_Y_POSITION + (index * SLOT_HEIGHT)),
+            anchors: node.anchors
+          };
+        });
         
-        const updatedNodes = reorderedNodes.map((node) => ({
-          ...node,
-          yPosition: calculatedPositions.get(node.id) || node.yPosition,
-          anchors: node.anchors
-        }));
-        
-        console.log('📝 [DROP] Repositioned nodes using calculateEvenSpacing');
+        console.log('📝 [DROP] Repositioned nodes - swapped positions');
         onDataChange({ ...data, nodes: updatedNodes });
       }
     }
@@ -1376,13 +1364,8 @@ const FitViewHelper: React.FC<{
             }
           }
         }
-      } else if (movedNode?.type === 'sequenceNode') {
-        // SKIP - Sequence node position updates are handled by the drag end handler (lines 884-976)
-        // which uses calculateEvenSpacing for consistent positioning.
-        // Do NOT process here to avoid conflicting position calculations.
-        console.log('⏭️ [MoveChange] Skipping sequence node - handled by drag end handler');
       } else {
-        // Regular non-sequence node position update
+        // Regular node position update - also update connected anchors
         const movedDiagramNode = diagramNodes.find(n => n.id === moveChange.id);
         const nodeConfig = movedDiagramNode ? getNodeTypeConfig(movedDiagramNode.type) : null;
         const nodeHeight = nodeConfig?.defaultHeight || 70;
