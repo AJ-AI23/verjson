@@ -966,11 +966,14 @@ const FitViewHelper: React.FC<{
             if (n.type === 'processNode') {
               // Recalculate process box position based on its anchors
               const processData = n.data as any;
-              const processAnchors = processData?.anchorIds || [];
+              // anchorIds are inside processNode object
+              const processAnchors = processData?.processNode?.anchorIds || [];
               
               if (processAnchors.length > 0) {
                 // Find Y positions of all anchors in this process
                 const anchorYPositions: number[] = [];
+                const anchorNodeIds: string[] = [];
+                
                 processAnchors.forEach((anchorId: string) => {
                   // Find which node this anchor belongs to
                   const anchorNode = diagramNodes.find(dn => 
@@ -980,6 +983,7 @@ const FitViewHelper: React.FC<{
                     const pos = positions.get(anchorNode.id);
                     if (pos) {
                       anchorYPositions.push(slotToY(pos.slot));
+                      anchorNodeIds.push(anchorNode.id);
                     }
                   }
                 });
@@ -990,14 +994,10 @@ const FitViewHelper: React.FC<{
                   const ANCHOR_MARGIN = 15;
                   
                   // Get node heights for top/bottom calculations
-                  const topNodeId = diagramNodes.find(dn => {
-                    const pos = positions.get(dn.id);
-                    return pos && slotToY(pos.slot) === minY;
-                  })?.id;
-                  const bottomNodeId = diagramNodes.find(dn => {
-                    const pos = positions.get(dn.id);
-                    return pos && slotToY(pos.slot) === maxY;
-                  })?.id;
+                  const minYIndex = anchorYPositions.indexOf(minY);
+                  const maxYIndex = anchorYPositions.indexOf(maxY);
+                  const topNodeId = anchorNodeIds[minYIndex];
+                  const bottomNodeId = anchorNodeIds[maxYIndex];
                   
                   const topNodeHeight = topNodeId ? (nodeHeights.get(topNodeId) || 70) : 70;
                   const bottomNodeHeight = bottomNodeId ? (nodeHeights.get(bottomNodeId) || 70) : 70;
