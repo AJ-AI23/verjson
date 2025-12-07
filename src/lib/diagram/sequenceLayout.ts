@@ -462,8 +462,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       },
       style: {
         zIndex: 10
-      },
-      draggable: false // Disable dragging - positions are controlled by layout
+      }
+      // Note: draggable is controlled by SequenceDiagramRenderer.nodesWithHandlers, not here
     };
   });
 
