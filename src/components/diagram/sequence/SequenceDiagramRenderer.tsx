@@ -974,6 +974,52 @@ const FitViewHelper: React.FC<{
           return { id: n.id, label: n.label, yPosition: n.yPosition };
         }));
         
+        // Also update React Flow nodes directly for pushed nodes (not the dragged node)
+        // This ensures immediate visual update without waiting for document re-render
+        setNodes(currentNodes => 
+          currentNodes.map(n => {
+            // Skip the dragged node - React Flow handles its position
+            if (n.id === draggedNodeId) return n;
+            
+            // Update sequence nodes that were pushed
+            if (n.type === 'sequenceNode') {
+              const newYPosition = finalPositions.get(n.id);
+              if (newYPosition !== undefined) {
+                const diagramNode = diagramNodes.find(dn => dn.id === n.id);
+                const nodeConfig = diagramNode ? getNodeTypeConfig(diagramNode.type) : null;
+                const nodeHeight = nodeHeights.get(n.id) || nodeConfig?.defaultHeight || 70;
+                
+                // Convert center Y (yPosition) back to top Y for React Flow
+                const newTopY = newYPosition - (nodeHeight / 2);
+                
+                if (Math.abs(n.position.y - newTopY) > 1) {
+                  console.log('🔄 Moving React Flow node:', n.id, 'from', n.position.y, 'to', newTopY);
+                  return { ...n, position: { ...n.position, y: newTopY } };
+                }
+              }
+            }
+            
+            // Update anchors for pushed nodes
+            if (n.type === 'anchorNode') {
+              const anchorData = n.data as any;
+              const connectedNodeId = anchorData?.connectedNodeId;
+              if (connectedNodeId && connectedNodeId !== draggedNodeId) {
+                const newYPosition = finalPositions.get(connectedNodeId);
+                if (newYPosition !== undefined) {
+                  // Anchor Y should be at center Y - 8 (half of anchor height)
+                  const newAnchorY = newYPosition - 8;
+                  if (Math.abs(n.position.y - newAnchorY) > 1) {
+                    console.log('🔄 Moving anchor:', n.id, 'from', n.position.y, 'to', newAnchorY);
+                    return { ...n, position: { ...n.position, y: newAnchorY } };
+                  }
+                }
+              }
+            }
+            
+            return n;
+          })
+        );
+        
         onDataChange({ ...data, nodes: updatedNodes });
       }
     }
