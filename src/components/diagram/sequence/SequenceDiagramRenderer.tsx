@@ -1026,11 +1026,15 @@ const FitViewHelper: React.FC<{
           const newY = change.position?.y || node.position.y;
           const constrainedY = Math.max(minY, newY);
           
-          // Keep original X position, only allow Y to change within constraints
+          // Lock X position to the original position from when drag started
+          // This prevents nodes from being dragged outside their lifeline lane
+          const startPos = dragStartPositions.get(node.id);
+          const lockedX = startPos?.x ?? node.position.x;
+          
           return {
             ...change,
             position: {
-              x: node.position.x,
+              x: lockedX,
               y: constrainedY
             }
           };
