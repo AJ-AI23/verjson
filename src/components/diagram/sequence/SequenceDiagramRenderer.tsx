@@ -881,75 +881,72 @@ const FitViewHelper: React.FC<{
         });
         console.table(occupancyDebug.sort((a, b) => a.slot - b.slot));
         
-        // Resolve ALL conflicts across all slots (not just from dragged node)
-        // This ensures that overlapping nodes in neighboring lifelines are separated
-        const allSlots = Array.from(nodeToSlot.values());
-        const minSlot = allSlots.length > 0 ? Math.min(...allSlots) : 0;
-        const maxSlot = allSlots.length > 0 ? Math.max(...allSlots) : 0;
+        // Resolve ALL conflicts across all slots using iterative cascade
+        // Keep iterating until no more conflicts exist (pushed nodes may create new conflicts)
+        let conflictResolved = true;
+        let iterationCount = 0;
+        const MAX_ITERATIONS = 20; // Safety limit
         
-        console.log('⚡ CONFLICT RESOLUTION: Processing ALL slots from', minSlot, 'to', maxSlot + 10);
-        
-        for (let currentSlot = minSlot; currentSlot <= maxSlot + 10; currentSlot++) {
-          const occupants = slotOccupants.get(currentSlot);
-          if (!occupants || occupants.size === 0) continue;
+        while (conflictResolved && iterationCount < MAX_ITERATIONS) {
+          conflictResolved = false;
+          iterationCount++;
           
-          // Check for conflicts at this slot
-          const occupantsList = Array.from(occupants);
+          const allSlots = Array.from(nodeToSlot.values());
+          const minSlot = allSlots.length > 0 ? Math.min(...allSlots) : 0;
+          const maxSlot = allSlots.length > 0 ? Math.max(...allSlots) : 0;
           
-          if (occupantsList.length > 1) {
-            console.log('🔍 Checking slot', currentSlot, 'with occupants:', occupantsList.map(id => {
-              const node = diagramNodes.find(n => n.id === id);
-              const ll0 = node?.anchors?.[0]?.lifelineId;
-              const ll1 = node?.anchors?.[1]?.lifelineId;
-              return {
-                id,
-                label: node?.label,
-                lifeline0: ll0,
-                lifeline1: ll1,
-                pos0: lifelinePositions.get(ll0 || ''),
-                pos1: lifelinePositions.get(ll1 || '')
-              };
-            }));
-          }
+          console.log(`⚡ CONFLICT RESOLUTION iteration ${iterationCount}: slots ${minSlot} to ${maxSlot}`);
           
-          let hasConflict = false;
+          // Rebuild slot occupancy from current nodeToSlot state
+          const slotOccupants = new Map<number, Set<string>>();
+          nodeToSlot.forEach((slot, nodeId) => {
+            if (!slotOccupants.has(slot)) {
+              slotOccupants.set(slot, new Set());
+            }
+            slotOccupants.get(slot)!.add(nodeId);
+          });
           
-          for (let i = 0; i < occupantsList.length; i++) {
-            for (let j = i + 1; j < occupantsList.length; j++) {
-              const node1 = diagramNodes.find(n => n.id === occupantsList[i]);
-              const node2 = diagramNodes.find(n => n.id === occupantsList[j]);
-              
-              if (node1 && node2) {
-                const overlap = nodesOverlap(node1, node2);
-                console.log('  🔄 Comparing', node1.label, 'vs', node2.label, '-> overlap:', overlap);
+          for (let currentSlot = minSlot; currentSlot <= maxSlot; currentSlot++) {
+            const occupants = slotOccupants.get(currentSlot);
+            if (!occupants || occupants.size <= 1) continue;
+            
+            const occupantsList = Array.from(occupants);
+            
+            for (let i = 0; i < occupantsList.length; i++) {
+              for (let j = i + 1; j < occupantsList.length; j++) {
+                const node1 = diagramNodes.find(n => n.id === occupantsList[i]);
+                const node2 = diagramNodes.find(n => n.id === occupantsList[j]);
                 
-                if (overlap) {
-                  hasConflict = true;
-                  // Push the second node down to next slot
-                  const nodeIdToPush = occupantsList[j];
-                  const nodeToPush = diagramNodes.find(n => n.id === nodeIdToPush);
+                if (node1 && node2 && nodesOverlap(node1, node2)) {
+                  // Determine which node to push: prefer pushing the one that's NOT the dragged node
+                  // If neither is dragged, push the one with higher current slot (later in sequence)
+                  let nodeIdToPush = occupantsList[j];
+                  if (occupantsList[j] === draggedNodeId) {
+                    nodeIdToPush = occupantsList[i];
+                  }
                   
+                  const nodeToPush = diagramNodes.find(n => n.id === nodeIdToPush);
                   console.log('💥 CONFLICT at slot', currentSlot, ':', {
                     node1: node1.label,
                     node2: node2.label,
                     pushing: nodeToPush?.label,
-                    fromSlot: currentSlot,
                     toSlot: currentSlot + 1
                   });
                   
-                  occupants.delete(nodeIdToPush);
+                  // Move to next slot
                   nodeToSlot.set(nodeIdToPush, currentSlot + 1);
-                  
-                  if (!slotOccupants.has(currentSlot + 1)) {
-                    slotOccupants.set(currentSlot + 1, new Set());
-                  }
-                  slotOccupants.get(currentSlot + 1)!.add(nodeIdToPush);
+                  conflictResolved = true; // Need another iteration to check cascading conflicts
                   break;
                 }
               }
+              if (conflictResolved) break;
             }
-            if (hasConflict) break;
+            if (conflictResolved) break;
           }
+        }
+        
+        if (iterationCount >= MAX_ITERATIONS) {
+          console.warn('⚠️ Conflict resolution hit max iterations');
         }
         
         // Convert slots back to Y positions
