@@ -23,7 +23,6 @@ export const generateGroupedLayout = (
   const rootCollapsed = collapsedPaths['root'] !== false;
   
   if (rootCollapsed) {
-    console.log('Root is collapsed in groupedPropertiesLayout, skipping property nodes generation');
     return result;
   }
   
