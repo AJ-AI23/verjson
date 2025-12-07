@@ -16,7 +16,7 @@ import {
 } from '@xyflow/react';
 import { SequenceDiagramData, DiagramNode, DiagramEdge, DiagramNodeType, Lifeline, AnchorNode as AnchorNodeType } from '@/types/diagram';
 import { DiagramStyles, defaultLightTheme } from '@/types/diagramStyles';
-import { calculateSequenceLayout } from '@/lib/diagram/sequenceLayout';
+import { calculateSequenceLayout, calculateEvenSpacing } from '@/lib/diagram/sequenceLayout';
 import { getNodeTypeConfig } from '@/lib/diagram/sequenceNodeTypes';
 import { SequenceNode } from './SequenceNode';
 import { SequenceEdge } from './SequenceEdge';
@@ -881,11 +881,6 @@ const FitViewHelper: React.FC<{
       // Update positions with order-based conflict resolution
       // Nodes maintain their order unless dragged past another node
       if (onDataChange) {
-        // CRITICAL: Use SAME constants as calculateEvenSpacing in sequenceLayout.ts
-        const LIFELINE_HEADER_HEIGHT = 100;
-        const START_Y = LIFELINE_HEADER_HEIGHT + 40; // = 140, matches layout startY
-        const SPACING_BETWEEN_ROWS = 50; // matches layout SPACING_BETWEEN_ROWS
-        
         const sequenceNodes = nodes.filter(n => n.type === 'sequenceNode');
         
         // Find the dragged node
@@ -937,28 +932,17 @@ const FitViewHelper: React.FC<{
           finalOrder: reorderedNodes.map(n => n.id)
         });
         
-        // Calculate Y positions using SAME logic as calculateEvenSpacing
-        // This ensures consistent spacing matching the initial layout
-        let currentY = START_Y;
-        const updatedNodes = reorderedNodes.map((node) => {
-          const nodeConfig = getNodeTypeConfig(node.type);
-          const measuredHeight = nodeHeights.get(node.id);
-          const nodeHeight = measuredHeight || nodeConfig?.defaultHeight || 70;
-          
-          // Calculate CENTER Y for this node (startY is top of first level)
-          const centerY = currentY + (nodeHeight / 2);
-          
-          // Move to next level: current node's bottom + spacing
-          currentY = currentY + nodeHeight + SPACING_BETWEEN_ROWS;
-          
-          return {
-            ...node,
-            yPosition: centerY,
-            anchors: node.anchors
-          };
-        });
+        // Use the SAME calculateEvenSpacing function as the layout engine
+        // This ensures 100% consistent spacing between drop and initial render
+        const calculatedPositions = calculateEvenSpacing(reorderedNodes, nodeHeights, lifelines);
         
-        console.log('📝 [DROP] Repositioned nodes with layout-matching spacing');
+        const updatedNodes = reorderedNodes.map((node) => ({
+          ...node,
+          yPosition: calculatedPositions.get(node.id) || node.yPosition,
+          anchors: node.anchors
+        }));
+        
+        console.log('📝 [DROP] Repositioned nodes using calculateEvenSpacing');
         onDataChange({ ...data, nodes: updatedNodes });
       }
     }
