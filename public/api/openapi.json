@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "VerJSON API",
-    "version": "1.0.0",
-    "description": "API for managing JSON Schema and OpenAPI documents with versioning, collaboration, and Crowdin integration.",
+    "version": "1.1.0",
+    "description": "API for managing JSON Schema and OpenAPI documents with versioning, collaboration, and Crowdin integration. Supports both JWT session tokens and API key authentication.",
     "contact": {
       "name": "VerJSON Support"
     }
@@ -40,6 +40,10 @@
       "description": "User profile management"
     },
     {
+      "name": "API Keys",
+      "description": "API key management for programmatic access"
+    },
+    {
       "name": "Crowdin",
       "description": "Crowdin integration operations"
     },
@@ -55,7 +59,7 @@
         "summary": "Workspace management",
         "description": "Manage workspaces - list, create, update, or delete",
         "operationId": "workspaceManagement",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -98,7 +102,7 @@
         "summary": "Document management",
         "description": "Manage documents - list, create, update, delete, or list shared documents",
         "operationId": "documentManagement",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -140,9 +144,9 @@
       "post": {
         "tags": ["Versions"],
         "summary": "Document version management",
-        "description": "Manage document versions - list, create, update, delete, approve, or reject",
+        "description": "Manage document versions - list, create, update, delete, approve, or reject. Supports API key authentication with scope-based access control (read, write, admin).",
         "operationId": "documentVersions",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -189,7 +193,7 @@
         "summary": "Permission management",
         "description": "Manage permissions and invitations for workspaces and documents",
         "operationId": "permissionsManagement",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -237,7 +241,7 @@
         "summary": "Notification management",
         "description": "Manage user notifications - list, mark as read, or create",
         "operationId": "notificationsManagement",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -280,7 +284,7 @@
         "summary": "User profile management",
         "description": "Get or update user profile",
         "operationId": "userProfile",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -310,13 +314,58 @@
         }
       }
     },
+    "/api-keys": {
+      "post": {
+        "tags": ["API Keys"],
+        "summary": "API key management",
+        "description": "Manage API keys for programmatic access - list, create, update, revoke, or delete. API keys provide secure authentication for automated workflows and integrations.",
+        "operationId": "apiKeyManagement",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  { "$ref": "#/components/schemas/ListApiKeysRequest" },
+                  { "$ref": "#/components/schemas/CreateApiKeyRequest" },
+                  { "$ref": "#/components/schemas/UpdateApiKeyRequest" },
+                  { "$ref": "#/components/schemas/RevokeApiKeyRequest" },
+                  { "$ref": "#/components/schemas/DeleteApiKeyRequest" }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/ApiKeyListResponse" },
+                    { "$ref": "#/components/schemas/ApiKeyCreatedResponse" },
+                    { "$ref": "#/components/schemas/ApiKeyResponse" },
+                    { "$ref": "#/components/schemas/SuccessResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
     "/crowdin-integration": {
       "post": {
         "tags": ["Crowdin"],
         "summary": "Crowdin integration",
         "description": "Manage Crowdin translation integration - list projects, export/import translations",
         "operationId": "crowdinIntegration",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -504,10 +553,124 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "JWT token from Supabase Auth"
+        "description": "JWT token from Supabase Auth. Obtain by signing in via the web interface or using Supabase auth endpoints."
+      },
+      "apiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key for programmatic access. Generate keys in Account Settings > API Keys. Keys have format 'vj_XXXXX...' and support scopes: read, write, admin. Can also be passed as Bearer token with 'vj_' prefix."
       }
     },
     "schemas": {
+      "ApiKeyScope": {
+        "type": "string",
+        "enum": ["read", "write", "admin"],
+        "description": "API key access scope. 'read' allows viewing data, 'write' allows creating/updating data, 'admin' grants full access including deletions and permission management."
+      },
+      "ListApiKeysRequest": {
+        "type": "object",
+        "required": ["action"],
+        "properties": {
+          "action": { "type": "string", "enum": ["list"] }
+        }
+      },
+      "CreateApiKeyRequest": {
+        "type": "object",
+        "required": ["action", "name", "scopes"],
+        "properties": {
+          "action": { "type": "string", "enum": ["create"] },
+          "name": { "type": "string", "description": "Descriptive name for the API key" },
+          "scopes": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ApiKeyScope" },
+            "description": "Access scopes for the key"
+          },
+          "expiresAt": { 
+            "type": "string", 
+            "format": "date-time",
+            "nullable": true,
+            "description": "Optional expiration date. If not set, key never expires."
+          }
+        }
+      },
+      "UpdateApiKeyRequest": {
+        "type": "object",
+        "required": ["action", "keyId"],
+        "properties": {
+          "action": { "type": "string", "enum": ["update"] },
+          "keyId": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "scopes": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ApiKeyScope" }
+          },
+          "expiresAt": { 
+            "type": "string", 
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "RevokeApiKeyRequest": {
+        "type": "object",
+        "required": ["action", "keyId"],
+        "properties": {
+          "action": { "type": "string", "enum": ["revoke"] },
+          "keyId": { "type": "string", "format": "uuid" }
+        }
+      },
+      "DeleteApiKeyRequest": {
+        "type": "object",
+        "required": ["action", "keyId"],
+        "properties": {
+          "action": { "type": "string", "enum": ["delete"] },
+          "keyId": { "type": "string", "format": "uuid" }
+        }
+      },
+      "ApiKey": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "key_prefix": { "type": "string", "description": "First 8 characters of the key for identification" },
+          "scopes": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ApiKeyScope" }
+          },
+          "is_active": { "type": "boolean" },
+          "last_used_at": { "type": "string", "format": "date-time", "nullable": true },
+          "expires_at": { "type": "string", "format": "date-time", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ApiKeyListResponse": {
+        "type": "object",
+        "properties": {
+          "apiKeys": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ApiKey" }
+          }
+        }
+      },
+      "ApiKeyCreatedResponse": {
+        "type": "object",
+        "properties": {
+          "apiKey": { "$ref": "#/components/schemas/ApiKey" },
+          "key": { 
+            "type": "string", 
+            "description": "The full API key. Only returned once on creation - store it securely!"
+          }
+        }
+      },
+      "ApiKeyResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "apiKey": { "$ref": "#/components/schemas/ApiKey" }
+        }
+      },
       "PermissionRole": {
         "type": "string",
         "enum": ["owner", "editor", "viewer"]
@@ -1045,7 +1208,7 @@
         }
       },
       "Unauthorized": {
-        "description": "Unauthorized - missing or invalid authentication token",
+        "description": "Unauthorized - missing or invalid authentication token or API key",
         "content": {
           "application/json": {
             "schema": { "$ref": "#/components/schemas/ErrorResponse" }
@@ -1053,7 +1216,7 @@
         }
       },
       "Forbidden": {
-        "description": "Forbidden - insufficient permissions",
+        "description": "Forbidden - insufficient permissions or API key scope",
         "content": {
           "application/json": {
             "schema": { "$ref": "#/components/schemas/ErrorResponse" }
