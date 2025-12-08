@@ -50,6 +50,9 @@ verify_jwt = true
 [functions.plugin-config]
 verify_jwt = true
 
+[functions.api-keys]
+verify_jwt = true
+
 # Public endpoints (no JWT required)
 [functions.public-document]
 verify_jwt = false
