@@ -154,6 +154,8 @@
               "schema": {
                 "oneOf": [
                   { "$ref": "#/components/schemas/ListDocumentVersionsRequest" },
+                  { "$ref": "#/components/schemas/GetDocumentVersionRequest" },
+                  { "$ref": "#/components/schemas/GetVersionDiffRequest" },
                   { "$ref": "#/components/schemas/CreateDocumentVersionRequest" },
                   { "$ref": "#/components/schemas/UpdateDocumentVersionRequest" },
                   { "$ref": "#/components/schemas/DeleteDocumentVersionRequest" },
@@ -173,6 +175,8 @@
                   "oneOf": [
                     { "$ref": "#/components/schemas/VersionListResponse" },
                     { "$ref": "#/components/schemas/VersionResponse" },
+                    { "$ref": "#/components/schemas/VersionContentResponse" },
+                    { "$ref": "#/components/schemas/VersionDiffResponse" },
                     { "$ref": "#/components/schemas/SuccessResponse" }
                   ]
                 }
@@ -891,6 +895,27 @@
           "versionId": { "type": "string", "format": "uuid" }
         }
       },
+      "GetDocumentVersionRequest": {
+        "type": "object",
+        "required": ["action", "documentId", "versionId"],
+        "properties": {
+          "action": { "type": "string", "enum": ["getDocumentVersion"] },
+          "documentId": { "type": "string", "format": "uuid", "description": "ID of the document" },
+          "versionId": { "type": "string", "format": "uuid", "description": "ID of the version to retrieve" }
+        },
+        "description": "Retrieve the effective document content at a specific version by applying all patches up to that version"
+      },
+      "GetVersionDiffRequest": {
+        "type": "object",
+        "required": ["action", "documentId", "fromVersionId", "toVersionId"],
+        "properties": {
+          "action": { "type": "string", "enum": ["getVersionDiff"] },
+          "documentId": { "type": "string", "format": "uuid", "description": "ID of the document" },
+          "fromVersionId": { "type": "string", "format": "uuid", "description": "ID of the source version to compare from" },
+          "toVersionId": { "type": "string", "format": "uuid", "description": "ID of the target version to compare to" }
+        },
+        "description": "Generate a diff between two document versions showing what changed"
+      },
       "DocumentVersion": {
         "type": "object",
         "properties": {
@@ -923,6 +948,72 @@
         "type": "object",
         "properties": {
           "version": { "$ref": "#/components/schemas/DocumentVersion" }
+        }
+      },
+      "VersionContentResponse": {
+        "type": "object",
+        "description": "Response containing the effective document content at a specific version",
+        "properties": {
+          "version": { "$ref": "#/components/schemas/DocumentVersion" },
+          "effectiveContent": { 
+            "type": "object",
+            "description": "The computed document content at this version (all patches applied)"
+          },
+          "versionString": { 
+            "type": "string", 
+            "description": "Human-readable version string (e.g., '1.2.3')",
+            "example": "1.2.3"
+          }
+        }
+      },
+      "VersionDiffResponse": {
+        "type": "object",
+        "description": "Response containing the diff between two document versions",
+        "properties": {
+          "fromVersion": { "$ref": "#/components/schemas/DocumentVersion" },
+          "toVersion": { "$ref": "#/components/schemas/DocumentVersion" },
+          "fromVersionString": { 
+            "type": "string", 
+            "description": "Human-readable source version string",
+            "example": "1.0.0"
+          },
+          "toVersionString": { 
+            "type": "string", 
+            "description": "Human-readable target version string",
+            "example": "1.1.0"
+          },
+          "fromContent": { 
+            "type": "object",
+            "description": "The effective document content at the source version"
+          },
+          "toContent": { 
+            "type": "object",
+            "description": "The effective document content at the target version"
+          },
+          "diff": {
+            "type": "array",
+            "description": "Array of JSON Patch-like operations describing the changes",
+            "items": {
+              "type": "object",
+              "properties": {
+                "op": { 
+                  "type": "string", 
+                  "enum": ["add", "remove", "replace"],
+                  "description": "The type of change"
+                },
+                "path": { 
+                  "type": "string", 
+                  "description": "JSON Pointer path to the changed value"
+                },
+                "value": { 
+                  "description": "The new value (for add/replace operations)"
+                },
+                "oldValue": { 
+                  "description": "The previous value (for remove/replace operations)"
+                }
+              }
+            }
+          }
         }
       },
       "GetDocumentPermissionsRequest": {
