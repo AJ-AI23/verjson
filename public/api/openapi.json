@@ -2,16 +2,16 @@
   "openapi": "3.1.0",
   "info": {
     "title": "VerJSON API",
-    "version": "1.1.0",
-    "description": "API for managing JSON Schema and OpenAPI documents with versioning, collaboration, and Crowdin integration. Supports both JWT session tokens and API key authentication.",
+    "version": "1.2.0",
+    "description": "API for managing JSON Schema and OpenAPI documents with versioning, collaboration, and Crowdin integration. Use the public API gateway with API key authentication for programmatic access.",
     "contact": {
       "name": "VerJSON Support"
     }
   },
   "servers": [
     {
-      "url": "https://swghcmyqracwifpdfyap.supabase.co/functions/v1",
-      "description": "Production API"
+      "url": "https://swghcmyqracwifpdfyap.supabase.co/functions/v1/api",
+      "description": "Public API Gateway"
     }
   ],
   "tags": [
@@ -53,13 +53,13 @@
     }
   ],
   "paths": {
-    "/workspace-management": {
+    "/workspaces": {
       "post": {
         "tags": ["Workspaces"],
         "summary": "Workspace management",
-        "description": "Manage workspaces - list, create, update, or delete",
+        "description": "Manage workspaces - list, create, update, or delete. All requests go through the API gateway with API key authentication.",
         "operationId": "workspaceManagement",
-        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "security": [{ "apiKeyAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -92,17 +92,18 @@
           },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
           "500": { "$ref": "#/components/responses/InternalError" }
         }
       }
     },
-    "/document-management": {
+    "/documents": {
       "post": {
         "tags": ["Documents"],
         "summary": "Document management",
-        "description": "Manage documents - list, create, update, delete, or list shared documents",
+        "description": "Manage documents - list, create, update, delete, or list shared documents. All requests go through the API gateway with API key authentication.",
         "operationId": "documentManagement",
-        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "security": [{ "apiKeyAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -136,17 +137,18 @@
           },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
           "500": { "$ref": "#/components/responses/InternalError" }
         }
       }
     },
-    "/document-versions": {
+    "/versions": {
       "post": {
         "tags": ["Versions"],
         "summary": "Document version management",
         "description": "Manage document versions - list, create, update, delete, approve, or reject. Supports API key authentication with scope-based access control (read, write, admin).",
         "operationId": "documentVersions",
-        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "security": [{ "apiKeyAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -191,13 +193,13 @@
         }
       }
     },
-    "/permissions-management": {
+    "/permissions": {
       "post": {
         "tags": ["Permissions"],
         "summary": "Permission management",
-        "description": "Manage permissions and invitations for workspaces and documents",
+        "description": "Manage permissions and invitations for workspaces and documents. All requests go through the API gateway with API key authentication.",
         "operationId": "permissionsManagement",
-        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "security": [{ "apiKeyAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -235,17 +237,18 @@
           },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
           "500": { "$ref": "#/components/responses/InternalError" }
         }
       }
     },
-    "/notifications-management": {
+    "/notifications": {
       "post": {
         "tags": ["Notifications"],
         "summary": "Notification management",
-        "description": "Manage user notifications - list, mark as read, or create",
+        "description": "Manage user notifications - list, mark as read, or create. All requests go through the API gateway with API key authentication.",
         "operationId": "notificationsManagement",
-        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "security": [{ "apiKeyAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -278,17 +281,18 @@
           },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
           "500": { "$ref": "#/components/responses/InternalError" }
         }
       }
     },
-    "/user-profile": {
+    "/profile": {
       "post": {
         "tags": ["User"],
         "summary": "User profile management",
-        "description": "Get or update user profile",
+        "description": "Get or update user profile. All requests go through the API gateway with API key authentication.",
         "operationId": "userProfile",
-        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "security": [{ "apiKeyAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -314,6 +318,7 @@
             }
           },
           "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
           "500": { "$ref": "#/components/responses/InternalError" }
         }
       }
@@ -363,13 +368,13 @@
         }
       }
     },
-    "/crowdin-integration": {
+    "/crowdin": {
       "post": {
         "tags": ["Crowdin"],
         "summary": "Crowdin integration",
-        "description": "Manage Crowdin translation integration - list projects, export/import translations",
+        "description": "Manage Crowdin translation integration - list projects, export/import translations. All requests go through the API gateway with API key authentication.",
         "operationId": "crowdinIntegration",
-        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "security": [{ "apiKeyAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -402,6 +407,7 @@
             }
           },
           "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
           "500": { "$ref": "#/components/responses/InternalError" }
         }
       }
