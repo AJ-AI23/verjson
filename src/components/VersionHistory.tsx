@@ -24,7 +24,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Package, Tag, Trash2, Eye, Download, FileCheck, Loader2 } from 'lucide-react';
+import { Package, Tag, Trash2, Eye, Download, FileCheck, Loader2, GitCompare } from 'lucide-react';
+import { VersionDiffDialog } from './VersionDiffDialog';
+import { toast } from '@/hooks/use-toast';
 import { ImportReviewDialog } from '@/components/ImportReviewDialog';
 
 interface VersionHistoryProps {
@@ -59,6 +61,12 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   const [processingVersionId, setProcessingVersionId] = useState<string | null>(null);
   const [releasingVersionId, setReleasingVersionId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  
+  // Version comparison state
+  const [compareSelectedVersions, setCompareSelectedVersions] = useState<Set<string>>(new Set());
+  const [diffDialogOpen, setDiffDialogOpen] = useState(false);
+  const [diffResult, setDiffResult] = useState<any>(null);
+  const [diffLoading, setDiffLoading] = useState(false);
   
   // Fetch document versions directly from database - use versions state directly for reactivity
   const { versions, userRole: hookUserRole, loading, error, deleteVersion, refetch } = useDocumentVersions(documentId);
@@ -197,6 +205,81 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
     setReviewDialogOpen(true);
   };
 
+  // Toggle version for comparison
+  const toggleCompareVersion = (versionId: string) => {
+    setCompareSelectedVersions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(versionId)) {
+        newSet.delete(versionId);
+      } else if (newSet.size < 2) {
+        newSet.add(versionId);
+      }
+      return newSet;
+    });
+  };
+
+  // Compare two selected versions
+  const handleCompareVersions = async () => {
+    if (compareSelectedVersions.size !== 2) return;
+    
+    const [versionId1, versionId2] = Array.from(compareSelectedVersions);
+    
+    // Sort by timestamp to ensure correct order (older first)
+    const version1 = patches.find(p => p.id === versionId1);
+    const version2 = patches.find(p => p.id === versionId2);
+    
+    if (!version1 || !version2) return;
+    
+    const [olderId, newerId] = version1.timestamp < version2.timestamp 
+      ? [versionId1, versionId2] 
+      : [versionId2, versionId1];
+    
+    setDiffLoading(true);
+    setDiffDialogOpen(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('document-versions', {
+        body: {
+          action: 'getVersionDiff',
+          documentId,
+          fromVersionId: olderId,
+          toVersionId: newerId
+        }
+      });
+      
+      if (error) throw error;
+      
+      setDiffResult(data);
+    } catch (err: any) {
+      console.error('Failed to compare versions:', err);
+      toast({
+        title: 'Comparison Failed',
+        description: err.message || 'Failed to compare versions',
+        variant: 'destructive'
+      });
+      setDiffDialogOpen(false);
+    } finally {
+      setDiffLoading(false);
+    }
+  };
+
+  // Get version info for diff dialog
+  const getCompareVersions = () => {
+    const ids = Array.from(compareSelectedVersions);
+    const v1 = patches.find(p => p.id === ids[0]);
+    const v2 = patches.find(p => p.id === ids[1]);
+    
+    if (!v1 || !v2) return { version1: null, version2: null };
+    
+    // Sort by timestamp
+    const [older, newer] = v1.timestamp < v2.timestamp ? [v1, v2] : [v2, v1];
+    
+    return {
+      version1: { version: older.version, description: older.description },
+      version2: { version: newer.version, description: newer.description }
+    };
+  };
+
   // Get summary of schema for display
   const getSchemaSummary = (schema: any) => {
     if (!schema || typeof schema !== 'object') return 'Empty schema';
@@ -309,11 +392,28 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
         </div>
       )}
 
-      
+      {/* Compare Versions Button */}
+      {compareSelectedVersions.size === 2 && (
+        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200 flex items-center justify-between">
+          <div className="text-sm text-blue-700">
+            <span className="font-medium">2 versions selected for comparison</span>
+          </div>
+          <Button
+            size="sm"
+            onClick={handleCompareVersions}
+            className="gap-2"
+          >
+            <GitCompare size={14} />
+            Compare Versions
+          </Button>
+        </div>
+      )}
+
       {/* Version History Table */}
       <table className="min-w-full divide-y divide-slate-200 text-sm">
         <thead>
           <tr className="bg-slate-50">
+            <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Compare</th>
             <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Select</th>
             <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Version</th>
             <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Description</th>
@@ -330,8 +430,21 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
             const beforeReleased = isBeforeReleased(patch);
             const isInitial = isInitialVersion(patch);
             const canDeselectPatch = canDeselect(patch);
+            const isCompareSelected = compareSelectedVersions.has(patch.id);
             return (
-              <tr key={patch.id} className={`hover:bg-slate-50 ${patch.isSelected ? 'bg-blue-50' : ''} ${isInitial ? 'border-l-4 border-l-blue-500' : ''}`}>
+              <tr key={patch.id} className={`hover:bg-slate-50 ${patch.isSelected ? 'bg-blue-50' : ''} ${isInitial ? 'border-l-4 border-l-blue-500' : ''} ${isCompareSelected ? 'ring-2 ring-inset ring-blue-400' : ''}`}>
+                <td className="px-3 py-2">
+                  <Checkbox
+                    checked={isCompareSelected}
+                    disabled={!isCompareSelected && compareSelectedVersions.size >= 2}
+                    onCheckedChange={() => toggleCompareVersion(patch.id)}
+                    title={
+                      isCompareSelected ? 'Remove from comparison' :
+                      compareSelectedVersions.size >= 2 ? 'Unselect a version first' :
+                      'Select for comparison'
+                    }
+                  />
+                </td>
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-2">
                      <div className="relative flex items-center">
@@ -695,6 +808,20 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
           name: documentInfo?.name || 'Document',
           content: currentSchema || calculatedCurrentSchema
         }}
+      />
+
+      {/* Version Diff Dialog */}
+      <VersionDiffDialog
+        open={diffDialogOpen}
+        onOpenChange={(open) => {
+          setDiffDialogOpen(open);
+          if (!open) {
+            setDiffResult(null);
+          }
+        }}
+        diff={diffResult}
+        loading={diffLoading}
+        {...getCompareVersions()}
       />
     </div>
   );
