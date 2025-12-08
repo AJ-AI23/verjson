@@ -12,8 +12,9 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, User, Mail, Key, UserCircle } from 'lucide-react';
+import { Loader2, User, Mail, Key, UserCircle, KeyRound } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ApiKeysPanel } from '@/components/ApiKeysPanel';
 
 interface UserSettingsDialogProps {
   open: boolean;
@@ -132,30 +133,34 @@ export function UserSettingsDialog({ open, onOpenChange }: UserSettingsDialogPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
             Account Settings
           </DialogTitle>
           <DialogDescription>
-            Update your profile, password, or email address.
+            Update your profile, password, email, or manage API keys.
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="profile" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="profile" className="flex items-center gap-1">
               <UserCircle className="h-4 w-4" />
-              Profile
+              <span className="hidden sm:inline">Profile</span>
             </TabsTrigger>
-            <TabsTrigger value="password" className="flex items-center gap-2">
+            <TabsTrigger value="password" className="flex items-center gap-1">
               <Key className="h-4 w-4" />
-              Password
+              <span className="hidden sm:inline">Password</span>
             </TabsTrigger>
-            <TabsTrigger value="email" className="flex items-center gap-2">
+            <TabsTrigger value="email" className="flex items-center gap-1">
               <Mail className="h-4 w-4" />
-              Email
+              <span className="hidden sm:inline">Email</span>
+            </TabsTrigger>
+            <TabsTrigger value="api-keys" className="flex items-center gap-1">
+              <KeyRound className="h-4 w-4" />
+              <span className="hidden sm:inline">API Keys</span>
             </TabsTrigger>
           </TabsList>
 
@@ -286,6 +291,10 @@ export function UserSettingsDialog({ open, onOpenChange }: UserSettingsDialogPro
                 )}
               </Button>
             </form>
+          </TabsContent>
+
+          <TabsContent value="api-keys" className="space-y-4">
+            <ApiKeysPanel />
           </TabsContent>
         </Tabs>
 

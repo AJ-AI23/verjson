@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_keys: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          scopes: Database["public"]["Enums"]["api_key_scope"][]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          name: string
+          scopes?: Database["public"]["Enums"]["api_key_scope"][]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          key_hash?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          name?: string
+          scopes?: Database["public"]["Enums"]["api_key_scope"][]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_api_keys_user_id"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       collaboration_sessions: {
         Row: {
           created_at: string
@@ -829,8 +879,17 @@ export type Database = {
         Args: { user_id: string; workspace_id: string }
         Returns: boolean
       }
+      validate_api_key: {
+        Args: { p_key_hash: string; p_key_prefix: string }
+        Returns: {
+          key_id: string
+          scopes: Database["public"]["Enums"]["api_key_scope"][]
+          user_id: string
+        }[]
+      }
     }
     Enums: {
+      api_key_scope: "read" | "write" | "admin"
       permission_role: "owner" | "editor" | "viewer"
     }
     CompositeTypes: {
@@ -959,6 +1018,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      api_key_scope: ["read", "write", "admin"],
       permission_role: ["owner", "editor", "viewer"],
     },
   },

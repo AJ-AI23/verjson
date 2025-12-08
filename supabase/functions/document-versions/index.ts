@@ -1,10 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { EdgeFunctionLogger } from '../_shared/logger.ts'
+import { authenticateRequest, hasScope } from '../_shared/apiKeyAuth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key',
 }
 
 serve(async (req) => {
@@ -19,44 +20,61 @@ serve(async (req) => {
   try {
     logger.debug('Authenticating user');
     
-    // Check for Authorization header
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      logger.error('Missing Authorization header');
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized - Missing authentication token' }),
-        { status: 401, headers: corsHeaders }
-      )
-    }
+    // Use unified authentication (supports both session tokens and API keys)
+    const authResult = await authenticateRequest(req);
     
-    // Create authenticated Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: authHeader },
-        },
-      }
-    )
-
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
-    if (authError || !user) {
-      logger.error('Authentication failed', { 
-        error: authError?.message, 
-        hasAuthHeader: !!authHeader,
-        authHeaderPrefix: authHeader?.substring(0, 20) + '...'
-      });
+    if (!authResult.authenticated) {
+      logger.error('Authentication failed', { error: authResult.error });
       return new Response(
-        JSON.stringify({ error: 'Unauthorized - Invalid or expired token' }),
+        JSON.stringify({ error: `Unauthorized - ${authResult.error}` }),
         { status: 401, headers: corsHeaders }
       )
     }
 
-    logger.logAuth(user);
+    const userId = authResult.userId!;
+    const scopes = authResult.scopes || [];
+    const authMethod = authResult.authMethod;
+
+    logger.debug('Authentication successful', { userId, authMethod, scopes });
 
     const { action, ...requestData } = await req.json()
     logger.debug('Parsed request body', { action, hasData: !!requestData });
+
+    // Check scope requirements for write operations
+    const writeActions = ['createDocumentVersion', 'createInitialDocumentVersion', 'updateDocumentVersion', 'approvePendingVersion', 'rejectPendingVersion'];
+    const deleteActions = ['deleteDocumentVersion'];
+    
+    if (writeActions.includes(action) && !hasScope(scopes, 'write')) {
+      logger.warn('Insufficient scope for write operation', { action, scopes });
+      return new Response(
+        JSON.stringify({ error: 'Insufficient permissions - write scope required' }),
+        { status: 403, headers: corsHeaders }
+      )
+    }
+    
+    if (deleteActions.includes(action) && !hasScope(scopes, 'admin')) {
+      logger.warn('Insufficient scope for delete operation', { action, scopes });
+      return new Response(
+        JSON.stringify({ error: 'Insufficient permissions - admin scope required' }),
+        { status: 403, headers: corsHeaders }
+      )
+    }
+    
+    // Create a mock user object for compatibility with existing handlers
+    const user = { id: userId };
+
+    // Create authenticated Supabase client for the user
+    const authHeader = req.headers.get('Authorization');
+    const supabaseClient = authMethod === 'session' && authHeader
+      ? createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+          { global: { headers: { Authorization: authHeader } } }
+        )
+      : createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        );
 
     let result;
 
