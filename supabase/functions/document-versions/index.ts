@@ -82,6 +82,12 @@ serve(async (req) => {
       case 'rejectPendingVersion':
         result = await handleRejectPendingVersion(supabaseClient, requestData, user, logger);
         break;
+      case 'getDocumentVersion':
+        result = await handleGetDocumentVersion(supabaseClient, requestData, user, logger);
+        break;
+      case 'getVersionDiff':
+        result = await handleGetVersionDiff(supabaseClient, requestData, user, logger);
+        break;
       default:
         logger.warn('Unknown action requested', { action });
         return new Response(
@@ -816,4 +822,248 @@ async function handleRejectPendingVersion(supabaseClient: any, data: any, user: 
   });
   
   return { success: true, message: 'Pending version rejected' };
+}
+
+/**
+ * Calculate the effective document content by applying all selected versions up to and including
+ * the specified version ID.
+ */
+async function calculateEffectiveDocumentAtVersion(
+  serviceClient: any, 
+  documentId: string, 
+  targetVersionId: string, 
+  logger: EdgeFunctionLogger
+): Promise<{ effectiveContent: any; targetVersion: any }> {
+  // Get all versions for this document ordered by creation time
+  const { data: allVersions, error: versionsError } = await serviceClient
+    .from('document_versions')
+    .select('*')
+    .eq('document_id', documentId)
+    .order('created_at', { ascending: true });
+
+  if (versionsError) {
+    logger.error('Failed to fetch versions', versionsError);
+    throw versionsError;
+  }
+
+  if (!allVersions || allVersions.length === 0) {
+    throw new Error('No versions found for document');
+  }
+
+  // Find the target version
+  const targetVersion = allVersions.find((v: any) => v.id === targetVersionId);
+  if (!targetVersion) {
+    throw new Error('Target version not found');
+  }
+
+  const targetVersionTime = new Date(targetVersion.created_at).getTime();
+
+  // Get versions up to and including the target version that are selected
+  // or the target version itself (regardless of selection status)
+  const versionsToApply = allVersions.filter((v: any) => {
+    const versionTime = new Date(v.created_at).getTime();
+    // Include if it's before/at the target time AND selected, OR if it's the target version
+    return (versionTime <= targetVersionTime && v.is_selected) || v.id === targetVersionId;
+  });
+
+  logger.debug('Calculating effective document', { 
+    totalVersions: allVersions.length,
+    versionsToApply: versionsToApply.length,
+    targetVersionId 
+  });
+
+  // Start with empty object and apply versions in order
+  let effectiveContent: any = {};
+
+  for (const version of versionsToApply) {
+    if (version.full_document) {
+      // If version has full_document, use it as the base
+      effectiveContent = JSON.parse(JSON.stringify(version.full_document));
+    } else if (version.patches) {
+      // If version has patches, apply them
+      const patches = typeof version.patches === 'string' 
+        ? JSON.parse(version.patches) 
+        : version.patches;
+      
+      if (Array.isArray(patches)) {
+        // Apply JSON patches using fast-json-patch style operations
+        for (const patch of patches) {
+          effectiveContent = applyPatch(effectiveContent, patch);
+        }
+      }
+    }
+  }
+
+  return { effectiveContent, targetVersion };
+}
+
+/**
+ * Apply a single JSON patch operation to a document
+ */
+function applyPatch(document: any, patch: any): any {
+  const result = JSON.parse(JSON.stringify(document));
+  const { op, path, value } = patch;
+  
+  if (!path) return result;
+  
+  const pathParts = path.split('/').filter((p: string) => p !== '');
+  
+  if (pathParts.length === 0) {
+    if (op === 'replace' || op === 'add') {
+      return value;
+    }
+    return result;
+  }
+
+  let current = result;
+  for (let i = 0; i < pathParts.length - 1; i++) {
+    const key = pathParts[i];
+    if (current[key] === undefined) {
+      current[key] = {};
+    }
+    current = current[key];
+  }
+
+  const lastKey = pathParts[pathParts.length - 1];
+
+  switch (op) {
+    case 'add':
+    case 'replace':
+      current[lastKey] = value;
+      break;
+    case 'remove':
+      delete current[lastKey];
+      break;
+  }
+
+  return result;
+}
+
+/**
+ * Generate a diff between two objects
+ */
+function generateDiff(oldObj: any, newObj: any, path: string = ''): any[] {
+  const diffs: any[] = [];
+  
+  const oldKeys = new Set(Object.keys(oldObj || {}));
+  const newKeys = new Set(Object.keys(newObj || {}));
+  
+  // Check for removed keys
+  for (const key of oldKeys) {
+    const currentPath = path ? `${path}/${key}` : `/${key}`;
+    if (!newKeys.has(key)) {
+      diffs.push({ op: 'remove', path: currentPath, oldValue: oldObj[key] });
+    }
+  }
+  
+  // Check for added and changed keys
+  for (const key of newKeys) {
+    const currentPath = path ? `${path}/${key}` : `/${key}`;
+    if (!oldKeys.has(key)) {
+      diffs.push({ op: 'add', path: currentPath, value: newObj[key] });
+    } else {
+      const oldVal = oldObj[key];
+      const newVal = newObj[key];
+      
+      if (typeof oldVal === 'object' && oldVal !== null && 
+          typeof newVal === 'object' && newVal !== null &&
+          !Array.isArray(oldVal) && !Array.isArray(newVal)) {
+        // Recurse into nested objects
+        diffs.push(...generateDiff(oldVal, newVal, currentPath));
+      } else if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+        diffs.push({ op: 'replace', path: currentPath, oldValue: oldVal, value: newVal });
+      }
+    }
+  }
+  
+  return diffs;
+}
+
+async function handleGetDocumentVersion(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
+  const { documentId, versionId } = data;
+  logger.debug('Getting document version', { documentId, versionId, userId: user.id });
+
+  if (!documentId || !versionId) {
+    throw new Error('documentId and versionId are required');
+  }
+
+  // Validate user has access to the document
+  const access = await validateDocumentAccess(supabaseClient, documentId, user.id, logger);
+
+  // Use service role client to bypass RLS
+  const serviceClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
+  const { effectiveContent, targetVersion } = await calculateEffectiveDocumentAtVersion(
+    serviceClient, 
+    documentId, 
+    versionId, 
+    logger
+  );
+
+  logger.info('Successfully retrieved document at version', { 
+    documentId, 
+    versionId,
+    versionString: `${targetVersion.version_major}.${targetVersion.version_minor}.${targetVersion.version_patch}`,
+    userRole: access.role
+  });
+
+  return { 
+    version: targetVersion,
+    effectiveContent,
+    versionString: `${targetVersion.version_major}.${targetVersion.version_minor}.${targetVersion.version_patch}`
+  };
+}
+
+async function handleGetVersionDiff(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
+  const { documentId, fromVersionId, toVersionId } = data;
+  logger.debug('Getting version diff', { documentId, fromVersionId, toVersionId, userId: user.id });
+
+  if (!documentId || !fromVersionId || !toVersionId) {
+    throw new Error('documentId, fromVersionId, and toVersionId are required');
+  }
+
+  if (fromVersionId === toVersionId) {
+    throw new Error('fromVersionId and toVersionId must be different');
+  }
+
+  // Validate user has access to the document
+  const access = await validateDocumentAccess(supabaseClient, documentId, user.id, logger);
+
+  // Use service role client to bypass RLS
+  const serviceClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
+  // Calculate effective content at both versions
+  const [fromResult, toResult] = await Promise.all([
+    calculateEffectiveDocumentAtVersion(serviceClient, documentId, fromVersionId, logger),
+    calculateEffectiveDocumentAtVersion(serviceClient, documentId, toVersionId, logger)
+  ]);
+
+  // Generate diff between the two effective documents
+  const diff = generateDiff(fromResult.effectiveContent, toResult.effectiveContent);
+
+  logger.info('Successfully generated version diff', { 
+    documentId, 
+    fromVersionId,
+    toVersionId,
+    fromVersion: `${fromResult.targetVersion.version_major}.${fromResult.targetVersion.version_minor}.${fromResult.targetVersion.version_patch}`,
+    toVersion: `${toResult.targetVersion.version_major}.${toResult.targetVersion.version_minor}.${toResult.targetVersion.version_patch}`,
+    diffCount: diff.length,
+    userRole: access.role
+  });
+
+  return { 
+    fromVersion: fromResult.targetVersion,
+    toVersion: toResult.targetVersion,
+    fromVersionString: `${fromResult.targetVersion.version_major}.${fromResult.targetVersion.version_minor}.${fromResult.targetVersion.version_patch}`,
+    toVersionString: `${toResult.targetVersion.version_major}.${toResult.targetVersion.version_minor}.${toResult.targetVersion.version_patch}`,
+    fromContent: fromResult.effectiveContent,
+    toContent: toResult.effectiveContent,
+    diff
+  };
 }
