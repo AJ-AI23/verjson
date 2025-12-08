@@ -13,22 +13,30 @@ const ApiDocs = () => {
         setLoading(true);
         setError(null);
 
+        console.log('Loading Redocly library...');
         // Load Redocly library
         await loadRedocly();
+        console.log('Redocly library loaded');
 
-        if (!containerRef.current) return;
+        if (!containerRef.current) {
+          console.error('Container ref not available');
+          return;
+        }
 
-        // Fetch and render the OpenAPI spec
-        const response = await fetch('/api/openapi.json');
+        // Fetch and render the OpenAPI spec - use import.meta.url to get correct base path
+        console.log('Fetching OpenAPI spec...');
+        const response = await fetch(new URL('/api/openapi.json', window.location.origin).href);
         if (!response.ok) {
-          throw new Error('Failed to load OpenAPI specification');
+          throw new Error(`Failed to load OpenAPI specification: ${response.status} ${response.statusText}`);
         }
         const spec = await response.json();
+        console.log('OpenAPI spec loaded:', spec.info?.title);
 
         // Clear container and render
         containerRef.current.innerHTML = '';
         
         if (isRedoclyAvailable() && window.RedocStandalone) {
+          console.log('Initializing Redocly...');
           window.RedocStandalone.init(spec, {
             scrollYOffset: 0,
             hideDownloadButton: false,
@@ -53,6 +61,9 @@ const ApiDocs = () => {
               }
             }
           }, containerRef.current);
+          console.log('Redocly initialized');
+        } else {
+          throw new Error('Redocly library not available after loading');
         }
 
         setLoading(false);

@@ -25,34 +25,37 @@ export const loadRedocly = async (): Promise<void> => {
   redoclyPromise = new Promise((resolve, reject) => {
     // Create script element for Redocly standalone
     const script = document.createElement('script');
-    script.src = 'https://cdn.redoc.ly/redoc/v2.1.3/bundles/redoc.standalone.js';
+    script.src = 'https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js';
     script.async = true;
-    script.crossOrigin = 'anonymous';
 
     script.onload = () => {
-      // Wait a bit for the global to be available and check multiple possible global names
-      setTimeout(() => {
+      // Wait for the global to be available
+      const checkGlobal = (attempts = 0) => {
         const possibleGlobals = ['Redoc', 'RedocStandalone', 'redoc'];
         let redocGlobal = null;
         
         for (const globalName of possibleGlobals) {
           if ((window as any)[globalName]) {
             redocGlobal = (window as any)[globalName];
-            console.log(`Found Redoc global as: ${globalName}`);
+            console.log(`Found Redoc global as: ${globalName}`, redocGlobal);
             break;
           }
         }
 
         if (redocGlobal) {
-          (window as any).RedocStandalone = redocGlobal; // Normalize to expected name
+          (window as any).RedocStandalone = redocGlobal;
           redoclyLoaded = true;
           resolve();
+        } else if (attempts < 10) {
+          setTimeout(() => checkGlobal(attempts + 1), 100);
         } else {
-          console.error('Available window keys:', Object.keys(window).filter(k => k.toLowerCase().includes('redoc')));
+          const allKeys = Object.keys(window).filter(k => k.toLowerCase().includes('redoc'));
+          console.error('Available redoc-related window keys:', allKeys);
           redoclyPromise = null;
-          reject(new Error('Redocly library loaded but no global found. Available globals: ' + Object.keys(window).filter(k => k.toLowerCase().includes('redoc')).join(', ')));
+          reject(new Error('Redocly library loaded but no global found after 10 attempts'));
         }
-      }, 200);
+      };
+      checkGlobal();
     };
 
     script.onerror = (error) => {
