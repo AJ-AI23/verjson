@@ -924,9 +924,30 @@
             "enum": ["simple", "complex"],
             "default": "complex",
             "description": "Output format: 'complex' returns JSON Patch operations (default), 'simple' returns pseudo-JSON text with comments showing structural changes"
+          },
+          "simpleFormatting": {
+            "type": "object",
+            "description": "Formatting options for 'simple' format output. Only applies when format is 'simple'.",
+            "properties": {
+              "keyQuotes": {
+                "type": "boolean",
+                "default": true,
+                "description": "Whether to wrap property names in quotes (e.g., \"propertyName\" vs propertyName)"
+              },
+              "compacting": {
+                "type": "boolean",
+                "default": false,
+                "description": "When true, replaces nested structures in removed/replaced values with ellipsis (...) for brevity"
+              },
+              "schemaTypes": {
+                "type": "boolean",
+                "default": false,
+                "description": "When true, shows type representations instead of actual values (e.g., 'string', 'number', 'boolean', '<uuid>', '<datetime>')"
+              }
+            }
           }
         },
-        "description": "Generate a diff between two document versions. The 'complex' format returns detailed JSON Patch operations while 'simple' format returns a human-readable pseudo-JSON text where additions are shown normally, removals are commented out (// for single-line, /* */ for multi-line), and modifications show both old (commented) and new values."
+        "description": "Generate a diff between two document versions. The 'complex' format returns detailed JSON Patch operations while 'simple' format returns a human-readable pseudo-JSON text where additions are shown normally, removals are commented out (// for single-line, /* */ for multi-line), and modifications show both old (commented) and new values. Unchanged properties are replaced with ellipsis (...) to focus on changes."
       },
       "DocumentVersion": {
         "type": "object",

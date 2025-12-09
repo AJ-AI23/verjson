@@ -68,6 +68,11 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   const [diffResult, setDiffResult] = useState<any>(null);
   const [diffLoading, setDiffLoading] = useState(false);
   const [diffFormat, setDiffFormat] = useState<'simple' | 'complex'>('complex');
+  const [simpleFormatting, setSimpleFormatting] = useState({
+    keyQuotes: true,
+    compacting: false,
+    schemaTypes: false
+  });
   
   // Fetch document versions directly from database - use versions state directly for reactivity
   const { versions, userRole: hookUserRole, loading, error, deleteVersion, refetch } = useDocumentVersions(documentId);
@@ -245,7 +250,8 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
           documentId,
           fromVersionId: olderId,
           toVersionId: newerId,
-          format: diffFormat
+          format: diffFormat,
+          simpleFormatting: diffFormat === 'simple' ? simpleFormatting : undefined
         }
       });
       
@@ -824,6 +830,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
         diff={diffResult}
         loading={diffLoading}
         format={diffFormat}
+        simpleFormatting={simpleFormatting}
         onFormatChange={(newFormat) => {
           setDiffFormat(newFormat);
           // Re-fetch with new format if dialog is open and we have results
@@ -843,7 +850,40 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                   documentId,
                   fromVersionId: olderId,
                   toVersionId: newerId,
-                  format: newFormat
+                  format: newFormat,
+                  simpleFormatting: newFormat === 'simple' ? simpleFormatting : undefined
+                }
+              }).then(({ data, error }) => {
+                if (!error && data) {
+                  setDiffResult(data);
+                }
+              }).finally(() => {
+                setDiffLoading(false);
+              });
+            }
+          }
+        }}
+        onSimpleFormattingChange={(newFormatting) => {
+          setSimpleFormatting(newFormatting);
+          // Re-fetch with new formatting if dialog is open and format is simple
+          if (diffDialogOpen && diffFormat === 'simple' && compareSelectedVersions.size === 2) {
+            const [versionId1, versionId2] = Array.from(compareSelectedVersions);
+            const version1 = patches.find(p => p.id === versionId1);
+            const version2 = patches.find(p => p.id === versionId2);
+            if (version1 && version2) {
+              const [olderId, newerId] = version1.timestamp < version2.timestamp 
+                ? [versionId1, versionId2] 
+                : [versionId2, versionId1];
+              
+              setDiffLoading(true);
+              supabase.functions.invoke('document-versions', {
+                body: {
+                  action: 'getVersionDiff',
+                  documentId,
+                  fromVersionId: olderId,
+                  toVersionId: newerId,
+                  format: 'simple',
+                  simpleFormatting: newFormatting
                 }
               }).then(({ data, error }) => {
                 if (!error && data) {
