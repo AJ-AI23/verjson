@@ -1376,8 +1376,8 @@ function generateSimpleDiff(fromContent: any, toContent: any, diff: any[], forma
             arrayLines.push(`${indentStr}  // ${serialized}`);
           }
         } else if (!hasFrom && hasTo) {
-          // Added item
-          arrayLines.push(`${indentStr}  ${serializeValue(toArr[i], indent + 1, formatting)}`);
+          // Added item - don't compact so we show full structure of new content
+          arrayLines.push(`${indentStr}  ${serializeValue(toArr[i], indent + 1, { ...formatting, compacting: false })}`);
         } else if (hasFrom && hasTo) {
           if (replacedPaths.has(itemPath)) {
             // Replaced item - show old as comment, new as normal
@@ -1388,7 +1388,7 @@ function generateSimpleDiff(fromContent: any, toContent: any, diff: any[], forma
             } else {
               arrayLines.push(`${indentStr}  // ${oldSerialized}`);
             }
-            arrayLines.push(`${indentStr}  ${serializeValue(newValue, indent + 1, formatting)}`);
+            arrayLines.push(`${indentStr}  ${serializeValue(newValue, indent + 1, { ...formatting, compacting: false })}`);
           } else if (typeof fromArr[i] === 'object' && typeof toArr[i] === 'object' && hasChanges(itemPath)) {
             // Nested changes
             const nestedLines = generateOutput(fromArr[i], toArr[i], itemPath, indent + 1);
@@ -1463,11 +1463,11 @@ function generateSimpleDiff(fromContent: any, toContent: any, diff: any[], forma
           lines.push(`${indentStr}// ${propKey}: ${serialized},`);
         }
       } else if (!hasFrom && hasTo) {
-        // Added property
-        lines.push(`${indentStr}${propKey}: ${serializeValue(toObj[key], indent, formatting)},`);
+        // Added property - don't compact so we show full structure of new content
+        lines.push(`${indentStr}${propKey}: ${serializeValue(toObj[key], indent, { ...formatting, compacting: false })},`);
       } else if (hasFrom && hasTo) {
         if (replacedPaths.has(propPath)) {
-          // Replaced property - show old as comment, new as normal
+          // Replaced property - show old as comment (compacted), new as normal (not compacted)
           const { oldValue, newValue } = replacedPaths.get(propPath)!;
           const oldSerialized = serializeValue(oldValue, indent, { ...formatting, compacting: compacting });
           if (isMultiLineValue(oldValue, compacting)) {
@@ -1475,7 +1475,7 @@ function generateSimpleDiff(fromContent: any, toContent: any, diff: any[], forma
           } else {
             lines.push(`${indentStr}// ${propKey}: ${oldSerialized},`);
           }
-          lines.push(`${indentStr}${propKey}: ${serializeValue(newValue, indent, formatting)},`);
+          lines.push(`${indentStr}${propKey}: ${serializeValue(newValue, indent, { ...formatting, compacting: false })},`);
         } else if (typeof fromObj[key] === 'object' && typeof toObj[key] === 'object' && hasChanges(propPath)) {
           // Nested changes - recurse
           const nestedLines = generateOutput(fromObj[key], toObj[key], propPath, indent + 1);
