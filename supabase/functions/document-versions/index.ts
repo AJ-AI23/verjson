@@ -1088,25 +1088,73 @@ async function handleGetVersionDiff(supabaseClient: any, data: any, user: any, l
     userRole: access.role
   });
 
+  // Calculate suggested version increment based on the diff
+  const suggestedVersion = calculateSuggestedVersionIncrement(diff);
+
   const baseResponse = { 
     fromVersion: fromResult.targetVersion,
     toVersion: toResult.targetVersion,
-    fromVersionString: `${fromResult.targetVersion.version_major}.${fromResult.targetVersion.version_minor}.${fromResult.targetVersion.version_patch}`,
-    toVersionString: `${toResult.targetVersion.version_major}.${toResult.targetVersion.version_minor}.${toResult.targetVersion.version_patch}`,
   };
 
   if (format === 'simple') {
     const simpleDiff = generateSimpleDiff(fromResult.effectiveContent, toResult.effectiveContent, diff, formatting);
     return { 
       ...baseResponse,
-      simpleDiff
+      diff: {
+        version_major: suggestedVersion.major,
+        version_minor: suggestedVersion.minor,
+        version_patch: suggestedVersion.patch,
+        simple: simpleDiff
+      }
     };
   }
 
   return { 
     ...baseResponse,
-    diff
+    diff: {
+      version_major: suggestedVersion.major,
+      version_minor: suggestedVersion.minor,
+      version_patch: suggestedVersion.patch,
+      complex: diff
+    }
   };
+}
+
+/**
+ * Calculate suggested version increment based on the diff operations
+ * - Major: If there are 'remove' operations (breaking changes)
+ * - Minor: If there are 'add' operations (new features)
+ * - Patch: If there are only 'replace' operations (fixes/changes to existing)
+ */
+function calculateSuggestedVersionIncrement(diff: any[]): { major: number; minor: number; patch: number } {
+  let hasRemove = false;
+  let hasAdd = false;
+  let hasReplace = false;
+
+  for (const change of diff) {
+    if (change.op === 'remove') {
+      hasRemove = true;
+    } else if (change.op === 'add') {
+      hasAdd = true;
+    } else if (change.op === 'replace') {
+      hasReplace = true;
+    }
+  }
+
+  // Determine the increment level
+  if (hasRemove) {
+    // Breaking change - major version bump
+    return { major: 1, minor: 0, patch: 0 };
+  } else if (hasAdd) {
+    // New feature - minor version bump
+    return { major: 0, minor: 1, patch: 0 };
+  } else if (hasReplace) {
+    // Fix/change - patch version bump
+    return { major: 0, minor: 0, patch: 1 };
+  }
+
+  // No changes
+  return { major: 0, minor: 0, patch: 0 };
 }
 
 // Formatting options interface
