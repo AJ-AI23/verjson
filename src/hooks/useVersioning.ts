@@ -162,28 +162,30 @@ export const useVersioning = ({
     }
   }, [documentId]);
 
-  const handleVersionBump = async (newVersion: Version, tier: VersionTier, description: string, isReleased: boolean = false) => {
+  const handleVersionBump = async (newVersion: Version, tier: VersionTier, description: string, isReleased: boolean = false, autoVersion: boolean = false) => {
     if (!documentId) {
       toast.error('No document selected for version creation');
       return;
     }
 
     try {
-      // Validate version number before creation
-      const validation = validateVersionForCreation(patches, newVersion);
-      
-      if (!validation.valid) {
-        // Set the suggested version for the UI to pick up
-        if (validation.suggestedVersion) {
-          setSuggestedVersion(validation.suggestedVersion);
-        }
+      // Only validate version number if NOT using auto versioning
+      if (!autoVersion) {
+        const validation = validateVersionForCreation(patches, newVersion);
         
-        toast.error('Invalid version number', {
-          description: validation.suggestedVersion 
-            ? `${validation.error}. Try version ${formatVersion(validation.suggestedVersion)} instead.`
-            : validation.error,
-        });
-        return;
+        if (!validation.valid) {
+          // Set the suggested version for the UI to pick up
+          if (validation.suggestedVersion) {
+            setSuggestedVersion(validation.suggestedVersion);
+          }
+          
+          toast.error('Invalid version number', {
+            description: validation.suggestedVersion 
+              ? `${validation.error}. Try version ${formatVersion(validation.suggestedVersion)} instead.`
+              : validation.error,
+          });
+          return;
+        }
       }
       
       // Clear any previous suggested version on successful validation
@@ -205,8 +207,14 @@ export const useVersioning = ({
         isReleased
       );
       
+      // Add autoVersion flag to the patch for the backend to handle
+      const patchWithAutoVersion = {
+        ...patch,
+        autoVersion
+      };
+      
       // Save to database
-      await createVersion(patch);
+      await createVersion(patchWithAutoVersion);
       
       // Update saved schema and database version to current schema
       setSavedSchema(schema);

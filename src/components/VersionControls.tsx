@@ -12,7 +12,7 @@ import { Download } from 'lucide-react';
 interface VersionControlsProps {
   version: Version;
   userRole?: 'owner' | 'editor' | 'viewer' | null;
-  onVersionBump: (newVersion: Version, tier: VersionTier, description: string, isReleased?: boolean) => void;
+  onVersionBump: (newVersion: Version, tier: VersionTier, description: string, isReleased?: boolean, autoVersion?: boolean) => void;
   isModified: boolean;
   schema?: string;
   patches?: any[];
@@ -40,6 +40,7 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
   const [editableVersion, setEditableVersion] = useState<Version>(() => ({ ...version }));
   const [isReleased, setIsReleased] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [autoVersion, setAutoVersion] = useState(true);
   
   // Update editable version when the version prop changes (e.g., from history selection)
   useEffect(() => {
@@ -178,10 +179,14 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
       return;
     }
     
-    onVersionBump(editableVersion, selectedTier, description, isReleased);
+    onVersionBump(editableVersion, selectedTier, description, isReleased, autoVersion);
     setDescription('');
     setIsReleased(false);
-    toast.success(`Version ${isReleased ? 'released' : 'created'}: ${formatVersion(editableVersion)}`);
+    if (!autoVersion) {
+      toast.success(`Version ${isReleased ? 'released' : 'created'}: ${formatVersion(editableVersion)}`);
+    } else {
+      toast.success(`Version ${isReleased ? 'released' : 'created'} (auto-versioned)`);
+    }
   };
 
   const handleVersionChange = (part: keyof Version, value: string) => {
@@ -231,15 +236,25 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
       <div className="flex flex-col gap-2">
         <div className="flex gap-2 items-center">
           <span className="text-xs text-slate-500 w-20">Version:</span>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <label className="flex items-center gap-1.5 text-xs mr-2">
+              <input
+                type="checkbox"
+                checked={autoVersion}
+                onChange={(e) => setAutoVersion(e.target.checked)}
+                className="w-3.5 h-3.5"
+              />
+              Auto
+            </label>
             {/* Major Version */}
             <div className="flex items-center">
               <Input
                 type="number"
                 value={editableVersion.major}
                 onChange={(e) => handleVersionChange('major', e.target.value)}
-                className={`w-16 h-8 text-center text-xs ${selectedTier === 'major' ? 'border-blue-400 ring-1 ring-blue-400' : ''}`}
+                className={`w-16 h-8 text-center text-xs ${selectedTier === 'major' ? 'border-blue-400 ring-1 ring-blue-400' : ''} ${autoVersion ? 'opacity-50' : ''}`}
                 min="0"
+                disabled={autoVersion}
               />
               <span className="text-xs font-bold mx-1">.</span>
             </div>
@@ -250,8 +265,9 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
                 type="number"
                 value={editableVersion.minor}
                 onChange={(e) => handleVersionChange('minor', e.target.value)}
-                className={`w-16 h-8 text-center text-xs ${selectedTier === 'minor' ? 'border-blue-400 ring-1 ring-blue-400' : ''}`}
+                className={`w-16 h-8 text-center text-xs ${selectedTier === 'minor' ? 'border-blue-400 ring-1 ring-blue-400' : ''} ${autoVersion ? 'opacity-50' : ''}`}
                 min="0"
+                disabled={autoVersion}
               />
               <span className="text-xs font-bold mx-1">.</span>
             </div>
@@ -262,8 +278,9 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
                 type="number"
                 value={editableVersion.patch}
                 onChange={(e) => handleVersionChange('patch', e.target.value)}
-                className={`w-16 h-8 text-center text-xs ${selectedTier === 'patch' ? 'border-blue-400 ring-1 ring-blue-400' : ''}`}
+                className={`w-16 h-8 text-center text-xs ${selectedTier === 'patch' ? 'border-blue-400 ring-1 ring-blue-400' : ''} ${autoVersion ? 'opacity-50' : ''}`}
                 min="0"
+                disabled={autoVersion}
               />
             </div>
           </div>
