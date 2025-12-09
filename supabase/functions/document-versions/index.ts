@@ -383,7 +383,7 @@ async function handleListDocumentVersions(supabaseClient: any, data: any, user: 
 
 async function handleCreateDocumentVersion(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
   const { documentId, patch } = data;
-  logger.debug('Creating document version', { documentId, description: patch.description });
+  logger.debug('Creating document version', { documentId, description: patch.description, autoVersion: patch.autoVersion });
 
   // Validate user has editor or owner permissions
   const access = await validateDocumentAccess(supabaseClient, documentId, user.id, logger);
@@ -399,11 +399,11 @@ async function handleCreateDocumentVersion(supabaseClient: any, data: any, user:
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   );
 
-  // Fetch existing versions to validate version number
+  // Fetch existing versions to validate version number and calculate auto version
   logger.debug('Fetching existing versions for validation', { documentId });
   const { data: existingVersions, error: fetchError } = await serviceClient
     .from('document_versions')
-    .select('version_major, version_minor, version_patch')
+    .select('id, version_major, version_minor, version_patch, is_selected, is_released, full_document, patches')
     .eq('document_id', documentId)
     .order('created_at', { ascending: true });
 
@@ -412,8 +412,90 @@ async function handleCreateDocumentVersion(supabaseClient: any, data: any, user:
     throw new Error('Failed to validate version number');
   }
 
-  // Validate version number
-  if (existingVersions && existingVersions.length > 0) {
+  let finalVersion = patch.version;
+
+  // Handle auto versioning
+  if (patch.autoVersion && existingVersions && existingVersions.length > 0) {
+    logger.debug('Auto-versioning enabled, calculating suggested version increment');
+    
+    // Calculate the current document state from selected versions
+    const selectedVersions = existingVersions.filter(v => v.is_selected);
+    let previousDocument = {};
+    
+    // Find the latest released version as a base
+    const releasedVersions = selectedVersions.filter(v => v.is_released && v.full_document);
+    if (releasedVersions.length > 0) {
+      // Use the latest released version as base
+      const latestReleased = releasedVersions[releasedVersions.length - 1];
+      previousDocument = latestReleased.full_document;
+      
+      // Apply subsequent patches
+      for (const version of selectedVersions) {
+        const versionNum = version.version_major * 1000000 + version.version_minor * 1000 + version.version_patch;
+        const releasedNum = latestReleased.version_major * 1000000 + latestReleased.version_minor * 1000 + latestReleased.version_patch;
+        
+        if (versionNum > releasedNum && version.patches) {
+          const patchOps = typeof version.patches === 'string' ? JSON.parse(version.patches) : version.patches;
+          for (const op of patchOps) {
+            previousDocument = applyPatch(previousDocument, op);
+          }
+        }
+      }
+    } else if (selectedVersions.length > 0 && selectedVersions[0].full_document) {
+      // Use initial version's full document
+      previousDocument = selectedVersions[0].full_document;
+      
+      // Apply all subsequent patches
+      for (let i = 1; i < selectedVersions.length; i++) {
+        const version = selectedVersions[i];
+        if (version.patches) {
+          const patchOps = typeof version.patches === 'string' ? JSON.parse(version.patches) : version.patches;
+          for (const op of patchOps) {
+            previousDocument = applyPatch(previousDocument, op);
+          }
+        }
+      }
+    }
+    
+    // Calculate the new document state
+    let newDocument = JSON.parse(JSON.stringify(previousDocument));
+    if (patch.patches) {
+      const newPatchOps = typeof patch.patches === 'string' ? JSON.parse(patch.patches) : patch.patches;
+      for (const op of newPatchOps) {
+        newDocument = applyPatch(newDocument, op);
+      }
+    }
+    
+    // Generate diff to determine version increment
+    const diff = generateDiff(previousDocument, newDocument);
+    const suggestedIncrement = calculateSuggestedVersionIncrement(diff);
+    
+    logger.debug('Calculated version increment from diff', { 
+      suggestedIncrement,
+      diffLength: diff.length 
+    });
+    
+    // Get the latest version to increment from
+    const latestVersion = existingVersions.reduce((latest, current) => {
+      const latestNum = latest.version_major * 1000000 + latest.version_minor * 1000 + latest.version_patch;
+      const currentNum = current.version_major * 1000000 + current.version_minor * 1000 + current.version_patch;
+      return currentNum > latestNum ? current : latest;
+    });
+    
+    // Apply the suggested increment
+    finalVersion = {
+      major: latestVersion.version_major + suggestedIncrement.major,
+      minor: suggestedIncrement.major > 0 ? 0 : latestVersion.version_minor + suggestedIncrement.minor,
+      patch: (suggestedIncrement.major > 0 || suggestedIncrement.minor > 0) ? 0 : latestVersion.version_patch + suggestedIncrement.patch
+    };
+    
+    logger.info('Auto-versioning calculated new version', { 
+      previousVersion: `${latestVersion.version_major}.${latestVersion.version_minor}.${latestVersion.version_patch}`,
+      newVersion: `${finalVersion.major}.${finalVersion.minor}.${finalVersion.patch}`,
+      increment: suggestedIncrement
+    });
+  } else if (!patch.autoVersion && existingVersions && existingVersions.length > 0) {
+    // Manual versioning - validate version number
     const newVersion = patch.version;
     
     // Check if version already exists
@@ -454,9 +536,9 @@ async function handleCreateDocumentVersion(supabaseClient: any, data: any, user:
   const versionData = {
     document_id: documentId,
     user_id: user.id,
-    version_major: patch.version.major,
-    version_minor: patch.version.minor,
-    version_patch: patch.version.patch,
+    version_major: finalVersion.major,
+    version_minor: finalVersion.minor,
+    version_patch: finalVersion.patch,
     description: patch.description,
     tier: patch.tier,
     is_released: patch.isReleased || false,
