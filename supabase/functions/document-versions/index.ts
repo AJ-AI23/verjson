@@ -1198,6 +1198,36 @@ function serializeValue(value: any, indent: number = 0, formatting: SimpleFormat
   if (Array.isArray(value)) {
     if (value.length === 0) return '[]';
     if (compacting && !schemaTypes) return '[...]';
+    
+    // When schemaTypes is enabled, collapse consecutive same-type items
+    if (schemaTypes) {
+      const typeGroups: string[] = [];
+      let lastType: string | null = null;
+      let consecutiveCount = 0;
+      
+      for (const item of value) {
+        const itemType = getTypeRepresentation(item);
+        if (itemType === lastType) {
+          consecutiveCount++;
+        } else {
+          if (lastType !== null && consecutiveCount > 0) {
+            // Add ellipsis for skipped consecutive items of same type
+            typeGroups.push('...');
+          }
+          typeGroups.push(itemType);
+          lastType = itemType;
+          consecutiveCount = 0;
+        }
+      }
+      
+      // Format the collapsed array
+      if (typeGroups.length <= 2) {
+        return `[${typeGroups.join(', ')}]`;
+      }
+      const items = typeGroups.map(t => nextIndent + t);
+      return `[\n${items.join(',\n')}\n${indentStr}]`;
+    }
+    
     const items = value.map(item => nextIndent + serializeValue(item, indent + 1, formatting));
     return `[\n${items.join(',\n')}\n${indentStr}]`;
   }
