@@ -1419,11 +1419,11 @@ function generateSimpleDiff(fromContent: any, toContent: any, diff: any[], forma
       return arrayLines;
     }
     
-    // Handle objects - track which keys have changes
-    const changedKeys: string[] = [];
-    const unchangedKeys: string[] = [];
+    // Handle objects - track which keys have changes and their positions
+    const keyInfo: { key: string; isChanged: boolean; index: number }[] = [];
     
-    for (const key of allKeys) {
+    for (let i = 0; i < allKeys.length; i++) {
+      const key = allKeys[i];
       const hasFrom = key in (fromObj || {});
       const hasTo = key in (toObj || {});
       
@@ -1433,20 +1433,29 @@ function generateSimpleDiff(fromContent: any, toContent: any, diff: any[], forma
       const propHasNestedChange = hasChanges(propPath);
       const propIsAddedOrRemoved = hasFrom !== hasTo;
       
-      if (propHasDirectChange || propIsAddedOrRemoved || propHasNestedChange) {
-        changedKeys.push(key);
-      } else {
-        unchangedKeys.push(key);
-      }
+      keyInfo.push({
+        key,
+        isChanged: propHasDirectChange || propIsAddedOrRemoved || propHasNestedChange,
+        index: i
+      });
     }
     
-    // If there are unchanged keys, add ellipsis at start
-    if (unchangedKeys.length > 0 && changedKeys.length > 0) {
+    const changedKeys = keyInfo.filter(k => k.isChanged);
+    const hasUnchangedBefore = keyInfo.some(k => !k.isChanged && k.index < (changedKeys[0]?.index ?? Infinity));
+    const hasUnchangedAfter = keyInfo.some(k => !k.isChanged && k.index > (changedKeys[changedKeys.length - 1]?.index ?? -1));
+    
+    // If there are unchanged keys before, add ellipsis at start
+    if (hasUnchangedBefore && changedKeys.length > 0) {
       lines.push(`${indentStr}...`);
     }
     
     // Process only changed keys
-    for (const key of changedKeys) {
+    for (let ci = 0; ci < changedKeys.length; ci++) {
+      const { key } = changedKeys[ci];
+      const isLastChange = ci === changedKeys.length - 1;
+      const needsComma = !isLastChange || hasUnchangedAfter;
+      const comma = needsComma ? ',' : '';
+      
       const propPath = currentPath ? `${currentPath}/${key}` : `/${key}`;
       const propKey = formatPropertyKey(key, keyQuotes);
       const hasFrom = key in (fromObj || {});
@@ -1462,7 +1471,7 @@ function generateSimpleDiff(fromContent: any, toContent: any, diff: any[], forma
         }
       } else if (!hasFrom && hasTo) {
         // Added property - don't compact so we show full structure of new content
-        lines.push(`${indentStr}${propKey}: ${serializeValue(toObj[key], indent, { ...formatting, compacting: false })},`);
+        lines.push(`${indentStr}${propKey}: ${serializeValue(toObj[key], indent, { ...formatting, compacting: false })}${comma}`);
       } else if (hasFrom && hasTo) {
         if (replacedPaths.has(propPath)) {
           // Replaced property - show old as comment (compacted), new as normal (not compacted)
@@ -1473,21 +1482,26 @@ function generateSimpleDiff(fromContent: any, toContent: any, diff: any[], forma
           } else {
             lines.push(`${indentStr}// ${propKey}: ${oldSerialized},`);
           }
-          lines.push(`${indentStr}${propKey}: ${serializeValue(newValue, indent, { ...formatting, compacting: false })},`);
+          lines.push(`${indentStr}${propKey}: ${serializeValue(newValue, indent, { ...formatting, compacting: false })}${comma}`);
         } else if (typeof fromObj[key] === 'object' && typeof toObj[key] === 'object' && hasChanges(propPath)) {
           // Nested changes - recurse
           const nestedLines = generateOutput(fromObj[key], toObj[key], propPath, indent + 1);
           if (Array.isArray(toObj[key])) {
             lines.push(`${indentStr}${propKey}: [`);
             lines.push(...nestedLines);
-            lines.push(`${indentStr}],`);
+            lines.push(`${indentStr}]${comma}`);
           } else {
             lines.push(`${indentStr}${propKey}: {`);
             lines.push(...nestedLines);
-            lines.push(`${indentStr}},`);
+            lines.push(`${indentStr}}${comma}`);
           }
         }
       }
+    }
+    
+    // If there are unchanged keys after, add ellipsis at end
+    if (hasUnchangedAfter && changedKeys.length > 0) {
+      lines.push(`${indentStr}...`);
     }
     
     return lines;
