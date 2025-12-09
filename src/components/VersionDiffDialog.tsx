@@ -7,8 +7,21 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { formatVersion, Version } from '@/lib/versionUtils';
-import { FileCode, List } from 'lucide-react';
+import { FileCode, List, Settings2 } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+
+interface SimpleFormatting {
+  keyQuotes: boolean;
+  compacting: boolean;
+  schemaTypes: boolean;
+}
 
 interface VersionDiffDialogProps {
   open: boolean;
@@ -18,7 +31,9 @@ interface VersionDiffDialogProps {
   version2: { version: Version; description: string } | null;
   loading?: boolean;
   format?: 'simple' | 'complex';
+  simpleFormatting?: SimpleFormatting;
   onFormatChange?: (format: 'simple' | 'complex') => void;
+  onSimpleFormattingChange?: (formatting: SimpleFormatting) => void;
 }
 
 export const VersionDiffDialog: React.FC<VersionDiffDialogProps> = ({
@@ -29,7 +44,9 @@ export const VersionDiffDialog: React.FC<VersionDiffDialogProps> = ({
   version2,
   loading,
   format = 'complex',
-  onFormatChange
+  simpleFormatting = { keyQuotes: true, compacting: false, schemaTypes: false },
+  onFormatChange,
+  onSimpleFormattingChange
 }) => {
   const getOperationColor = (op: string) => {
     switch (op) {
@@ -54,6 +71,15 @@ export const VersionDiffDialog: React.FC<VersionDiffDialogProps> = ({
       return JSON.stringify(value, null, 2);
     }
     return String(value);
+  };
+
+  const handleFormattingChange = (key: keyof SimpleFormatting, value: boolean) => {
+    if (onSimpleFormattingChange) {
+      onSimpleFormattingChange({
+        ...simpleFormatting,
+        [key]: value
+      });
+    }
   };
 
   const renderComplexView = () => {
@@ -160,16 +186,76 @@ export const VersionDiffDialog: React.FC<VersionDiffDialogProps> = ({
 
     return (
       <div className="space-y-2">
-        <h4 className="font-medium">Structural Changes</h4>
+        <div className="flex items-center justify-between">
+          <h4 className="font-medium">Structural Changes</h4>
+          {onSimpleFormattingChange && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1.5 h-7">
+                  <Settings2 size={14} />
+                  Formatting
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64" align="end">
+                <div className="space-y-4">
+                  <h4 className="font-medium text-sm">Output Formatting</h4>
+                  
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="keyQuotes" className="text-sm cursor-pointer">
+                      Key quotes
+                    </Label>
+                    <Switch
+                      id="keyQuotes"
+                      checked={simpleFormatting.keyQuotes}
+                      onCheckedChange={(checked) => handleFormattingChange('keyQuotes', checked)}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground -mt-2">
+                    Wrap property names in quotes
+                  </p>
+                  
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="compacting" className="text-sm cursor-pointer">
+                      Compacting
+                    </Label>
+                    <Switch
+                      id="compacting"
+                      checked={simpleFormatting.compacting}
+                      onCheckedChange={(checked) => handleFormattingChange('compacting', checked)}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground -mt-2">
+                    Replace nested structures with ...
+                  </p>
+                  
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="schemaTypes" className="text-sm cursor-pointer">
+                      Schema types
+                    </Label>
+                    <Switch
+                      id="schemaTypes"
+                      checked={simpleFormatting.schemaTypes}
+                      onCheckedChange={(checked) => handleFormattingChange('schemaTypes', checked)}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground -mt-2">
+                    Show types instead of values
+                  </p>
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
         <div className="rounded-lg border bg-slate-900 p-4 overflow-auto max-h-[50vh]">
           <pre className="text-sm text-slate-100 font-mono whitespace-pre-wrap break-words">
             {diff.simpleDiff}
           </pre>
         </div>
         <div className="text-xs text-muted-foreground space-y-1">
-          <p><span className="font-mono text-green-600">property: value</span> — added or unchanged properties</p>
+          <p><span className="font-mono text-green-600">property: value</span> — added properties</p>
           <p><span className="font-mono text-red-400">// property: value</span> — removed properties (single-line)</p>
           <p><span className="font-mono text-red-400">/* property: value */</span> — removed properties (multi-line)</p>
+          <p><span className="font-mono text-slate-400">...</span> — unchanged properties (omitted)</p>
         </div>
       </div>
     );

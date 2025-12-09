@@ -1036,8 +1036,16 @@ async function handleGetDocumentVersion(supabaseClient: any, data: any, user: an
 }
 
 async function handleGetVersionDiff(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
-  const { documentId, fromVersionId, toVersionId, format = 'complex' } = data;
-  logger.debug('Getting version diff', { documentId, fromVersionId, toVersionId, format, userId: user.id });
+  const { documentId, fromVersionId, toVersionId, format = 'complex', simpleFormatting } = data;
+  
+  // Default formatting options for simple format
+  const formatting = {
+    keyQuotes: simpleFormatting?.keyQuotes ?? true,
+    compacting: simpleFormatting?.compacting ?? false,
+    schemaTypes: simpleFormatting?.schemaTypes ?? false
+  };
+  
+  logger.debug('Getting version diff', { documentId, fromVersionId, toVersionId, format, formatting, userId: user.id });
 
   if (!documentId || !fromVersionId || !toVersionId) {
     throw new Error('documentId, fromVersionId, and toVersionId are required');
@@ -1088,7 +1096,7 @@ async function handleGetVersionDiff(supabaseClient: any, data: any, user: any, l
   };
 
   if (format === 'simple') {
-    const simpleDiff = generateSimpleDiff(fromResult.effectiveContent, toResult.effectiveContent, diff);
+    const simpleDiff = generateSimpleDiff(fromResult.effectiveContent, toResult.effectiveContent, diff, formatting);
     return { 
       ...baseResponse,
       simpleDiff
@@ -1103,10 +1111,18 @@ async function handleGetVersionDiff(supabaseClient: any, data: any, user: any, l
   };
 }
 
+// Formatting options interface
+interface SimpleFormatting {
+  keyQuotes: boolean;
+  compacting: boolean;
+  schemaTypes: boolean;
+}
+
 // Helper to check if a value should use multi-line comment format
-function isMultiLineValue(value: any): boolean {
+function isMultiLineValue(value: any, compacting: boolean = false): boolean {
   if (value === null || value === undefined) return false;
   if (typeof value === 'object') {
+    if (compacting) return false; // Compacted values are always single-line
     if (Array.isArray(value)) {
       return value.length > 1 || value.some(item => typeof item === 'object');
     }
@@ -1115,28 +1131,79 @@ function isMultiLineValue(value: any): boolean {
   return false;
 }
 
+// Helper to detect special string formats
+function detectStringFormat(value: string): string | null {
+  // UUID pattern
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) {
+    return '<uuid>';
+  }
+  // ISO date/datetime pattern
+  if (/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2})?/.test(value)) {
+    return '<datetime>';
+  }
+  // URL pattern
+  if (/^https?:\/\//.test(value)) {
+    return '<url>';
+  }
+  // Email pattern
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+    return '<email>';
+  }
+  return null;
+}
+
+// Get type representation for a value
+function getTypeRepresentation(value: any): string {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  if (typeof value === 'boolean') return 'boolean';
+  if (typeof value === 'number') return 'number';
+  if (typeof value === 'string') {
+    const format = detectStringFormat(value);
+    return format || 'string';
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) return '[]';
+    // Get type of first element if homogeneous
+    const firstType = getTypeRepresentation(value[0]);
+    return `[${firstType}]`;
+  }
+  if (typeof value === 'object') {
+    return '{...}';
+  }
+  return 'unknown';
+}
+
 // Helper to serialize a value to JSON-like string
-function serializeValue(value: any, indent: number = 0): string {
+function serializeValue(value: any, indent: number = 0, formatting: SimpleFormatting): string {
+  const { keyQuotes, compacting, schemaTypes } = formatting;
   const indentStr = '  '.repeat(indent);
   const nextIndent = '  '.repeat(indent + 1);
   
-  if (value === null) return 'null';
+  if (value === null) return schemaTypes ? 'null' : 'null';
   if (value === undefined) return 'undefined';
+  
+  if (schemaTypes) {
+    return getTypeRepresentation(value);
+  }
+  
   if (typeof value === 'string') return JSON.stringify(value);
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   
   if (Array.isArray(value)) {
     if (value.length === 0) return '[]';
-    const items = value.map(item => nextIndent + serializeValue(item, indent + 1));
+    if (compacting) return '[...]';
+    const items = value.map(item => nextIndent + serializeValue(item, indent + 1, formatting));
     return `[\n${items.join(',\n')}\n${indentStr}]`;
   }
   
   if (typeof value === 'object') {
     const keys = Object.keys(value);
     if (keys.length === 0) return '{}';
+    if (compacting) return '{...}';
     const props = keys.map(key => {
-      const propKey = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key) ? key : JSON.stringify(key);
-      return `${nextIndent}${propKey}: ${serializeValue(value[key], indent + 1)}`;
+      const propKey = formatPropertyKey(key, keyQuotes);
+      return `${nextIndent}${propKey}: ${serializeValue(value[key], indent + 1, formatting)}`;
     });
     return `{\n${props.join(',\n')}\n${indentStr}}`;
   }
@@ -1144,8 +1211,19 @@ function serializeValue(value: any, indent: number = 0): string {
   return String(value);
 }
 
+// Format property key with or without quotes
+function formatPropertyKey(key: string, useQuotes: boolean): string {
+  const needsQuotes = !/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key);
+  if (needsQuotes) {
+    return JSON.stringify(key);
+  }
+  return useQuotes ? `"${key}"` : key;
+}
+
 // Generate simple diff format showing structural changes as pseudo-JSON with comments
-function generateSimpleDiff(fromContent: any, toContent: any, diff: any[]): string {
+function generateSimpleDiff(fromContent: any, toContent: any, diff: any[], formatting: SimpleFormatting): string {
+  const { keyQuotes, compacting } = formatting;
+  
   // Build sets of paths by operation type
   const addedPaths = new Set<string>();
   const removedPaths = new Set<string>();
@@ -1176,7 +1254,13 @@ function generateSimpleDiff(fromContent: any, toContent: any, diff: any[]): stri
     return false;
   }
   
-  // Recursively generate the diff output
+  // Check if a specific key at a path level has changes
+  function keyHasChanges(basePath: string, key: string): boolean {
+    const propPath = basePath ? `${basePath}/${key}` : `/${key}`;
+    return hasChanges(propPath);
+  }
+  
+  // Recursively generate the diff output - only showing changed properties with ellipsis for unchanged
   function generateOutput(fromObj: any, toObj: any, currentPath: string, indent: number): string[] {
     const lines: string[] = [];
     const indentStr = '  '.repeat(indent);
@@ -1195,33 +1279,49 @@ function generateSimpleDiff(fromContent: any, toContent: any, diff: any[]): stri
       const maxLen = Math.max(fromArr.length, toArr.length);
       
       const arrayLines: string[] = [];
+      let hasUnchangedBefore = false;
+      let lastWasChange = false;
+      
       for (let i = 0; i < maxLen; i++) {
         const itemPath = `${currentPath}/${i}`;
         const hasFrom = i < fromArr.length;
         const hasTo = i < toArr.length;
+        const itemHasChanges = hasChanges(itemPath) || (hasFrom !== hasTo) || 
+          (hasFrom && hasTo && JSON.stringify(fromArr[i]) !== JSON.stringify(toArr[i]));
+        
+        if (!itemHasChanges) {
+          hasUnchangedBefore = true;
+          lastWasChange = false;
+          continue;
+        }
+        
+        // Add ellipsis before if there were unchanged items
+        if (hasUnchangedBefore && !lastWasChange) {
+          arrayLines.push(`${indentStr}  ...`);
+        }
         
         if (hasFrom && !hasTo) {
           // Removed item
-          const serialized = serializeValue(fromArr[i], indent + 1);
-          if (isMultiLineValue(fromArr[i])) {
+          const serialized = serializeValue(fromArr[i], indent + 1, { ...formatting, compacting: compacting });
+          if (isMultiLineValue(fromArr[i], compacting)) {
             arrayLines.push(`${indentStr}  /* ${serialized} */`);
           } else {
             arrayLines.push(`${indentStr}  // ${serialized}`);
           }
         } else if (!hasFrom && hasTo) {
           // Added item
-          arrayLines.push(`${indentStr}  ${serializeValue(toArr[i], indent + 1)}`);
+          arrayLines.push(`${indentStr}  ${serializeValue(toArr[i], indent + 1, formatting)}`);
         } else if (hasFrom && hasTo) {
           if (replacedPaths.has(itemPath)) {
             // Replaced item - show old as comment, new as normal
             const { oldValue, newValue } = replacedPaths.get(itemPath)!;
-            const oldSerialized = serializeValue(oldValue, indent + 1);
-            if (isMultiLineValue(oldValue)) {
+            const oldSerialized = serializeValue(oldValue, indent + 1, { ...formatting, compacting: compacting });
+            if (isMultiLineValue(oldValue, compacting)) {
               arrayLines.push(`${indentStr}  /* ${oldSerialized} */`);
             } else {
               arrayLines.push(`${indentStr}  // ${oldSerialized}`);
             }
-            arrayLines.push(`${indentStr}  ${serializeValue(newValue, indent + 1)}`);
+            arrayLines.push(`${indentStr}  ${serializeValue(newValue, indent + 1, formatting)}`);
           } else if (typeof fromArr[i] === 'object' && typeof toArr[i] === 'object' && hasChanges(itemPath)) {
             // Nested changes
             const nestedLines = generateOutput(fromArr[i], toArr[i], itemPath, indent + 1);
@@ -1234,44 +1334,81 @@ function generateSimpleDiff(fromContent: any, toContent: any, diff: any[]): stri
               arrayLines.push(...nestedLines);
               arrayLines.push(`${indentStr}  }`);
             }
-          } else {
-            // Unchanged item
-            arrayLines.push(`${indentStr}  ${serializeValue(toArr[i], indent + 1)}`);
           }
         }
+        lastWasChange = true;
       }
+      
+      // Add trailing ellipsis if there are unchanged items after the last change
+      if (hasUnchangedBefore && arrayLines.length > 0 && !arrayLines[arrayLines.length - 1]?.includes('...')) {
+        // Check if there were unchanged items at the end
+        const unchangedAtEnd = toArr.some((_, i) => {
+          const itemPath = `${currentPath}/${i}`;
+          return !hasChanges(itemPath) && i >= fromArr.length === (i >= toArr.length);
+        });
+        if (unchangedAtEnd) {
+          arrayLines.push(`${indentStr}  ...`);
+        }
+      }
+      
       return arrayLines;
     }
     
-    // Handle objects
+    // Handle objects - track which keys have changes
+    const changedKeys: string[] = [];
+    const unchangedKeys: string[] = [];
+    
     for (const key of allKeys) {
-      const propPath = `${currentPath}/${key}`;
-      const propKey = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key) ? key : JSON.stringify(key);
+      const hasFrom = key in (fromObj || {});
+      const hasTo = key in (toObj || {});
+      
+      // A key has changes if: added, removed, replaced, or has nested changes
+      const propPath = currentPath ? `${currentPath}/${key}` : `/${key}`;
+      const propHasDirectChange = addedPaths.has(propPath) || removedPaths.has(propPath) || replacedPaths.has(propPath);
+      const propHasNestedChange = hasChanges(propPath);
+      const propIsAddedOrRemoved = hasFrom !== hasTo;
+      
+      if (propHasDirectChange || propIsAddedOrRemoved || propHasNestedChange) {
+        changedKeys.push(key);
+      } else {
+        unchangedKeys.push(key);
+      }
+    }
+    
+    // If there are unchanged keys, add ellipsis at start
+    if (unchangedKeys.length > 0 && changedKeys.length > 0) {
+      lines.push(`${indentStr}...`);
+    }
+    
+    // Process only changed keys
+    for (const key of changedKeys) {
+      const propPath = currentPath ? `${currentPath}/${key}` : `/${key}`;
+      const propKey = formatPropertyKey(key, keyQuotes);
       const hasFrom = key in (fromObj || {});
       const hasTo = key in (toObj || {});
       
       if (hasFrom && !hasTo) {
         // Removed property
-        const serialized = serializeValue(fromObj[key], indent);
-        if (isMultiLineValue(fromObj[key])) {
+        const serialized = serializeValue(fromObj[key], indent, { ...formatting, compacting: compacting });
+        if (isMultiLineValue(fromObj[key], compacting)) {
           lines.push(`${indentStr}/* ${propKey}: ${serialized}, */`);
         } else {
           lines.push(`${indentStr}// ${propKey}: ${serialized},`);
         }
       } else if (!hasFrom && hasTo) {
         // Added property
-        lines.push(`${indentStr}${propKey}: ${serializeValue(toObj[key], indent)},`);
+        lines.push(`${indentStr}${propKey}: ${serializeValue(toObj[key], indent, formatting)},`);
       } else if (hasFrom && hasTo) {
         if (replacedPaths.has(propPath)) {
           // Replaced property - show old as comment, new as normal
           const { oldValue, newValue } = replacedPaths.get(propPath)!;
-          const oldSerialized = serializeValue(oldValue, indent);
-          if (isMultiLineValue(oldValue)) {
+          const oldSerialized = serializeValue(oldValue, indent, { ...formatting, compacting: compacting });
+          if (isMultiLineValue(oldValue, compacting)) {
             lines.push(`${indentStr}/* ${propKey}: ${oldSerialized}, */`);
           } else {
             lines.push(`${indentStr}// ${propKey}: ${oldSerialized},`);
           }
-          lines.push(`${indentStr}${propKey}: ${serializeValue(newValue, indent)},`);
+          lines.push(`${indentStr}${propKey}: ${serializeValue(newValue, indent, formatting)},`);
         } else if (typeof fromObj[key] === 'object' && typeof toObj[key] === 'object' && hasChanges(propPath)) {
           // Nested changes - recurse
           const nestedLines = generateOutput(fromObj[key], toObj[key], propPath, indent + 1);
@@ -1284,9 +1421,6 @@ function generateSimpleDiff(fromContent: any, toContent: any, diff: any[]): stri
             lines.push(...nestedLines);
             lines.push(`${indentStr}},`);
           }
-        } else {
-          // Unchanged property
-          lines.push(`${indentStr}${propKey}: ${serializeValue(toObj[key], indent)},`);
         }
       }
     }
