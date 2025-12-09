@@ -1105,8 +1105,6 @@ async function handleGetVersionDiff(supabaseClient: any, data: any, user: any, l
 
   return { 
     ...baseResponse,
-    fromContent: fromResult.effectiveContent,
-    toContent: toResult.effectiveContent,
     diff
   };
 }
