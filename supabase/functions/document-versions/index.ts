@@ -1369,7 +1369,9 @@ function generateSimpleDiff(fromContent: any, toContent: any, diff: any[], forma
           // Removed item
           const serialized = serializeValue(fromArr[i], indent + 1, { ...formatting, compacting: compacting });
           if (isMultiLineValue(fromArr[i], compacting)) {
-            arrayLines.push(`${indentStr}  /* ${serialized} */`);
+            arrayLines.push(`${indentStr}  /*`);
+            arrayLines.push(`${indentStr}  ${serialized}`);
+            arrayLines.push(`${indentStr}  */`);
           } else {
             arrayLines.push(`${indentStr}  // ${serialized}`);
           }
@@ -1382,7 +1384,9 @@ function generateSimpleDiff(fromContent: any, toContent: any, diff: any[], forma
             const { oldValue, newValue } = replacedPaths.get(itemPath)!;
             const oldSerialized = serializeValue(oldValue, indent + 1, { ...formatting, compacting: compacting });
             if (isMultiLineValue(oldValue, compacting)) {
-              arrayLines.push(`${indentStr}  /* ${oldSerialized} */`);
+              arrayLines.push(`${indentStr}  /*`);
+              arrayLines.push(`${indentStr}  ${oldSerialized}`);
+              arrayLines.push(`${indentStr}  */`);
             } else {
               arrayLines.push(`${indentStr}  // ${oldSerialized}`);
             }
@@ -1465,7 +1469,9 @@ function generateSimpleDiff(fromContent: any, toContent: any, diff: any[], forma
         // Removed property
         const serialized = serializeValue(fromObj[key], indent, { ...formatting, compacting: compacting });
         if (isMultiLineValue(fromObj[key], compacting)) {
-          lines.push(`${indentStr}/* ${propKey}: ${serialized}, */`);
+          lines.push(`${indentStr}/*`);
+          lines.push(`${indentStr}${propKey}: ${serialized},`);
+          lines.push(`${indentStr}*/`);
         } else {
           lines.push(`${indentStr}// ${propKey}: ${serialized},`);
         }
@@ -1478,7 +1484,9 @@ function generateSimpleDiff(fromContent: any, toContent: any, diff: any[], forma
           const { oldValue, newValue } = replacedPaths.get(propPath)!;
           const oldSerialized = serializeValue(oldValue, indent, { ...formatting, compacting: compacting });
           if (isMultiLineValue(oldValue, compacting)) {
-            lines.push(`${indentStr}/* ${propKey}: ${oldSerialized}, */`);
+            lines.push(`${indentStr}/*`);
+            lines.push(`${indentStr}${propKey}: ${oldSerialized},`);
+            lines.push(`${indentStr}*/`);
           } else {
             lines.push(`${indentStr}// ${propKey}: ${oldSerialized},`);
           }
