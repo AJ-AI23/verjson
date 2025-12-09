@@ -69,7 +69,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   const [diffLoading, setDiffLoading] = useState(false);
   const [diffFormat, setDiffFormat] = useState<'simple' | 'complex'>('complex');
   const [simpleFormatting, setSimpleFormatting] = useState({
-    keyQuotes: true,
+    keyQuotes: false,
     compacting: true,
     schemaTypes: true
   });

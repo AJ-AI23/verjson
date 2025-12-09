@@ -1244,7 +1244,19 @@ function serializeValue(value: any, indent: number = 0, formatting: SimpleFormat
   if (typeof value === 'object') {
     const keys = Object.keys(value);
     if (keys.length === 0) return '{}';
-    if (compacting && !schemaTypes) return '{...}';
+    
+    // For schemaTypes, check if this is a schema-like object with type property
+    if (schemaTypes) {
+      const typeRep = getTypeRepresentation(value);
+      // If it resolved to a type (not '{...}'), return that
+      if (typeRep !== '{...}') {
+        return typeRep;
+      }
+    }
+    
+    // Apply compacting for non-schema objects
+    if (compacting) return '{...}';
+    
     const props = keys.map(key => {
       const propKey = formatPropertyKey(key, keyQuotes);
       return `${nextIndent}${propKey}: ${serializeValue(value[key], indent + 1, formatting)}`;
