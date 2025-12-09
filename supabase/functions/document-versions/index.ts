@@ -1453,58 +1453,109 @@ function generateSimpleDiff(fromContent: any, toContent: any, diff: any[], forma
       lines.push(`${indentStr}...`);
     }
     
-    // Process only changed keys
-    for (let ci = 0; ci < changedKeys.length; ci++) {
-      const { key } = changedKeys[ci];
-      const isLastChange = ci === changedKeys.length - 1;
-      const needsComma = !isLastChange || hasUnchangedAfter;
-      const comma = needsComma ? ',' : '';
-      
+    // Group consecutive removed properties together
+    type ChangeType = 'removed' | 'added' | 'replaced' | 'nested';
+    interface ProcessedChange {
+      type: ChangeType;
+      key: string;
+      propPath: string;
+      propKey: string;
+      hasFrom: boolean;
+      hasTo: boolean;
+    }
+    
+    const processedChanges: ProcessedChange[] = changedKeys.map(({ key }) => {
       const propPath = currentPath ? `${currentPath}/${key}` : `/${key}`;
       const propKey = formatPropertyKey(key, keyQuotes);
       const hasFrom = key in (fromObj || {});
       const hasTo = key in (toObj || {});
       
+      let type: ChangeType;
       if (hasFrom && !hasTo) {
-        // Removed property
-        const serialized = serializeValue(fromObj[key], indent, { ...formatting, compacting: compacting });
-        if (isMultiLineValue(fromObj[key], compacting)) {
+        type = 'removed';
+      } else if (!hasFrom && hasTo) {
+        type = 'added';
+      } else if (replacedPaths.has(propPath)) {
+        type = 'replaced';
+      } else {
+        type = 'nested';
+      }
+      
+      return { type, key, propPath, propKey, hasFrom, hasTo };
+    });
+    
+    // Process changes, grouping consecutive removals
+    let ci = 0;
+    while (ci < processedChanges.length) {
+      const change = processedChanges[ci];
+      const isLastChange = ci === processedChanges.length - 1;
+      
+      if (change.type === 'removed') {
+        // Collect consecutive removals
+        const removedGroup: ProcessedChange[] = [change];
+        while (ci + 1 < processedChanges.length && processedChanges[ci + 1].type === 'removed') {
+          ci++;
+          removedGroup.push(processedChanges[ci]);
+        }
+        
+        const isGroupLast = ci === processedChanges.length - 1;
+        
+        if (removedGroup.length > 1) {
+          // Multiple consecutive removals - use multi-line comment
           lines.push(`${indentStr}/*`);
-          lines.push(`${indentStr}${propKey}: ${serialized},`);
+          for (let ri = 0; ri < removedGroup.length; ri++) {
+            const rem = removedGroup[ri];
+            const serialized = serializeValue(fromObj[rem.key], indent, { ...formatting, compacting: compacting });
+            const isLastInGroup = ri === removedGroup.length - 1;
+            // No trailing comma on the last property if it's the last in the object
+            const remComma = (!isLastInGroup || hasUnchangedAfter || !isGroupLast) ? ',' : '';
+            lines.push(`${indentStr}${rem.propKey}: ${serialized}${remComma}`);
+          }
           lines.push(`${indentStr}*/`);
         } else {
-          lines.push(`${indentStr}// ${propKey}: ${serialized},`);
-        }
-      } else if (!hasFrom && hasTo) {
-        // Added property - don't compact so we show full structure of new content
-        lines.push(`${indentStr}${propKey}: ${serializeValue(toObj[key], indent, { ...formatting, compacting: false })}${comma}`);
-      } else if (hasFrom && hasTo) {
-        if (replacedPaths.has(propPath)) {
-          // Replaced property - show old as comment (compacted), new as normal (not compacted)
-          const { oldValue, newValue } = replacedPaths.get(propPath)!;
-          const oldSerialized = serializeValue(oldValue, indent, { ...formatting, compacting: compacting });
-          if (isMultiLineValue(oldValue, compacting)) {
+          // Single removal
+          const serialized = serializeValue(fromObj[change.key], indent, { ...formatting, compacting: compacting });
+          if (isMultiLineValue(fromObj[change.key], compacting)) {
             lines.push(`${indentStr}/*`);
-            lines.push(`${indentStr}${propKey}: ${oldSerialized},`);
+            lines.push(`${indentStr}${change.propKey}: ${serialized},`);
             lines.push(`${indentStr}*/`);
           } else {
-            lines.push(`${indentStr}// ${propKey}: ${oldSerialized},`);
-          }
-          lines.push(`${indentStr}${propKey}: ${serializeValue(newValue, indent, { ...formatting, compacting: false })}${comma}`);
-        } else if (typeof fromObj[key] === 'object' && typeof toObj[key] === 'object' && hasChanges(propPath)) {
-          // Nested changes - recurse
-          const nestedLines = generateOutput(fromObj[key], toObj[key], propPath, indent + 1);
-          if (Array.isArray(toObj[key])) {
-            lines.push(`${indentStr}${propKey}: [`);
-            lines.push(...nestedLines);
-            lines.push(`${indentStr}]${comma}`);
-          } else {
-            lines.push(`${indentStr}${propKey}: {`);
-            lines.push(...nestedLines);
-            lines.push(`${indentStr}}${comma}`);
+            lines.push(`${indentStr}// ${change.propKey}: ${serialized},`);
           }
         }
+      } else if (change.type === 'added') {
+        const needsComma = !isLastChange || hasUnchangedAfter;
+        const comma = needsComma ? ',' : '';
+        lines.push(`${indentStr}${change.propKey}: ${serializeValue(toObj[change.key], indent, { ...formatting, compacting: false })}${comma}`);
+      } else if (change.type === 'replaced') {
+        const needsComma = !isLastChange || hasUnchangedAfter;
+        const comma = needsComma ? ',' : '';
+        const { oldValue, newValue } = replacedPaths.get(change.propPath)!;
+        const oldSerialized = serializeValue(oldValue, indent, { ...formatting, compacting: compacting });
+        if (isMultiLineValue(oldValue, compacting)) {
+          lines.push(`${indentStr}/*`);
+          lines.push(`${indentStr}${change.propKey}: ${oldSerialized},`);
+          lines.push(`${indentStr}*/`);
+        } else {
+          lines.push(`${indentStr}// ${change.propKey}: ${oldSerialized},`);
+        }
+        lines.push(`${indentStr}${change.propKey}: ${serializeValue(newValue, indent, { ...formatting, compacting: false })}${comma}`);
+      } else if (change.type === 'nested') {
+        const needsComma = !isLastChange || hasUnchangedAfter;
+        const comma = needsComma ? ',' : '';
+        const nestedLines = generateOutput(fromObj[change.key], toObj[change.key], change.propPath, indent + 1);
+        if (Array.isArray(toObj[change.key])) {
+          lines.push(`${indentStr}${change.propKey}: [`);
+          lines.push(...nestedLines);
+          lines.push(`${indentStr}]${comma}`);
+        } else {
+          lines.push(`${indentStr}${change.propKey}: {`);
+          lines.push(...nestedLines);
+          lines.push(`${indentStr}}${comma}`);
+        }
       }
+      
+      ci++;
     }
     
     // If there are unchanged keys after, add ellipsis at end
