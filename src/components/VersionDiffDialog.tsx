@@ -316,7 +316,7 @@ export const VersionDiffDialog: React.FC<VersionDiffDialogProps> = ({
               {/* Summary */}
               <div className="p-4 bg-muted/50 rounded-lg border">
                 <h4 className="font-medium mb-3">Comparison Summary</h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-3 gap-4 text-sm">
                   <div>
                     <strong className="text-muted-foreground">From Version:</strong>
                     <div className="mt-1">
@@ -331,6 +331,32 @@ export const VersionDiffDialog: React.FC<VersionDiffDialogProps> = ({
                       <span className="ml-2 text-muted-foreground">{version2?.description || ''}</span>
                     </div>
                   </div>
+                  {diff?.diff && (diff.diff.version_major > 0 || diff.diff.version_minor > 0 || diff.diff.version_patch > 0) && (
+                    <div>
+                      <strong className="text-muted-foreground">Suggested Increment:</strong>
+                      <div className="mt-1">
+                        <Badge 
+                          variant="outline" 
+                          className={
+                            diff.diff.version_major > 0 
+                              ? 'bg-red-100 text-red-700 border-red-300' 
+                              : diff.diff.version_minor > 0 
+                                ? 'bg-yellow-100 text-yellow-700 border-yellow-300'
+                                : 'bg-green-100 text-green-700 border-green-300'
+                          }
+                        >
+                          +{diff.diff.version_major}.{diff.diff.version_minor}.{diff.diff.version_patch}
+                        </Badge>
+                        <span className="ml-2 text-muted-foreground">
+                          {diff.diff.version_major > 0 
+                            ? 'Major (breaking)' 
+                            : diff.diff.version_minor > 0 
+                              ? 'Minor (new features)'
+                              : 'Patch (fixes)'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
