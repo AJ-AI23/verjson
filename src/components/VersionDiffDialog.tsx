@@ -82,8 +82,11 @@ export const VersionDiffDialog: React.FC<VersionDiffDialogProps> = ({
     }
   };
 
+  // Access the complex diff array from the new structure
+  const complexDiff = diff?.diff?.complex || [];
+  
   const renderComplexView = () => {
-    if (!diff?.diff || diff.diff.length === 0) {
+    if (!complexDiff || complexDiff.length === 0) {
       return (
         <div className="p-8 text-center text-muted-foreground">
           <p>No differences found between these versions.</p>
@@ -95,9 +98,9 @@ export const VersionDiffDialog: React.FC<VersionDiffDialogProps> = ({
       <>
         {/* Changes */}
         <div className="space-y-2">
-          <h4 className="font-medium">Changes ({diff.diff.length})</h4>
+          <h4 className="font-medium">Changes ({complexDiff.length})</h4>
           <div className="space-y-2 max-h-96 overflow-auto">
-            {diff.diff.map((change: any, index: number) => (
+            {complexDiff.map((change: any, index: number) => (
               <div 
                 key={index} 
                 className={`p-3 rounded-lg border ${getOperationColor(change.op)}`}
@@ -143,9 +146,9 @@ export const VersionDiffDialog: React.FC<VersionDiffDialogProps> = ({
           <h4 className="font-medium mb-3">Statistics</h4>
           <div className="flex gap-4 text-sm">
             {(() => {
-              const added = diff.diff.filter((c: any) => c.op === 'add').length;
-              const removed = diff.diff.filter((c: any) => c.op === 'remove').length;
-              const modified = diff.diff.filter((c: any) => c.op === 'replace').length;
+              const added = complexDiff.filter((c: any) => c.op === 'add').length;
+              const removed = complexDiff.filter((c: any) => c.op === 'remove').length;
+              const modified = complexDiff.filter((c: any) => c.op === 'replace').length;
               return (
                 <>
                   {added > 0 && (
@@ -175,8 +178,11 @@ export const VersionDiffDialog: React.FC<VersionDiffDialogProps> = ({
     );
   };
 
+  // Access the simple diff string from the new structure
+  const simpleDiff = diff?.diff?.simple;
+  
   const renderSimpleView = () => {
-    if (!diff?.simpleDiff) {
+    if (!simpleDiff) {
       return (
         <div className="p-8 text-center text-muted-foreground">
           <p>No differences found between these versions.</p>
@@ -248,7 +254,7 @@ export const VersionDiffDialog: React.FC<VersionDiffDialogProps> = ({
         </div>
         <div className="rounded-lg border bg-slate-900 p-4 overflow-auto max-h-[50vh]">
           <pre className="text-sm text-slate-100 font-mono whitespace-pre-wrap break-words">
-            {diff.simpleDiff}
+            {simpleDiff}
           </pre>
         </div>
         <div className="text-xs text-muted-foreground space-y-1">
