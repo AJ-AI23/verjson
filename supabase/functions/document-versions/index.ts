@@ -1036,8 +1036,8 @@ async function handleGetDocumentVersion(supabaseClient: any, data: any, user: an
 }
 
 async function handleGetVersionDiff(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
-  const { documentId, fromVersionId, toVersionId } = data;
-  logger.debug('Getting version diff', { documentId, fromVersionId, toVersionId, userId: user.id });
+  const { documentId, fromVersionId, toVersionId, format = 'complex' } = data;
+  logger.debug('Getting version diff', { documentId, fromVersionId, toVersionId, format, userId: user.id });
 
   if (!documentId || !fromVersionId || !toVersionId) {
     throw new Error('documentId, fromVersionId, and toVersionId are required');
@@ -1045,6 +1045,10 @@ async function handleGetVersionDiff(supabaseClient: any, data: any, user: any, l
 
   if (fromVersionId === toVersionId) {
     throw new Error('fromVersionId and toVersionId must be different');
+  }
+
+  if (format !== 'simple' && format !== 'complex') {
+    throw new Error('format must be either "simple" or "complex"');
   }
 
   // Validate user has access to the document
@@ -1069,19 +1073,234 @@ async function handleGetVersionDiff(supabaseClient: any, data: any, user: any, l
     documentId, 
     fromVersionId,
     toVersionId,
+    format,
     fromVersion: `${fromResult.targetVersion.version_major}.${fromResult.targetVersion.version_minor}.${fromResult.targetVersion.version_patch}`,
     toVersion: `${toResult.targetVersion.version_major}.${toResult.targetVersion.version_minor}.${toResult.targetVersion.version_patch}`,
     diffCount: diff.length,
     userRole: access.role
   });
 
-  return { 
+  const baseResponse = { 
     fromVersion: fromResult.targetVersion,
     toVersion: toResult.targetVersion,
     fromVersionString: `${fromResult.targetVersion.version_major}.${fromResult.targetVersion.version_minor}.${fromResult.targetVersion.version_patch}`,
     toVersionString: `${toResult.targetVersion.version_major}.${toResult.targetVersion.version_minor}.${toResult.targetVersion.version_patch}`,
+  };
+
+  if (format === 'simple') {
+    const simpleDiff = generateSimpleDiff(fromResult.effectiveContent, toResult.effectiveContent, diff);
+    return { 
+      ...baseResponse,
+      simpleDiff
+    };
+  }
+
+  return { 
+    ...baseResponse,
     fromContent: fromResult.effectiveContent,
     toContent: toResult.effectiveContent,
     diff
   };
+}
+
+// Helper to check if a value should use multi-line comment format
+function isMultiLineValue(value: any): boolean {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'object') {
+    if (Array.isArray(value)) {
+      return value.length > 1 || value.some(item => typeof item === 'object');
+    }
+    return Object.keys(value).length > 0;
+  }
+  return false;
+}
+
+// Helper to serialize a value to JSON-like string
+function serializeValue(value: any, indent: number = 0): string {
+  const indentStr = '  '.repeat(indent);
+  const nextIndent = '  '.repeat(indent + 1);
+  
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  if (typeof value === 'string') return JSON.stringify(value);
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  
+  if (Array.isArray(value)) {
+    if (value.length === 0) return '[]';
+    const items = value.map(item => nextIndent + serializeValue(item, indent + 1));
+    return `[\n${items.join(',\n')}\n${indentStr}]`;
+  }
+  
+  if (typeof value === 'object') {
+    const keys = Object.keys(value);
+    if (keys.length === 0) return '{}';
+    const props = keys.map(key => {
+      const propKey = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key) ? key : JSON.stringify(key);
+      return `${nextIndent}${propKey}: ${serializeValue(value[key], indent + 1)}`;
+    });
+    return `{\n${props.join(',\n')}\n${indentStr}}`;
+  }
+  
+  return String(value);
+}
+
+// Generate simple diff format showing structural changes as pseudo-JSON with comments
+function generateSimpleDiff(fromContent: any, toContent: any, diff: any[]): string {
+  // Build sets of paths by operation type
+  const addedPaths = new Set<string>();
+  const removedPaths = new Set<string>();
+  const replacedPaths = new Map<string, { oldValue: any, newValue: any }>();
+  
+  for (const change of diff) {
+    const path = change.path;
+    if (change.op === 'add') {
+      addedPaths.add(path);
+    } else if (change.op === 'remove') {
+      removedPaths.add(path);
+    } else if (change.op === 'replace') {
+      replacedPaths.set(path, { oldValue: change.oldValue, newValue: change.value });
+    }
+  }
+  
+  // Helper to check if a path or any of its children have changes
+  function hasChanges(basePath: string): boolean {
+    for (const path of addedPaths) {
+      if (path === basePath || path.startsWith(basePath + '/')) return true;
+    }
+    for (const path of removedPaths) {
+      if (path === basePath || path.startsWith(basePath + '/')) return true;
+    }
+    for (const path of replacedPaths.keys()) {
+      if (path === basePath || path.startsWith(basePath + '/')) return true;
+    }
+    return false;
+  }
+  
+  // Recursively generate the diff output
+  function generateOutput(fromObj: any, toObj: any, currentPath: string, indent: number): string[] {
+    const lines: string[] = [];
+    const indentStr = '  '.repeat(indent);
+    
+    // Get all keys from both objects
+    const fromKeys = fromObj && typeof fromObj === 'object' && !Array.isArray(fromObj) 
+      ? Object.keys(fromObj) : [];
+    const toKeys = toObj && typeof toObj === 'object' && !Array.isArray(toObj) 
+      ? Object.keys(toObj) : [];
+    const allKeys = [...new Set([...fromKeys, ...toKeys])];
+    
+    // Handle arrays
+    if (Array.isArray(fromObj) || Array.isArray(toObj)) {
+      const fromArr = Array.isArray(fromObj) ? fromObj : [];
+      const toArr = Array.isArray(toObj) ? toObj : [];
+      const maxLen = Math.max(fromArr.length, toArr.length);
+      
+      const arrayLines: string[] = [];
+      for (let i = 0; i < maxLen; i++) {
+        const itemPath = `${currentPath}/${i}`;
+        const hasFrom = i < fromArr.length;
+        const hasTo = i < toArr.length;
+        
+        if (hasFrom && !hasTo) {
+          // Removed item
+          const serialized = serializeValue(fromArr[i], indent + 1);
+          if (isMultiLineValue(fromArr[i])) {
+            arrayLines.push(`${indentStr}  /* ${serialized} */`);
+          } else {
+            arrayLines.push(`${indentStr}  // ${serialized}`);
+          }
+        } else if (!hasFrom && hasTo) {
+          // Added item
+          arrayLines.push(`${indentStr}  ${serializeValue(toArr[i], indent + 1)}`);
+        } else if (hasFrom && hasTo) {
+          if (replacedPaths.has(itemPath)) {
+            // Replaced item - show old as comment, new as normal
+            const { oldValue, newValue } = replacedPaths.get(itemPath)!;
+            const oldSerialized = serializeValue(oldValue, indent + 1);
+            if (isMultiLineValue(oldValue)) {
+              arrayLines.push(`${indentStr}  /* ${oldSerialized} */`);
+            } else {
+              arrayLines.push(`${indentStr}  // ${oldSerialized}`);
+            }
+            arrayLines.push(`${indentStr}  ${serializeValue(newValue, indent + 1)}`);
+          } else if (typeof fromArr[i] === 'object' && typeof toArr[i] === 'object' && hasChanges(itemPath)) {
+            // Nested changes
+            const nestedLines = generateOutput(fromArr[i], toArr[i], itemPath, indent + 1);
+            if (Array.isArray(toArr[i])) {
+              arrayLines.push(`${indentStr}  [`);
+              arrayLines.push(...nestedLines);
+              arrayLines.push(`${indentStr}  ]`);
+            } else {
+              arrayLines.push(`${indentStr}  {`);
+              arrayLines.push(...nestedLines);
+              arrayLines.push(`${indentStr}  }`);
+            }
+          } else {
+            // Unchanged item
+            arrayLines.push(`${indentStr}  ${serializeValue(toArr[i], indent + 1)}`);
+          }
+        }
+      }
+      return arrayLines;
+    }
+    
+    // Handle objects
+    for (const key of allKeys) {
+      const propPath = `${currentPath}/${key}`;
+      const propKey = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key) ? key : JSON.stringify(key);
+      const hasFrom = key in (fromObj || {});
+      const hasTo = key in (toObj || {});
+      
+      if (hasFrom && !hasTo) {
+        // Removed property
+        const serialized = serializeValue(fromObj[key], indent);
+        if (isMultiLineValue(fromObj[key])) {
+          lines.push(`${indentStr}/* ${propKey}: ${serialized}, */`);
+        } else {
+          lines.push(`${indentStr}// ${propKey}: ${serialized},`);
+        }
+      } else if (!hasFrom && hasTo) {
+        // Added property
+        lines.push(`${indentStr}${propKey}: ${serializeValue(toObj[key], indent)},`);
+      } else if (hasFrom && hasTo) {
+        if (replacedPaths.has(propPath)) {
+          // Replaced property - show old as comment, new as normal
+          const { oldValue, newValue } = replacedPaths.get(propPath)!;
+          const oldSerialized = serializeValue(oldValue, indent);
+          if (isMultiLineValue(oldValue)) {
+            lines.push(`${indentStr}/* ${propKey}: ${oldSerialized}, */`);
+          } else {
+            lines.push(`${indentStr}// ${propKey}: ${oldSerialized},`);
+          }
+          lines.push(`${indentStr}${propKey}: ${serializeValue(newValue, indent)},`);
+        } else if (typeof fromObj[key] === 'object' && typeof toObj[key] === 'object' && hasChanges(propPath)) {
+          // Nested changes - recurse
+          const nestedLines = generateOutput(fromObj[key], toObj[key], propPath, indent + 1);
+          if (Array.isArray(toObj[key])) {
+            lines.push(`${indentStr}${propKey}: [`);
+            lines.push(...nestedLines);
+            lines.push(`${indentStr}],`);
+          } else {
+            lines.push(`${indentStr}${propKey}: {`);
+            lines.push(...nestedLines);
+            lines.push(`${indentStr}},`);
+          }
+        } else {
+          // Unchanged property
+          lines.push(`${indentStr}${propKey}: ${serializeValue(toObj[key], indent)},`);
+        }
+      }
+    }
+    
+    return lines;
+  }
+  
+  // Generate the output
+  const contentLines = generateOutput(fromContent, toContent, '', 1);
+  
+  // Wrap in object braces
+  if (contentLines.length === 0) {
+    return '{}';
+  }
+  
+  return `{\n${contentLines.join('\n')}\n}`;
 }
