@@ -67,6 +67,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   const [diffDialogOpen, setDiffDialogOpen] = useState(false);
   const [diffResult, setDiffResult] = useState<any>(null);
   const [diffLoading, setDiffLoading] = useState(false);
+  const [diffFormat, setDiffFormat] = useState<'simple' | 'complex'>('complex');
   
   // Fetch document versions directly from database - use versions state directly for reactivity
   const { versions, userRole: hookUserRole, loading, error, deleteVersion, refetch } = useDocumentVersions(documentId);
@@ -243,7 +244,8 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
           action: 'getVersionDiff',
           documentId,
           fromVersionId: olderId,
-          toVersionId: newerId
+          toVersionId: newerId,
+          format: diffFormat
         }
       });
       
@@ -821,6 +823,38 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
         }}
         diff={diffResult}
         loading={diffLoading}
+        format={diffFormat}
+        onFormatChange={(newFormat) => {
+          setDiffFormat(newFormat);
+          // Re-fetch with new format if dialog is open and we have results
+          if (diffDialogOpen && compareSelectedVersions.size === 2) {
+            const [versionId1, versionId2] = Array.from(compareSelectedVersions);
+            const version1 = patches.find(p => p.id === versionId1);
+            const version2 = patches.find(p => p.id === versionId2);
+            if (version1 && version2) {
+              const [olderId, newerId] = version1.timestamp < version2.timestamp 
+                ? [versionId1, versionId2] 
+                : [versionId2, versionId1];
+              
+              setDiffLoading(true);
+              supabase.functions.invoke('document-versions', {
+                body: {
+                  action: 'getVersionDiff',
+                  documentId,
+                  fromVersionId: olderId,
+                  toVersionId: newerId,
+                  format: newFormat
+                }
+              }).then(({ data, error }) => {
+                if (!error && data) {
+                  setDiffResult(data);
+                }
+              }).finally(() => {
+                setDiffLoading(false);
+              });
+            }
+          }
+        }}
         {...getCompareVersions()}
       />
     </div>

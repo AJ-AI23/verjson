@@ -918,9 +918,15 @@
           "action": { "type": "string", "enum": ["getVersionDiff"] },
           "documentId": { "type": "string", "format": "uuid", "description": "ID of the document" },
           "fromVersionId": { "type": "string", "format": "uuid", "description": "ID of the source version to compare from" },
-          "toVersionId": { "type": "string", "format": "uuid", "description": "ID of the target version to compare to" }
+          "toVersionId": { "type": "string", "format": "uuid", "description": "ID of the target version to compare to" },
+          "format": { 
+            "type": "string", 
+            "enum": ["simple", "complex"],
+            "default": "complex",
+            "description": "Output format: 'complex' returns JSON Patch operations (default), 'simple' returns pseudo-JSON text with comments showing structural changes"
+          }
         },
-        "description": "Generate a diff between two document versions showing what changed"
+        "description": "Generate a diff between two document versions. The 'complex' format returns detailed JSON Patch operations while 'simple' format returns a human-readable pseudo-JSON text where additions are shown normally, removals are commented out (// for single-line, /* */ for multi-line), and modifications show both old (commented) and new values."
       },
       "DocumentVersion": {
         "type": "object",
@@ -974,7 +980,7 @@
       },
       "VersionDiffResponse": {
         "type": "object",
-        "description": "Response containing the diff between two document versions",
+        "description": "Response containing the diff between two document versions. The structure varies based on the requested format.",
         "properties": {
           "fromVersion": { "$ref": "#/components/schemas/DocumentVersion" },
           "toVersion": { "$ref": "#/components/schemas/DocumentVersion" },
@@ -990,15 +996,15 @@
           },
           "fromContent": { 
             "type": "object",
-            "description": "The effective document content at the source version"
+            "description": "The effective document content at the source version (only present in 'complex' format)"
           },
           "toContent": { 
             "type": "object",
-            "description": "The effective document content at the target version"
+            "description": "The effective document content at the target version (only present in 'complex' format)"
           },
           "diff": {
             "type": "array",
-            "description": "Array of JSON Patch-like operations describing the changes",
+            "description": "Array of JSON Patch-like operations describing the changes (only present in 'complex' format)",
             "items": {
               "type": "object",
               "properties": {
@@ -1019,6 +1025,11 @@
                 }
               }
             }
+          },
+          "simpleDiff": {
+            "type": "string",
+            "description": "Pseudo-JSON text showing structural changes (only present in 'simple' format). Additions are shown normally, removals are commented out using // for single-line or /* */ for multi-line, and modifications show both old (commented) and new values.",
+            "example": "{\n  // oldTitle: \"Old Title\",\n  title: \"New Title\",\n  newProperty: \"value\",\n}"
           }
         }
       },
