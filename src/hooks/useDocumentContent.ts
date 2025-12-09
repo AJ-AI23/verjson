@@ -1,116 +1,66 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { Document } from '@/types/workspace';
+import { getEffectiveDocumentContentForEditor } from '@/lib/documentUtils';
 
-export interface DocumentVersion {
-  id: string;
-  version_major: number;
-  version_minor: number;
-  version_patch: number;
-  description: string;
-  is_released: boolean;
-  created_at: string;
-}
-
-export interface DocumentWithContent {
-  id: string;
-  name: string;
-  workspace_id: string;
-  user_id: string;
-  file_type: string;
-  created_at: string;
-  updated_at: string;
-  import_url?: string;
-  is_public?: boolean;
-  crowdin_integration_id?: string;
-  content: any;
-}
-
-export function useDocumentContent(documentId?: string, documentVersionId?: string) {
-  const [document, setDocument] = useState<DocumentWithContent | null>(null);
-  const [version, setVersion] = useState<DocumentVersion | null>(null);
+export function useDocumentContent(documentId?: string) {
+  const [content, setContent] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetchedDocumentId, setFetchedDocumentId] = useState<string | null>(null);
-  const [fetchedVersionId, setFetchedVersionId] = useState<string | null | undefined>(null);
-
-  const fetchDocument = useCallback(async (docId: string, versionId?: string) => {
-    try {
-      console.log('[useDocumentContent] 📥 Fetching document with versions applied:', { docId, versionId });
-      setLoading(true);
-      setError(null);
-
-      const { data, error } = await supabase.functions.invoke('document-management', {
-        body: { 
-          action: 'fetchDocument', 
-          id: docId,
-          document_version_id: versionId
-        }
-      });
-
-      if (error) throw error;
-
-      console.log('[useDocumentContent] ✅ Document loaded with content applied:', {
-        docId: data.document?.id,
-        contentKeys: data.document?.content ? Object.keys(data.document.content).length : 0,
-        version: data.version ? `${data.version.version_major}.${data.version.version_minor}.${data.version.version_patch}` : null
-      });
-      
-      setDocument(data.document);
-      setVersion(data.version);
-      setFetchedDocumentId(docId);
-      setFetchedVersionId(versionId);
-    } catch (err) {
-      console.error('[useDocumentContent] ❌ Error fetching document:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load document');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
     console.log('[useDocumentContent] 🔄 Effect triggered:', {
       documentId,
-      documentVersionId,
       fetchedDocumentId,
-      fetchedVersionId,
-      willFetch: documentId && (fetchedDocumentId !== documentId || fetchedVersionId !== documentVersionId)
+      willFetch: documentId && fetchedDocumentId !== documentId
     });
 
     if (!documentId) {
       console.log('[useDocumentContent] 🧹 Clearing content - no documentId');
-      setDocument(null);
-      setVersion(null);
+      setContent(null);
       setLoading(false);
       setError(null);
       setFetchedDocumentId(null);
-      setFetchedVersionId(null);
       return;
     }
 
-    // Only fetch if document ID or version ID changed
-    if (fetchedDocumentId === documentId && fetchedVersionId === documentVersionId) {
+    // ⚠️ CRITICAL: Only fetch if we haven't already fetched this document
+    // This prevents refetching stale data on tab switches/re-renders
+    if (fetchedDocumentId === documentId) {
       console.log('[useDocumentContent] ⚠️ Document already loaded, skipping refetch:', documentId);
       return;
     }
 
-    fetchDocument(documentId, documentVersionId);
-  }, [documentId, documentVersionId, fetchedDocumentId, fetchedVersionId, fetchDocument]);
+    const fetchDocumentContent = async () => {
+      try {
+        console.log('[useDocumentContent] 📥 Fetching content for document:', documentId);
+        setLoading(true);
+        setError(null);
 
-  // Expose refetch function for manual refresh
-  const refetch = useCallback(() => {
-    if (documentId) {
-      setFetchedDocumentId(null);
-      setFetchedVersionId(null);
-      fetchDocument(documentId, documentVersionId);
-    }
-  }, [documentId, documentVersionId, fetchDocument]);
+        const { data, error } = await supabase.functions.invoke('document-content', {
+          body: { action: 'fetchDocumentWithContent', document_id: documentId }
+        });
+
+        if (error) throw error;
+
+        console.log('[useDocumentContent] ✅ Content loaded successfully, content length:', JSON.stringify(data.document?.content || {}).length);
+        setContent(data.document);
+        setFetchedDocumentId(documentId);
+      } catch (err) {
+        console.error('[useDocumentContent] ❌ Error fetching content:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load document content');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDocumentContent();
+  }, [documentId]); // REMOVED fetchedDocumentId from deps to prevent extra re-runs
 
   return {
-    document,
-    content: document?.content ?? null,
-    version,
+    content,
     loading,
     error,
-    refetch,
   };
 }
