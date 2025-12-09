@@ -1169,6 +1169,15 @@ function getTypeRepresentation(value: any): string {
     return `[${firstType}]`;
   }
   if (typeof value === 'object') {
+    // Check if this is a schema-like object with type and optionally format
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.type === 'string') {
+      const baseType = obj.type;
+      if (typeof obj.format === 'string') {
+        return `<${obj.format}>${baseType}`;
+      }
+      return baseType;
+    }
     return '{...}';
   }
   return 'unknown';
