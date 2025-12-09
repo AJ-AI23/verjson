@@ -70,8 +70,8 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   const [diffFormat, setDiffFormat] = useState<'simple' | 'complex'>('complex');
   const [simpleFormatting, setSimpleFormatting] = useState({
     keyQuotes: true,
-    compacting: false,
-    schemaTypes: false
+    compacting: true,
+    schemaTypes: true
   });
   
   // Fetch document versions directly from database - use versions state directly for reactivity
