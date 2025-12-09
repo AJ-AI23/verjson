@@ -1180,19 +1180,24 @@ function serializeValue(value: any, indent: number = 0, formatting: SimpleFormat
   const indentStr = '  '.repeat(indent);
   const nextIndent = '  '.repeat(indent + 1);
   
-  if (value === null) return schemaTypes ? 'null' : 'null';
+  if (value === null) return 'null';
   if (value === undefined) return 'undefined';
   
+  // For schemaTypes, only use type representation for primitives
+  // Complex types (arrays/objects) should still show their structure
   if (schemaTypes) {
-    return getTypeRepresentation(value);
+    if (typeof value !== 'object' || value === null) {
+      return getTypeRepresentation(value);
+    }
+    // For arrays and objects with schemaTypes, we still recurse but use type representations for leaf values
   }
   
-  if (typeof value === 'string') return JSON.stringify(value);
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (typeof value === 'string') return schemaTypes ? getTypeRepresentation(value) : JSON.stringify(value);
+  if (typeof value === 'number' || typeof value === 'boolean') return schemaTypes ? getTypeRepresentation(value) : String(value);
   
   if (Array.isArray(value)) {
     if (value.length === 0) return '[]';
-    if (compacting) return '[...]';
+    if (compacting && !schemaTypes) return '[...]';
     const items = value.map(item => nextIndent + serializeValue(item, indent + 1, formatting));
     return `[\n${items.join(',\n')}\n${indentStr}]`;
   }
@@ -1200,7 +1205,7 @@ function serializeValue(value: any, indent: number = 0, formatting: SimpleFormat
   if (typeof value === 'object') {
     const keys = Object.keys(value);
     if (keys.length === 0) return '{}';
-    if (compacting) return '{...}';
+    if (compacting && !schemaTypes) return '{...}';
     const props = keys.map(key => {
       const propKey = formatPropertyKey(key, keyQuotes);
       return `${nextIndent}${propKey}: ${serializeValue(value[key], indent + 1, formatting)}`;
@@ -1222,7 +1227,7 @@ function formatPropertyKey(key: string, useQuotes: boolean): string {
 
 // Generate simple diff format showing structural changes as pseudo-JSON with comments
 function generateSimpleDiff(fromContent: any, toContent: any, diff: any[], formatting: SimpleFormatting): string {
-  const { keyQuotes, compacting } = formatting;
+  const { keyQuotes, compacting, schemaTypes } = formatting;
   
   // Build sets of paths by operation type
   const addedPaths = new Set<string>();
@@ -1236,7 +1241,18 @@ function generateSimpleDiff(fromContent: any, toContent: any, diff: any[], forma
     } else if (change.op === 'remove') {
       removedPaths.add(path);
     } else if (change.op === 'replace') {
-      replacedPaths.set(path, { oldValue: change.oldValue, newValue: change.value });
+      // When schemaTypes is enabled, only consider it a "replace" if the type changed
+      if (schemaTypes) {
+        const oldType = getTypeRepresentation(change.oldValue);
+        const newType = getTypeRepresentation(change.value);
+        // Only track as a replace if types differ
+        if (oldType !== newType) {
+          replacedPaths.set(path, { oldValue: change.oldValue, newValue: change.value });
+        }
+        // If types are the same, we skip this change entirely (treat as unchanged)
+      } else {
+        replacedPaths.set(path, { oldValue: change.oldValue, newValue: change.value });
+      }
     }
   }
   
