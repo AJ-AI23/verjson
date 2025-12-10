@@ -7,6 +7,42 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper function to set a value at a JSON path
+function setValueAtPath(obj: any, path: string, value: any): void {
+  const parts = path.split('/').filter(p => p !== '');
+  let current = obj;
+  
+  for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i];
+    if (current[part] === undefined) {
+      current[part] = {};
+    }
+    current = current[part];
+  }
+  
+  if (parts.length > 0) {
+    current[parts[parts.length - 1]] = value;
+  }
+}
+
+// Helper function to remove a value at a JSON path
+function removeValueAtPath(obj: any, path: string): void {
+  const parts = path.split('/').filter(p => p !== '');
+  let current = obj;
+  
+  for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i];
+    if (current[part] === undefined) {
+      return;
+    }
+    current = current[part];
+  }
+  
+  if (parts.length > 0) {
+    delete current[parts[parts.length - 1]];
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   const logger = new EdgeFunctionLogger('document-content', 'handler');
   
@@ -157,31 +193,75 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Get the latest selected version if available - use service role for proper access
-    logger.logDatabaseQuery('document_versions', 'SELECT selected version', { documentId });
+    // Get ALL versions for this document to apply patches correctly
+    logger.logDatabaseQuery('document_versions', 'SELECT all versions', { documentId });
     
-    const { data: selectedVersion, error: versionError } = await serviceRoleClient
+    const { data: versions, error: versionError } = await serviceRoleClient
       .from('document_versions')
-      .select('full_document')
+      .select('id, version_major, version_minor, version_patch, is_selected, is_released, full_document, patches, created_at')
       .eq('document_id', documentId)
-      .eq('is_selected', true)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .order('version_major', { ascending: true })
+      .order('version_minor', { ascending: true })
+      .order('version_patch', { ascending: true });
 
-    logger.logDatabaseResult('document_versions', 'SELECT selected version', selectedVersion ? 1 : 0, versionError);
+    logger.logDatabaseResult('document_versions', 'SELECT all versions', versions?.length || 0, versionError);
     
     if (versionError) {
-      logger.warn('Could not fetch document version', versionError);
+      logger.warn('Could not fetch document versions', versionError);
     }
 
-    // Determine effective content
+    // Determine effective content by applying all selected patches from last released version
     let effectiveContent = document.content;
-    if (selectedVersion?.full_document) {
-      effectiveContent = selectedVersion.full_document;
-      logger.debug('Using selected version content');
+    
+    if (versions && versions.length > 0) {
+      // Find the latest released version as base
+      const releasedVersions = versions.filter(v => v.is_released && v.full_document);
+      const latestReleased = releasedVersions.length > 0 ? releasedVersions[releasedVersions.length - 1] : null;
+      
+      if (latestReleased) {
+        effectiveContent = latestReleased.full_document;
+        logger.debug('Using released version as base', { 
+          version: `${latestReleased.version_major}.${latestReleased.version_minor}.${latestReleased.version_patch}` 
+        });
+        
+        // Apply all selected patches that come after the released version
+        const laterVersions = versions.filter(v => {
+          if (!v.is_selected || !v.patches) return false;
+          
+          // Compare versions to ensure we only apply patches after the released version
+          const vVersion = v.version_major * 10000 + v.version_minor * 100 + v.version_patch;
+          const releasedVersion = latestReleased.version_major * 10000 + latestReleased.version_minor * 100 + latestReleased.version_patch;
+          
+          return vVersion > releasedVersion;
+        });
+        
+        logger.debug('Applying patches from later versions', { count: laterVersions.length });
+        
+        // Apply patches in order
+        for (const version of laterVersions) {
+          try {
+            const patches = version.patches as any[];
+            if (patches && Array.isArray(patches)) {
+              for (const patch of patches) {
+                // Simple JSON patch application
+                if (patch.op === 'add') {
+                  setValueAtPath(effectiveContent, patch.path, patch.value);
+                } else if (patch.op === 'replace') {
+                  setValueAtPath(effectiveContent, patch.path, patch.value);
+                } else if (patch.op === 'remove') {
+                  removeValueAtPath(effectiveContent, patch.path);
+                }
+              }
+            }
+          } catch (patchError) {
+            logger.warn('Failed to apply patch', { versionId: version.id, error: patchError });
+          }
+        }
+      } else {
+        logger.debug('No released version found, using base document content');
+      }
     } else {
-      logger.debug('Using base document content');
+      logger.debug('No versions found, using base document content');
     }
 
     const result = {
