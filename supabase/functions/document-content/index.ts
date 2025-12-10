@@ -271,7 +271,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     logger.info('Successfully fetched document content', { 
       documentId, 
-      hasVersionContent: !!selectedVersion?.full_document,
+      hasVersionContent: versions && versions.length > 0,
       hasCrowdinIntegration: !!document.crowdin_integration_id 
     });
     
