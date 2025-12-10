@@ -811,6 +811,19 @@ export type Database = {
           workspace_id: string
         }[]
       }
+      get_profile_safely: {
+        Args: { target_user_id: string }
+        Returns: {
+          avatar_url: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          updated_at: string
+          user_id: string
+          username: string
+        }[]
+      }
       get_shared_documents: {
         Args: { target_user_id: string }
         Returns: {
@@ -856,6 +869,16 @@ export type Database = {
           type: string
           workspace_id: string
           workspace_name: string
+        }[]
+      }
+      get_workspace_member_profiles: {
+        Args: { ws_id: string }
+        Returns: {
+          avatar_url: string
+          full_name: string
+          id: string
+          user_id: string
+          username: string
         }[]
       }
       get_workspace_permissions: {
