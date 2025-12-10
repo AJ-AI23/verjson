@@ -39,7 +39,7 @@ export function useDocumentContent(documentId?: string) {
         setError(null);
 
         const { data, error } = await supabase.functions.invoke('document-content', {
-          body: { action: 'fetchDocumentWithContent', document_id: documentId }
+          body: { action: 'fetchDocument', document_id: documentId }
         });
 
         if (error) throw error;
