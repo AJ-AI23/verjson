@@ -61,9 +61,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     logger.debug('Processing document content request', { action, documentId, userId: user.id });
 
-    if (action !== 'fetchDocumentWithContent') {
+    if (action !== 'fetchDocumentWithContent' && action !== 'fetchDocument') {
       logger.warn('Invalid action for document-content', { action });
-      return new Response(JSON.stringify({ error: 'Invalid action. Only "fetchDocumentWithContent" is supported' }), {
+      return new Response(JSON.stringify({ error: 'Invalid action. Supported actions: "fetchDocumentWithContent", "fetchDocument"' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
