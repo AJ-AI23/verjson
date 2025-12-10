@@ -14,14 +14,30 @@ function setValueAtPath(obj: any, path: string, value: any): void {
   
   for (let i = 0; i < parts.length - 1; i++) {
     const part = parts[i];
-    if (current[part] === undefined) {
-      current[part] = {};
+    const index = parseInt(part, 10);
+    
+    if (!isNaN(index) && Array.isArray(current)) {
+      if (current[index] === undefined) {
+        current[index] = {};
+      }
+      current = current[index];
+    } else {
+      if (current[part] === undefined) {
+        current[part] = {};
+      }
+      current = current[part];
     }
-    current = current[part];
   }
   
   if (parts.length > 0) {
-    current[parts[parts.length - 1]] = value;
+    const lastPart = parts[parts.length - 1];
+    const lastIndex = parseInt(lastPart, 10);
+    
+    if (!isNaN(lastIndex) && Array.isArray(current)) {
+      current[lastIndex] = value;
+    } else {
+      current[lastPart] = value;
+    }
   }
 }
 
@@ -32,14 +48,30 @@ function removeValueAtPath(obj: any, path: string): void {
   
   for (let i = 0; i < parts.length - 1; i++) {
     const part = parts[i];
-    if (current[part] === undefined) {
-      return;
+    const index = parseInt(part, 10);
+    
+    if (!isNaN(index) && Array.isArray(current)) {
+      if (current[index] === undefined) {
+        return;
+      }
+      current = current[index];
+    } else {
+      if (current[part] === undefined) {
+        return;
+      }
+      current = current[part];
     }
-    current = current[part];
   }
   
   if (parts.length > 0) {
-    delete current[parts[parts.length - 1]];
+    const lastPart = parts[parts.length - 1];
+    const lastIndex = parseInt(lastPart, 10);
+    
+    if (!isNaN(lastIndex) && Array.isArray(current)) {
+      current.splice(lastIndex, 1);
+    } else {
+      delete current[lastPart];
+    }
   }
 }
 
@@ -240,21 +272,40 @@ const handler = async (req: Request): Promise<Response> => {
         // Apply patches in order
         for (const version of laterVersions) {
           try {
-            const patches = version.patches as any[];
+            // Patches may be stored as JSON string or array
+            let patches = version.patches;
+            if (typeof patches === 'string') {
+              patches = JSON.parse(patches);
+            }
+            
+            logger.debug('Processing patches for version', { 
+              versionId: version.id, 
+              patchCount: Array.isArray(patches) ? patches.length : 0,
+              patchType: typeof patches
+            });
+            
             if (patches && Array.isArray(patches)) {
               for (const patch of patches) {
-                // Simple JSON patch application
-                if (patch.op === 'add') {
-                  setValueAtPath(effectiveContent, patch.path, patch.value);
-                } else if (patch.op === 'replace') {
-                  setValueAtPath(effectiveContent, patch.path, patch.value);
-                } else if (patch.op === 'remove') {
-                  removeValueAtPath(effectiveContent, patch.path);
+                try {
+                  // Apply JSON patch operations
+                  if (patch.op === 'add') {
+                    setValueAtPath(effectiveContent, patch.path, patch.value);
+                  } else if (patch.op === 'replace') {
+                    setValueAtPath(effectiveContent, patch.path, patch.value);
+                  } else if (patch.op === 'remove') {
+                    removeValueAtPath(effectiveContent, patch.path);
+                  }
+                } catch (singlePatchError) {
+                  logger.warn('Failed to apply single patch', { 
+                    op: patch.op, 
+                    path: patch.path, 
+                    error: String(singlePatchError) 
+                  });
                 }
               }
             }
           } catch (patchError) {
-            logger.warn('Failed to apply patch', { versionId: version.id, error: patchError });
+            logger.warn('Failed to apply patches for version', { versionId: version.id, error: String(patchError) });
           }
         }
       } else {
