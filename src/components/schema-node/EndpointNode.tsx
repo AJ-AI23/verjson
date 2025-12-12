@@ -13,7 +13,7 @@ interface EndpointMethod {
   responses?: Record<string, any>;
 }
 
-interface EndpointNodeProps {
+export interface EndpointNodeProps {
   data: {
     path: string;
     methods: EndpointMethod[];
@@ -25,9 +25,10 @@ interface EndpointNodeProps {
   id: string;
   isConnectable: boolean;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
+  onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const EndpointNode = memo(({ data, isConnectable, id, onAddNotation }: EndpointNodeProps) => {
+export const EndpointNode = memo(({ data, isConnectable, id, onAddNotation, onToggleCollapse }: EndpointNodeProps) => {
   const { path, methods, label, notations = [], notationCount = 0, hasNotations = false } = data;
 
   const getMethodColor = (method: string) => {

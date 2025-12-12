@@ -6,7 +6,7 @@ import { NodeNotations } from './NodeNotations';
 import { NotationComment } from '@/types/notations';
 import { Shield } from 'lucide-react';
 
-interface SecurityNodeProps {
+export interface SecurityNodeProps {
   data: {
     label: string;
     securityDetails: Array<{
@@ -20,9 +20,10 @@ interface SecurityNodeProps {
   id: string;
   isConnectable: boolean;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
+  onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const SecurityNode = memo(({ data, isConnectable, id, onAddNotation }: SecurityNodeProps) => {
+export const SecurityNode = memo(({ data, isConnectable, id, onAddNotation, onToggleCollapse }: SecurityNodeProps) => {
   const { label, securityDetails = [], notations = [], notationCount = 0, hasNotations = false } = data;
 
   return (

@@ -6,6 +6,7 @@ import { NodeHeader } from './NodeHeader';
 import { NodeMetaInfo } from './NodeMetaInfo';
 import { PropertyDetails } from './PropertyDetails';
 import { NodeCollapseIndicator } from './NodeCollapseIndicator';
+import { NodeExpandCollapseButton } from './NodeExpandCollapseButton';
 import { NotationsIndicator } from './NotationsIndicator';
 import { NotationsPanel } from './NotationsPanel';
 import { NotationComment } from '@/types/notations';
@@ -64,9 +65,10 @@ interface SchemaTypeNodeProps {
   isConnectable: boolean;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
   expandedNotationPaths?: Set<string>;
+  onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, expandedNotationPaths }: SchemaTypeNodeProps) => {
+export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, expandedNotationPaths, onToggleCollapse }: SchemaTypeNodeProps) => {
   const {
     label,
     type,
@@ -95,11 +97,21 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
     truncatedProperties,
   } = data;
 
+  // Determine if node has children that can be expanded/collapsed
+  const hasChildren = hasCollapsibleContent || hasMoreLevels || 
+    (type === 'object' && properties && properties > 0) ||
+    (type === 'array');
+  
+  // Compute the path for this node (use data.path if available, otherwise derive from id)
+  const nodePath = path || (id.startsWith('prop-') ? `root.properties.${id.substring(5)}` : 
+                   id === 'root' ? 'root' : 
+                   id.replace(/-/g, '.'));
+
   const [isNotationsExpanded, setIsNotationsExpanded] = useState(false);
 
   // Check if this node's notations should be expanded based on JSON editor state
-  const nodePath = id.startsWith('prop-') ? id.substring(5) : id;
-  const shouldExpandFromEditor = expandedNotationPaths?.has(nodePath) || expandedNotationPaths?.has(id);
+  const notationNodePath = id.startsWith('prop-') ? id.substring(5) : id;
+  const shouldExpandFromEditor = expandedNotationPaths?.has(notationNodePath) || expandedNotationPaths?.has(id);
   
   // Update local state when external state changes
   useEffect(() => {
@@ -147,6 +159,16 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
       
       <div className="flex flex-col gap-1 min-w-0">
         <div className="flex items-start justify-between gap-2 min-w-0">
+          {/* Expand/Collapse button */}
+          {hasChildren && onToggleCollapse && (
+            <NodeExpandCollapseButton
+              isCollapsed={!!isCollapsed}
+              hasChildren={hasChildren}
+              path={nodePath}
+              onToggleCollapse={onToggleCollapse}
+              className="flex-shrink-0 mt-0.5"
+            />
+          )}
           <div className="min-w-0 flex-1">
             <NodeHeader 
               label={label}

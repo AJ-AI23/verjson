@@ -118,6 +118,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
       isFullscreen={isFullscreen}
       onToggleFullscreen={onToggleFullscreen}
       diagramRef={diagramRef}
+      onToggleCollapse={onToggleCollapse}
       onSchemaChange={(updatedSchema) => {
         // When diagram is edited, update the JSON editor
         onEditorChange(JSON.stringify(updatedSchema, null, 2));

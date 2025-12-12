@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { NodeNotations } from './NodeNotations';
 import { NotationComment } from '@/types/notations';
 
-interface ResponseNodeProps {
+export interface ResponseNodeProps {
   data: {
     statusCode?: string;
     statusCodes?: string[];
@@ -22,9 +22,10 @@ interface ResponseNodeProps {
   id: string;
   isConnectable: boolean;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
+  onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const ResponseNode = memo(({ data, isConnectable, id, onAddNotation }: ResponseNodeProps) => {
+export const ResponseNode = memo(({ data, isConnectable, id, onAddNotation, onToggleCollapse }: ResponseNodeProps) => {
   const { statusCode, statusCodes, responses, isConsolidated, description, notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false } = data;
 
   const getStatusColor = (code: string) => {

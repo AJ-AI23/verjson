@@ -10,7 +10,7 @@ interface InfoProperty {
   type: string;
 }
 
-interface InfoNodeProps {
+export interface InfoNodeProps {
   data: {
     title: string;
     version: string;
@@ -24,9 +24,10 @@ interface InfoNodeProps {
   id: string;
   isConnectable: boolean;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
+  onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const InfoNode = memo(({ data, isConnectable, id, onAddNotation }: InfoNodeProps) => {
+export const InfoNode = memo(({ data, isConnectable, id, onAddNotation, onToggleCollapse }: InfoNodeProps) => {
   const { title, version, description, properties = [], notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false } = data;
 
   // Add safety check for properties array
