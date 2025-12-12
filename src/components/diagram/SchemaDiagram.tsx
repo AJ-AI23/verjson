@@ -25,6 +25,7 @@ interface SchemaDiagramProps {
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
   diagramRef?: React.RefObject<HTMLDivElement>;
+  onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
 export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
@@ -44,7 +45,8 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   onOpenApiImportClose,
   isFullscreen,
   onToggleFullscreen,
-  diagramRef
+  diagramRef,
+  onToggleCollapse
 }) => {
   // Theme preference stored in localStorage, not in document
   const [selectedTheme, setSelectedTheme] = React.useState<string>(() => {
@@ -150,6 +152,7 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
         maxDepth={maxDepth}
         onAddNotation={onAddNotation}
         expandedNotationPaths={expandedNotationPaths}
+        onToggleCollapse={onToggleCollapse}
       />
     </div>
   );

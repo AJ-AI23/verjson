@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { NodeNotations } from './NodeNotations';
 import { NotationComment } from '@/types/notations';
 
-interface ParametersNodeProps {
+export interface ParametersNodeProps {
   data: {
     label: string;
     paramDetails: Array<{
@@ -22,9 +22,10 @@ interface ParametersNodeProps {
   id: string;
   isConnectable: boolean;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
+  onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const ParametersNode = memo(({ data, isConnectable, id, onAddNotation }: ParametersNodeProps) => {
+export const ParametersNode = memo(({ data, isConnectable, id, onAddNotation, onToggleCollapse }: ParametersNodeProps) => {
   const { label, paramDetails = [], notations = [], notationCount = 0, hasNotations = false } = data;
 
   return (

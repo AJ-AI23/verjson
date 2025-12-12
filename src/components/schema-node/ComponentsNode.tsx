@@ -11,7 +11,7 @@ interface ComponentSchema {
   propertiesCount: number;
 }
 
-interface ComponentsNodeProps {
+export interface ComponentsNodeProps {
   data: {
     schemasCount: number;
     schemas: ComponentSchema[];
@@ -23,9 +23,10 @@ interface ComponentsNodeProps {
   id: string;
   isConnectable: boolean;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
+  onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const ComponentsNode = memo(({ data, isConnectable, id, onAddNotation }: ComponentsNodeProps) => {
+export const ComponentsNode = memo(({ data, isConnectable, id, onAddNotation, onToggleCollapse }: ComponentsNodeProps) => {
   const { schemasCount, schemas = [], notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false } = data;
 
   return (

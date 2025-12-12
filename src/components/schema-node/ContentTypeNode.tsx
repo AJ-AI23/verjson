@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { NodeNotations } from './NodeNotations';
 import { NotationComment } from '@/types/notations';
 
-interface ContentTypeNodeProps {
+export interface ContentTypeNodeProps {
   data: {
     contentType?: string;
     contentTypes?: string[];
@@ -21,9 +21,10 @@ interface ContentTypeNodeProps {
   id: string;
   isConnectable: boolean;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
+  onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const ContentTypeNode = memo(({ data, isConnectable, id, onAddNotation }: ContentTypeNodeProps) => {
+export const ContentTypeNode = memo(({ data, isConnectable, id, onAddNotation, onToggleCollapse }: ContentTypeNodeProps) => {
   const { contentType, contentTypes, isConsolidated, description, notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false } = data;
 
   const getContentTypeColor = (type: string) => {

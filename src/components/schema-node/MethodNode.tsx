@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { NodeNotations } from './NodeNotations';
 import { NotationComment } from '@/types/notations';
 
-interface MethodNodeProps {
+export interface MethodNodeProps {
   data: {
     path: string;
     method: string;
@@ -21,9 +21,10 @@ interface MethodNodeProps {
   id: string;
   isConnectable: boolean;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
+  onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const MethodNode = memo(({ data, isConnectable, id, onAddNotation }: MethodNodeProps) => {
+export const MethodNode = memo(({ data, isConnectable, id, onAddNotation, onToggleCollapse }: MethodNodeProps) => {
   const { path, method, summary, description, label, notations = [], notationCount = 0, hasNotations = false } = data;
 
   const getMethodColor = (method: string) => {

@@ -3,7 +3,7 @@ import { Handle, Position } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
-interface MethodTagsNodeProps {
+export interface MethodTagsNodeProps {
   data: {
     label: string;
     tags: string[];
@@ -11,9 +11,10 @@ interface MethodTagsNodeProps {
   };
   id: string;
   isConnectable: boolean;
+  onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const MethodTagsNode = memo(({ data, isConnectable }: MethodTagsNodeProps) => {
+export const MethodTagsNode = memo(({ data, isConnectable, onToggleCollapse }: MethodTagsNodeProps) => {
   const { label, tags = [], tagCount } = data;
 
   return (

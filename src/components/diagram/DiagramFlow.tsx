@@ -12,16 +12,17 @@ interface DiagramFlowProps {
   shouldFitView: boolean;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
   expandedNotationPaths?: Set<string>;
+  onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
 const nodeTypes = {
-  schemaType: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} />,
-  info: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} />,
-  endpoint: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} />,
-  components: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} />,
-  method: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} />,
-  response: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} />,
-  requestBody: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} />,
+  schemaType: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
+  info: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
+  endpoint: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
+  components: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
+  method: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
+  response: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
+  requestBody: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
 };
 
 export const DiagramFlow = memo(({
@@ -32,7 +33,8 @@ export const DiagramFlow = memo(({
   schemaKey,
   shouldFitView,
   onAddNotation,
-  expandedNotationPaths
+  expandedNotationPaths,
+  onToggleCollapse
 }: DiagramFlowProps) => {
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const viewportRef = useRef<{ x: number; y: number; zoom: number }>({ x: 0, y: 0, zoom: 1 });
@@ -93,13 +95,14 @@ export const DiagramFlow = memo(({
     }
   }, [nodes]);
 
-  // Add onAddNotation and expandedNotationPaths to all nodes
-  const nodesWithNotationCallback = nodes.map(node => ({
+  // Add onAddNotation, expandedNotationPaths, and onToggleCollapse to all nodes
+  const nodesWithCallbacks = nodes.map(node => ({
     ...node,
     data: {
       ...node.data,
       onAddNotation,
-      expandedNotationPaths
+      expandedNotationPaths,
+      onToggleCollapse
     }
   }));
 
@@ -107,7 +110,7 @@ export const DiagramFlow = memo(({
     <div className="flex-1 min-h-0 diagram-container" data-testid="diagram-flow">
       <ReactFlow
         key={`flow-${schemaKey}`}
-        nodes={nodesWithNotationCallback}
+        nodes={nodesWithCallbacks}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}

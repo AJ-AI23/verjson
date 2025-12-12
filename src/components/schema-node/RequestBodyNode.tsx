@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { NodeNotations } from './NodeNotations';
 import { NotationComment } from '@/types/notations';
 
-interface RequestBodyNodeProps {
+export interface RequestBodyNodeProps {
   data: {
     description?: string;
     required?: boolean;
@@ -18,9 +18,10 @@ interface RequestBodyNodeProps {
   id: string;
   isConnectable: boolean;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
+  onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const RequestBodyNode = memo(({ data, isConnectable, id, onAddNotation }: RequestBodyNodeProps) => {
+export const RequestBodyNode = memo(({ data, isConnectable, id, onAddNotation, onToggleCollapse }: RequestBodyNodeProps) => {
   const { description, required, label, notations = [], notationCount = 0, hasNotations = false } = data;
 
   return (
