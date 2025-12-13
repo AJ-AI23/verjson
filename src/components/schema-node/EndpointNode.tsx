@@ -3,6 +3,7 @@ import { Handle, Position } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { NodeNotations } from './NodeNotations';
+import { NodeExpandCollapseButton } from './NodeExpandCollapseButton';
 import { NotationComment } from '@/types/notations';
 
 interface EndpointMethod {
@@ -21,6 +22,9 @@ export interface EndpointNodeProps {
     notations?: NotationComment[];
     notationCount?: number;
     hasNotations?: boolean;
+    hasMoreLevels?: boolean;
+    isCollapsed?: boolean;
+    nodePath?: string;
   };
   id: string;
   isConnectable: boolean;
@@ -29,7 +33,11 @@ export interface EndpointNodeProps {
 }
 
 export const EndpointNode = memo(({ data, isConnectable, id, onAddNotation, onToggleCollapse }: EndpointNodeProps) => {
-  const { path, methods, label, notations = [], notationCount = 0, hasNotations = false } = data;
+  const { path, methods, label, notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, nodePath } = data;
+
+  // Determine if node has children
+  const hasChildren = hasMoreLevels || methods.length > 0;
+  const collapsePath = nodePath || id;
 
   const getMethodColor = (method: string) => {
     const colors = {
@@ -48,6 +56,7 @@ export const EndpointNode = memo(({ data, isConnectable, id, onAddNotation, onTo
     <div className={cn(
       'px-3 py-2 rounded-md shadow-sm border min-w-[200px] max-w-[300px]',
       'bg-indigo-50 border-indigo-200',
+      isCollapsed && 'border-dashed bg-indigo-50/50',
       hasNotations && 'border-l-2 border-l-amber-400'
     )}>
       <Handle
@@ -59,8 +68,17 @@ export const EndpointNode = memo(({ data, isConnectable, id, onAddNotation, onTo
       
       <div className="flex flex-col gap-2">
         <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-slate-900">
+          <div className="flex items-center justify-between gap-2">
+            {hasChildren && onToggleCollapse && (
+              <NodeExpandCollapseButton
+                isCollapsed={isCollapsed}
+                hasChildren={hasChildren}
+                path={collapsePath}
+                onToggleCollapse={onToggleCollapse}
+                className="flex-shrink-0"
+              />
+            )}
+            <div className="text-sm font-semibold text-slate-900 flex-1">
               {path}
             </div>
             <NodeNotations
@@ -75,27 +93,37 @@ export const EndpointNode = memo(({ data, isConnectable, id, onAddNotation, onTo
           </div>
         </div>
         
-        <div className="flex flex-wrap gap-1">
-          {methods.map((methodData, index) => (
-            <Badge 
-              key={index}
-              variant="outline" 
-              className={cn('text-xs px-2', getMethodColor(methodData.method))}
-            >
-              {methodData.method.toUpperCase()}
-            </Badge>
-          ))}
-        </div>
+        {!isCollapsed && (
+          <>
+            <div className="flex flex-wrap gap-1">
+              {methods.map((methodData, index) => (
+                <Badge 
+                  key={index}
+                  variant="outline" 
+                  className={cn('text-xs px-2', getMethodColor(methodData.method))}
+                >
+                  {methodData.method.toUpperCase()}
+                </Badge>
+              ))}
+            </div>
 
-        {methods.length === 1 && methods[0].summary && (
-          <div className="text-xs text-slate-600 truncate" title={methods[0].summary}>
-            {methods[0].summary}
-          </div>
+            {methods.length === 1 && methods[0].summary && (
+              <div className="text-xs text-slate-600 truncate" title={methods[0].summary}>
+                {methods[0].summary}
+              </div>
+            )}
+            
+            {methods.length > 1 && (
+              <div className="text-xs text-slate-600">
+                Multiple operations available
+              </div>
+            )}
+          </>
         )}
         
-        {methods.length > 1 && (
-          <div className="text-xs text-slate-600">
-            Multiple operations available
+        {isCollapsed && methods.length > 0 && (
+          <div className="text-xs text-slate-400">
+            {methods.length} method{methods.length > 1 ? 's' : ''} collapsed
           </div>
         )}
       </div>

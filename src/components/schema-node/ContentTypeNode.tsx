@@ -3,6 +3,7 @@ import { Handle, Position } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { NodeNotations } from './NodeNotations';
+import { NodeExpandCollapseButton } from './NodeExpandCollapseButton';
 import { NotationComment } from '@/types/notations';
 
 export interface ContentTypeNodeProps {
@@ -17,6 +18,8 @@ export interface ContentTypeNodeProps {
     notationCount?: number;
     hasNotations?: boolean;
     hasMoreLevels?: boolean;
+    isCollapsed?: boolean;
+    path?: string;
   };
   id: string;
   isConnectable: boolean;
@@ -25,7 +28,11 @@ export interface ContentTypeNodeProps {
 }
 
 export const ContentTypeNode = memo(({ data, isConnectable, id, onAddNotation, onToggleCollapse }: ContentTypeNodeProps) => {
-  const { contentType, contentTypes, isConsolidated, description, notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false } = data;
+  const { contentType, contentTypes, isConsolidated, description, notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, path } = data;
+
+  // Determine if node has children
+  const hasChildren = hasMoreLevels || !!data.schema;
+  const nodePath = path || id;
 
   const getContentTypeColor = (type: string) => {
     if (type.includes('json')) {
@@ -43,6 +50,7 @@ export const ContentTypeNode = memo(({ data, isConnectable, id, onAddNotation, o
       'px-3 py-2 rounded-md shadow-sm min-w-[120px] max-w-[250px]',
       'bg-slate-50 border-slate-200',
       hasMoreLevels ? 'border-2 border-dashed' : 'border',
+      isCollapsed && 'border-dashed bg-slate-50/50',
       hasNotations && 'border-l-2 border-l-amber-400'
     )}>
       <Handle
@@ -53,10 +61,19 @@ export const ContentTypeNode = memo(({ data, isConnectable, id, onAddNotation, o
       />
       
       <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
+          {hasChildren && onToggleCollapse && (
+            <NodeExpandCollapseButton
+              isCollapsed={isCollapsed}
+              hasChildren={hasChildren}
+              path={nodePath}
+              onToggleCollapse={onToggleCollapse}
+              className="flex-shrink-0"
+            />
+          )}
           {isConsolidated ? (
             // Consolidated view showing multiple content types
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 flex-1">
               <div className="flex flex-wrap gap-1">
                 {contentTypes?.map((type) => (
                   <Badge 
@@ -74,7 +91,7 @@ export const ContentTypeNode = memo(({ data, isConnectable, id, onAddNotation, o
             </div>
           ) : (
             // Individual content type view
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 flex-1">
               <Badge 
                 variant="outline" 
                 className={cn('text-xs px-2 w-fit', getContentTypeColor(contentType!))}
@@ -92,9 +109,15 @@ export const ContentTypeNode = memo(({ data, isConnectable, id, onAddNotation, o
           />
         </div>
         
-        {description && (
+        {!isCollapsed && description && (
           <div className="text-xs text-slate-600 line-clamp-2" title={description}>
             {description}
+          </div>
+        )}
+        
+        {isCollapsed && (
+          <div className="text-xs text-slate-400">
+            Content collapsed
           </div>
         )}
       </div>
