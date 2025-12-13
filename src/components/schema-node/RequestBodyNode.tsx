@@ -3,6 +3,7 @@ import { Handle, Position } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { NodeNotations } from './NodeNotations';
+import { NodeExpandCollapseButton } from './NodeExpandCollapseButton';
 import { NotationComment } from '@/types/notations';
 
 export interface RequestBodyNodeProps {
@@ -14,6 +15,9 @@ export interface RequestBodyNodeProps {
     notations?: NotationComment[];
     notationCount?: number;
     hasNotations?: boolean;
+    hasMoreLevels?: boolean;
+    isCollapsed?: boolean;
+    path?: string;
   };
   id: string;
   isConnectable: boolean;
@@ -22,12 +26,17 @@ export interface RequestBodyNodeProps {
 }
 
 export const RequestBodyNode = memo(({ data, isConnectable, id, onAddNotation, onToggleCollapse }: RequestBodyNodeProps) => {
-  const { description, required, label, notations = [], notationCount = 0, hasNotations = false } = data;
+  const { description, required, label, notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, path } = data;
+
+  // Determine if node has children
+  const hasChildren = hasMoreLevels || !!data.schema;
+  const nodePath = path || id;
 
   return (
     <div className={cn(
       'px-3 py-2 rounded-md shadow-sm border min-w-[120px] max-w-[200px]',
       'bg-amber-50 border-amber-200',
+      isCollapsed && 'border-dashed bg-amber-50/50',
       hasNotations && 'border-l-2 border-l-amber-400'
     )}>
       <Handle
@@ -38,8 +47,17 @@ export const RequestBodyNode = memo(({ data, isConnectable, id, onAddNotation, o
       />
       
       <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2">
+          {hasChildren && onToggleCollapse && (
+            <NodeExpandCollapseButton
+              isCollapsed={isCollapsed}
+              hasChildren={hasChildren}
+              path={nodePath}
+              onToggleCollapse={onToggleCollapse}
+              className="flex-shrink-0"
+            />
+          )}
+          <div className="flex items-center gap-2 flex-1">
             <Badge variant="outline" className="text-xs px-2 bg-amber-100 text-amber-800 border-amber-200">
               Request Body
             </Badge>
@@ -57,9 +75,15 @@ export const RequestBodyNode = memo(({ data, isConnectable, id, onAddNotation, o
           />
         </div>
         
-        {description && (
+        {!isCollapsed && description && (
           <div className="text-xs text-slate-600 line-clamp-2" title={description}>
             {description}
+          </div>
+        )}
+        
+        {isCollapsed && (
+          <div className="text-xs text-slate-400">
+            Content collapsed
           </div>
         )}
       </div>

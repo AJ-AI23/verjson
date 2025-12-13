@@ -3,6 +3,7 @@ import { Handle, Position } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { NodeNotations } from './NodeNotations';
+import { NodeExpandCollapseButton } from './NodeExpandCollapseButton';
 import { NotationComment } from '@/types/notations';
 
 export interface ParametersNodeProps {
@@ -18,6 +19,9 @@ export interface ParametersNodeProps {
     notations?: NotationComment[];
     notationCount?: number;
     hasNotations?: boolean;
+    hasMoreLevels?: boolean;
+    isCollapsed?: boolean;
+    path?: string;
   };
   id: string;
   isConnectable: boolean;
@@ -26,12 +30,17 @@ export interface ParametersNodeProps {
 }
 
 export const ParametersNode = memo(({ data, isConnectable, id, onAddNotation, onToggleCollapse }: ParametersNodeProps) => {
-  const { label, paramDetails = [], notations = [], notationCount = 0, hasNotations = false } = data;
+  const { label, paramDetails = [], notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, path } = data;
+
+  // Determine if node has children
+  const hasChildren = hasMoreLevels || paramDetails.length > 0;
+  const nodePath = path || id;
 
   return (
     <div className={cn(
       'px-3 py-2 rounded-md shadow-sm border min-w-[200px] max-w-[280px]',
       'bg-purple-50 border-purple-200',
+      isCollapsed && 'border-dashed bg-purple-50/50',
       hasNotations && 'border-l-2 border-l-amber-400'
     )}>
       <Handle
@@ -42,8 +51,17 @@ export const ParametersNode = memo(({ data, isConnectable, id, onAddNotation, on
       />
       
       <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <div className="text-sm font-semibold text-purple-900">{label}</div>
+        <div className="flex items-center justify-between gap-2">
+          {hasChildren && onToggleCollapse && (
+            <NodeExpandCollapseButton
+              isCollapsed={isCollapsed}
+              hasChildren={hasChildren}
+              path={nodePath}
+              onToggleCollapse={onToggleCollapse}
+              className="flex-shrink-0"
+            />
+          )}
+          <div className="text-sm font-semibold text-purple-900 flex-1">{label}</div>
           <NodeNotations
             notations={notations}
             notationCount={notationCount}
@@ -52,7 +70,7 @@ export const ParametersNode = memo(({ data, isConnectable, id, onAddNotation, on
           />
         </div>
         
-        {paramDetails.length > 0 && (
+        {!isCollapsed && paramDetails.length > 0 && (
           <ul className="text-xs text-purple-700 space-y-1">
             {paramDetails.map((param, idx) => (
               <li key={idx} className="flex items-start gap-1">
@@ -77,6 +95,12 @@ export const ParametersNode = memo(({ data, isConnectable, id, onAddNotation, on
               </li>
             ))}
           </ul>
+        )}
+        
+        {isCollapsed && paramDetails.length > 0 && (
+          <div className="text-xs text-slate-400">
+            {paramDetails.length} parameter{paramDetails.length > 1 ? 's' : ''} collapsed
+          </div>
         )}
       </div>
 

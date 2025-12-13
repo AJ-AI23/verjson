@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { NodeNotations } from './NodeNotations';
+import { NodeExpandCollapseButton } from './NodeExpandCollapseButton';
 import { NotationComment } from '@/types/notations';
 
 interface ComponentSchema {
@@ -19,6 +20,8 @@ export interface ComponentsNodeProps {
     notationCount?: number;
     hasNotations?: boolean;
     hasMoreLevels?: boolean;
+    isCollapsed?: boolean;
+    path?: string;
   };
   id: string;
   isConnectable: boolean;
@@ -27,13 +30,18 @@ export interface ComponentsNodeProps {
 }
 
 export const ComponentsNode = memo(({ data, isConnectable, id, onAddNotation, onToggleCollapse }: ComponentsNodeProps) => {
-  const { schemasCount, schemas = [], notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false } = data;
+  const { schemasCount, schemas = [], notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, path } = data;
+
+  // Determine if node has children
+  const hasChildren = hasMoreLevels || schemas.length > 0;
+  const nodePath = path || id;
 
   return (
     <div className={cn(
       'px-3 py-2 rounded-md shadow-sm border min-w-[200px] max-w-[280px]',
       'bg-emerald-50 border-emerald-200',
       hasMoreLevels && 'border-2 border-dashed',
+      isCollapsed && 'border-dashed bg-emerald-50/50',
       hasNotations && 'border-l-2 border-l-amber-400'
     )}>
       <Handle
@@ -45,8 +53,17 @@ export const ComponentsNode = memo(({ data, isConnectable, id, onAddNotation, on
       
       <div className="flex flex-col gap-2">
         <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-slate-900">Components</div>
+          <div className="flex items-center justify-between gap-2">
+            {hasChildren && onToggleCollapse && (
+              <NodeExpandCollapseButton
+                isCollapsed={isCollapsed}
+                hasChildren={hasChildren}
+                path={nodePath}
+                onToggleCollapse={onToggleCollapse}
+                className="flex-shrink-0"
+              />
+            )}
+            <div className="text-sm font-semibold text-slate-900 flex-1">Components</div>
             <NodeNotations
               notations={notations}
               notationCount={notationCount}
@@ -57,7 +74,7 @@ export const ComponentsNode = memo(({ data, isConnectable, id, onAddNotation, on
           <div className="text-xs text-emerald-600">{schemasCount} schemas</div>
         </div>
         
-        {schemas.length > 0 && (
+        {!isCollapsed && schemas.length > 0 && (
           <div className="border-t pt-2">
             <div className="text-xs font-medium mb-1">Schema Components:</div>
             <div className="grid gap-1">
@@ -75,6 +92,12 @@ export const ComponentsNode = memo(({ data, isConnectable, id, onAddNotation, on
                 </div>
               )}
             </div>
+          </div>
+        )}
+        
+        {isCollapsed && schemas.length > 0 && (
+          <div className="text-xs text-slate-400">
+            {schemas.length} schema{schemas.length > 1 ? 's' : ''} collapsed
           </div>
         )}
       </div>
