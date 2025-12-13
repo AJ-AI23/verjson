@@ -37,15 +37,11 @@ export const generateNodesAndEdges = (
   }
 
   try {
-    // Always create the root node regardless of collapsed state
-    const rootNode = createRootNode(schema);
-    
-    // Check if root is collapsed, if so, mark it on the node
-    // Default to collapsed (true) if not specified
+    // Check if root is collapsed - default to collapsed (true) if not specified
     const rootCollapsed = collapsedPaths['root'] !== false;
-    if (rootCollapsed) {
-      rootNode.data.isCollapsed = true;
-    }
+    
+    // Always create the root node with the collapsed state
+    const rootNode = createRootNode(schema, rootCollapsed);
     
     result.nodes.push(rootNode);
 

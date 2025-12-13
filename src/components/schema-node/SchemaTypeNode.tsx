@@ -100,7 +100,9 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
   // Determine if node has children that can be expanded/collapsed
   const hasChildren = hasCollapsibleContent || hasMoreLevels || 
     (type === 'object' && properties && properties > 0) ||
-    (type === 'array');
+    (type === 'array') ||
+    (type === 'openapi') || // OpenAPI root always has children
+    isRoot; // Root nodes always have potential children
   
   // Compute the path for this node (use data.path if available, otherwise derive from id)
   const nodePath = path || (id.startsWith('prop-') ? `root.properties.${id.substring(5)}` : 

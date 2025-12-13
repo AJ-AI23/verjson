@@ -78,11 +78,12 @@ export const generateOpenApiLayout = (
     // Always create Info node when showing OpenAPI structure (regardless of individual collapse state)
     if (schema.info) {
       const infoPath = 'root.info';
+      const infoCollapsed = collapsedPaths[infoPath] !== false;
       const infoExplicitlyExpanded = collapsedPaths[infoPath] === false || 
         (collapsedPaths[infoPath] && typeof collapsedPaths[infoPath] === 'object');
       
-      // Always create info box when showing OpenAPI structure, pass expanded state
-      const infoNode = createInfoNode(schema.info, -400, yOffset, infoExplicitlyExpanded);
+      // Always create info box when showing OpenAPI structure, pass expanded and collapsed state
+      const infoNode = createInfoNode(schema.info, -400, yOffset, infoExplicitlyExpanded, infoCollapsed);
       const infoEdge = createEdge('root', infoNode.id, undefined, false, {}, 'default');
       result.nodes.push(infoNode);
       result.edges.push(infoEdge);
@@ -95,11 +96,12 @@ export const generateOpenApiLayout = (
     // Always create Components node when showing OpenAPI structure (regardless of individual collapse state)
     if (schema.components?.schemas) {
       const componentsPath = 'root.components';
+      const componentsCollapsed = collapsedPaths[componentsPath] !== false;
       const componentsExplicitlyExpanded = collapsedPaths[componentsPath] === false || 
         (collapsedPaths[componentsPath] && typeof collapsedPaths[componentsPath] === 'object');
       
       // Always create components box when showing OpenAPI structure
-      const componentsNode = createComponentsNode(schema.components.schemas, 0, yOffset, componentsExplicitlyExpanded);
+      const componentsNode = createComponentsNode(schema.components.schemas, 0, yOffset, componentsExplicitlyExpanded, componentsCollapsed);
       const componentsEdge = createEdge('root', componentsNode.id, undefined, false, {}, 'default');
       result.nodes.push(componentsNode);
       result.edges.push(componentsEdge);
@@ -448,22 +450,22 @@ function processOpenApiPaths(
       const methods = Object.entries(pathData || {})
         .filter(([method]) => ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'].includes(method.toLowerCase()));
       
-      const methodStartX = pathX - (methods.length * 150) / 2 + 75;
-      
-      methods.forEach(([method, methodData], methodIndex) => {
-        const methodX = methodStartX + methodIndex * 150;
-        const methodPath = `${individualPathPath}.${method.toLowerCase()}`;
+        const methodStartX = pathX - (methods.length * 150) / 2 + 75;
         
-        // Check if this specific method is collapsed
-        const isMethodCollapsed = collapsedPaths[methodPath] === true;
-        
-        if (!isMethodCollapsed) {
+        methods.forEach(([method, methodData], methodIndex) => {
+          const methodX = methodStartX + methodIndex * 150;
+          const methodPath = `${individualPathPath}.${method.toLowerCase()}`;
+          
+          // Check if this specific method is collapsed
+          const isMethodCollapsed = collapsedPaths[methodPath] !== false;
+          
           const methodNode = createMethodNode(
             pathName,
             method.toLowerCase(),
             methodData,
             methodX,
-            yPos
+            yPos,
+            isMethodCollapsed
           );
           
           const edge = createEdge(parentNodeId, methodNode.id, undefined, false, {}, 'default');
@@ -471,17 +473,20 @@ function processOpenApiPaths(
           result.nodes.push(methodNode);
           result.edges.push(edge);
           
-          // Process responses and request bodies for individual method nodes
-          processMethodDetails(methodData, methodNode, methodX, yPos, result, collapsedPaths, methodPath);
-        }
-      });
+          // Process responses and request bodies for individual method nodes when not collapsed
+          if (!isMethodCollapsed) {
+            processMethodDetails(methodData, methodNode, methodX, yPos, result, collapsedPaths, methodPath);
+          }
+        });
     } else {
       // CONSOLIDATED MODE: Show single endpoint box with all methods
+      const isEndpointCollapsed = collapsedPaths[individualPathPath] !== false;
       const endpointNode = createEndpointNode(
         pathName,
         pathData,
         pathX,
-        yPos
+        yPos,
+        isEndpointCollapsed
       );
       
       const edge = createEdge(parentNodeId, endpointNode.id, undefined, false, {}, 'default');

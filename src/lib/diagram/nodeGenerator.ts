@@ -3,20 +3,18 @@ import { Node } from '@xyflow/react';
 import { PropertyDetails } from './types';
 import { extractNotations, getNotationCount, STANDARD_SCHEMA_PROPS } from './notationUtils';
 
-export const createRootNode = (schema: any): Node => {
+export const createRootNode = (schema: any, isCollapsed?: boolean): Node => {
   // Handle OpenAPI schemas differently
   const isOpenApiSchema = schema && 
                           typeof schema === 'object' && 
                           (schema.openapi || schema.swagger) &&
                           (schema.info || schema.paths);
   
-  console.log('createRootNode - OpenAPI detection:', {
-    hasOpenapi: !!schema.openapi,
-    hasSwagger: !!schema.swagger,
-    hasInfo: !!schema.info,
-    hasPaths: !!schema.paths,
-    isOpenApiSchema
-  });
+  // Determine if root has children (collapsible content)
+  const hasChildren = isOpenApiSchema 
+    ? !!(schema.info || schema.paths || schema.components || schema.servers || schema.tags)
+    : !!(schema.properties && Object.keys(schema.properties).length > 0) || 
+      (schema.type === 'array' && schema.items);
   
   if (isOpenApiSchema) {
     const version = schema.openapi || schema.swagger;
@@ -33,7 +31,10 @@ export const createRootNode = (schema: any): Node => {
         description: description,
         isRoot: true,
         properties: Object.keys(schema).length,
-        version: version
+        version: version,
+        path: 'root',
+        hasCollapsibleContent: hasChildren,
+        isCollapsed: isCollapsed
       }
     };
   }
@@ -43,26 +44,22 @@ export const createRootNode = (schema: any): Node => {
   const notations = extractNotations(schema);
   const notationCount = getNotationCount(schema);
   
-  console.log('createRootNode - notations:', {
-    notations,
-    notationCount,
-    hasNotations: notationCount > 0,
-    schemaKeys: Object.keys(schema)
-  });
-  
   return {
     id: 'root',
     type: 'schemaType',
     position: { x: 0, y: 0 },
     data: {
       label: schema.title || 'Root Schema',
-      type: schema.type,
+      type: schema.type || 'object',
       description: schema.description,
       isRoot: true,
       properties: schema.properties ? Object.keys(schema.properties).length : 0,
       notations: notations,
       notationCount: notationCount,
-      hasNotations: notationCount > 0
+      hasNotations: notationCount > 0,
+      path: 'root',
+      hasCollapsibleContent: hasChildren,
+      isCollapsed: isCollapsed
     }
   };
 };
@@ -176,7 +173,8 @@ export const createInfoNode = (
   infoData: any,
   xPos: number,
   yOffset: number,
-  isExpanded?: boolean
+  isExpanded?: boolean,
+  isCollapsed?: boolean
 ): Node => {
   // Extract notations from info data
   const notations = extractNotations(infoData);
@@ -190,6 +188,8 @@ export const createInfoNode = (
       type: typeof value
     }));
 
+  const hasChildren = properties.length > 0;
+
   return {
     id: 'info-node',
     type: 'info',
@@ -202,7 +202,10 @@ export const createInfoNode = (
       notations: notations,
       notationCount: notationCount,
       hasNotations: notationCount > 0,
-      hasMoreLevels: isExpanded // Add dashed border when expanded
+      hasMoreLevels: isExpanded,
+      path: 'root.info',
+      hasCollapsibleContent: hasChildren,
+      isCollapsed: isCollapsed
     }
   };
 };
@@ -211,7 +214,8 @@ export const createEndpointNode = (
   path: string,
   pathData: any,
   xPos: number,
-  yOffset: number
+  yOffset: number,
+  isCollapsed?: boolean
 ): Node => {
   // Extract notations from pathData
   const notations = extractNotations(pathData);
@@ -230,6 +234,8 @@ export const createEndpointNode = (
   // Create a label that shows all methods for consolidated view
   const methodLabels = methods.map(m => m.method.toUpperCase()).join(' ');
   const nodeLabel = methods.length > 0 ? `${methodLabels} ${path}` : path;
+  const hasChildren = methods.length > 0;
+  const nodePath = `root.paths.${path.replace(/[^\w]/g, '-')}`;
 
   return {
     id: `endpoint-${path.replace(/[^\w]/g, '-')}`,
@@ -238,10 +244,13 @@ export const createEndpointNode = (
     data: {
       path,
       methods,
-      label: nodeLabel, // Add explicit label for the endpoint
+      label: nodeLabel,
       notations: notations,
       notationCount: notationCount,
-      hasNotations: notationCount > 0
+      hasNotations: notationCount > 0,
+      nodePath: nodePath,
+      hasCollapsibleContent: hasChildren,
+      isCollapsed: isCollapsed
     }
   };
 };
@@ -251,13 +260,16 @@ export const createMethodNode = (
   method: string,
   methodData: any,
   xPos: number,
-  yOffset: number
+  yOffset: number,
+  isCollapsed?: boolean
 ): Node => {
   // Extract notations from methodData
   const notations = extractNotations(methodData);
   const notationCount = getNotationCount(methodData);
   
   const methodLabel = `${method.toUpperCase()} ${path}`;
+  const hasChildren = !!(methodData.requestBody || methodData.responses || methodData.parameters);
+  const nodePath = `root.paths.${path.replace(/[^\w]/g, '-')}.${method}`;
 
   return {
     id: `method-${method}-${path.replace(/[^\w]/g, '-')}`,
@@ -273,7 +285,10 @@ export const createMethodNode = (
       label: methodLabel,
       notations: notations,
       notationCount: notationCount,
-      hasNotations: notationCount > 0
+      hasNotations: notationCount > 0,
+      nodePath: nodePath,
+      hasCollapsibleContent: hasChildren,
+      isCollapsed: isCollapsed
     }
   };
 };
@@ -406,7 +421,8 @@ export const createComponentsNode = (
   schemasData: Record<string, any>,
   xPos: number,
   yOffset: number,
-  isExpanded: boolean = false
+  isExpanded: boolean = false,
+  isCollapsed?: boolean
 ): Node => {
   // Extract notations from the components section itself (if any)
   const notations = extractNotations(schemasData);
@@ -421,6 +437,8 @@ export const createComponentsNode = (
       propertiesCount: schema?.properties ? Object.keys(schema.properties).length : 0
     }));
 
+  const hasChildren = schemas.length > 0;
+
   return {
     id: 'components-node',
     type: 'components',
@@ -431,7 +449,10 @@ export const createComponentsNode = (
       notations: notations,
       notationCount: notationCount,
       hasNotations: notationCount > 0,
-      hasMoreLevels: isExpanded
+      hasMoreLevels: isExpanded,
+      path: 'root.components',
+      hasCollapsibleContent: hasChildren,
+      isCollapsed: isCollapsed
     }
   };
 };
