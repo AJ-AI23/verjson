@@ -1,31 +1,19 @@
 
 import React, { memo } from 'react';
-import { ChevronDown } from 'lucide-react';
-import { PropertyDetails } from './PropertyDetails';
-
-interface PropertyDetail {
-  name: string;
-  type: string;
-  required?: boolean;
-  format?: string;
-  description?: string;
-  reference?: string;
-}
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
 interface NodeCollapseIndicatorProps {
   hasMoreLevels?: boolean;
   isCollapsed?: boolean;
   hasCollapsibleContent?: boolean;
   additionalPropsCount?: number;
-  collapsedPropertyDetails?: PropertyDetail[];
 }
 
 export const NodeCollapseIndicator = memo(({ 
   hasMoreLevels,
   isCollapsed,
   hasCollapsibleContent,
-  additionalPropsCount = 0,
-  collapsedPropertyDetails
+  additionalPropsCount = 0
 }: NodeCollapseIndicatorProps) => {
   if (!hasMoreLevels && !isCollapsed && !hasCollapsibleContent && additionalPropsCount === 0) {
     return null;
@@ -40,12 +28,11 @@ export const NodeCollapseIndicator = memo(({
         </div>
       )}
 
-      {isCollapsed && collapsedPropertyDetails && collapsedPropertyDetails.length > 0 && (
-        <PropertyDetails 
-          propertyDetails={collapsedPropertyDetails}
-          isGrouped={true}
-          defaultExpanded={false}
-        />
+      {isCollapsed && (
+        <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
+          <ChevronRight size={12} />
+          <span>Collapsed in editor</span>
+        </div>
       )}
 
       {(hasCollapsibleContent || additionalPropsCount > 0) && !isCollapsed && !hasMoreLevels && (
