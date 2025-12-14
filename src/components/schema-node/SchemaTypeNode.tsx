@@ -334,6 +334,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
           isCollapsed={isCollapsed}
           hasCollapsibleContent={hasCollapsibleContent}
           additionalPropsCount={additionalPropsCount}
+          collapsedPropertyDetails={isCollapsed ? propertyDetails : undefined}
         />
       </div>
 
