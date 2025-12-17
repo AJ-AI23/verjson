@@ -1335,6 +1335,55 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
     findInlineObjects(obj);
   }
   
+  // Check for missing examples in properties (excluding object types)
+  function checkMissingExamples(currentObj: any, path: string[] = []) {
+    if (currentObj === null || currentObj === undefined) {
+      return;
+    }
+
+    if (Array.isArray(currentObj)) {
+      currentObj.forEach((item, index) => {
+        checkMissingExamples(item, [...path, index.toString()]);
+      });
+    } else if (typeof currentObj === 'object') {
+      // Check if this is a schema property definition with a type that should have an example
+      const isSchemaProperty = currentObj.type && typeof currentObj.type === 'string';
+      const hasExample = currentObj.example !== undefined || currentObj.examples !== undefined;
+      const isObjectType = currentObj.type === 'object';
+      const isArrayOfObjects = currentObj.type === 'array' && currentObj.items?.type === 'object';
+      const hasRef = currentObj.$ref !== undefined;
+      const hasEnum = Array.isArray(currentObj.enum) && currentObj.enum.length > 0;
+      
+      // Only check properties that are not objects, not references, and don't have enums (which serve as implicit examples)
+      if (isSchemaProperty && !hasExample && !isObjectType && !isArrayOfObjects && !hasRef && !hasEnum) {
+        // Only report if we're in a meaningful context (properties, parameters, requestBody, response content)
+        const pathStr = path.join('.');
+        const isInProperties = path.includes('properties');
+        const isParameter = path.includes('parameters');
+        const isRequestBody = path.includes('requestBody');
+        const isResponse = path.includes('responses');
+        
+        if (isInProperties || isParameter || isRequestBody || isResponse) {
+          const propertyName = path[path.length - 1];
+          const typeInfo = currentObj.format ? `${currentObj.type} (${currentObj.format})` : currentObj.type;
+          
+          issues.push({
+            type: 'missing-example',
+            path: pathStr,
+            value: propertyName,
+            message: `Property "${propertyName}" of type "${typeInfo}" is missing an example value`,
+            severity: 'info',
+            rule: 'Missing Example'
+          });
+        }
+      }
+      
+      Object.keys(currentObj).forEach(key => {
+        checkMissingExamples(currentObj[key], [...path, key]);
+      });
+    }
+  }
+
   // Run all checks
   console.log('Running all consistency checks with config:', config);
   checkParameterNaming(obj);
@@ -1343,6 +1392,7 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
   checkOperationIdNaming(obj);
   checkPropertyNaming(obj);
   checkExamples(obj);
+  checkMissingExamples(obj);
   checkSemanticRules(obj);
   checkBrokenReferences(obj);
   checkDuplicateComponents();
