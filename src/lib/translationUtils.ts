@@ -1335,49 +1335,65 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
     findInlineObjects(obj);
   }
   
-  // Check for missing examples in properties (excluding object types)
+  // Check for missing examples in schema properties (excluding object types)
   function checkMissingExamples(currentObj: any, path: string[] = []) {
     if (currentObj === null || currentObj === undefined) {
       return;
     }
 
+    const getSchemaTypes = (node: any): string[] => {
+      if (!node || typeof node !== 'object') return [];
+      if (typeof node.type === 'string') return [node.type];
+      if (Array.isArray(node.types)) return node.types.filter((t: any) => typeof t === 'string');
+      return [];
+    };
+
     if (Array.isArray(currentObj)) {
       currentObj.forEach((item, index) => {
         checkMissingExamples(item, [...path, index.toString()]);
       });
-    } else if (typeof currentObj === 'object') {
-      // Check if this is a schema property definition with a type that should have an example
-      const isSchemaProperty = currentObj.type && typeof currentObj.type === 'string';
-      const hasExample = currentObj.example !== undefined || currentObj.examples !== undefined;
-      const isObjectType = currentObj.type === 'object';
-      const isArrayOfObjects = currentObj.type === 'array' && currentObj.items?.type === 'object';
-      const hasRef = currentObj.$ref !== undefined;
-      const hasEnum = Array.isArray(currentObj.enum) && currentObj.enum.length > 0;
-      
-      // Only check properties that are not objects, not references, and don't have enums (which serve as implicit examples)
-      if (isSchemaProperty && !hasExample && !isObjectType && !isArrayOfObjects && !hasRef && !hasEnum) {
-        // Only report if we're in a meaningful context (properties, parameters, requestBody, response content)
-        const pathStr = path.join('.');
-        const isInProperties = path.includes('properties');
-        const isParameter = path.includes('parameters');
-        const isRequestBody = path.includes('requestBody');
-        const isResponse = path.includes('responses');
-        
-        if (isInProperties || isParameter || isRequestBody || isResponse) {
+      return;
+    }
+
+    if (typeof currentObj === 'object') {
+      const schemaTypes = getSchemaTypes(currentObj);
+      const itemTypes = getSchemaTypes(currentObj.items);
+
+      // Only check actual property definitions (…properties.<propName>)
+      const isDirectPropertyDefinition = path.length >= 2 && path[path.length - 2] === 'properties';
+      if (isDirectPropertyDefinition) {
+        const hasExample = currentObj.example !== undefined || currentObj.examples !== undefined;
+        const hasRef = typeof currentObj.$ref === 'string';
+        const hasEnum = Array.isArray(currentObj.enum) && currentObj.enum.length > 0;
+
+        const isObjectType = schemaTypes.includes('object');
+        const isArrayType = schemaTypes.includes('array');
+        const isArrayOfObjects = isArrayType && itemTypes.includes('object');
+
+        const shouldCheck = schemaTypes.length > 0 && !isObjectType && !isArrayOfObjects && !hasRef && !hasEnum;
+
+        if (shouldCheck && !hasExample) {
           const propertyName = path[path.length - 1];
-          const typeInfo = currentObj.format ? `${currentObj.type} (${currentObj.format})` : currentObj.type;
-          
+          const typeInfo = (() => {
+            if (isArrayType) {
+              const item = itemTypes.length > 0 ? itemTypes.join(' | ') : 'unknown';
+              return `array<${item}>`;
+            }
+            return schemaTypes.join(' | ');
+          })();
+          const typeDisplay = currentObj.format ? `${typeInfo} (${currentObj.format})` : typeInfo;
+
           issues.push({
             type: 'missing-example',
-            path: pathStr,
+            path: path.join('.'),
             value: propertyName,
-            message: `Property "${propertyName}" of type "${typeInfo}" is missing an example value`,
+            message: `Property "${propertyName}" of type "${typeDisplay}" is missing an example value`,
             severity: 'info',
             rule: 'Missing Example'
           });
         }
       }
-      
+
       Object.keys(currentObj).forEach(key => {
         checkMissingExamples(currentObj[key], [...path, key]);
       });
