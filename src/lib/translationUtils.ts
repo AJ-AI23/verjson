@@ -1400,6 +1400,70 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
     }
   }
 
+  // Check for missing descriptions in schema properties (excluding object types)
+  function checkMissingDescriptions(currentObj: any, path: string[] = []) {
+    if (currentObj === null || currentObj === undefined) {
+      return;
+    }
+
+    const getSchemaTypes = (node: any): string[] => {
+      if (!node || typeof node !== 'object') return [];
+      if (typeof node.type === 'string') return [node.type];
+      if (Array.isArray(node.types)) return node.types.filter((t: any) => typeof t === 'string');
+      return [];
+    };
+
+    if (Array.isArray(currentObj)) {
+      currentObj.forEach((item, index) => {
+        checkMissingDescriptions(item, [...path, index.toString()]);
+      });
+      return;
+    }
+
+    if (typeof currentObj === 'object') {
+      const schemaTypes = getSchemaTypes(currentObj);
+      const itemTypes = getSchemaTypes(currentObj.items);
+
+      // Only check actual property definitions (…properties.<propName>)
+      const isDirectPropertyDefinition = path.length >= 2 && path[path.length - 2] === 'properties';
+      if (isDirectPropertyDefinition) {
+        const hasDescription = typeof currentObj.description === 'string' && currentObj.description.trim().length > 0;
+        const hasRef = typeof currentObj.$ref === 'string';
+
+        const isObjectType = schemaTypes.includes('object');
+        const isArrayType = schemaTypes.includes('array');
+        const isArrayOfObjects = isArrayType && itemTypes.includes('object');
+
+        const shouldCheck = schemaTypes.length > 0 && !isObjectType && !isArrayOfObjects && !hasRef;
+
+        if (shouldCheck && !hasDescription) {
+          const propertyName = path[path.length - 1];
+          const typeInfo = (() => {
+            if (isArrayType) {
+              const item = itemTypes.length > 0 ? itemTypes.join(' | ') : 'unknown';
+              return `array<${item}>`;
+            }
+            return schemaTypes.join(' | ');
+          })();
+          const typeDisplay = currentObj.format ? `${typeInfo} (${currentObj.format})` : typeInfo;
+
+          issues.push({
+            type: 'missing-description',
+            path: path.join('.'),
+            value: propertyName,
+            message: `Property "${propertyName}" of type "${typeDisplay}" is missing a description`,
+            severity: 'info',
+            rule: 'Missing Description'
+          });
+        }
+      }
+
+      Object.keys(currentObj).forEach(key => {
+        checkMissingDescriptions(currentObj[key], [...path, key]);
+      });
+    }
+  }
+
   // Run all checks
   console.log('Running all consistency checks with config:', config);
   checkParameterNaming(obj);
@@ -1409,6 +1473,7 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
   checkPropertyNaming(obj);
   checkExamples(obj);
   checkMissingExamples(obj);
+  checkMissingDescriptions(obj);
   checkSemanticRules(obj);
   checkBrokenReferences(obj);
   checkDuplicateComponents();
