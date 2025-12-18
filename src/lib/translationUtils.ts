@@ -1372,9 +1372,29 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
         // Also exclude arrays where items reference another schema via $ref
         const isArrayOfRefs = isArrayType && currentObj.items && typeof currentObj.items.$ref === 'string';
 
+        // For arrays with primitive items, check if example exists at items level
+        const hasItemsExample = isArrayType && currentObj.items && 
+          (currentObj.items.example !== undefined || currentObj.items.examples !== undefined);
+        
+        // Check for duplicate examples at both array and items level
+        if (isArrayType && hasExample && hasItemsExample) {
+          const propertyName = path[path.length - 1];
+          issues.push({
+            type: 'duplicate-example',
+            path: path.join('.'),
+            value: propertyName,
+            message: `Property "${propertyName}" has examples at both array and items level - only one level should have an example`,
+            severity: 'warning',
+            rule: 'Duplicate Example'
+          });
+        }
+
+        // For arrays: consider example present if it's at either array level OR items level
+        const effectiveHasExample = hasExample || hasItemsExample;
+
         const shouldCheck = schemaTypes.length > 0 && !isObjectType && !isArrayOfObjects && !isArrayOfRefs && !hasRef && !hasEnum;
 
-        if (shouldCheck && !hasExample) {
+        if (shouldCheck && !effectiveHasExample) {
           const propertyName = path[path.length - 1];
           const typeInfo = (() => {
             if (isArrayType) {
