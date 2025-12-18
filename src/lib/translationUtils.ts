@@ -1369,8 +1369,10 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
         const isObjectType = schemaTypes.includes('object');
         const isArrayType = schemaTypes.includes('array');
         const isArrayOfObjects = isArrayType && itemTypes.includes('object');
+        // Also exclude arrays where items reference another schema via $ref
+        const isArrayOfRefs = isArrayType && currentObj.items && typeof currentObj.items.$ref === 'string';
 
-        const shouldCheck = schemaTypes.length > 0 && !isObjectType && !isArrayOfObjects && !hasRef && !hasEnum;
+        const shouldCheck = schemaTypes.length > 0 && !isObjectType && !isArrayOfObjects && !isArrayOfRefs && !hasRef && !hasEnum;
 
         if (shouldCheck && !hasExample) {
           const propertyName = path[path.length - 1];
@@ -1433,8 +1435,10 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
         const isObjectType = schemaTypes.includes('object');
         const isArrayType = schemaTypes.includes('array');
         const isArrayOfObjects = isArrayType && itemTypes.includes('object');
+        // Also exclude arrays where items reference another schema via $ref
+        const isArrayOfRefs = isArrayType && currentObj.items && typeof currentObj.items.$ref === 'string';
 
-        const shouldCheck = schemaTypes.length > 0 && !isObjectType && !isArrayOfObjects && !hasRef;
+        const shouldCheck = schemaTypes.length > 0 && !isObjectType && !isArrayOfObjects && !isArrayOfRefs && !hasRef;
 
         if (shouldCheck && !hasDescription) {
           const propertyName = path[path.length - 1];
