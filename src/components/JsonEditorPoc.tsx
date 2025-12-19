@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect, useCallback, useState } from 'react';
+import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import 'jsoneditor/dist/jsoneditor.css';
 import { CollapsedState } from '@/lib/diagram/types';
 import { useJsonEditor } from '@/hooks/useJsonEditor';
@@ -8,8 +8,9 @@ import { useYjsUndo } from '@/hooks/useYjsUndo';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import { EditorHistoryControls } from '@/components/editor/EditorHistoryControls';
 import { CollaborationIndicator } from '@/components/CollaborationIndicator';
+import { OpenApiStructureEditor } from '@/components/openapi/OpenApiStructureEditor';
 import { Button } from '@/components/ui/button';
-import { Settings, Users, Code2, FileJson2, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { Settings, Users, Code2, FileJson2, PanelLeftClose, PanelLeft, LayoutList } from 'lucide-react';
 import {
   Dialog,
   DialogContent, 
@@ -20,6 +21,7 @@ import {
 } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import { runLegacyCleanupOnce } from '@/utils/legacyCleanup';
 
@@ -57,6 +59,23 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   
   // Track the current editor mode
   const [editorMode, setEditorMode] = useState<'tree' | 'code'>('tree');
+  
+  // Track view mode: JSON editor or Structure editor
+  const [viewMode, setViewMode] = useState<'json' | 'structure'>('json');
+  
+  // Parse schema for structure editor
+  const parsedSchema = useMemo(() => {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }, [value]);
+  
+  // Check if schema is OpenAPI
+  const isOpenApi = useMemo(() => {
+    return parsedSchema?.openapi || parsedSchema?.swagger;
+  }, [parsedSchema]);
   
   // Clean up legacy editor history on component mount
   useEffect(() => {
@@ -392,29 +411,55 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
           
           <div className="w-px h-4 bg-border" />
           <div className="flex gap-2">
-            <button
-              onClick={expandAll}
-              className="text-xs px-2 py-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded transition-colors"
-            >
-              Expand All
-            </button>
-            <button
-              onClick={collapseAll}
-              className="text-xs px-2 py-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded transition-colors"
-            >
-              Collapse All
-            </button>
-            <button
-              onClick={handleModeToggle}
-              className="p-1.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded transition-colors"
-              title={editorMode === 'tree' ? 'Switch to Code Mode' : 'Switch to Tree Mode'}
-            >
-              {editorMode === 'tree' ? (
-                <Code2 className="h-4 w-4" />
-              ) : (
-                <FileJson2 className="h-4 w-4" />
-              )}
-            </button>
+            {viewMode === 'json' && (
+              <>
+                <button
+                  onClick={expandAll}
+                  className="text-xs px-2 py-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded transition-colors"
+                >
+                  Expand All
+                </button>
+                <button
+                  onClick={collapseAll}
+                  className="text-xs px-2 py-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded transition-colors"
+                >
+                  Collapse All
+                </button>
+                <button
+                  onClick={handleModeToggle}
+                  className="p-1.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded transition-colors"
+                  title={editorMode === 'tree' ? 'Switch to Code Mode' : 'Switch to Tree Mode'}
+                >
+                  {editorMode === 'tree' ? (
+                    <Code2 className="h-4 w-4" />
+                  ) : (
+                    <FileJson2 className="h-4 w-4" />
+                  )}
+                </button>
+              </>
+            )}
+            {isOpenApi && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setViewMode(viewMode === 'json' ? 'structure' : 'json')}
+                      className={`p-1.5 rounded transition-colors ${
+                        viewMode === 'structure' 
+                          ? 'bg-primary text-primary-foreground' 
+                          : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'
+                      }`}
+                      title={viewMode === 'json' ? 'Switch to Structure View' : 'Switch to JSON View'}
+                    >
+                      <LayoutList className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {viewMode === 'json' ? 'Switch to Structure View' : 'Switch to JSON View'}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
             {onToggleDiagram && (
               <button
                 onClick={onToggleDiagram}
@@ -432,8 +477,23 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
         </div>
       </div>
       
+      {/* Structure Editor for OpenAPI */}
+      {viewMode === 'structure' && parsedSchema && (
+        <div className="flex-1 overflow-hidden">
+          <OpenApiStructureEditor
+            schema={parsedSchema}
+            onSchemaChange={(newSchema) => {
+              onChange(JSON.stringify(newSchema, null, 2));
+            }}
+          />
+        </div>
+      )}
+      
       {/* The container for the JSONEditor instance */}
-      <div className="flex-1 editor-container" ref={containerRef}></div>
+      <div 
+        className={`flex-1 editor-container ${viewMode === 'structure' ? 'hidden' : ''}`} 
+        ref={containerRef}
+      />
       
       {/* Error display */}
       {error && (
