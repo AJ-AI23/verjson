@@ -9,6 +9,7 @@ import { useCollaboration } from '@/hooks/useCollaboration';
 import { EditorHistoryControls } from '@/components/editor/EditorHistoryControls';
 import { CollaborationIndicator } from '@/components/CollaborationIndicator';
 import { OpenApiStructureEditor } from '@/components/openapi/OpenApiStructureEditor';
+import { SchemaStructureEditor } from '@/components/schema/SchemaStructureEditor';
 import { Button } from '@/components/ui/button';
 import { Settings, Users, Code2, FileJson2, PanelLeftClose, PanelLeft, LayoutList } from 'lucide-react';
 import {
@@ -72,10 +73,21 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     }
   }, [value]);
   
-  // Check if schema is OpenAPI
+  // Check schema type
   const isOpenApi = useMemo(() => {
     return parsedSchema?.openapi || parsedSchema?.swagger;
   }, [parsedSchema]);
+  
+  const isDiagram = useMemo(() => {
+    return parsedSchema?.nodes !== undefined || parsedSchema?.lifelines !== undefined;
+  }, [parsedSchema]);
+  
+  const isJsonSchema = useMemo(() => {
+    return parsedSchema?.type || parsedSchema?.properties || parsedSchema?.$schema;
+  }, [parsedSchema]);
+  
+  // Structure view is available for all supported schema types
+  const supportsStructureView = isOpenApi || isDiagram || isJsonSchema;
   
   // Clean up legacy editor history on component mount
   useEffect(() => {
@@ -438,7 +450,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
                 </button>
               </>
             )}
-            {isOpenApi && (
+            {supportsStructureView && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -477,15 +489,25 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
         </div>
       </div>
       
-      {/* Structure Editor for OpenAPI */}
+      {/* Structure Editor */}
       {viewMode === 'structure' && parsedSchema && (
         <div className="flex-1 overflow-hidden">
-          <OpenApiStructureEditor
-            schema={parsedSchema}
-            onSchemaChange={(newSchema) => {
-              onChange(JSON.stringify(newSchema, null, 2));
-            }}
-          />
+          {isOpenApi ? (
+            <OpenApiStructureEditor
+              schema={parsedSchema}
+              onSchemaChange={(newSchema) => {
+                onChange(JSON.stringify(newSchema, null, 2));
+              }}
+            />
+          ) : (
+            <SchemaStructureEditor
+              schema={parsedSchema}
+              schemaType={isDiagram ? 'diagram' : 'json-schema'}
+              onSchemaChange={(newSchema) => {
+                onChange(JSON.stringify(newSchema, null, 2));
+              }}
+            />
+          )}
         </div>
       )}
       
