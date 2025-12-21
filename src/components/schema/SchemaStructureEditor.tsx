@@ -7,6 +7,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { SortablePropertyList, SortableItem, reorderObjectProperties, reorderArrayItems } from './SortablePropertyList';
 
 const JSON_SCHEMA_TYPES = [
   'string',
@@ -58,6 +59,7 @@ interface EditablePropertyNodeProps {
   onAddProperty?: (path: string[], name: string, schema: any) => void;
   onDeleteProperty?: (path: string[]) => void;
   onAddArrayItem?: (path: string[], item: any) => void;
+  onReorderProperties?: (path: string[], oldIndex: number, newIndex: number) => void;
 }
 
 const getTypeIcon = (schema: any) => {
@@ -332,7 +334,8 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
   onPropertyRename,
   onAddProperty,
   onDeleteProperty,
-  onAddArrayItem
+  onAddArrayItem,
+  onReorderProperties
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -567,23 +570,35 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
       
       {isExpanded && childProperties && (
         <div className="border-l border-border/50 ml-4" style={{ marginLeft: `${depth * 16 + 20}px` }}>
-          {Object.entries(childProperties).map(([propName, propSchema]) => (
-            <EditablePropertyNode
-              key={propName}
-              name={propName}
-              propertySchema={propSchema as any}
-              path={[...path, propName]}
-              definitions={definitions}
-              depth={depth + 1}
-              isArrayItem={Array.isArray(propertySchema)}
-              parentIsArray={Array.isArray(propertySchema)}
-              onPropertyChange={onPropertyChange}
-              onPropertyRename={onPropertyRename}
-              onAddProperty={onAddProperty}
-              onDeleteProperty={onDeleteProperty}
-              onAddArrayItem={onAddArrayItem}
-            />
-          ))}
+          <SortablePropertyList
+            items={Object.keys(childProperties)}
+            onReorder={(oldIndex, newIndex) => {
+              if (onReorderProperties) {
+                const basePath = Array.isArray(propertySchema) ? path : [...path, 'properties'];
+                onReorderProperties(basePath, oldIndex, newIndex);
+              }
+            }}
+          >
+            {Object.entries(childProperties).map(([propName, propSchema]) => (
+              <SortableItem key={propName} id={propName}>
+                <EditablePropertyNode
+                  name={propName}
+                  propertySchema={propSchema as any}
+                  path={[...path, propName]}
+                  definitions={definitions}
+                  depth={depth + 1}
+                  isArrayItem={Array.isArray(propertySchema)}
+                  parentIsArray={Array.isArray(propertySchema)}
+                  onPropertyChange={onPropertyChange}
+                  onPropertyRename={onPropertyRename}
+                  onAddProperty={onAddProperty}
+                  onDeleteProperty={onDeleteProperty}
+                  onAddArrayItem={onAddArrayItem}
+                  onReorderProperties={onReorderProperties}
+                />
+              </SortableItem>
+            ))}
+          </SortablePropertyList>
           
           {!Array.isArray(propertySchema) && isSchemaWithType && onAddProperty && (
             <div className="py-1 px-2" style={{ paddingLeft: `${(depth + 1) * 16 + 8}px` }}>
@@ -607,6 +622,7 @@ interface SectionTreeProps {
   onAddProperty: (path: string[], name: string, schema: any) => void;
   onDeleteProperty: (path: string[]) => void;
   onAddArrayItem: (path: string[], item: any) => void;
+  onReorderProperties: (path: string[], oldIndex: number, newIndex: number) => void;
 }
 
 const SectionTree: React.FC<SectionTreeProps> = ({ 
@@ -619,7 +635,8 @@ const SectionTree: React.FC<SectionTreeProps> = ({
   onPropertyRename,
   onAddProperty,
   onDeleteProperty,
-  onAddArrayItem
+  onAddArrayItem,
+  onReorderProperties
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const availableRefs = useMemo(() => Object.keys(definitions), [definitions]);
@@ -642,24 +659,32 @@ const SectionTree: React.FC<SectionTreeProps> = ({
     }
 
     if (Array.isArray(data)) {
+      const arrayItemIds = data.map((_, index) => String(index));
       return (
         <div className="space-y-0.5">
-          {data.map((item, index) => (
-            <EditablePropertyNode
-              key={index}
-              name={String(index)}
-              propertySchema={item}
-              path={[...path, String(index)]}
-              definitions={definitions}
-              isArrayItem={true}
-              parentIsArray={true}
-              onPropertyChange={onPropertyChange}
-              onPropertyRename={onPropertyRename}
-              onAddProperty={onAddProperty}
-              onDeleteProperty={onDeleteProperty}
-              onAddArrayItem={onAddArrayItem}
-            />
-          ))}
+          <SortablePropertyList
+            items={arrayItemIds}
+            onReorder={(oldIndex, newIndex) => onReorderProperties(path, oldIndex, newIndex)}
+          >
+            {data.map((item, index) => (
+              <SortableItem key={index} id={String(index)}>
+                <EditablePropertyNode
+                  name={String(index)}
+                  propertySchema={item}
+                  path={[...path, String(index)]}
+                  definitions={definitions}
+                  isArrayItem={true}
+                  parentIsArray={true}
+                  onPropertyChange={onPropertyChange}
+                  onPropertyRename={onPropertyRename}
+                  onAddProperty={onAddProperty}
+                  onDeleteProperty={onDeleteProperty}
+                  onAddArrayItem={onAddArrayItem}
+                  onReorderProperties={onReorderProperties}
+                />
+              </SortableItem>
+            ))}
+          </SortablePropertyList>
           <div className="py-1 px-2 pl-6">
             <Button 
               variant="ghost" 
@@ -675,22 +700,30 @@ const SectionTree: React.FC<SectionTreeProps> = ({
       );
     }
 
+    const objectKeys = Object.keys(data);
     return (
       <div className="space-y-0.5">
-        {Object.entries(data).map(([key, value]) => (
-          <EditablePropertyNode
-            key={key}
-            name={key}
-            propertySchema={value as any}
-            path={[...path, key]}
-            definitions={definitions}
-            onPropertyChange={onPropertyChange}
-            onPropertyRename={onPropertyRename}
-            onAddProperty={onAddProperty}
-            onDeleteProperty={onDeleteProperty}
-            onAddArrayItem={onAddArrayItem}
-          />
-        ))}
+        <SortablePropertyList
+          items={objectKeys}
+          onReorder={(oldIndex, newIndex) => onReorderProperties(path, oldIndex, newIndex)}
+        >
+          {Object.entries(data).map(([key, value]) => (
+            <SortableItem key={key} id={key}>
+              <EditablePropertyNode
+                name={key}
+                propertySchema={value as any}
+                path={[...path, key]}
+                definitions={definitions}
+                onPropertyChange={onPropertyChange}
+                onPropertyRename={onPropertyRename}
+                onAddProperty={onAddProperty}
+                onDeleteProperty={onDeleteProperty}
+                onAddArrayItem={onAddArrayItem}
+                onReorderProperties={onReorderProperties}
+              />
+            </SortableItem>
+          ))}
+        </SortablePropertyList>
         <div className="py-1 px-2 pl-6">
           <AddPropertyButton onAdd={handleAddProperty} availableRefs={availableRefs} />
         </div>
@@ -819,6 +852,42 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     onSchemaChange(newSchema);
   }, [schema, onSchemaChange]);
 
+  const handleReorderProperties = useCallback((path: string[], oldIndex: number, newIndex: number) => {
+    const newSchema = JSON.parse(JSON.stringify(schema));
+    
+    let current = newSchema;
+    for (const key of path) {
+      current = current[key];
+    }
+    
+    if (Array.isArray(current)) {
+      // Reorder array items
+      const reordered = reorderArrayItems(current, oldIndex, newIndex);
+      // Replace array in parent
+      let parent = newSchema;
+      for (let i = 0; i < path.length - 1; i++) {
+        parent = parent[path[i]];
+      }
+      parent[path[path.length - 1]] = reordered;
+    } else if (typeof current === 'object' && current !== null) {
+      // Reorder object properties
+      const reordered = reorderObjectProperties(current, oldIndex, newIndex);
+      // Replace object in parent
+      if (path.length === 0) {
+        // If at root, handle specially
+        onSchemaChange({ ...newSchema, ...reordered });
+        return;
+      }
+      let parent = newSchema;
+      for (let i = 0; i < path.length - 1; i++) {
+        parent = parent[path[i]];
+      }
+      parent[path[path.length - 1]] = reordered;
+    }
+    
+    onSchemaChange(newSchema);
+  }, [schema, onSchemaChange]);
+
   // Build sections based on schema type
   const rootSections = useMemo(() => {
     const sections: { key: string; title: string; icon: React.ReactNode; data: any }[] = [];
@@ -926,6 +995,7 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
             onAddProperty={handleAddProperty}
             onDeleteProperty={handleDeleteProperty}
             onAddArrayItem={handleAddArrayItem}
+            onReorderProperties={handleReorderProperties}
           />
         ))}
         
