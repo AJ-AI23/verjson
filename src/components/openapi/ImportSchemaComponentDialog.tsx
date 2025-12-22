@@ -14,11 +14,13 @@ import { toast } from 'sonner';
 
 interface ImportSchemaComponentDialogProps {
   onImport: (componentName: string, schema: any) => void;
+  onImportByReference?: (componentName: string, documentId: string, documentName: string) => void;
   existingComponentNames: string[];
 }
 
 export const ImportSchemaComponentDialog: React.FC<ImportSchemaComponentDialogProps> = ({
   onImport,
+  onImportByReference,
   existingComponentNames
 }) => {
   const [open, setOpen] = useState(false);
@@ -26,6 +28,7 @@ export const ImportSchemaComponentDialog: React.FC<ImportSchemaComponentDialogPr
   const [selectedDocumentId, setSelectedDocumentId] = useState<string>('');
   const [componentName, setComponentName] = useState<string>('');
   const [importMultiple, setImportMultiple] = useState(false);
+  const [importByReference, setImportByReference] = useState(false);
   const [selectedSchemas, setSelectedSchemas] = useState<Set<string>>(new Set());
 
   const { workspaces, loading: workspacesLoading } = useWorkspaces();
@@ -108,6 +111,33 @@ export const ImportSchemaComponentDialog: React.FC<ImportSchemaComponentDialogPr
   };
 
   const handleImport = () => {
+    // Handle "by reference" import (single schema only)
+    if (importByReference) {
+      if (!componentName.trim()) {
+        toast.error('Please enter a component name');
+        return;
+      }
+
+      if (existingComponentNames.includes(componentName.trim())) {
+        toast.error(`Component "${componentName}" already exists`);
+        return;
+      }
+
+      if (!selectedDocument) {
+        toast.error('Please select a document');
+        return;
+      }
+
+      if (onImportByReference) {
+        onImportByReference(componentName.trim(), selectedDocumentId, selectedDocument.name);
+        toast.success(`Imported component "${componentName}" by reference`);
+        handleClose();
+      } else {
+        toast.error('Import by reference is not supported');
+      }
+      return;
+    }
+
     if (importMultiple) {
       // Import multiple selected schemas
       if (selectedSchemas.size === 0) {
@@ -199,12 +229,15 @@ export const ImportSchemaComponentDialog: React.FC<ImportSchemaComponentDialogPr
     setSelectedDocumentId('');
     setComponentName('');
     setImportMultiple(false);
+    setImportByReference(false);
     setSelectedSchemas(new Set());
   };
 
-  const canImport = importMultiple 
-    ? selectedSchemas.size > 0 
-    : (componentName.trim() && parsedSchema);
+  const canImport = importByReference
+    ? (componentName.trim() && selectedDocumentId)
+    : importMultiple 
+      ? selectedSchemas.size > 0 
+      : (componentName.trim() && parsedSchema);
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => isOpen ? setOpen(true) : handleClose()}>
@@ -275,8 +308,27 @@ export const ImportSchemaComponentDialog: React.FC<ImportSchemaComponentDialogPr
             </div>
           )}
 
+          {/* Import By Reference */}
+          {selectedDocumentId && (
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="importByReference" 
+                checked={importByReference}
+                onCheckedChange={(checked) => {
+                  setImportByReference(checked === true);
+                  if (checked) {
+                    setImportMultiple(false);
+                  }
+                }}
+              />
+              <Label htmlFor="importByReference" className="text-sm font-normal cursor-pointer">
+                Import by reference (uses $ref to sideload content)
+              </Label>
+            </div>
+          )}
+
           {/* Import Options */}
-          {selectedDocumentId && availableSchemas.length > 1 && (
+          {selectedDocumentId && !importByReference && availableSchemas.length > 1 && (
             <div className="flex items-center space-x-2">
               <Checkbox 
                 id="importMultiple" 
@@ -290,7 +342,7 @@ export const ImportSchemaComponentDialog: React.FC<ImportSchemaComponentDialogPr
           )}
 
           {/* Schema Selection for Multiple Import */}
-          {selectedDocumentId && importMultiple && availableSchemas.length > 0 && (
+          {selectedDocumentId && !importByReference && importMultiple && availableSchemas.length > 0 && (
             <div className="space-y-2">
               <Label>Select Schemas to Import</Label>
               <ScrollArea className="h-[150px] border rounded-md p-2">
@@ -318,8 +370,8 @@ export const ImportSchemaComponentDialog: React.FC<ImportSchemaComponentDialogPr
             </div>
           )}
 
-          {/* Component Name (for single import) */}
-          {selectedDocumentId && !importMultiple && (
+          {/* Component Name (for single import or by reference) */}
+          {selectedDocumentId && (!importMultiple || importByReference) && (
             <div className="space-y-2">
               <Label>Component Name</Label>
               <Input
