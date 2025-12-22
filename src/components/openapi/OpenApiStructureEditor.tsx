@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { ChevronRight, ChevronDown, Box, Link2, Hash, Type, List, ToggleLeft, Calendar, FileText, Server, Info, Route, Shield, Tag, Pencil, Check, X, Plus, Trash2 } from 'lucide-react';
+import { ChevronRight, ChevronDown, Box, Link2, Hash, Type, List, ToggleLeft, Calendar, FileText, Server, Info, Route, Shield, Tag, Pencil, Check, X, Plus, Trash2, ExternalLink, Loader2 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SortablePropertyList, SortableItem, reorderObjectProperties, reorderArrayItems } from '@/components/schema/SortablePropertyList';
 import { ImportSchemaComponentDialog } from './ImportSchemaComponentDialog';
+import { useDocumentRefResolver } from '@/hooks/useDocumentRefResolver';
 
 const OPENAPI_TYPES = [
   'string',
@@ -795,9 +796,13 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
   schema,
   onSchemaChange
 }) => {
+  // Use the document ref resolver for sideloading referenced documents
+  const { getAllResolvedSchemas, resolvedDocuments } = useDocumentRefResolver(schema);
+
   const allSchemas = useMemo(() => {
-    return schema?.components?.schemas || {};
-  }, [schema]);
+    // Merge original schemas with resolved document references
+    return getAllResolvedSchemas();
+  }, [getAllResolvedSchemas]);
 
   const handlePropertyChange = useCallback((path: string[], updates: { name?: string; schema?: any }) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -921,6 +926,19 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
     onSchemaChange(newSchema);
   }, [schema, onSchemaChange]);
 
+  const handleAddComponentByReference = useCallback((name: string, documentId: string, documentName: string) => {
+    const newSchema = JSON.parse(JSON.stringify(schema));
+    if (!newSchema.components) newSchema.components = {};
+    if (!newSchema.components.schemas) newSchema.components.schemas = {};
+    // Store a special $ref that points to an external document
+    newSchema.components.schemas[name] = {
+      $ref: `document://${documentId}`,
+      'x-document-name': documentName,
+      'x-document-id': documentId
+    };
+    onSchemaChange(newSchema);
+  }, [schema, onSchemaChange]);
+
   const components = useMemo(() => {
     const schemas = schema?.components?.schemas || {};
     return Object.entries(schemas).map(([name, componentSchema]: [string, any]) => ({
@@ -1009,6 +1027,7 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
             <div className="flex justify-end gap-2">
               <ImportSchemaComponentDialog 
                 onImport={handleAddComponent}
+                onImportByReference={handleAddComponentByReference}
                 existingComponentNames={Object.keys(allSchemas)}
               />
               <AddComponentButton onAdd={handleAddComponent} />
@@ -1118,7 +1137,15 @@ const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const availableRefs = useMemo(() => Object.keys(allSchemas), [allSchemas]);
   
-  const properties = component.schema?.properties || {};
+  // Check if this is a document reference
+  const isDocumentRef = component.schema?.$ref?.startsWith('document://');
+  const documentName = component.schema?.['x-document-name'];
+  const isLoading = component.schema?.['x-loading'];
+  const hasError = component.schema?.['x-error'];
+  
+  // For document refs, the resolved content might be in allSchemas
+  const resolvedSchema = isDocumentRef ? allSchemas[component.name] : component.schema;
+  const properties = resolvedSchema?.properties || {};
   const hasProperties = Object.keys(properties).length > 0;
 
   const handleAddProperty = (name: string, schema: any) => {
@@ -1144,16 +1171,38 @@ const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({
           <span className="w-4" />
         )}
         
-        <Box className="h-4 w-4 text-primary" />
+        {isLoading ? (
+          <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
+        ) : isDocumentRef ? (
+          <ExternalLink className="h-4 w-4 text-blue-500" />
+        ) : (
+          <Box className="h-4 w-4 text-primary" />
+        )}
         
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-sm">{component.name}</span>
-            {component.isTopLevel && (
+            {isDocumentRef && (
+              <Badge variant="outline" className="text-xs gap-1 text-blue-600 border-blue-300">
+                <Link2 className="h-2.5 w-2.5" />
+                Reference
+              </Badge>
+            )}
+            {component.isTopLevel && !isDocumentRef && (
               <Badge variant="outline" className="text-xs">Top Level</Badge>
             )}
           </div>
-          {component.description && (
+          {isDocumentRef && documentName && (
+            <p className="text-xs text-muted-foreground truncate mt-0.5">
+              → {documentName}
+            </p>
+          )}
+          {hasError && (
+            <p className="text-xs text-destructive truncate mt-0.5">
+              Error: {hasError}
+            </p>
+          )}
+          {component.description && !isDocumentRef && (
             <p className="text-xs text-muted-foreground truncate mt-0.5">
               {component.description}
             </p>
@@ -1161,7 +1210,7 @@ const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({
         </div>
         
         <Badge variant="secondary" className="text-xs shrink-0">
-          {Object.keys(properties).length} properties
+          {isLoading ? 'Loading...' : `${Object.keys(properties).length} properties`}
         </Badge>
         
         {/* Delete component button */}
@@ -1175,34 +1224,42 @@ const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({
         </Button>
       </div>
       
-      {isExpanded && (
+      {isExpanded && !isLoading && !hasError && (
         <div className="p-2 bg-background">
+          {isDocumentRef && (
+            <p className="text-xs text-muted-foreground px-2 py-1 mb-2 bg-blue-50 dark:bg-blue-950/30 rounded">
+              Sideloaded from: {documentName}
+            </p>
+          )}
           <SortablePropertyList
             items={Object.keys(properties)}
             onReorder={(oldIndex, newIndex) => onReorderProperties([...basePath, 'properties'], oldIndex, newIndex)}
+            disabled={isDocumentRef}
           >
             {Object.entries(properties).map(([propName, propSchema]) => (
               <SortableItem key={propName} id={propName}>
                 <EditablePropertyNode
                   name={propName}
                   propertySchema={propSchema as any}
-                  path={[...basePath, 'properties', propName]}
+                  path={isDocumentRef ? [] : [...basePath, 'properties', propName]}
                   allSchemas={allSchemas}
-                  onPropertyChange={onPropertyChange}
-                  onPropertyRename={onPropertyRename}
-                  onAddProperty={onAddProperty}
-                  onDeleteProperty={onDeleteProperty}
-                  onAddArrayItem={onAddArrayItem}
-                  onReorderProperties={onReorderProperties}
+                  onPropertyChange={isDocumentRef ? () => {} : onPropertyChange}
+                  onPropertyRename={isDocumentRef ? () => {} : onPropertyRename}
+                  onAddProperty={isDocumentRef ? () => {} : onAddProperty}
+                  onDeleteProperty={isDocumentRef ? () => {} : onDeleteProperty}
+                  onAddArrayItem={isDocumentRef ? () => {} : onAddArrayItem}
+                  onReorderProperties={isDocumentRef ? () => {} : onReorderProperties}
                 />
               </SortableItem>
             ))}
           </SortablePropertyList>
           
-          {/* Add property button */}
-          <div className="py-1 px-2 pl-6">
-            <AddPropertyButton onAdd={handleAddProperty} availableRefs={availableRefs} />
-          </div>
+          {/* Add property button - disabled for references */}
+          {!isDocumentRef && (
+            <div className="py-1 px-2 pl-6">
+              <AddPropertyButton onAdd={handleAddProperty} availableRefs={availableRefs} />
+            </div>
+          )}
         </div>
       )}
     </>
