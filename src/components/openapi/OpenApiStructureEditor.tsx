@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SortablePropertyList, SortableItem, reorderObjectProperties, reorderArrayItems } from '@/components/schema/SortablePropertyList';
+import { ImportSchemaComponentDialog } from './ImportSchemaComponentDialog';
 
 const OPENAPI_TYPES = [
   'string',
@@ -1004,8 +1005,12 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
       <TabsContent value="components" className="flex-1 mt-0 overflow-hidden">
         <ScrollArea className="h-full">
           <div className="space-y-3 p-4">
-            {/* Add new component button */}
-            <div className="flex justify-end">
+            {/* Add new component and import buttons */}
+            <div className="flex justify-end gap-2">
+              <ImportSchemaComponentDialog 
+                onImport={handleAddComponent}
+                existingComponentNames={Object.keys(allSchemas)}
+              />
               <AddComponentButton onAdd={handleAddComponent} />
             </div>
             
