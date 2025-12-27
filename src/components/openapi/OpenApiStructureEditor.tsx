@@ -561,16 +561,16 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
           {/* Show editable value for primitives, or type selector for schema properties */}
           {isPrimitive ? (
             <EditableValue value={propertySchema} onValueChange={handleValueChange} />
-          ) : isValueOnly && !hasChildren ? (
-            <span className="text-xs text-muted-foreground">
-              {JSON.stringify(propertySchema).slice(0, 50)}
-            </span>
           ) : typeLabel ? (
             <TypeSelector
               currentType={typeLabel}
               availableRefs={availableRefs}
               onTypeSelect={handleTypeChange}
             />
+          ) : isValueOnly && !hasChildren && !isSchemaWithType ? (
+            <span className="text-xs text-muted-foreground">
+              {JSON.stringify(propertySchema).slice(0, 50)}
+            </span>
           ) : null}
           
           {/* Add array item button */}
