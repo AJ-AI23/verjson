@@ -532,16 +532,16 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
         <div className="ml-auto flex items-center gap-1">
           {isPrimitive ? (
             <EditableValue value={propertySchema} onValueChange={handleValueChange} />
-          ) : isValueOnly && !hasChildren ? (
-            <span className="text-xs text-muted-foreground">
-              {JSON.stringify(propertySchema).slice(0, 50)}
-            </span>
           ) : typeLabel ? (
             <TypeSelector
               currentType={typeLabel}
               availableRefs={availableRefs}
               onTypeSelect={handleTypeChange}
             />
+          ) : isValueOnly && !hasChildren && !isSchemaWithType ? (
+            <span className="text-xs text-muted-foreground">
+              {JSON.stringify(propertySchema).slice(0, 50)}
+            </span>
           ) : null}
           
           {Array.isArray(propertySchema) && (
