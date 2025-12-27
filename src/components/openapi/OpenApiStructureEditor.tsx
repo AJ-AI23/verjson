@@ -939,15 +939,45 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
     onSchemaChange(newSchema);
   }, [schema, onSchemaChange]);
 
+  // Count how many times each component is referenced throughout the document
+  const componentReferenceCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    
+    const countRefs = (obj: any) => {
+      if (!obj || typeof obj !== 'object') return;
+      
+      if (Array.isArray(obj)) {
+        obj.forEach(item => countRefs(item));
+        return;
+      }
+      
+      // Check for $ref to a component
+      if (obj.$ref && typeof obj.$ref === 'string' && obj.$ref.startsWith('#/components/schemas/')) {
+        const refName = obj.$ref.split('/').pop();
+        if (refName) {
+          counts[refName] = (counts[refName] || 0) + 1;
+        }
+      }
+      
+      // Recurse into all object properties
+      Object.values(obj).forEach(value => countRefs(value));
+    };
+    
+    // Count refs in paths, components (other schemas referencing each other), etc.
+    countRefs(schema);
+    
+    return counts;
+  }, [schema]);
+
   const components = useMemo(() => {
     const schemas = schema?.components?.schemas || {};
     return Object.entries(schemas).map(([name, componentSchema]: [string, any]) => ({
       name,
       schema: componentSchema,
       description: componentSchema?.description,
-      isTopLevel: true
+      referenceCount: componentReferenceCounts[name] || 0
     }));
-  }, [schema]);
+  }, [schema, componentReferenceCounts]);
 
   const rootSections = useMemo(() => {
     const sections: { key: string; title: string; icon: React.ReactNode; data: any }[] = [];
@@ -1112,7 +1142,7 @@ const AddComponentButton: React.FC<{
 };
 
 interface ComponentTreeEditableProps {
-  component: { name: string; schema: any; description?: string; isTopLevel: boolean };
+  component: { name: string; schema: any; description?: string; referenceCount: number };
   allSchemas: Record<string, any>;
   basePath: string[];
   onPropertyChange: (path: string[], updates: { name?: string; schema?: any }) => void;
@@ -1188,8 +1218,14 @@ const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({
                 Reference
               </Badge>
             )}
-            {component.isTopLevel && !isDocumentRef && (
-              <Badge variant="outline" className="text-xs">Top Level</Badge>
+            {!isDocumentRef && (
+              component.referenceCount === 0 ? (
+                <Badge variant="outline" className="text-xs">Top Level</Badge>
+              ) : (
+                <Badge variant="secondary" className="text-xs">
+                  {component.referenceCount} ref{component.referenceCount > 1 ? 's' : ''}
+                </Badge>
+              )
             )}
           </div>
           {isDocumentRef && documentName && (
