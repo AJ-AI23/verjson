@@ -600,7 +600,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
             ))}
           </SortablePropertyList>
           
-          {!Array.isArray(propertySchema) && isSchemaWithType && onAddProperty && (
+          {!Array.isArray(propertySchema) && onAddProperty && (
             <div className="py-1 px-2" style={{ paddingLeft: `${(depth + 1) * 16 + 8}px` }}>
               <AddPropertyButton onAdd={handleAddChildProperty} availableRefs={availableRefs} />
             </div>
