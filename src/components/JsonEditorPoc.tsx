@@ -62,7 +62,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   const [editorMode, setEditorMode] = useState<'tree' | 'code'>('tree');
   
   // Track view mode: JSON editor or Structure editor
-  const [viewMode, setViewMode] = useState<'json' | 'structure'>('json');
+  const [viewMode, setViewMode] = useState<'json' | 'structure'>('structure');
   
   // Parse schema for structure editor
   const parsedSchema = useMemo(() => {
