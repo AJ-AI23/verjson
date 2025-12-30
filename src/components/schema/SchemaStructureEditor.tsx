@@ -349,6 +349,35 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
   const isPrimitive = isPrimitiveValue(propertySchema);
   const isValueOnly = isValueOnlyProperty(name);
   
+  // Check if this property can have children (for expand/collapse)
+  const canHaveChildren = useMemo(() => {
+    if (isPrimitive) return false;
+    
+    if (Array.isArray(propertySchema)) {
+      return true; // Arrays can always have items added
+    }
+    
+    if (typeof propertySchema === 'object' && propertySchema !== null && !isSchemaWithType) {
+      return true; // Plain objects can have properties added
+    }
+    
+    if (propertySchema?.$ref) return true;
+    
+    const typeValue = propertySchema?.type;
+    
+    // Object types can always have properties added
+    if (typeValue === 'object') {
+      return true;
+    }
+    if (typeValue === 'array' && propertySchema?.items) {
+      if (propertySchema.items.$ref) return true;
+      if (propertySchema.items.type === 'object') {
+        return true;
+      }
+    }
+    return false;
+  }, [propertySchema, isSchemaWithType, isPrimitive]);
+
   const hasChildren = useMemo(() => {
     if (isPrimitive) return false;
     
@@ -497,9 +526,9 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
       >
         <span 
           className="cursor-pointer"
-          onClick={() => hasChildren && setIsExpanded(!isExpanded)}
+          onClick={() => canHaveChildren && setIsExpanded(!isExpanded)}
         >
-          {hasChildren ? (
+          {canHaveChildren ? (
             isExpanded ? (
               <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
             ) : (
@@ -596,38 +625,40 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
         </div>
       </div>
       
-      {isExpanded && childProperties && (
+      {isExpanded && canHaveChildren && (
         <div className="border-l border-border/50 ml-4" style={{ marginLeft: `${depth * 16 + 20}px` }}>
-          <SortablePropertyList
-            items={Object.keys(childProperties)}
-            onReorder={(oldIndex, newIndex) => {
-              if (onReorderProperties) {
-                const basePath = Array.isArray(propertySchema) ? path : [...path, 'properties'];
-                onReorderProperties(basePath, oldIndex, newIndex);
-              }
-            }}
-          >
-            {Object.entries(childProperties).map(([propName, propSchema]) => (
-              <SortableItem key={propName} id={propName}>
-                <EditablePropertyNode
-                  name={propName}
-                  propertySchema={propSchema as any}
-                  path={[...path, propName]}
-                  definitions={definitions}
-                  depth={depth + 1}
-                  isArrayItem={Array.isArray(propertySchema)}
-                  parentIsArray={Array.isArray(propertySchema)}
-                  onPropertyChange={onPropertyChange}
-                  onPropertyRename={onPropertyRename}
-                  onAddProperty={onAddProperty}
-                  onDeleteProperty={onDeleteProperty}
-                  onDuplicateProperty={onDuplicateProperty}
-                  onAddArrayItem={onAddArrayItem}
-                  onReorderProperties={onReorderProperties}
-                />
-              </SortableItem>
-            ))}
-          </SortablePropertyList>
+          {childProperties && Object.keys(childProperties).length > 0 && (
+            <SortablePropertyList
+              items={Object.keys(childProperties)}
+              onReorder={(oldIndex, newIndex) => {
+                if (onReorderProperties) {
+                  const basePath = Array.isArray(propertySchema) ? path : [...path, 'properties'];
+                  onReorderProperties(basePath, oldIndex, newIndex);
+                }
+              }}
+            >
+              {Object.entries(childProperties).map(([propName, propSchema]) => (
+                <SortableItem key={propName} id={propName}>
+                  <EditablePropertyNode
+                    name={propName}
+                    propertySchema={propSchema as any}
+                    path={[...path, propName]}
+                    definitions={definitions}
+                    depth={depth + 1}
+                    isArrayItem={Array.isArray(propertySchema)}
+                    parentIsArray={Array.isArray(propertySchema)}
+                    onPropertyChange={onPropertyChange}
+                    onPropertyRename={onPropertyRename}
+                    onAddProperty={onAddProperty}
+                    onDeleteProperty={onDeleteProperty}
+                    onDuplicateProperty={onDuplicateProperty}
+                    onAddArrayItem={onAddArrayItem}
+                    onReorderProperties={onReorderProperties}
+                  />
+                </SortableItem>
+              ))}
+            </SortablePropertyList>
+          )}
           
           {!Array.isArray(propertySchema) && onAddProperty && (
             <div className="py-1 px-2" style={{ paddingLeft: `${(depth + 1) * 16 + 8}px` }}>
