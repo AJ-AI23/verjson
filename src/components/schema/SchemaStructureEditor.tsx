@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { ChevronRight, ChevronDown, Box, Link2, Hash, Type, List, ToggleLeft, FileText, Plus, Trash2, Pencil, Check, X } from 'lucide-react';
+import { ChevronRight, ChevronDown, Box, Link2, Hash, Type, List, ToggleLeft, FileText, Plus, Trash2, Pencil, Check, X, Copy } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
@@ -58,6 +58,7 @@ interface EditablePropertyNodeProps {
   onPropertyRename: (path: string[], oldName: string, newName: string) => void;
   onAddProperty?: (path: string[], name: string, schema: any) => void;
   onDeleteProperty?: (path: string[]) => void;
+  onDuplicateProperty?: (path: string[], name: string, schema: any) => void;
   onAddArrayItem?: (path: string[], item: any) => void;
   onReorderProperties?: (path: string[], oldIndex: number, newIndex: number) => void;
 }
@@ -334,6 +335,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
   onPropertyRename,
   onAddProperty,
   onDeleteProperty,
+  onDuplicateProperty,
   onAddArrayItem,
   onReorderProperties
 }) => {
@@ -471,6 +473,19 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
     }
   };
 
+  const handleDuplicate = () => {
+    if (onDuplicateProperty && !parentIsArray) {
+      // Get parent path (remove the property name from the path)
+      const parentPath = path.slice(0, -1);
+      // Generate a unique name by appending _copy suffix
+      const baseName = name.replace(/_copy\d*$/, '');
+      const newName = `${baseName}_copy`;
+      // Deep clone the schema
+      const clonedSchema = JSON.parse(JSON.stringify(propertySchema));
+      onDuplicateProperty(parentPath, newName, clonedSchema);
+    }
+  };
+
   return (
     <div className="select-none">
       <div 
@@ -555,6 +570,19 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
             </Button>
           )}
           
+          {/* Duplicate button - only for non-array items */}
+          {onDuplicateProperty && !parentIsArray && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+              onClick={(e) => { e.stopPropagation(); handleDuplicate(); }}
+              title="Duplicate property"
+            >
+              <Copy className="h-3 w-3" />
+            </Button>
+          )}
+          
           {onDeleteProperty && (
             <Button 
               variant="ghost" 
@@ -593,6 +621,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
                   onPropertyRename={onPropertyRename}
                   onAddProperty={onAddProperty}
                   onDeleteProperty={onDeleteProperty}
+                  onDuplicateProperty={onDuplicateProperty}
                   onAddArrayItem={onAddArrayItem}
                   onReorderProperties={onReorderProperties}
                 />
@@ -621,6 +650,7 @@ interface SectionTreeProps {
   onPropertyRename: (path: string[], oldName: string, newName: string) => void;
   onAddProperty: (path: string[], name: string, schema: any) => void;
   onDeleteProperty: (path: string[]) => void;
+  onDuplicateProperty: (path: string[], name: string, schema: any) => void;
   onAddArrayItem: (path: string[], item: any) => void;
   onReorderProperties: (path: string[], oldIndex: number, newIndex: number) => void;
 }
@@ -635,6 +665,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
   onPropertyRename,
   onAddProperty,
   onDeleteProperty,
+  onDuplicateProperty,
   onAddArrayItem,
   onReorderProperties
 }) => {
@@ -679,6 +710,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
                   onPropertyRename={onPropertyRename}
                   onAddProperty={onAddProperty}
                   onDeleteProperty={onDeleteProperty}
+                  onDuplicateProperty={onDuplicateProperty}
                   onAddArrayItem={onAddArrayItem}
                   onReorderProperties={onReorderProperties}
                 />
@@ -718,6 +750,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
                 onPropertyRename={onPropertyRename}
                 onAddProperty={onAddProperty}
                 onDeleteProperty={onDeleteProperty}
+                onDuplicateProperty={onDuplicateProperty}
                 onAddArrayItem={onAddArrayItem}
                 onReorderProperties={onReorderProperties}
               />
@@ -888,6 +921,27 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     onSchemaChange(newSchema);
   }, [schema, onSchemaChange]);
 
+  const handleDuplicateProperty = useCallback((path: string[], name: string, propSchema: any) => {
+    const newSchema = JSON.parse(JSON.stringify(schema));
+    
+    let current = newSchema;
+    for (const key of path) {
+      if (!current[key]) current[key] = {};
+      current = current[key];
+    }
+    
+    // Find a unique name
+    let finalName = name;
+    let counter = 1;
+    while (current[finalName] !== undefined) {
+      finalName = `${name.replace(/_copy\d*$/, '')}_copy${counter > 1 ? counter : ''}`;
+      counter++;
+    }
+    
+    current[finalName] = propSchema;
+    onSchemaChange(newSchema);
+  }, [schema, onSchemaChange]);
+
   // Build sections based on schema type
   const rootSections = useMemo(() => {
     const sections: { key: string; title: string; icon: React.ReactNode; data: any }[] = [];
@@ -994,6 +1048,7 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
             onPropertyRename={handlePropertyRename}
             onAddProperty={handleAddProperty}
             onDeleteProperty={handleDeleteProperty}
+            onDuplicateProperty={handleDuplicateProperty}
             onAddArrayItem={handleAddArrayItem}
             onReorderProperties={handleReorderProperties}
           />
