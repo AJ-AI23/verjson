@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { ChevronRight, ChevronDown, Box, Link2, Hash, Type, List, ToggleLeft, Calendar, FileText, Server, Info, Route, Shield, Tag, Pencil, Check, X, Plus, Trash2, ExternalLink, Loader2, Copy } from 'lucide-react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { ChevronRight, ChevronDown, Box, Link2, Hash, Type, List, ToggleLeft, Calendar, FileText, Server, Info, Route, Shield, Tag, Pencil, Check, X, Plus, Trash2, ExternalLink, Loader2, Copy, Undo2, Redo2 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,11 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { SortablePropertyList, SortableItem, reorderObjectProperties, reorderArrayItems } from '@/components/schema/SortablePropertyList';
 import { ImportSchemaComponentDialog } from './ImportSchemaComponentDialog';
 import { useDocumentRefResolver } from '@/hooks/useDocumentRefResolver';
-
+import { useSchemaHistory } from '@/hooks/useSchemaHistory';
 const OPENAPI_TYPES = [
   'string',
   'integer', 
@@ -851,13 +852,46 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
   schema,
   onSchemaChange
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  
   // Use the document ref resolver for sideloading referenced documents
   const { getAllResolvedSchemas, resolvedDocuments } = useDocumentRefResolver(schema);
+
+  // History for undo/redo
+  const { setSchema: setSchemaWithHistory, undo, redo, canUndo, canRedo } = useSchemaHistory(
+    schema,
+    onSchemaChange
+  );
 
   const allSchemas = useMemo(() => {
     // Merge original schemas with resolved document references
     return getAllResolvedSchemas();
   }, [getAllResolvedSchemas]);
+
+  // Global keyboard handler for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle if focus is within the container
+      if (!containerRef.current?.contains(document.activeElement) && 
+          document.activeElement !== containerRef.current) {
+        return;
+      }
+      
+      // Ctrl+Z for undo, Ctrl+Shift+Z for redo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        if (e.shiftKey) {
+          e.preventDefault();
+          redo();
+        } else {
+          e.preventDefault();
+          undo();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
 
   const handlePropertyChange = useCallback((path: string[], updates: { name?: string; schema?: any }) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -872,8 +906,8 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
       current[lastKey] = updates.schema;
     }
     
-    onSchemaChange(newSchema);
-  }, [schema, onSchemaChange]);
+    setSchemaWithHistory(newSchema);
+  }, [schema, setSchemaWithHistory]);
 
   const handlePropertyRename = useCallback((path: string[], oldName: string, newName: string) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -889,8 +923,8 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
       parent[newName] = value;
     }
     
-    onSchemaChange(newSchema);
-  }, [schema, onSchemaChange]);
+    setSchemaWithHistory(newSchema);
+  }, [schema, setSchemaWithHistory]);
 
   const handleAddProperty = useCallback((path: string[], name: string, propSchema: any) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -902,8 +936,8 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
     }
     
     current[name] = propSchema;
-    onSchemaChange(newSchema);
-  }, [schema, onSchemaChange]);
+    setSchemaWithHistory(newSchema);
+  }, [schema, setSchemaWithHistory]);
 
   const handleDeleteProperty = useCallback((path: string[]) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -920,8 +954,8 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
       delete parent[lastKey];
     }
     
-    onSchemaChange(newSchema);
-  }, [schema, onSchemaChange]);
+    setSchemaWithHistory(newSchema);
+  }, [schema, setSchemaWithHistory]);
 
   const handleAddArrayItem = useCallback((path: string[], item: any) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -935,8 +969,8 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
       current.push(item);
     }
     
-    onSchemaChange(newSchema);
-  }, [schema, onSchemaChange]);
+    setSchemaWithHistory(newSchema);
+  }, [schema, setSchemaWithHistory]);
 
   const handleReorderProperties = useCallback((path: string[], oldIndex: number, newIndex: number) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -960,7 +994,7 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
       const reordered = reorderObjectProperties(current, oldIndex, newIndex);
       // Replace object in parent
       if (path.length === 0) {
-        onSchemaChange({ ...newSchema, ...reordered });
+        setSchemaWithHistory({ ...newSchema, ...reordered });
         return;
       }
       let parent = newSchema;
@@ -970,8 +1004,8 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
       parent[path[path.length - 1]] = reordered;
     }
     
-    onSchemaChange(newSchema);
-  }, [schema, onSchemaChange]);
+    setSchemaWithHistory(newSchema);
+  }, [schema, setSchemaWithHistory]);
 
   const handleDuplicateProperty = useCallback((path: string[], name: string, propSchema: any) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -991,16 +1025,16 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
     }
     
     current[finalName] = propSchema;
-    onSchemaChange(newSchema);
-  }, [schema, onSchemaChange]);
+    setSchemaWithHistory(newSchema);
+  }, [schema, setSchemaWithHistory]);
 
   const handleAddComponent = useCallback((name: string, componentSchema: any) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
     if (!newSchema.components) newSchema.components = {};
     if (!newSchema.components.schemas) newSchema.components.schemas = {};
     newSchema.components.schemas[name] = componentSchema;
-    onSchemaChange(newSchema);
-  }, [schema, onSchemaChange]);
+    setSchemaWithHistory(newSchema);
+  }, [schema, setSchemaWithHistory]);
 
   const handleAddComponentByReference = useCallback((name: string, documentId: string, documentName: string) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -1012,8 +1046,8 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
       'x-document-name': documentName,
       'x-document-id': documentId
     };
-    onSchemaChange(newSchema);
-  }, [schema, onSchemaChange]);
+    setSchemaWithHistory(newSchema);
+  }, [schema, setSchemaWithHistory]);
 
   // Count how many times each component is referenced throughout the document
   const componentReferenceCounts = useMemo(() => {
@@ -1087,88 +1121,123 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
   }
 
   return (
-    <Tabs defaultValue="structure" className="h-full flex flex-col">
-      <TabsList className="w-full justify-start rounded-none border-b bg-transparent px-2">
-        <TabsTrigger value="structure" className="data-[state=active]:bg-muted">
-          Structure
-        </TabsTrigger>
-        <TabsTrigger value="components" className="data-[state=active]:bg-muted">
-          Components
-        </TabsTrigger>
-      </TabsList>
-      
-      <TabsContent value="structure" className="flex-1 mt-0 overflow-hidden">
-        <ScrollArea className="h-full">
-          <div className="space-y-3 p-4">
-            {rootSections.map((section) => (
-              <SectionTree
-                key={section.key}
-                title={section.title}
-                icon={section.icon}
-                data={section.data}
-                path={[section.key]}
-                allSchemas={allSchemas}
-                onPropertyChange={handlePropertyChange}
-                onPropertyRename={handlePropertyRename}
-                onAddProperty={handleAddProperty}
-                onDeleteProperty={handleDeleteProperty}
-                onDuplicateProperty={handleDuplicateProperty}
-                onAddArrayItem={handleAddArrayItem}
-                onReorderProperties={handleReorderProperties}
-              />
-            ))}
-            {rootSections.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Info className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                <p className="text-muted-foreground">No root sections found</p>
-              </div>
-            )}
+    <div ref={containerRef} className="h-full flex flex-col" tabIndex={-1}>
+      <Tabs defaultValue="structure" className="h-full flex flex-col">
+        {/* Undo/Redo toolbar + Tabs */}
+        <div className="flex items-center gap-1 border-b bg-muted/30">
+          <div className="flex items-center gap-1 px-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={undo}
+                  disabled={!canUndo}
+                >
+                  <Undo2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={redo}
+                  disabled={!canRedo}
+                >
+                  <Redo2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Redo (Ctrl+Shift+Z)</TooltipContent>
+            </Tooltip>
           </div>
-        </ScrollArea>
-      </TabsContent>
-      
-      <TabsContent value="components" className="flex-1 mt-0 overflow-hidden">
-        <ScrollArea className="h-full">
-          <div className="space-y-3 p-4">
-            {/* Add new component and import buttons */}
-            <div className="flex justify-end gap-2">
-              <ImportSchemaComponentDialog 
-                onImport={handleAddComponent}
-                onImportByReference={handleAddComponentByReference}
-                existingComponentNames={Object.keys(allSchemas)}
-              />
-              <AddComponentButton onAdd={handleAddComponent} />
-            </div>
-            
-            {components.length > 0 ? (
-              components.map((component) => (
-                <div key={component.name} className="border rounded-lg overflow-hidden">
-                  <ComponentTreeEditable
-                    component={component}
-                    allSchemas={allSchemas}
-                    basePath={['components', 'schemas', component.name]}
-                    onPropertyChange={handlePropertyChange}
-                    onPropertyRename={handlePropertyRename}
-                    onAddProperty={handleAddProperty}
-                    onDeleteProperty={handleDeleteProperty}
-                    onAddArrayItem={handleAddArrayItem}
-                    onReorderProperties={handleReorderProperties}
-                  />
+          <TabsList className="justify-start rounded-none bg-transparent">
+            <TabsTrigger value="structure" className="data-[state=active]:bg-muted">
+              Structure
+            </TabsTrigger>
+            <TabsTrigger value="components" className="data-[state=active]:bg-muted">
+              Components
+            </TabsTrigger>
+          </TabsList>
+        </div>
+        
+        <TabsContent value="structure" className="flex-1 mt-0 overflow-hidden">
+          <ScrollArea className="h-full">
+            <div className="space-y-3 p-4">
+              {rootSections.map((section) => (
+                <SectionTree
+                  key={section.key}
+                  title={section.title}
+                  icon={section.icon}
+                  data={section.data}
+                  path={[section.key]}
+                  allSchemas={allSchemas}
+                  onPropertyChange={handlePropertyChange}
+                  onPropertyRename={handlePropertyRename}
+                  onAddProperty={handleAddProperty}
+                  onDeleteProperty={handleDeleteProperty}
+                  onDuplicateProperty={handleDuplicateProperty}
+                  onAddArrayItem={handleAddArrayItem}
+                  onReorderProperties={handleReorderProperties}
+                />
+              ))}
+              {rootSections.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Info className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <p className="text-muted-foreground">No root sections found</p>
                 </div>
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Box className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                <p className="text-muted-foreground">No components found</p>
-                <p className="text-sm text-muted-foreground/70">
-                  Click "Add Component" to create a new schema
-                </p>
+              )}
+            </div>
+          </ScrollArea>
+        </TabsContent>
+        
+        <TabsContent value="components" className="flex-1 mt-0 overflow-hidden">
+          <ScrollArea className="h-full">
+            <div className="space-y-3 p-4">
+              {/* Add new component and import buttons */}
+              <div className="flex justify-end gap-2">
+                <ImportSchemaComponentDialog 
+                  onImport={handleAddComponent}
+                  onImportByReference={handleAddComponentByReference}
+                  existingComponentNames={Object.keys(allSchemas)}
+                />
+                <AddComponentButton onAdd={handleAddComponent} />
               </div>
-            )}
-          </div>
-        </ScrollArea>
-      </TabsContent>
-    </Tabs>
+              
+              {components.length > 0 ? (
+                components.map((component) => (
+                  <div key={component.name} className="border rounded-lg overflow-hidden">
+                    <ComponentTreeEditable
+                      component={component}
+                      allSchemas={allSchemas}
+                      basePath={['components', 'schemas', component.name]}
+                      onPropertyChange={handlePropertyChange}
+                      onPropertyRename={handlePropertyRename}
+                      onAddProperty={handleAddProperty}
+                      onDeleteProperty={handleDeleteProperty}
+                      onAddArrayItem={handleAddArrayItem}
+                      onReorderProperties={handleReorderProperties}
+                    />
+                  </div>
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Box className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <p className="text-muted-foreground">No components found</p>
+                  <p className="text-sm text-muted-foreground/70">
+                    Click "Add Component" to create a new schema
+                  </p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 
