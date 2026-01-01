@@ -515,14 +515,36 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Ctrl+D to duplicate
+    if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+      e.preventDefault();
+      if (onDuplicateProperty && !parentIsArray) {
+        handleDuplicate();
+      }
+    }
+    // Delete key to remove
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      // Only trigger if not in an input field
+      if ((e.target as HTMLElement).tagName !== 'INPUT') {
+        e.preventDefault();
+        if (onDeleteProperty) {
+          onDeleteProperty(path);
+        }
+      }
+    }
+  };
+
   return (
     <div className="select-none">
       <div 
         className={cn(
-          "flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors group",
+          "flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors group focus:outline-none focus:ring-1 focus:ring-ring",
           depth > 0 && "ml-4"
         )}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
       >
         <span 
           className="cursor-pointer"
