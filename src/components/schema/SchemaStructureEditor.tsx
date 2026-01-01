@@ -1,14 +1,15 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { ChevronRight, ChevronDown, Box, Link2, Hash, Type, List, ToggleLeft, FileText, Plus, Trash2, Pencil, Check, X, Copy } from 'lucide-react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { ChevronRight, ChevronDown, Box, Link2, Hash, Type, List, ToggleLeft, FileText, Plus, Trash2, Pencil, Check, X, Copy, Undo2, Redo2 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { SortablePropertyList, SortableItem, reorderObjectProperties, reorderArrayItems } from './SortablePropertyList';
-
+import { useSchemaHistory } from '@/hooks/useSchemaHistory';
 const JSON_SCHEMA_TYPES = [
   'string',
   'integer', 
@@ -851,6 +852,14 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
   onSchemaChange,
   schemaType
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // History for undo/redo
+  const { setSchema: setSchemaWithHistory, undo, redo, canUndo, canRedo } = useSchemaHistory(
+    schema,
+    onSchemaChange
+  );
+
   // Get definitions based on schema type
   const definitions = useMemo(() => {
     if (schemaType === 'json-schema') {
@@ -858,6 +867,31 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     }
     return {};
   }, [schema, schemaType]);
+
+  // Global keyboard handler for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle if focus is within the container
+      if (!containerRef.current?.contains(document.activeElement) && 
+          document.activeElement !== containerRef.current) {
+        return;
+      }
+      
+      // Ctrl+Z for undo, Ctrl+Shift+Z for redo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        if (e.shiftKey) {
+          e.preventDefault();
+          redo();
+        } else {
+          e.preventDefault();
+          undo();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
 
   const handlePropertyChange = useCallback((path: string[], updates: { name?: string; schema?: any }) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -872,8 +906,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
       current[lastKey] = updates.schema;
     }
     
-    onSchemaChange(newSchema);
-  }, [schema, onSchemaChange]);
+    setSchemaWithHistory(newSchema);
+  }, [schema, setSchemaWithHistory]);
 
   const handlePropertyRename = useCallback((path: string[], oldName: string, newName: string) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -889,8 +923,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
       parent[newName] = value;
     }
     
-    onSchemaChange(newSchema);
-  }, [schema, onSchemaChange]);
+    setSchemaWithHistory(newSchema);
+  }, [schema, setSchemaWithHistory]);
 
   const handleAddProperty = useCallback((path: string[], name: string, propSchema: any) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -902,8 +936,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     }
     
     current[name] = propSchema;
-    onSchemaChange(newSchema);
-  }, [schema, onSchemaChange]);
+    setSchemaWithHistory(newSchema);
+  }, [schema, setSchemaWithHistory]);
 
   const handleDeleteProperty = useCallback((path: string[]) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -920,8 +954,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
       delete parent[lastKey];
     }
     
-    onSchemaChange(newSchema);
-  }, [schema, onSchemaChange]);
+    setSchemaWithHistory(newSchema);
+  }, [schema, setSchemaWithHistory]);
 
   const handleAddArrayItem = useCallback((path: string[], item: any) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -935,8 +969,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
       current.push(item);
     }
     
-    onSchemaChange(newSchema);
-  }, [schema, onSchemaChange]);
+    setSchemaWithHistory(newSchema);
+  }, [schema, setSchemaWithHistory]);
 
   const handleReorderProperties = useCallback((path: string[], oldIndex: number, newIndex: number) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -961,7 +995,7 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
       // Replace object in parent
       if (path.length === 0) {
         // If at root, handle specially
-        onSchemaChange({ ...newSchema, ...reordered });
+        setSchemaWithHistory({ ...newSchema, ...reordered });
         return;
       }
       let parent = newSchema;
@@ -971,8 +1005,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
       parent[path[path.length - 1]] = reordered;
     }
     
-    onSchemaChange(newSchema);
-  }, [schema, onSchemaChange]);
+    setSchemaWithHistory(newSchema);
+  }, [schema, setSchemaWithHistory]);
 
   const handleDuplicateProperty = useCallback((path: string[], name: string, propSchema: any) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -992,8 +1026,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     }
     
     current[finalName] = propSchema;
-    onSchemaChange(newSchema);
-  }, [schema, onSchemaChange]);
+    setSchemaWithHistory(newSchema);
+  }, [schema, setSchemaWithHistory]);
 
   // Build sections based on schema type
   const rootSections = useMemo(() => {
@@ -1065,58 +1099,92 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
   }
 
   return (
-    <ScrollArea className="h-full">
-      <div className="space-y-3 p-4">
-        {/* Metadata section */}
-        {metadataFields.length > 0 && (
-          <div className="border rounded-lg overflow-hidden">
-            <div className="flex items-center gap-3 p-3 bg-muted/30 border-b">
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              <span className="font-semibold text-sm">Metadata</span>
-            </div>
-            <div className="p-3 bg-background space-y-2">
-              {metadataFields.map(({ key, value }) => (
-                <div key={key} className="flex items-center gap-2 text-sm">
-                  <span className="font-medium text-muted-foreground w-24">{key}:</span>
-                  <EditableValue 
-                    value={value} 
-                    onValueChange={(v) => handlePropertyChange([key], { schema: v })} 
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        
-        {/* Main sections */}
-        {rootSections.map((section) => (
-          <SectionTree
-            key={section.key}
-            title={section.title}
-            icon={section.icon}
-            data={section.data}
-            path={[section.key]}
-            definitions={definitions}
-            onPropertyChange={handlePropertyChange}
-            onPropertyRename={handlePropertyRename}
-            onAddProperty={handleAddProperty}
-            onDeleteProperty={handleDeleteProperty}
-            onDuplicateProperty={handleDuplicateProperty}
-            onAddArrayItem={handleAddArrayItem}
-            onReorderProperties={handleReorderProperties}
-          />
-        ))}
-        
-        {rootSections.length === 0 && metadataFields.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
-            <p className="text-muted-foreground">No structure found</p>
-            <p className="text-sm text-muted-foreground/70">
-              This schema doesn't have recognized sections
-            </p>
-          </div>
-        )}
+    <div ref={containerRef} className="h-full flex flex-col" tabIndex={-1}>
+      {/* Undo/Redo toolbar */}
+      <div className="flex items-center gap-1 p-2 border-b bg-muted/30">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={undo}
+              disabled={!canUndo}
+            >
+              <Undo2 className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={redo}
+              disabled={!canRedo}
+            >
+              <Redo2 className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Redo (Ctrl+Shift+Z)</TooltipContent>
+        </Tooltip>
       </div>
-    </ScrollArea>
+      
+      <ScrollArea className="flex-1">
+        <div className="space-y-3 p-4">
+          {/* Metadata section */}
+          {metadataFields.length > 0 && (
+            <div className="border rounded-lg overflow-hidden">
+              <div className="flex items-center gap-3 p-3 bg-muted/30 border-b">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <span className="font-semibold text-sm">Metadata</span>
+              </div>
+              <div className="p-3 bg-background space-y-2">
+                {metadataFields.map(({ key, value }) => (
+                  <div key={key} className="flex items-center gap-2 text-sm">
+                    <span className="font-medium text-muted-foreground w-24">{key}:</span>
+                    <EditableValue 
+                      value={value} 
+                      onValueChange={(v) => handlePropertyChange([key], { schema: v })} 
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Main sections */}
+          {rootSections.map((section) => (
+            <SectionTree
+              key={section.key}
+              title={section.title}
+              icon={section.icon}
+              data={section.data}
+              path={[section.key]}
+              definitions={definitions}
+              onPropertyChange={handlePropertyChange}
+              onPropertyRename={handlePropertyRename}
+              onAddProperty={handleAddProperty}
+              onDeleteProperty={handleDeleteProperty}
+              onDuplicateProperty={handleDuplicateProperty}
+              onAddArrayItem={handleAddArrayItem}
+              onReorderProperties={handleReorderProperties}
+            />
+          ))}
+          
+          {rootSections.length === 0 && metadataFields.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
+              <p className="text-muted-foreground">No structure found</p>
+              <p className="text-sm text-muted-foreground/70">
+                This schema doesn't have recognized sections
+              </p>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
   );
 };
