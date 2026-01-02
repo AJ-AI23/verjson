@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { ChevronRight, ChevronDown, Box, Link2, Hash, Type, List, ToggleLeft, FileText, Plus, Trash2, Pencil, Check, X, Copy, Undo2, Redo2 } from 'lucide-react';
+import { ChevronRight, ChevronDown, Box, Link2, Hash, Type, List, ToggleLeft, FileText, Plus, Trash2, Pencil, Check, X, Copy, Undo2, Redo2, Scissors, Clipboard } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { SortablePropertyList, SortableItem, reorderObjectProperties, reorderArrayItems } from './SortablePropertyList';
 import { useSchemaHistory } from '@/hooks/useSchemaHistory';
+import { usePropertyClipboard } from '@/hooks/usePropertyClipboard';
 const JSON_SCHEMA_TYPES = [
   'string',
   'integer', 
@@ -62,6 +63,10 @@ interface EditablePropertyNodeProps {
   onDuplicateProperty?: (path: string[], name: string, schema: any) => void;
   onAddArrayItem?: (path: string[], item: any) => void;
   onReorderProperties?: (path: string[], oldIndex: number, newIndex: number) => void;
+  onCopy?: (name: string, schema: any, path: string[]) => void;
+  onCut?: (name: string, schema: any, path: string[]) => void;
+  onPaste?: (path: string[]) => void;
+  hasClipboard?: boolean;
 }
 
 const getTypeIcon = (schema: any) => {
@@ -338,7 +343,11 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
   onDeleteProperty,
   onDuplicateProperty,
   onAddArrayItem,
-  onReorderProperties
+  onReorderProperties,
+  onCopy,
+  onCut,
+  onPaste,
+  hasClipboard
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -516,7 +525,32 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
     }
   };
 
+  const handleCopy = () => {
+    if (onCopy && !parentIsArray) {
+      onCopy(name, propertySchema, path);
+    }
+  };
+
+  const handleCut = () => {
+    if (onCut && !parentIsArray) {
+      onCut(name, propertySchema, path);
+    }
+  };
+
+  const handlePaste = () => {
+    if (onPaste && canHaveChildren) {
+      // Paste into this node's properties
+      const pastePath = propertySchema?.type === 'object' || (!isPrimitive && !isSchemaWithType) 
+        ? [...path, 'properties'] 
+        : path;
+      onPaste(pastePath);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Only trigger if not in an input field
+    if ((e.target as HTMLElement).tagName === 'INPUT') return;
+
     // Ctrl+D to duplicate
     if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
       e.preventDefault();
@@ -524,14 +558,26 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
         handleDuplicate();
       }
     }
+    // Ctrl+C to copy
+    if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+      e.preventDefault();
+      handleCopy();
+    }
+    // Ctrl+X to cut
+    if ((e.ctrlKey || e.metaKey) && e.key === 'x') {
+      e.preventDefault();
+      handleCut();
+    }
+    // Ctrl+V to paste
+    if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+      e.preventDefault();
+      handlePaste();
+    }
     // Delete key to remove
     if (e.key === 'Delete' || e.key === 'Backspace') {
-      // Only trigger if not in an input field
-      if ((e.target as HTMLElement).tagName !== 'INPUT') {
-        e.preventDefault();
-        if (onDeleteProperty) {
-          onDeleteProperty(path);
-        }
+      e.preventDefault();
+      if (onDeleteProperty) {
+        onDeleteProperty(path);
       }
     }
   };
@@ -622,17 +668,55 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
             </Button>
           )}
           
-          {/* Duplicate button - only for non-array items */}
-          {onDuplicateProperty && !parentIsArray && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
-              onClick={(e) => { e.stopPropagation(); handleDuplicate(); }}
-              title="Duplicate property"
-            >
-              <Copy className="h-3 w-3" />
-            </Button>
+          {/* Copy button - only for non-array items */}
+          {onCopy && !parentIsArray && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+                  onClick={(e) => { e.stopPropagation(); handleCopy(); }}
+                >
+                  <Copy className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Copy (Ctrl+C)</TooltipContent>
+            </Tooltip>
+          )}
+          
+          {/* Cut button - only for non-array items */}
+          {onCut && !parentIsArray && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+                  onClick={(e) => { e.stopPropagation(); handleCut(); }}
+                >
+                  <Scissors className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Cut (Ctrl+X)</TooltipContent>
+            </Tooltip>
+          )}
+          
+          {/* Paste button - only for expandable items with clipboard */}
+          {onPaste && canHaveChildren && hasClipboard && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+                  onClick={(e) => { e.stopPropagation(); handlePaste(); }}
+                >
+                  <Clipboard className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Paste (Ctrl+V)</TooltipContent>
+            </Tooltip>
           )}
           
           {onDeleteProperty && (
@@ -677,6 +761,10 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
                     onDuplicateProperty={onDuplicateProperty}
                     onAddArrayItem={onAddArrayItem}
                     onReorderProperties={onReorderProperties}
+                    onCopy={onCopy}
+                    onCut={onCut}
+                    onPaste={onPaste}
+                    hasClipboard={hasClipboard}
                   />
                 </SortableItem>
               ))}
@@ -707,6 +795,10 @@ interface SectionTreeProps {
   onDuplicateProperty: (path: string[], name: string, schema: any) => void;
   onAddArrayItem: (path: string[], item: any) => void;
   onReorderProperties: (path: string[], oldIndex: number, newIndex: number) => void;
+  onCopy: (name: string, schema: any, path: string[]) => void;
+  onCut: (name: string, schema: any, path: string[]) => void;
+  onPaste: (path: string[]) => void;
+  hasClipboard: boolean;
 }
 
 const SectionTree: React.FC<SectionTreeProps> = ({ 
@@ -721,7 +813,11 @@ const SectionTree: React.FC<SectionTreeProps> = ({
   onDeleteProperty,
   onDuplicateProperty,
   onAddArrayItem,
-  onReorderProperties
+  onReorderProperties,
+  onCopy,
+  onCut,
+  onPaste,
+  hasClipboard
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const availableRefs = useMemo(() => Object.keys(definitions), [definitions]);
@@ -767,6 +863,10 @@ const SectionTree: React.FC<SectionTreeProps> = ({
                   onDuplicateProperty={onDuplicateProperty}
                   onAddArrayItem={onAddArrayItem}
                   onReorderProperties={onReorderProperties}
+                  onCopy={onCopy}
+                  onCut={onCut}
+                  onPaste={onPaste}
+                  hasClipboard={hasClipboard}
                 />
               </SortableItem>
             ))}
@@ -807,6 +907,10 @@ const SectionTree: React.FC<SectionTreeProps> = ({
                 onDuplicateProperty={onDuplicateProperty}
                 onAddArrayItem={onAddArrayItem}
                 onReorderProperties={onReorderProperties}
+                onCopy={onCopy}
+                onCut={onCut}
+                onPaste={onPaste}
+                hasClipboard={hasClipboard}
               />
             </SortableItem>
           ))}
@@ -859,6 +963,9 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     schema,
     onSchemaChange
   );
+
+  // Clipboard for cut/copy/paste
+  const { copy, cut, paste, hasClipboard } = usePropertyClipboard();
 
   // Get definitions based on schema type
   const definitions = useMemo(() => {
@@ -1029,6 +1136,47 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     setSchemaWithHistory(newSchema);
   }, [schema, setSchemaWithHistory]);
 
+  // Handle paste - adds clipboard content to specified path
+  const handlePaste = useCallback((path: string[]) => {
+    const clipboardItem = paste();
+    if (!clipboardItem) return;
+
+    const newSchema = JSON.parse(JSON.stringify(schema));
+    
+    // Navigate to the target path
+    let current = newSchema;
+    for (const key of path) {
+      if (!current[key]) current[key] = {};
+      current = current[key];
+    }
+    
+    // Find a unique name
+    let finalName = clipboardItem.name;
+    let counter = 1;
+    while (current[finalName] !== undefined) {
+      finalName = `${clipboardItem.name.replace(/_copy\d*$/, '')}_copy${counter > 1 ? counter : ''}`;
+      counter++;
+    }
+    
+    current[finalName] = clipboardItem.schema;
+    
+    // If it was a cut operation, delete the source
+    if (clipboardItem.isCut) {
+      let parent = newSchema;
+      for (let i = 0; i < clipboardItem.sourcePath.length - 1; i++) {
+        parent = parent[clipboardItem.sourcePath[i]];
+      }
+      const sourceKey = clipboardItem.sourcePath[clipboardItem.sourcePath.length - 1];
+      if (Array.isArray(parent)) {
+        parent.splice(parseInt(sourceKey), 1);
+      } else if (parent && typeof parent === 'object') {
+        delete parent[sourceKey];
+      }
+    }
+    
+    setSchemaWithHistory(newSchema);
+  }, [schema, paste, setSchemaWithHistory]);
+
   // Build sections based on schema type
   const rootSections = useMemo(() => {
     const sections: { key: string; title: string; icon: React.ReactNode; data: any }[] = [];
@@ -1171,6 +1319,10 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
               onDuplicateProperty={handleDuplicateProperty}
               onAddArrayItem={handleAddArrayItem}
               onReorderProperties={handleReorderProperties}
+              onCopy={copy}
+              onCut={cut}
+              onPaste={handlePaste}
+              hasClipboard={hasClipboard}
             />
           ))}
           
