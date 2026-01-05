@@ -10,7 +10,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { SortablePropertyList, SortableItem, reorderObjectProperties, reorderArrayItems } from './SortablePropertyList';
 import { useSchemaHistory } from '@/hooks/useSchemaHistory';
-import { usePropertyClipboard } from '@/hooks/usePropertyClipboard';
+import { usePropertyClipboard, ClipboardItem } from '@/hooks/usePropertyClipboard';
+import { ClipboardHistoryPopover } from './ClipboardHistoryPopover';
 const JSON_SCHEMA_TYPES = [
   'string',
   'integer', 
@@ -65,7 +66,11 @@ interface EditablePropertyNodeProps {
   onReorderProperties?: (path: string[], oldIndex: number, newIndex: number) => void;
   onCopy?: (name: string, schema: any, path: string[]) => void;
   onCut?: (name: string, schema: any, path: string[]) => void;
-  onPaste?: (path: string[]) => void;
+  onPaste?: (path: string[], selectedItem?: ClipboardItem) => void;
+  clipboard?: ClipboardItem | null;
+  clipboardHistory?: ClipboardItem[];
+  onSelectFromHistory?: (item: ClipboardItem) => void;
+  onClearHistory?: () => void;
   hasClipboard?: boolean;
 }
 
@@ -347,6 +352,10 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
   onCopy,
   onCut,
   onPaste,
+  clipboard,
+  clipboardHistory,
+  onSelectFromHistory,
+  onClearHistory,
   hasClipboard
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -537,13 +546,13 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
     }
   };
 
-  const handlePaste = () => {
+  const handlePaste = (selectedItem?: ClipboardItem) => {
     if (onPaste && canHaveChildren) {
       // Paste into this node's properties
       const pastePath = propertySchema?.type === 'object' || (!isPrimitive && !isSchemaWithType) 
         ? [...path, 'properties'] 
         : path;
-      onPaste(pastePath);
+      onPaste(pastePath, selectedItem);
     }
   };
 
@@ -703,20 +712,23 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
           )}
           
           {/* Paste button - only for expandable items with clipboard */}
-          {onPaste && canHaveChildren && hasClipboard && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
-                  onClick={(e) => { e.stopPropagation(); handlePaste(); }}
-                >
-                  <Clipboard className="h-3 w-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Paste (Ctrl+V)</TooltipContent>
-            </Tooltip>
+          {onPaste && canHaveChildren && hasClipboard && clipboard && clipboardHistory && onSelectFromHistory && onClearHistory && (
+            <ClipboardHistoryPopover
+              clipboard={clipboard}
+              history={clipboardHistory}
+              onPaste={handlePaste}
+              onSelectFromHistory={onSelectFromHistory}
+              onClearHistory={onClearHistory}
+            >
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Clipboard className="h-3 w-3" />
+              </Button>
+            </ClipboardHistoryPopover>
           )}
           
           {onDeleteProperty && (
@@ -764,6 +776,10 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
                     onCopy={onCopy}
                     onCut={onCut}
                     onPaste={onPaste}
+                    clipboard={clipboard}
+                    clipboardHistory={clipboardHistory}
+                    onSelectFromHistory={onSelectFromHistory}
+                    onClearHistory={onClearHistory}
                     hasClipboard={hasClipboard}
                   />
                 </SortableItem>
@@ -797,7 +813,11 @@ interface SectionTreeProps {
   onReorderProperties: (path: string[], oldIndex: number, newIndex: number) => void;
   onCopy: (name: string, schema: any, path: string[]) => void;
   onCut: (name: string, schema: any, path: string[]) => void;
-  onPaste: (path: string[]) => void;
+  onPaste: (path: string[], selectedItem?: ClipboardItem) => void;
+  clipboard: ClipboardItem | null;
+  clipboardHistory: ClipboardItem[];
+  onSelectFromHistory: (item: ClipboardItem) => void;
+  onClearHistory: () => void;
   hasClipboard: boolean;
 }
 
@@ -817,6 +837,10 @@ const SectionTree: React.FC<SectionTreeProps> = ({
   onCopy,
   onCut,
   onPaste,
+  clipboard,
+  clipboardHistory,
+  onSelectFromHistory,
+  onClearHistory,
   hasClipboard
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -864,10 +888,14 @@ const SectionTree: React.FC<SectionTreeProps> = ({
                   onAddArrayItem={onAddArrayItem}
                   onReorderProperties={onReorderProperties}
                   onCopy={onCopy}
-                  onCut={onCut}
-                  onPaste={onPaste}
-                  hasClipboard={hasClipboard}
-                />
+                    onCut={onCut}
+                    onPaste={onPaste}
+                    clipboard={clipboard}
+                    clipboardHistory={clipboardHistory}
+                    onSelectFromHistory={onSelectFromHistory}
+                    onClearHistory={onClearHistory}
+                    hasClipboard={hasClipboard}
+                  />
               </SortableItem>
             ))}
           </SortablePropertyList>
@@ -910,6 +938,10 @@ const SectionTree: React.FC<SectionTreeProps> = ({
                 onCopy={onCopy}
                 onCut={onCut}
                 onPaste={onPaste}
+                clipboard={clipboard}
+                clipboardHistory={clipboardHistory}
+                onSelectFromHistory={onSelectFromHistory}
+                onClearHistory={onClearHistory}
                 hasClipboard={hasClipboard}
               />
             </SortableItem>
@@ -965,7 +997,7 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
   );
 
   // Clipboard for cut/copy/paste
-  const { copy, cut, paste, hasClipboard } = usePropertyClipboard();
+  const { clipboard, history: clipboardHistory, copy, cut, paste, selectFromHistory, hasClipboard, clearHistory } = usePropertyClipboard();
 
   // Get definitions based on schema type
   const definitions = useMemo(() => {
@@ -1137,8 +1169,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
   }, [schema, setSchemaWithHistory]);
 
   // Handle paste - adds clipboard content to specified path
-  const handlePaste = useCallback((path: string[]) => {
-    const clipboardItem = paste();
+  const handlePaste = useCallback((path: string[], selectedItem?: ClipboardItem) => {
+    const clipboardItem = paste(selectedItem);
     if (!clipboardItem) return;
 
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -1322,6 +1354,10 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
               onCopy={copy}
               onCut={cut}
               onPaste={handlePaste}
+              clipboard={clipboard}
+              clipboardHistory={clipboardHistory}
+              onSelectFromHistory={selectFromHistory}
+              onClearHistory={clearHistory}
               hasClipboard={hasClipboard}
             />
           ))}
