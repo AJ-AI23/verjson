@@ -153,15 +153,17 @@ export function useStructureSearch({ schema, containerRef }: UseStructureSearchO
   const scrollToMatch = useCallback((matchPath: string[]) => {
     if (!containerRef.current) return;
     
-    // Use a single rAF for faster response
+    // Need delay to let DOM update after expansion
     requestAnimationFrame(() => {
-      const pathId = matchPath.join('.');
-      const element = containerRef.current?.querySelector(`[data-search-path="${pathId}"]`);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        element.classList.add('search-highlight');
-        setTimeout(() => element.classList.remove('search-highlight'), 2000);
-      }
+      setTimeout(() => {
+        const pathId = matchPath.join('.');
+        const element = containerRef.current?.querySelector(`[data-search-path="${pathId}"]`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          element.classList.add('search-highlight');
+          setTimeout(() => element.classList.remove('search-highlight'), 2000);
+        }
+      }, 50);
     });
   }, [containerRef]);
 
