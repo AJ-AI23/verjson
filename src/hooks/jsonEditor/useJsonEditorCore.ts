@@ -105,7 +105,7 @@ export const useJsonEditor = ({
   });
 
   // Use our sync hook
-  useJsonEditorSync({ 
+  const { lastPushedValueRef } = useJsonEditorSync({ 
     editorRef, isInternalChange, previousValueRef, value, onChange 
   });
 
@@ -135,6 +135,10 @@ export const useJsonEditor = ({
         } catch {
           const json = editor.get();
           nextValue = JSON.stringify(json, null, 2);
+        }
+        // Ignore echo of the value we just pushed programmatically
+        if (lastPushedValueRef.current !== null && nextValue === lastPushedValueRef.current) {
+          return;
         }
         // Avoid redundant updates
         if (nextValue !== previousValueRef.current) {
