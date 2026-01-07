@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { ChevronRight, ChevronDown, Box, Link2, Hash, Type, List, ToggleLeft, Calendar, FileText, Server, Info, Route, Shield, Tag, Pencil, Check, X, Plus, Trash2, ExternalLink, Loader2, Copy, Undo2, Redo2, Scissors, Clipboard } from 'lucide-react';
+import { ChevronRight, ChevronDown, Box, Link2, Hash, Type, List, ToggleLeft, Calendar, FileText, Server, Info, Route, Shield, Tag, Pencil, Check, X, Plus, Trash2, ExternalLink, Loader2, Copy, Scissors, Clipboard } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 import { SortablePropertyList, SortableItem, reorderObjectProperties, reorderArrayItems } from '@/components/schema/SortablePropertyList';
 import { ImportSchemaComponentDialog } from './ImportSchemaComponentDialog';
 import { useDocumentRefResolver } from '@/hooks/useDocumentRefResolver';
-import { useSchemaHistory } from '@/hooks/useSchemaHistory';
 import { usePropertyClipboard, ClipboardItem } from '@/hooks/usePropertyClipboard';
 import { ClipboardHistoryPopover } from '@/components/schema/ClipboardHistoryPopover';
 import { RefTargetConfirmDialog, RefTargetInfo } from './RefTargetConfirmDialog';
@@ -1132,11 +1131,10 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
   // Use the document ref resolver for sideloading referenced documents
   const { getAllResolvedSchemas, resolvedDocuments } = useDocumentRefResolver(schema);
 
-  // History for undo/redo
-  const { setSchema: setSchemaWithHistory, undo, redo, canUndo, canRedo } = useSchemaHistory(
-    schema,
-    onSchemaChange
-  );
+  // History is handled by the parent editor (shared with JSON editor).
+  const setSchemaWithHistory = useCallback((nextSchema: any) => {
+    onSchemaChange(nextSchema);
+  }, [onSchemaChange]);
 
   // Clipboard for cut/copy/paste
   const { clipboard, history: clipboardHistory, copy, cut, paste, selectFromHistory, hasClipboard, clearHistory, clearClipboard } = usePropertyClipboard();
@@ -1229,30 +1227,6 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
     return { resolvedPath, targetComponentName: null };
   }, [schema]);
 
-  // Global keyboard handler for undo/redo
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle if focus is within the container
-      if (!containerRef.current?.contains(document.activeElement) && 
-          document.activeElement !== containerRef.current) {
-        return;
-      }
-      
-      // Ctrl+Z for undo, Ctrl+Shift+Z for redo
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-        if (e.shiftKey) {
-          e.preventDefault();
-          redo();
-        } else {
-          e.preventDefault();
-          undo();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo]);
 
   const handlePropertyChange = useCallback((path: string[], updates: { name?: string; schema?: any }) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -1587,38 +1561,7 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
   return (
     <div ref={containerRef} className="h-full flex flex-col" tabIndex={-1}>
       <Tabs defaultValue="structure" className="h-full flex flex-col">
-        {/* Undo/Redo toolbar + Tabs */}
         <div className="flex items-center gap-1 border-b bg-muted/30">
-          <div className="flex items-center gap-1 px-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0"
-                  onClick={undo}
-                  disabled={!canUndo}
-                >
-                  <Undo2 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0"
-                  onClick={redo}
-                  disabled={!canRedo}
-                >
-                  <Redo2 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Redo (Ctrl+Shift+Z)</TooltipContent>
-            </Tooltip>
-          </div>
           <TabsList className="justify-start rounded-none bg-transparent">
             <TabsTrigger value="structure" className="data-[state=active]:bg-muted">
               Structure
