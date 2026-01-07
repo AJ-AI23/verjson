@@ -136,8 +136,8 @@ export function useStructureSearch({ schema, containerRef }: UseStructureSearchO
     const paths = new Set<string>();
     const currentMatch = matches[currentMatchIndex];
     
-    // Include the root container path (first element) and all ancestors
-    // Start from i=1 to include root, up to and including the full path
+    // Include all ancestor paths from root to the full path
+    // This ensures all parent containers are expanded
     for (let i = 1; i <= currentMatch.path.length; i++) {
       paths.add(currentMatch.path.slice(0, i).join('.'));
     }
@@ -146,6 +146,15 @@ export function useStructureSearch({ schema, containerRef }: UseStructureSearchO
     if (currentMatch.path.length > 0) {
       paths.add('root');
       paths.add(`root.${currentMatch.path[0]}`);
+    }
+    
+    // For component paths (e.g., components.schemas.ComponentName.properties.field),
+    // ensure the component container path is included
+    if (currentMatch.path.length >= 3 && 
+        currentMatch.path[0] === 'components' && 
+        currentMatch.path[1] === 'schemas') {
+      // Add the component container path: components.schemas.ComponentName
+      paths.add(currentMatch.path.slice(0, 3).join('.'));
     }
     
     return paths;
