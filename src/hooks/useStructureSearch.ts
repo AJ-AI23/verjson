@@ -12,34 +12,60 @@ interface UseStructureSearchOptions {
   onExpandPath?: (path: string[]) => void;
 }
 
+// Debounce hook for search
+function useDebouncedValue<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 export function useStructureSearch({ schema, containerRef }: UseStructureSearchOptions) {
   const [searchQuery, setSearchQuery] = useState('');
   const [matches, setMatches] = useState<SearchMatch[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
+  
+  // Debounce search query to avoid running search on every keystroke
+  const debouncedQuery = useDebouncedValue(searchQuery, 200);
 
-  // Find all matches in the schema
-  const findMatches = useCallback((query: string, obj: any, currentPath: string[] = []): SearchMatch[] => {
+  // Memoize schema string for comparison to avoid re-running search on same schema
+  const schemaRef = useRef<any>(null);
+  const cachedMatchesRef = useRef<{ query: string; matches: SearchMatch[] }>({ query: '', matches: [] });
+
+  // Find all matches in the schema - optimized with early termination and limits
+  const findMatches = useCallback((query: string, obj: any): SearchMatch[] => {
     if (!query.trim() || !obj) return [];
     
     const results: SearchMatch[] = [];
     const lowerQuery = query.toLowerCase();
+    const maxResults = 100; // Limit results for performance
 
-    const searchInValue = (value: any, path: string[], key: string) => {
+    const searchInValue = (value: any, path: string[], key: string, depth: number) => {
+      // Limit recursion depth and results count
+      if (depth > 15 || results.length >= maxResults) return;
+
       // Check property name
       if (key.toLowerCase().includes(lowerQuery)) {
         results.push({ path: [...path, key], matchType: 'name', matchedText: key });
+        if (results.length >= maxResults) return;
       }
 
       // Check primitive values
       if (typeof value === 'string' && value.toLowerCase().includes(lowerQuery)) {
-        results.push({ path: [...path, key], matchType: 'value', matchedText: value });
+        results.push({ path: [...path, key], matchType: 'value', matchedText: value.slice(0, 50) });
       } else if (typeof value === 'number' && String(value).includes(query)) {
         results.push({ path: [...path, key], matchType: 'value', matchedText: String(value) });
       } else if (typeof value === 'boolean' && String(value).toLowerCase().includes(lowerQuery)) {
         results.push({ path: [...path, key], matchType: 'value', matchedText: String(value) });
       }
+
+      if (results.length >= maxResults) return;
 
       // Check type field
       if (value && typeof value === 'object') {
@@ -57,41 +83,57 @@ export function useStructureSearch({ schema, containerRef }: UseStructureSearchO
         }
       }
 
+      if (results.length >= maxResults) return;
+
       // Recurse into nested objects and arrays
       if (value && typeof value === 'object') {
         if (Array.isArray(value)) {
-          value.forEach((item, index) => {
-            searchInValue(item, [...path, key], String(index));
-          });
+          for (let i = 0; i < value.length && results.length < maxResults; i++) {
+            searchInValue(value[i], [...path, key], String(i), depth + 1);
+          }
         } else {
-          Object.entries(value).forEach(([childKey, childValue]) => {
-            searchInValue(childValue, [...path, key], childKey);
-          });
+          const entries = Object.entries(value);
+          for (let i = 0; i < entries.length && results.length < maxResults; i++) {
+            const [childKey, childValue] = entries[i];
+            searchInValue(childValue, [...path, key], childKey, depth + 1);
+          }
         }
       }
     };
 
     // Start searching from root
     if (typeof obj === 'object' && obj !== null) {
-      Object.entries(obj).forEach(([key, value]) => {
-        searchInValue(value, [], key);
-      });
+      const entries = Object.entries(obj);
+      for (let i = 0; i < entries.length && results.length < maxResults; i++) {
+        const [key, value] = entries[i];
+        searchInValue(value, [], key, 0);
+      }
     }
 
     return results;
   }, []);
 
-  // Update matches when query or schema changes
+  // Update matches when debounced query or schema changes
   useEffect(() => {
-    if (searchQuery.trim()) {
-      const found = findMatches(searchQuery, schema);
+    if (debouncedQuery.trim()) {
+      // Check cache first
+      if (cachedMatchesRef.current.query === debouncedQuery && schemaRef.current === schema) {
+        return;
+      }
+      
+      const found = findMatches(debouncedQuery, schema);
       setMatches(found);
       setCurrentMatchIndex(0);
+      
+      // Update cache
+      cachedMatchesRef.current = { query: debouncedQuery, matches: found };
+      schemaRef.current = schema;
     } else {
       setMatches([]);
       setCurrentMatchIndex(0);
+      cachedMatchesRef.current = { query: '', matches: [] };
     }
-  }, [searchQuery, schema, findMatches]);
+  }, [debouncedQuery, schema, findMatches]);
 
   // Get paths that need to be expanded for ALL matches (so user can see them)
   const pathsToExpand = useMemo(() => {
