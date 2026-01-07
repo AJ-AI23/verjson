@@ -1529,6 +1529,15 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
                       onDeleteProperty={handleDeleteProperty}
                       onAddArrayItem={handleAddArrayItem}
                       onReorderProperties={handleReorderProperties}
+                      onCopy={copy}
+                      onCut={cut}
+                      onPaste={handlePaste}
+                      clipboard={clipboard}
+                      clipboardHistory={clipboardHistory}
+                      onSelectFromHistory={selectFromHistory}
+                      onClearHistory={clearHistory}
+                      onClearClipboard={clearClipboard}
+                      hasClipboard={hasClipboard}
                     />
                   </div>
                 ))
@@ -1605,6 +1614,15 @@ interface ComponentTreeEditableProps {
   onDeleteProperty: (path: string[]) => void;
   onAddArrayItem: (path: string[], item: any) => void;
   onReorderProperties: (path: string[], oldIndex: number, newIndex: number) => void;
+  onCopy?: (name: string, schema: any, path: string[]) => void;
+  onCut?: (name: string, schema: any, path: string[]) => void;
+  onPaste?: (path: string[], selectedItem?: ClipboardItem) => void;
+  clipboard?: ClipboardItem | null;
+  clipboardHistory?: ClipboardItem[];
+  onSelectFromHistory?: (item: ClipboardItem) => void;
+  onClearHistory?: () => void;
+  onClearClipboard?: () => void;
+  hasClipboard?: boolean;
 }
 
 const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({ 
@@ -1616,7 +1634,16 @@ const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({
   onAddProperty,
   onDeleteProperty,
   onAddArrayItem,
-  onReorderProperties
+  onReorderProperties,
+  onCopy,
+  onCut,
+  onPaste,
+  clipboard,
+  clipboardHistory,
+  onSelectFromHistory,
+  onClearHistory,
+  onClearClipboard,
+  hasClipboard
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const availableRefs = useMemo(() => Object.keys(allSchemas), [allSchemas]);
@@ -1739,6 +1766,15 @@ const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({
                   onDeleteProperty={isDocumentRef ? () => {} : onDeleteProperty}
                   onAddArrayItem={isDocumentRef ? () => {} : onAddArrayItem}
                   onReorderProperties={isDocumentRef ? () => {} : onReorderProperties}
+                  onCopy={isDocumentRef ? undefined : onCopy}
+                  onCut={isDocumentRef ? undefined : onCut}
+                  onPaste={isDocumentRef ? undefined : onPaste}
+                  clipboard={clipboard}
+                  clipboardHistory={clipboardHistory}
+                  onSelectFromHistory={onSelectFromHistory}
+                  onClearHistory={onClearHistory}
+                  onClearClipboard={onClearClipboard}
+                  hasClipboard={hasClipboard}
                 />
               </SortableItem>
             ))}
