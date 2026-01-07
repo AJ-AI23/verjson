@@ -1,4 +1,4 @@
-
+// @refresh reset
 import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import 'jsoneditor/dist/jsoneditor.css';
 import { CollapsedState } from '@/lib/diagram/types';
