@@ -848,8 +848,22 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
           
           {/* Add property button for objects (both JSON Schema and plain objects) */}
           {!Array.isArray(propertySchema) && canHaveChildren && onAddProperty && (
-            <div className="py-1 px-2" style={{ paddingLeft: `${(depth + 1) * 16 + 8}px` }}>
+            <div className="py-1 px-2 flex items-center gap-1" style={{ paddingLeft: `${(depth + 1) * 16 + 8}px` }}>
               <AddPropertyButton onAdd={handleAddChildProperty} availableRefs={availableRefs} />
+              {hasClipboard && clipboard && clipboardHistory && onSelectFromHistory && onClearHistory && (
+                <ClipboardHistoryPopover
+                  clipboard={clipboard}
+                  history={clipboardHistory}
+                  onPaste={handlePaste}
+                  onSelectFromHistory={onSelectFromHistory}
+                  onClearHistory={onClearHistory}
+                >
+                  <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1">
+                    <Clipboard className="h-3 w-3" />
+                    Paste
+                  </Button>
+                </ClipboardHistoryPopover>
+              )}
             </div>
           )}
         </div>
@@ -1007,8 +1021,22 @@ const SectionTree: React.FC<SectionTreeProps> = ({
             </SortableItem>
           ))}
         </SortablePropertyList>
-        <div className="py-1 px-2 pl-6">
+        <div className="py-1 px-2 pl-6 flex items-center gap-1">
           <AddPropertyButton onAdd={handleAddProperty} availableRefs={availableRefs} />
+          {hasClipboard && clipboard && (
+            <ClipboardHistoryPopover
+              clipboard={clipboard}
+              history={clipboardHistory}
+              onPaste={(selectedItem) => onPaste(path, selectedItem)}
+              onSelectFromHistory={onSelectFromHistory}
+              onClearHistory={onClearHistory}
+            >
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1">
+                <Clipboard className="h-3 w-3" />
+                Paste
+              </Button>
+            </ClipboardHistoryPopover>
+          )}
         </div>
       </div>
     );
