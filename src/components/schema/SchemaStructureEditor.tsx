@@ -591,12 +591,25 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
     }
   };
 
+  // Check if this property is in the clipboard
+  const isInClipboard = useMemo(() => {
+    if (!clipboard) return null;
+    const currentPathStr = path.join('/');
+    const clipboardPathStr = clipboard.sourcePath.join('/');
+    if (currentPathStr === clipboardPathStr && name === clipboard.name) {
+      return clipboard.isCut ? 'cut' : 'copied';
+    }
+    return null;
+  }, [clipboard, path, name]);
+
   return (
     <div className="select-none">
       <div 
         className={cn(
           "flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors group focus:outline-none focus:ring-1 focus:ring-ring",
-          depth > 0 && "ml-4"
+          depth > 0 && "ml-4",
+          isInClipboard === 'cut' && "bg-destructive/10 border border-dashed border-destructive/50",
+          isInClipboard === 'copied' && "bg-primary/10 border border-dashed border-primary/50"
         )}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
         tabIndex={0}
@@ -947,8 +960,22 @@ const SectionTree: React.FC<SectionTreeProps> = ({
             </SortableItem>
           ))}
         </SortablePropertyList>
-        <div className="py-1 px-2 pl-6">
+        <div className="py-1 px-2 pl-6 flex items-center gap-1">
           <AddPropertyButton onAdd={handleAddProperty} availableRefs={availableRefs} />
+          {hasClipboard && clipboard && (
+            <ClipboardHistoryPopover
+              clipboard={clipboard}
+              history={clipboardHistory}
+              onPaste={(selectedItem) => onPaste(path, selectedItem)}
+              onSelectFromHistory={onSelectFromHistory}
+              onClearHistory={onClearHistory}
+            >
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1">
+                <Clipboard className="h-3 w-3" />
+                Paste
+              </Button>
+            </ClipboardHistoryPopover>
+          )}
         </div>
       </div>
     );
