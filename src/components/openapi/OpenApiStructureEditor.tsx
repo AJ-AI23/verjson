@@ -657,7 +657,6 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
       <div 
         className={cn(
           "flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors group focus:outline-none focus:ring-1 focus:ring-ring",
-          depth > 0 && "ml-4",
           isInClipboard === 'cut' && "bg-destructive/10 border border-dashed border-destructive/50",
           isInClipboard === 'copied' && "bg-primary/10 border border-dashed border-primary/50"
         )}
@@ -815,7 +814,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
       </div>
       
       {isExpanded && canHaveChildren && (
-        <div className="border-l border-border/50 ml-4" style={{ marginLeft: `${depth * 16 + 20}px` }}>
+        <div className="border-l border-border/50" style={{ marginLeft: `${depth * 16 + 20}px` }}>
           <SortablePropertyList
             items={Object.keys(childProperties)}
             onReorder={(oldIndex, newIndex) => {
