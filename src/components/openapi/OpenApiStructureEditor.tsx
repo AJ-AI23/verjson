@@ -387,6 +387,11 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
       return true;
     }
     
+    // Array items that are objects should always be expandable
+    if (isArrayItem && typeof propertySchema === 'object' && propertySchema !== null) {
+      return true;
+    }
+    
     if (typeof propertySchema === 'object' && propertySchema !== null && !isSchemaWithType) {
       return true;
     }
@@ -408,7 +413,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
       }
     }
     return false;
-  }, [propertySchema, isSchemaWithType, isPrimitive]);
+  }, [propertySchema, isSchemaWithType, isPrimitive, isArrayItem]);
 
   const hasChildren = useMemo(() => {
     // Handle primitive values
