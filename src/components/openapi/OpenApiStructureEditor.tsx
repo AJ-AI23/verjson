@@ -814,7 +814,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
       </div>
       
       {isExpanded && canHaveChildren && (
-        <div className="border-l border-border/50" style={{ marginLeft: `${depth * 16 + 20}px` }}>
+        <div className="border-l border-border/50" style={{ marginLeft: '20px' }}>
           <SortablePropertyList
             items={Object.keys(childProperties)}
             onReorder={(oldIndex, newIndex) => {
