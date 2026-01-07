@@ -16,28 +16,30 @@ export const useJsonEditorSync = ({
   value,
   onChange
 }: UseJsonEditorSyncProps) => {
-  // JSONEditor can emit a delayed "change" event after update()/setText().
-  // Keep the internal-change flag true a bit longer so those events don't get
-  // treated as user edits (which would create extra Yjs undo items).
-  const clearInternalChangeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track the value we just pushed to the editor to ignore its echo
+  const lastPushedValueRef = useRef<string | null>(null);
+  const echoWindowRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Update editor content when the value prop changes
   useEffect(() => {
     if (!editorRef.current || value === previousValueRef.current) return;
 
-    if (clearInternalChangeTimerRef.current) {
-      clearTimeout(clearInternalChangeTimerRef.current);
-      clearInternalChangeTimerRef.current = null;
+    // Clear any previous echo window
+    if (echoWindowRef.current) {
+      clearTimeout(echoWindowRef.current);
+      echoWindowRef.current = null;
     }
 
     try {
-      // Set flag to prevent onChange from triggering
+      // Mark that we're about to push this value - any change event
+      // returning this exact value within a short window is an echo
+      lastPushedValueRef.current = value;
       isInternalChange.current = true;
 
       // Update editor content
       try {
         editorRef.current.update(JSON.parse(value));
-      } catch (e) {
+      } catch {
         // If parsing fails, just show the raw text
         editorRef.current.setText(value);
       }
@@ -47,18 +49,22 @@ export const useJsonEditorSync = ({
     } catch (err) {
       console.error('Error updating JSONEditor:', err);
     } finally {
-      clearInternalChangeTimerRef.current = setTimeout(() => {
-        isInternalChange.current = false;
-      }, 250);
+      // Reset internal change flag immediately so new user edits are captured
+      isInternalChange.current = false;
+      
+      // Keep the echo detection active for a short window
+      echoWindowRef.current = setTimeout(() => {
+        lastPushedValueRef.current = null;
+      }, 300);
     }
 
     return () => {
-      if (clearInternalChangeTimerRef.current) {
-        clearTimeout(clearInternalChangeTimerRef.current);
-        clearInternalChangeTimerRef.current = null;
+      if (echoWindowRef.current) {
+        clearTimeout(echoWindowRef.current);
+        echoWindowRef.current = null;
       }
     };
   }, [value, editorRef, isInternalChange, previousValueRef, onChange]);
 
-  return {};
+  return { lastPushedValueRef };
 };
