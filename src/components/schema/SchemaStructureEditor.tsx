@@ -12,6 +12,7 @@ import { SortablePropertyList, SortableItem, reorderObjectProperties, reorderArr
 import { useSchemaHistory } from '@/hooks/useSchemaHistory';
 import { usePropertyClipboard, ClipboardItem } from '@/hooks/usePropertyClipboard';
 import { ClipboardHistoryPopover } from './ClipboardHistoryPopover';
+import { RefTargetConfirmDialog, RefTargetInfo } from '@/components/openapi/RefTargetConfirmDialog';
 const JSON_SCHEMA_TYPES = [
   'string',
   'integer', 
@@ -1086,6 +1087,18 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
   // Clipboard for cut/copy/paste
   const { clipboard, history: clipboardHistory, copy, cut, paste, selectFromHistory, hasClipboard, clearHistory, clearClipboard } = usePropertyClipboard();
 
+  // State for ref target confirmation dialog
+  const [refConfirmDialogOpen, setRefConfirmDialogOpen] = useState(false);
+  const [pendingRefOperation, setPendingRefOperation] = useState<{
+    type: 'paste' | 'add';
+    path: string[];
+    name?: string;
+    propSchema?: any;
+    selectedItem?: ClipboardItem;
+    resolvedPath: string[];
+    targetComponentName: string;
+  } | null>(null);
+
   // Get definitions based on schema type
   const definitions = useMemo(() => {
     if (schemaType === 'json-schema') {
@@ -1093,6 +1106,68 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     }
     return {};
   }, [schema, schemaType]);
+
+  // Helper to resolve a path and detect if it leads through a $ref
+  const resolvePathThroughRefs = useCallback((path: string[]): { resolvedPath: string[]; targetComponentName: string | null } => {
+    let current = schema;
+    const resolvedPath: string[] = [];
+    
+    for (let i = 0; i < path.length; i++) {
+      const key = path[i];
+      
+      // Check if current level has a $ref
+      if (current?.$ref && typeof current.$ref === 'string') {
+        // This is a reference - resolve it
+        if (current.$ref.startsWith('#/$defs/')) {
+          const refName = current.$ref.split('/').pop();
+          if (refName) {
+            const remainingPath = path.slice(i);
+            return {
+              resolvedPath: ['$defs', refName, ...remainingPath],
+              targetComponentName: refName
+            };
+          }
+        } else if (current.$ref.startsWith('#/definitions/')) {
+          const refName = current.$ref.split('/').pop();
+          if (refName) {
+            const remainingPath = path.slice(i);
+            return {
+              resolvedPath: ['definitions', refName, ...remainingPath],
+              targetComponentName: refName
+            };
+          }
+        }
+      }
+      
+      // Check items.$ref for arrays
+      if (current?.items?.$ref && typeof current.items.$ref === 'string') {
+        if (current.items.$ref.startsWith('#/$defs/')) {
+          const refName = current.items.$ref.split('/').pop();
+          if (refName && key !== 'items') {
+            const remainingPath = path.slice(i);
+            return {
+              resolvedPath: ['$defs', refName, ...remainingPath],
+              targetComponentName: refName
+            };
+          }
+        } else if (current.items.$ref.startsWith('#/definitions/')) {
+          const refName = current.items.$ref.split('/').pop();
+          if (refName && key !== 'items') {
+            const remainingPath = path.slice(i);
+            return {
+              resolvedPath: ['definitions', refName, ...remainingPath],
+              targetComponentName: refName
+            };
+          }
+        }
+      }
+      
+      resolvedPath.push(key);
+      current = current?.[key];
+    }
+    
+    return { resolvedPath, targetComponentName: null };
+  }, [schema]);
 
   // Global keyboard handler for undo/redo
   useEffect(() => {
@@ -1152,7 +1227,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     setSchemaWithHistory(newSchema);
   }, [schema, setSchemaWithHistory]);
 
-  const handleAddProperty = useCallback((path: string[], name: string, propSchema: any) => {
+  // Internal function that actually performs the add operation
+  const executeAddProperty = useCallback((path: string[], name: string, propSchema: any) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
     
     let current = newSchema;
@@ -1164,6 +1240,27 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     current[name] = propSchema;
     setSchemaWithHistory(newSchema);
   }, [schema, setSchemaWithHistory]);
+
+  // Public handler that checks for refs first
+  const handleAddProperty = useCallback((path: string[], name: string, propSchema: any) => {
+    const { resolvedPath, targetComponentName } = resolvePathThroughRefs(path);
+    
+    if (targetComponentName) {
+      // This path goes through a $ref - show confirmation dialog
+      setPendingRefOperation({
+        type: 'add',
+        path,
+        name,
+        propSchema,
+        resolvedPath,
+        targetComponentName
+      });
+      setRefConfirmDialogOpen(true);
+    } else {
+      // No ref in path, add directly
+      executeAddProperty(path, name, propSchema);
+    }
+  }, [resolvePathThroughRefs, executeAddProperty]);
 
   const handleDeleteProperty = useCallback((path: string[]) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -1255,11 +1352,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     setSchemaWithHistory(newSchema);
   }, [schema, setSchemaWithHistory]);
 
-  // Handle paste - adds clipboard content to specified path
-  const handlePaste = useCallback((path: string[], selectedItem?: ClipboardItem) => {
-    const clipboardItem = paste(selectedItem);
-    if (!clipboardItem) return;
-
+  // Internal function that actually performs the paste operation
+  const executePaste = useCallback((path: string[], clipboardItem: ClipboardItem) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
     
     // Navigate to the target path
@@ -1294,7 +1388,50 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     }
     
     setSchemaWithHistory(newSchema);
-  }, [schema, paste, setSchemaWithHistory]);
+  }, [schema, setSchemaWithHistory]);
+
+  // Handle paste - adds clipboard content to specified path
+  const handlePaste = useCallback((path: string[], selectedItem?: ClipboardItem) => {
+    const clipboardItem = paste(selectedItem);
+    if (!clipboardItem) return;
+
+    const { resolvedPath, targetComponentName } = resolvePathThroughRefs(path);
+    
+    if (targetComponentName) {
+      // This path goes through a $ref - show confirmation dialog
+      setPendingRefOperation({
+        type: 'paste',
+        path,
+        selectedItem: clipboardItem,
+        resolvedPath,
+        targetComponentName
+      });
+      setRefConfirmDialogOpen(true);
+    } else {
+      // No ref in path, paste directly
+      executePaste(path, clipboardItem);
+    }
+  }, [paste, resolvePathThroughRefs, executePaste]);
+
+  // Handle confirmation of ref operation
+  const handleRefOperationConfirm = useCallback(() => {
+    if (!pendingRefOperation) return;
+    
+    if (pendingRefOperation.type === 'add' && pendingRefOperation.name && pendingRefOperation.propSchema !== undefined) {
+      executeAddProperty(pendingRefOperation.resolvedPath, pendingRefOperation.name, pendingRefOperation.propSchema);
+    } else if (pendingRefOperation.type === 'paste' && pendingRefOperation.selectedItem) {
+      executePaste(pendingRefOperation.resolvedPath, pendingRefOperation.selectedItem);
+    }
+    
+    setPendingRefOperation(null);
+    setRefConfirmDialogOpen(false);
+  }, [pendingRefOperation, executeAddProperty, executePaste]);
+
+  // Handle cancellation of ref operation
+  const handleRefOperationCancel = useCallback(() => {
+    setPendingRefOperation(null);
+    setRefConfirmDialogOpen(false);
+  }, []);
 
   // Build sections based on schema type
   const rootSections = useMemo(() => {
@@ -1461,6 +1598,22 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
           )}
         </div>
       </ScrollArea>
+      
+      {/* Ref target confirmation dialog */}
+      <RefTargetConfirmDialog
+        open={refConfirmDialogOpen}
+        onOpenChange={setRefConfirmDialogOpen}
+        refTargetInfo={pendingRefOperation ? {
+          targetComponentName: pendingRefOperation.targetComponentName,
+          sourcePropertyPath: pendingRefOperation.path,
+          operationType: pendingRefOperation.type,
+          propertyName: pendingRefOperation.type === 'add' 
+            ? pendingRefOperation.name 
+            : pendingRefOperation.selectedItem?.name
+        } : null}
+        onConfirm={handleRefOperationConfirm}
+        onCancel={handleRefOperationCancel}
+      />
     </div>
   );
 };
