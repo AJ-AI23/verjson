@@ -15,6 +15,7 @@ import { useDocumentRefResolver } from '@/hooks/useDocumentRefResolver';
 import { useSchemaHistory } from '@/hooks/useSchemaHistory';
 import { usePropertyClipboard, ClipboardItem } from '@/hooks/usePropertyClipboard';
 import { ClipboardHistoryPopover } from '@/components/schema/ClipboardHistoryPopover';
+import { RefTargetConfirmDialog, RefTargetInfo } from './RefTargetConfirmDialog';
 const OPENAPI_TYPES = [
   'string',
   'integer', 
@@ -1121,10 +1122,67 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
   // Clipboard for cut/copy/paste
   const { clipboard, history: clipboardHistory, copy, cut, paste, selectFromHistory, hasClipboard, clearHistory, clearClipboard } = usePropertyClipboard();
 
+  // State for ref target confirmation dialog
+  const [refConfirmDialogOpen, setRefConfirmDialogOpen] = useState(false);
+  const [pendingRefOperation, setPendingRefOperation] = useState<{
+    type: 'paste' | 'add';
+    path: string[];
+    name?: string;
+    propSchema?: any;
+    selectedItem?: ClipboardItem;
+    resolvedPath: string[];
+    targetComponentName: string;
+  } | null>(null);
+
   const allSchemas = useMemo(() => {
     // Merge original schemas with resolved document references
     return getAllResolvedSchemas();
   }, [getAllResolvedSchemas]);
+
+  // Helper to resolve a path and detect if it leads through a $ref
+  const resolvePathThroughRefs = useCallback((path: string[]): { resolvedPath: string[]; targetComponentName: string | null } => {
+    let current = schema;
+    const resolvedPath: string[] = [];
+    
+    for (let i = 0; i < path.length; i++) {
+      const key = path[i];
+      
+      // Check if current level has a $ref
+      if (current?.$ref && typeof current.$ref === 'string') {
+        // This is a reference - resolve it
+        if (current.$ref.startsWith('#/components/schemas/')) {
+          const refName = current.$ref.split('/').pop();
+          if (refName) {
+            // Return the resolved path pointing to the component
+            const remainingPath = path.slice(i);
+            return {
+              resolvedPath: ['components', 'schemas', refName, ...remainingPath],
+              targetComponentName: refName
+            };
+          }
+        }
+      }
+      
+      // Check items.$ref for arrays
+      if (current?.items?.$ref && typeof current.items.$ref === 'string') {
+        if (current.items.$ref.startsWith('#/components/schemas/')) {
+          const refName = current.items.$ref.split('/').pop();
+          if (refName && key !== 'items') {
+            const remainingPath = path.slice(i);
+            return {
+              resolvedPath: ['components', 'schemas', refName, ...remainingPath],
+              targetComponentName: refName
+            };
+          }
+        }
+      }
+      
+      resolvedPath.push(key);
+      current = current?.[key];
+    }
+    
+    return { resolvedPath, targetComponentName: null };
+  }, [schema]);
 
   // Global keyboard handler for undo/redo
   useEffect(() => {
@@ -1184,7 +1242,8 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
     setSchemaWithHistory(newSchema);
   }, [schema, setSchemaWithHistory]);
 
-  const handleAddProperty = useCallback((path: string[], name: string, propSchema: any) => {
+  // Internal function that actually performs the add operation
+  const executeAddProperty = useCallback((path: string[], name: string, propSchema: any) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
     
     let current = newSchema;
@@ -1196,6 +1255,27 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
     current[name] = propSchema;
     setSchemaWithHistory(newSchema);
   }, [schema, setSchemaWithHistory]);
+
+  // Public handler that checks for refs first
+  const handleAddProperty = useCallback((path: string[], name: string, propSchema: any) => {
+    const { resolvedPath, targetComponentName } = resolvePathThroughRefs(path);
+    
+    if (targetComponentName) {
+      // This path goes through a $ref - show confirmation dialog
+      setPendingRefOperation({
+        type: 'add',
+        path,
+        name,
+        propSchema,
+        resolvedPath,
+        targetComponentName
+      });
+      setRefConfirmDialogOpen(true);
+    } else {
+      // No ref in path, add directly
+      executeAddProperty(path, name, propSchema);
+    }
+  }, [resolvePathThroughRefs, executeAddProperty]);
 
   const handleDeleteProperty = useCallback((path: string[]) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -1286,11 +1366,8 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
     setSchemaWithHistory(newSchema);
   }, [schema, setSchemaWithHistory]);
 
-  // Handle paste - adds clipboard content to specified path
-  const handlePaste = useCallback((path: string[], selectedItem?: ClipboardItem) => {
-    const clipboardItem = paste(selectedItem);
-    if (!clipboardItem) return;
-
+  // Internal function that actually performs the paste operation
+  const executePaste = useCallback((path: string[], clipboardItem: ClipboardItem) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
     
     // Navigate to the target path
@@ -1325,7 +1402,50 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
     }
     
     setSchemaWithHistory(newSchema);
-  }, [schema, paste, setSchemaWithHistory]);
+  }, [schema, setSchemaWithHistory]);
+
+  // Handle paste - adds clipboard content to specified path
+  const handlePaste = useCallback((path: string[], selectedItem?: ClipboardItem) => {
+    const clipboardItem = paste(selectedItem);
+    if (!clipboardItem) return;
+
+    const { resolvedPath, targetComponentName } = resolvePathThroughRefs(path);
+    
+    if (targetComponentName) {
+      // This path goes through a $ref - show confirmation dialog
+      setPendingRefOperation({
+        type: 'paste',
+        path,
+        selectedItem: clipboardItem,
+        resolvedPath,
+        targetComponentName
+      });
+      setRefConfirmDialogOpen(true);
+    } else {
+      // No ref in path, paste directly
+      executePaste(path, clipboardItem);
+    }
+  }, [paste, resolvePathThroughRefs, executePaste]);
+
+  // Handle confirmation of ref operation
+  const handleRefOperationConfirm = useCallback(() => {
+    if (!pendingRefOperation) return;
+    
+    if (pendingRefOperation.type === 'add' && pendingRefOperation.name && pendingRefOperation.propSchema !== undefined) {
+      executeAddProperty(pendingRefOperation.resolvedPath, pendingRefOperation.name, pendingRefOperation.propSchema);
+    } else if (pendingRefOperation.type === 'paste' && pendingRefOperation.selectedItem) {
+      executePaste(pendingRefOperation.resolvedPath, pendingRefOperation.selectedItem);
+    }
+    
+    setPendingRefOperation(null);
+    setRefConfirmDialogOpen(false);
+  }, [pendingRefOperation, executeAddProperty, executePaste]);
+
+  // Handle cancellation of ref operation
+  const handleRefOperationCancel = useCallback(() => {
+    setPendingRefOperation(null);
+    setRefConfirmDialogOpen(false);
+  }, []);
 
   const handleAddComponent = useCallback((name: string, componentSchema: any) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -1554,6 +1674,22 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
           </ScrollArea>
         </TabsContent>
       </Tabs>
+      
+      {/* Ref target confirmation dialog */}
+      <RefTargetConfirmDialog
+        open={refConfirmDialogOpen}
+        onOpenChange={setRefConfirmDialogOpen}
+        refTargetInfo={pendingRefOperation ? {
+          targetComponentName: pendingRefOperation.targetComponentName,
+          sourcePropertyPath: pendingRefOperation.path,
+          operationType: pendingRefOperation.type,
+          propertyName: pendingRefOperation.type === 'add' 
+            ? pendingRefOperation.name 
+            : pendingRefOperation.selectedItem?.name
+        } : null}
+        onConfirm={handleRefOperationConfirm}
+        onCancel={handleRefOperationCancel}
+      />
     </div>
   );
 };
