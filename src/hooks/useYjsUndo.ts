@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as Y from 'yjs';
+import { flushSync } from 'react-dom';
 
 const undoManagerCache = new WeakMap<Y.Doc, Map<string, Y.UndoManager>>();
 
@@ -29,20 +30,22 @@ export const useYjsUndo = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   
   const undoManagerRef = useRef<Y.UndoManager | null>(null);
-  const isUndoRedoOperation = useRef(false);
+  const isUndoRedoOperationRef = useRef(false);
+  const isMountedRef = useRef(true);
 
+  // Safe state updater that checks if component is still mounted
   const updateState = useCallback(() => {
-    if (undoManagerRef.current) {
-      const undoStackLength = undoManagerRef.current.undoStack.length;
-      const redoStackLength = undoManagerRef.current.redoStack.length;
+    if (!isMountedRef.current) return;
+
+    const um = undoManagerRef.current;
+    if (um) {
+      const undoLen = um.undoStack.length;
+      const redoLen = um.redoStack.length;
       
-      setCanUndo(undoStackLength > 0);
-      setCanRedo(redoStackLength > 0);
-      setHistorySize(undoStackLength + redoStackLength);
-      
-      // Current index is the position in the history where we are
-      // If we have undo stack of 3 and redo stack of 2, we're at position 3 out of 5 total
-      setCurrentIndex(undoStackLength);
+      setCanUndo(undoLen > 0);
+      setCanRedo(redoLen > 0);
+      setHistorySize(undoLen + redoLen);
+      setCurrentIndex(undoLen);
     } else {
       setCanUndo(false);
       setCanRedo(false);
@@ -52,25 +55,25 @@ export const useYjsUndo = ({
   }, []);
 
   const undo = useCallback(() => {
-    if (undoManagerRef.current && undoManagerRef.current.undoStack.length > 0) {
-      isUndoRedoOperation.current = true;
-      undoManagerRef.current.undo();
+    const um = undoManagerRef.current;
+    if (um && um.undoStack.length > 0) {
+      isUndoRedoOperationRef.current = true;
+      um.undo();
       updateState();
-      // Reset flag after operation completes
       setTimeout(() => {
-        isUndoRedoOperation.current = false;
+        isUndoRedoOperationRef.current = false;
       }, 0);
     }
   }, [updateState]);
 
   const redo = useCallback(() => {
-    if (undoManagerRef.current && undoManagerRef.current.redoStack.length > 0) {
-      isUndoRedoOperation.current = true;
-      undoManagerRef.current.redo();
+    const um = undoManagerRef.current;
+    if (um && um.redoStack.length > 0) {
+      isUndoRedoOperationRef.current = true;
+      um.redo();
       updateState();
-      // Reset flag after operation completes
       setTimeout(() => {
-        isUndoRedoOperation.current = false;
+        isUndoRedoOperationRef.current = false;
       }, 0);
     }
   }, [updateState]);
@@ -81,6 +84,14 @@ export const useYjsUndo = ({
       updateState();
     }
   }, [updateState]);
+
+  // Track mounted state
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Initialize (or reuse) undo manager when yjsDoc changes
   useEffect(() => {
@@ -106,27 +117,28 @@ export const useYjsUndo = ({
       docCache.set(textKey, undoManager);
     }
 
-    // Listen to undo manager changes (avoid duplicate listeners by always cleaning up)
-    const handleStackItemAdded = () => updateState();
-    const handleStackItemPopped = () => updateState();
+    // Wrap handlers to safely update state from external callbacks
+    const handleStackChange = () => {
+      // Use requestAnimationFrame to batch with React's render cycle
+      requestAnimationFrame(() => {
+        if (isMountedRef.current) {
+          updateState();
+        }
+      });
+    };
 
-    undoManager.on('stack-item-added', handleStackItemAdded);
-    undoManager.on('stack-item-popped', handleStackItemPopped);
+    undoManager.on('stack-item-added', handleStackChange);
+    undoManager.on('stack-item-popped', handleStackChange);
 
     undoManagerRef.current = undoManager;
     updateState();
 
     return () => {
-      undoManager.off('stack-item-added', handleStackItemAdded);
-      undoManager.off('stack-item-popped', handleStackItemPopped);
-
-      // IMPORTANT: do not destroy the UndoManager here.
-      // We keep it alive so local history persists across document close/reopen
-      // within the same browser session.
+      undoManager.off('stack-item-added', handleStackChange);
+      undoManager.off('stack-item-popped', handleStackChange);
       undoManagerRef.current = null;
     };
   }, [yjsDoc, textKey, updateState]);
-
 
   // Set up keyboard shortcuts
   useEffect(() => {
@@ -156,6 +168,6 @@ export const useYjsUndo = ({
     clearHistory,
     currentIndex,
     historySize,
-    isUndoRedoOperation: () => isUndoRedoOperation.current
+    isUndoRedoOperation: () => isUndoRedoOperationRef.current
   };
 };
