@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { ChevronRight, ChevronDown, Box, Link2, Hash, Type, List, ToggleLeft, FileText, Plus, Trash2, Pencil, Check, X, Copy, Undo2, Redo2, Scissors, Clipboard, AlignLeft, FileCode } from 'lucide-react';
+import { ChevronRight, ChevronDown, Box, Link2, Hash, Type, List, ToggleLeft, FileText, Plus, Trash2, Pencil, Check, X, Copy, Scissors, Clipboard, AlignLeft, FileCode } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { SortablePropertyList, SortableItem, reorderObjectProperties, reorderArrayItems } from './SortablePropertyList';
-import { useSchemaHistory } from '@/hooks/useSchemaHistory';
 import { usePropertyClipboard, ClipboardItem } from '@/hooks/usePropertyClipboard';
 import { ClipboardHistoryPopover } from './ClipboardHistoryPopover';
 import { RefTargetConfirmDialog, RefTargetInfo } from '@/components/openapi/RefTargetConfirmDialog';
@@ -1166,12 +1165,6 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
   consistencyIssues = []
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  
-  // History for undo/redo
-  const { setSchema: setSchemaWithHistory, undo, redo, canUndo, canRedo } = useSchemaHistory(
-    schema,
-    onSchemaChange
-  );
 
   // Clipboard for cut/copy/paste
   const { clipboard, history: clipboardHistory, copy, cut, paste, selectFromHistory, hasClipboard, clearHistory, clearClipboard } = usePropertyClipboard();
@@ -1300,30 +1293,7 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     return { resolvedPath, targetComponentName: null };
   }, [schema]);
 
-  // Global keyboard handler for undo/redo
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle if focus is within the container
-      if (!containerRef.current?.contains(document.activeElement) && 
-          document.activeElement !== containerRef.current) {
-        return;
-      }
-      
-      // Ctrl+Z for undo, Ctrl+Shift+Z for redo
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-        if (e.shiftKey) {
-          e.preventDefault();
-          redo();
-        } else {
-          e.preventDefault();
-          undo();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo]);
+  // Keyboard shortcuts for undo/redo are handled by the parent component via shared history
 
   const handlePropertyChange = useCallback((path: string[], updates: { name?: string; schema?: any }) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -1338,8 +1308,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
       current[lastKey] = updates.schema;
     }
     
-    setSchemaWithHistory(newSchema);
-  }, [schema, setSchemaWithHistory]);
+    onSchemaChange(newSchema);
+  }, [schema, onSchemaChange]);
 
   const handlePropertyRename = useCallback((path: string[], oldName: string, newName: string) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -1355,8 +1325,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
       parent[newName] = value;
     }
     
-    setSchemaWithHistory(newSchema);
-  }, [schema, setSchemaWithHistory]);
+    onSchemaChange(newSchema);
+  }, [schema, onSchemaChange]);
 
   // Internal function that actually performs the add operation
   const executeAddProperty = useCallback((path: string[], name: string, propSchema: any) => {
@@ -1369,8 +1339,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     }
     
     current[name] = propSchema;
-    setSchemaWithHistory(newSchema);
-  }, [schema, setSchemaWithHistory]);
+    onSchemaChange(newSchema);
+  }, [schema, onSchemaChange]);
 
   // Public handler that checks for refs first
   const handleAddProperty = useCallback((path: string[], name: string, propSchema: any) => {
@@ -1408,8 +1378,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
       delete parent[lastKey];
     }
     
-    setSchemaWithHistory(newSchema);
-  }, [schema, setSchemaWithHistory]);
+    onSchemaChange(newSchema);
+  }, [schema, onSchemaChange]);
 
   const handleAddArrayItem = useCallback((path: string[], item: any) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -1423,8 +1393,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
       current.push(item);
     }
     
-    setSchemaWithHistory(newSchema);
-  }, [schema, setSchemaWithHistory]);
+    onSchemaChange(newSchema);
+  }, [schema, onSchemaChange]);
 
   const handleReorderProperties = useCallback((path: string[], oldIndex: number, newIndex: number) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -1449,7 +1419,7 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
       // Replace object in parent
       if (path.length === 0) {
         // If at root, handle specially
-        setSchemaWithHistory({ ...newSchema, ...reordered });
+        onSchemaChange({ ...newSchema, ...reordered });
         return;
       }
       let parent = newSchema;
@@ -1459,8 +1429,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
       parent[path[path.length - 1]] = reordered;
     }
     
-    setSchemaWithHistory(newSchema);
-  }, [schema, setSchemaWithHistory]);
+    onSchemaChange(newSchema);
+  }, [schema, onSchemaChange]);
 
   const handleDuplicateProperty = useCallback((path: string[], name: string, propSchema: any) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
@@ -1480,8 +1450,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     }
     
     current[finalName] = propSchema;
-    setSchemaWithHistory(newSchema);
-  }, [schema, setSchemaWithHistory]);
+    onSchemaChange(newSchema);
+  }, [schema, onSchemaChange]);
 
   // Internal function that actually performs the paste operation
   const executePaste = useCallback((path: string[], clipboardItem: ClipboardItem) => {
@@ -1518,8 +1488,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
       }
     }
     
-    setSchemaWithHistory(newSchema);
-  }, [schema, setSchemaWithHistory]);
+    onSchemaChange(newSchema);
+  }, [schema, onSchemaChange]);
 
   // Handle paste - adds clipboard content to specified path
   const handlePaste = useCallback((path: string[], selectedItem?: ClipboardItem) => {
@@ -1635,38 +1605,6 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
 
   return (
     <div ref={containerRef} className="h-full flex flex-col" tabIndex={-1}>
-      {/* Undo/Redo toolbar */}
-      <div className="flex items-center gap-1 p-2 border-b bg-muted/30">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 p-0"
-              onClick={undo}
-              disabled={!canUndo}
-            >
-              <Undo2 className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 p-0"
-              onClick={redo}
-              disabled={!canRedo}
-            >
-              <Redo2 className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Redo (Ctrl+Shift+Z)</TooltipContent>
-        </Tooltip>
-      </div>
-      
       <ScrollArea className="flex-1">
         <div className="space-y-3 p-4">
           {/* Metadata section */}
