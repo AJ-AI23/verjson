@@ -31,6 +31,20 @@ export function getOrCreateYjsSession(documentId: string, initialContent?: strin
   const existing = sessions.get(documentId);
   if (existing) {
     existing.lastAccess = Date.now();
+
+    // If the cached doc is empty but we now have initialContent, populate it.
+    // This can happen when a session was created before the server data arrived.
+    if (initialContent && existing.text.length === 0) {
+      try {
+        JSON.parse(initialContent);
+        existing.doc.transact(() => {
+          existing.text.insert(0, initialContent);
+        }, 'init');
+      } catch {
+        // skip if not valid JSON
+      }
+    }
+
     return existing;
   }
 
@@ -61,6 +75,7 @@ export function getOrCreateYjsSession(documentId: string, initialContent?: strin
 
   return session;
 }
+
 
 export function clearYjsSession(documentId: string) {
   const session = sessions.get(documentId);
