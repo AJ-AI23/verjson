@@ -129,10 +129,11 @@ export const useYjsDocument = ({
     }
 
     // Group into a single transaction so UndoManager treats it as one step.
+    // IMPORTANT: don't pass a custom origin here; UndoManager typically tracks `null` origin.
     text.doc?.transact(() => {
       text.delete(0, text.length);
       text.insert(0, content);
-    }, 'content-replace');
+    });
   }, []);
 
   useEffect(() => {
