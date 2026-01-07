@@ -162,7 +162,15 @@ export const useYjsDocument = ({
     setYjsDoc(sessionDoc.doc);
 
     // Observe changes (valid JSON only) and propagate to the parent.
-    const observer = () => {
+    // IMPORTANT: Skip propagation for undo/redo operations to prevent feedback loops.
+    const observer = (event: Y.YTextEvent) => {
+      // Check if this change came from an UndoManager operation
+      const isUndoRedoChange = event.transaction.origin instanceof Y.UndoManager;
+      if (isUndoRedoChange) {
+        // Don't propagate undo/redo changes back up - this prevents double-recording
+        return;
+      }
+
       const content = text.toString();
       try {
         JSON.parse(content);
