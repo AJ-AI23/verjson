@@ -146,10 +146,7 @@ const PropertyNode: React.FC<PropertyNodeProps> = ({
   return (
     <div className="select-none">
       <div 
-        className={cn(
-          "flex items-center gap-2 py-1.5 px-2 rounded-md cursor-pointer hover:bg-muted/50 transition-colors",
-          depth > 0 && "ml-4"
-        )}
+        className="flex items-center gap-2 py-1.5 px-2 rounded-md cursor-pointer hover:bg-muted/50 transition-colors"
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
         onClick={() => hasChildren && setIsExpanded(!isExpanded)}
       >
