@@ -813,7 +813,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
       </div>
       
       {isExpanded && canHaveChildren && (
-        <div className="border-l border-border/50 ml-2">
+        <div className="border-l border-border/50">
           <SortablePropertyList
             items={Object.keys(childProperties)}
             onReorder={(oldIndex, newIndex) => {
@@ -824,7 +824,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
             }}
           >
             {Object.entries(childProperties).map(([propName, propSchema]) => (
-              <SortableItem key={propName} id={propName} indentPx={(depth + 1) * 16}>
+              <SortableItem key={propName} id={propName} indentPx={16}>
                 <EditablePropertyNode
                   name={propName}
                   propertySchema={propSchema as any}
