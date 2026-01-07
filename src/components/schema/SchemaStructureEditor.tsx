@@ -14,6 +14,8 @@ import { ClipboardHistoryPopover } from './ClipboardHistoryPopover';
 import { RefTargetConfirmDialog, RefTargetInfo } from '@/components/openapi/RefTargetConfirmDialog';
 import { ConsistencyIndicator } from './ConsistencyIndicator';
 import { ConsistencyIssue } from '@/types/consistency';
+import { useStructureSearch } from '@/hooks/useStructureSearch';
+import { StructureSearchBar } from './StructureSearchBar';
 const JSON_SCHEMA_TYPES = [
   'string',
   'integer', 
@@ -77,6 +79,7 @@ interface EditablePropertyNodeProps {
   onClearClipboard?: () => void;
   hasClipboard?: boolean;
   consistencyIssues?: ConsistencyIssue[];
+  forceExpandedPaths?: Set<string>;
 }
 
 const getTypeIcon = (schema: any) => {
@@ -366,9 +369,13 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
   onClearHistory,
   onClearClipboard,
   hasClipboard,
-  consistencyIssues = []
+  consistencyIssues = [],
+  forceExpandedPaths
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const pathKey = path.join('.');
+  const isForceExpanded = forceExpandedPaths?.has(pathKey) ?? false;
+  const [isManuallyExpanded, setIsManuallyExpanded] = useState(false);
+  const isExpanded = isManuallyExpanded || isForceExpanded;
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(name);
   
@@ -629,7 +636,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
   }, [clipboard, path]);
 
   return (
-    <div className="select-none">
+    <div className="select-none" data-search-path={pathKey}>
       <div 
         className={cn(
           "flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors group focus:outline-none focus:ring-1 focus:ring-ring",
@@ -645,7 +652,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
       >
         <span 
           className="cursor-pointer"
-          onClick={() => canHaveChildren && setIsExpanded(!isExpanded)}
+          onClick={() => canHaveChildren && setIsManuallyExpanded(!isManuallyExpanded)}
         >
           {canHaveChildren ? (
             isExpanded ? (
@@ -954,6 +961,7 @@ interface SectionTreeProps {
   onClearClipboard: () => void;
   hasClipboard: boolean;
   consistencyIssues?: ConsistencyIssue[];
+  forceExpandedPaths?: Set<string>;
 }
 
 const SectionTree: React.FC<SectionTreeProps> = ({ 
@@ -978,9 +986,13 @@ const SectionTree: React.FC<SectionTreeProps> = ({
   onClearHistory,
   onClearClipboard,
   hasClipboard,
-  consistencyIssues = []
+  consistencyIssues = [],
+  forceExpandedPaths
 }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const pathKey = path.join('.');
+  const isForceExpanded = forceExpandedPaths?.has(pathKey) ?? false;
+  const [isManuallyExpanded, setIsManuallyExpanded] = useState(true);
+  const isExpanded = isManuallyExpanded || isForceExpanded;
   const availableRefs = useMemo(() => Object.keys(definitions), [definitions]);
   
   if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
@@ -1034,6 +1046,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
                     onClearClipboard={onClearClipboard}
                     hasClipboard={hasClipboard}
                     consistencyIssues={consistencyIssues}
+                    forceExpandedPaths={forceExpandedPaths}
                   />
                 </SortableItem>
               ))}
@@ -1104,6 +1117,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
                 onClearClipboard={onClearClipboard}
                 hasClipboard={hasClipboard}
                 consistencyIssues={consistencyIssues}
+                forceExpandedPaths={forceExpandedPaths}
               />
             </SortableItem>
           ))}
@@ -1136,7 +1150,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
           "flex items-center gap-3 p-3 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors",
           isExpanded && "border-b"
         )}
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={() => setIsManuallyExpanded(!isManuallyExpanded)}
       >
         {isExpanded ? (
           <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -1165,6 +1179,19 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
   consistencyIssues = []
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Search functionality
+  const {
+    searchQuery,
+    setSearchQuery,
+    matches,
+    currentMatchIndex,
+    goToNextMatch,
+    goToPrevMatch,
+    clearSearch,
+    searchInputRef,
+    expandedPaths: searchExpandedPaths,
+  } = useStructureSearch({ schema, containerRef });
 
   // Clipboard for cut/copy/paste
   const { clipboard, history: clipboardHistory, copy, cut, paste, selectFromHistory, hasClipboard, clearHistory, clearClipboard } = usePropertyClipboard();
@@ -1605,6 +1632,20 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
 
   return (
     <div ref={containerRef} className="h-full flex flex-col" tabIndex={-1}>
+      {/* Search bar */}
+      <div className="border-b bg-muted/30 py-1">
+        <StructureSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          matchCount={matches.length}
+          currentMatchIndex={currentMatchIndex}
+          onNextMatch={goToNextMatch}
+          onPrevMatch={goToPrevMatch}
+          onClear={clearSearch}
+          inputRef={searchInputRef}
+        />
+      </div>
+      
       <ScrollArea className="flex-1">
         <div className="space-y-3 p-4">
           {/* Metadata section */}
@@ -1616,7 +1657,7 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
               </div>
               <div className="p-3 bg-background space-y-2">
                 {metadataFields.map(({ key, value }) => (
-                  <div key={key} className="flex items-center gap-2 text-sm">
+                  <div key={key} className="flex items-center gap-2 text-sm" data-search-path={key}>
                     <span className="font-medium text-muted-foreground w-24">{key}:</span>
                     <EditableValue 
                       value={value} 
@@ -1654,6 +1695,7 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
               onClearClipboard={clearClipboard}
               hasClipboard={hasClipboard}
               consistencyIssues={consistencyIssues}
+              forceExpandedPaths={searchExpandedPaths}
             />
           ))}
           

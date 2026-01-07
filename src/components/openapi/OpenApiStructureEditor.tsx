@@ -17,6 +17,8 @@ import { ClipboardHistoryPopover } from '@/components/schema/ClipboardHistoryPop
 import { RefTargetConfirmDialog, RefTargetInfo } from './RefTargetConfirmDialog';
 import { ConsistencyIndicator } from '@/components/schema/ConsistencyIndicator';
 import { ConsistencyIssue } from '@/types/consistency';
+import { useStructureSearch } from '@/hooks/useStructureSearch';
+import { StructureSearchBar } from '@/components/schema/StructureSearchBar';
 const OPENAPI_TYPES = [
   'string',
   'integer', 
@@ -1128,6 +1130,19 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   
+  // Search functionality
+  const {
+    searchQuery,
+    setSearchQuery,
+    matches,
+    currentMatchIndex,
+    goToNextMatch,
+    goToPrevMatch,
+    clearSearch,
+    searchInputRef,
+    expandedPaths: searchExpandedPaths,
+  } = useStructureSearch({ schema, containerRef });
+  
   // Use the document ref resolver for sideloading referenced documents
   const { getAllResolvedSchemas, resolvedDocuments } = useDocumentRefResolver(schema);
 
@@ -1570,6 +1585,17 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
               Components
             </TabsTrigger>
           </TabsList>
+          <StructureSearchBar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            matchCount={matches.length}
+            currentMatchIndex={currentMatchIndex}
+            onNextMatch={goToNextMatch}
+            onPrevMatch={goToPrevMatch}
+            onClear={clearSearch}
+            inputRef={searchInputRef}
+            className="ml-auto"
+          />
         </div>
         
         <TabsContent value="structure" className="flex-1 mt-0 overflow-hidden">
