@@ -16,6 +16,8 @@ import { useSchemaHistory } from '@/hooks/useSchemaHistory';
 import { usePropertyClipboard, ClipboardItem } from '@/hooks/usePropertyClipboard';
 import { ClipboardHistoryPopover } from '@/components/schema/ClipboardHistoryPopover';
 import { RefTargetConfirmDialog, RefTargetInfo } from './RefTargetConfirmDialog';
+import { ConsistencyIndicator } from '@/components/schema/ConsistencyIndicator';
+import { ConsistencyIssue } from '@/types/consistency';
 const OPENAPI_TYPES = [
   'string',
   'integer', 
@@ -52,6 +54,7 @@ const isPrimitiveValue = (value: any): boolean => {
 interface OpenApiStructureEditorProps {
   schema: any;
   onSchemaChange: (schema: any) => void;
+  consistencyIssues?: ConsistencyIssue[];
 }
 
 interface EditablePropertyNodeProps {
@@ -78,6 +81,7 @@ interface EditablePropertyNodeProps {
   onClearHistory?: () => void;
   onClearClipboard?: () => void;
   hasClipboard?: boolean;
+  consistencyIssues?: ConsistencyIssue[];
 }
 
 const getTypeIcon = (schema: any) => {
@@ -369,7 +373,8 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
   onSelectFromHistory,
   onClearHistory,
   onClearClipboard,
-  hasClipboard
+  hasClipboard,
+  consistencyIssues = []
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -717,6 +722,11 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
           </span>
         )}
         
+        {/* Consistency issues indicator */}
+        {consistencyIssues.length > 0 && (
+          <ConsistencyIndicator issues={consistencyIssues} path={path} />
+        )}
+        
         <div className="ml-auto flex items-center gap-1">
           {/* Show editable value for primitives, or type selector for schema properties */}
           {isPrimitive ? (
@@ -842,15 +852,16 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
                   onAddArrayItem={onAddArrayItem}
                   onReorderProperties={onReorderProperties}
                   onCopy={onCopy}
-                    onCut={onCut}
-                    onPaste={onPaste}
-                    clipboard={clipboard}
-                    clipboardHistory={clipboardHistory}
-                    onSelectFromHistory={onSelectFromHistory}
-                    onClearHistory={onClearHistory}
-                    onClearClipboard={onClearClipboard}
-                    hasClipboard={hasClipboard}
-                  />
+                  onCut={onCut}
+                  onPaste={onPaste}
+                  clipboard={clipboard}
+                  clipboardHistory={clipboardHistory}
+                  onSelectFromHistory={onSelectFromHistory}
+                  onClearHistory={onClearHistory}
+                  onClearClipboard={onClearClipboard}
+                  hasClipboard={hasClipboard}
+                  consistencyIssues={consistencyIssues}
+                />
               </SortableItem>
             ))}
           </SortablePropertyList>
@@ -903,6 +914,7 @@ interface SectionTreeProps {
   onClearHistory: () => void;
   onClearClipboard: () => void;
   hasClipboard: boolean;
+  consistencyIssues?: ConsistencyIssue[];
 }
 
 const SectionTree: React.FC<SectionTreeProps> = ({ 
@@ -926,7 +938,8 @@ const SectionTree: React.FC<SectionTreeProps> = ({
   onSelectFromHistory,
   onClearHistory,
   onClearClipboard,
-  hasClipboard
+  hasClipboard,
+  consistencyIssues = []
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const availableRefs = useMemo(() => Object.keys(allSchemas), [allSchemas]);
@@ -973,15 +986,16 @@ const SectionTree: React.FC<SectionTreeProps> = ({
                   onAddArrayItem={onAddArrayItem}
                   onReorderProperties={onReorderProperties}
                   onCopy={onCopy}
-                    onCut={onCut}
-                    onPaste={onPaste}
-                    clipboard={clipboard}
-                    clipboardHistory={clipboardHistory}
-                    onSelectFromHistory={onSelectFromHistory}
-                    onClearHistory={onClearHistory}
-                    onClearClipboard={onClearClipboard}
-                    hasClipboard={hasClipboard}
-                  />
+                  onCut={onCut}
+                  onPaste={onPaste}
+                  clipboard={clipboard}
+                  clipboardHistory={clipboardHistory}
+                  onSelectFromHistory={onSelectFromHistory}
+                  onClearHistory={onClearHistory}
+                  onClearClipboard={onClearClipboard}
+                  hasClipboard={hasClipboard}
+                  consistencyIssues={consistencyIssues}
+                />
               </SortableItem>
             ))}
           </SortablePropertyList>
@@ -1050,6 +1064,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
                 onClearHistory={onClearHistory}
                 onClearClipboard={onClearClipboard}
                 hasClipboard={hasClipboard}
+                consistencyIssues={consistencyIssues}
               />
             </SortableItem>
           ))}
@@ -1106,7 +1121,8 @@ const SectionTree: React.FC<SectionTreeProps> = ({
 
 export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
   schema,
-  onSchemaChange
+  onSchemaChange,
+  consistencyIssues = []
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -1785,6 +1801,7 @@ interface ComponentTreeEditableProps {
   onClearHistory?: () => void;
   onClearClipboard?: () => void;
   hasClipboard?: boolean;
+  consistencyIssues?: ConsistencyIssue[];
 }
 
 const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({ 
@@ -1805,7 +1822,8 @@ const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({
   onSelectFromHistory,
   onClearHistory,
   onClearClipboard,
-  hasClipboard
+  hasClipboard,
+  consistencyIssues = []
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const availableRefs = useMemo(() => Object.keys(allSchemas), [allSchemas]);
@@ -1937,6 +1955,7 @@ const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({
                   onClearHistory={onClearHistory}
                   onClearClipboard={onClearClipboard}
                   hasClipboard={hasClipboard}
+                  consistencyIssues={consistencyIssues}
                 />
               </SortableItem>
             ))}
