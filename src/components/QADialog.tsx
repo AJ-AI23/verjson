@@ -17,6 +17,7 @@ import { validateSyntax, ValidationResult } from '@/lib/schemaUtils';
 import { CrowdinExportDialog } from '@/components/CrowdinExportDialog';
 import { CrowdinImportDialog } from '@/components/CrowdinImportDialog';
 import { ConsistencyConfigDialog } from '@/components/ConsistencyConfigDialog';
+import { ConsistencyExportDialog } from '@/components/ConsistencyExportDialog';
 import { useConsistencyConfig } from '@/hooks/useConsistencyConfig';
 import { useWorkspaces } from '@/hooks/useWorkspaces';
 import { supabase } from '@/integrations/supabase/client';
@@ -80,6 +81,7 @@ export const QADialog: React.FC<QADialogProps> = ({
   const [consistencyRefreshKey, setConsistencyRefreshKey] = useState(0);
   const [consistencyFilters, setConsistencyFilters] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [generatedIndex, setGeneratedIndex] = useState<Record<string, string> | null>(null);
   
   const { workspaces } = useWorkspaces();
@@ -718,18 +720,21 @@ export const QADialog: React.FC<QADialogProps> = ({
     }
   };
 
-  const handleExportConsistencyResults = () => {
+  const handleExportConsistencyResults = (useFilter: boolean) => {
     try {
+      const issuesToExport = useFilter ? filteredConsistencyIssues : translationData.consistencyIssues;
       const exportData = {
         document: documentName,
         timestamp: new Date().toISOString(),
         summary: {
-          totalIssues: translationData.consistencyIssues.length,
-          issueTypes: availableIssueTypes.length,
-          schemaType: translationData.schemaType
+          totalIssues: issuesToExport.length,
+          issueTypes: [...new Set(issuesToExport.map(i => i.type))].length,
+          schemaType: translationData.schemaType,
+          filterApplied: useFilter,
+          activeFilters: useFilter ? Array.from(consistencyFilters) : null
         },
         configuration: consistencyConfig,
-        issues: translationData.consistencyIssues.map(issue => ({
+        issues: issuesToExport.map(issue => ({
           type: issue.type,
           severity: issue.severity,
           message: issue.message,
@@ -744,9 +749,10 @@ export const QADialog: React.FC<QADialogProps> = ({
         }))
       };
 
-      const filename = `${documentName}-consistency-results.json`;
+      const filterSuffix = useFilter ? '-filtered' : '';
+      const filename = `${documentName}-consistency-results${filterSuffix}.json`;
       downloadJsonFile(exportData, filename);
-      toast.success('Consistency results exported successfully');
+      toast.success(`Exported ${issuesToExport.length} consistency issue${issuesToExport.length !== 1 ? 's' : ''}`);
     } catch (error) {
       console.error('Export failed:', error);
       toast.error('Failed to export consistency results');
@@ -1588,16 +1594,16 @@ export const QADialog: React.FC<QADialogProps> = ({
                    <div className="flex items-center justify-between mb-4">
                      <h3 className="text-lg font-semibold">Consistency Checks</h3>
                      <div className="flex items-center gap-2">
-                       <Button
-                         variant="outline"
-                         size="sm"
-                         onClick={handleExportConsistencyResults}
-                         className="flex items-center gap-2"
-                         disabled={translationData.consistencyIssues.length === 0}
-                       >
-                         <Download className="h-4 w-4" />
-                         Export Results
-                       </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setExportDialogOpen(true)}
+                          className="flex items-center gap-2"
+                          disabled={translationData.consistencyIssues.length === 0}
+                        >
+                          <Download className="h-4 w-4" />
+                          Export Results
+                        </Button>
                        <Button
                          variant="outline"
                          size="sm"
@@ -1873,6 +1879,17 @@ export const QADialog: React.FC<QADialogProps> = ({
          <ConsistencyConfigDialog
            open={configDialogOpen}
            onOpenChange={setConfigDialogOpen}
+         />
+
+         {/* Consistency Export Dialog */}
+         <ConsistencyExportDialog
+           open={exportDialogOpen}
+           onOpenChange={setExportDialogOpen}
+           totalIssues={translationData.consistencyIssues.length}
+           filteredIssues={filteredConsistencyIssues.length}
+           hasActiveFilters={consistencyFilters.size > 0}
+           activeFilterTypes={Array.from(consistencyFilters)}
+           onExport={handleExportConsistencyResults}
          />
       </Dialog>
    );
