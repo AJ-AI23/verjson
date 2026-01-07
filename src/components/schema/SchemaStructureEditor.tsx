@@ -906,6 +906,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
                     onClearClipboard={onClearClipboard}
                     hasClipboard={hasClipboard}
                     consistencyIssues={consistencyIssues}
+                    forceExpandedPaths={forceExpandedPaths}
                   />
                 </SortableItem>
               ))}

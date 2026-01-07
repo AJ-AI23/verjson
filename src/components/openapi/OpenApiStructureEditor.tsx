@@ -83,6 +83,7 @@ interface EditablePropertyNodeProps {
   onClearClipboard?: () => void;
   hasClipboard?: boolean;
   consistencyIssues?: ConsistencyIssue[];
+  forceExpandedPaths?: Set<string>;
 }
 
 const getTypeIcon = (schema: any) => {
@@ -378,9 +379,13 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
   onClearHistory,
   onClearClipboard,
   hasClipboard,
-  consistencyIssues = []
+  consistencyIssues = [],
+  forceExpandedPaths
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const pathKey = path.join('.');
+  const isForceExpanded = forceExpandedPaths?.has(pathKey) ?? false;
+  const [isManuallyExpanded, setIsManuallyExpanded] = useState(false);
+  const isExpanded = isManuallyExpanded || isForceExpanded;
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(name);
   
@@ -663,7 +668,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
   }, [clipboard, path]);
 
   return (
-    <div className="select-none">
+    <div className="select-none" data-search-path={pathKey}>
       <div 
         className={cn(
           "flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors group focus:outline-none focus:ring-1 focus:ring-ring",
@@ -679,7 +684,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
       >
         <span 
           className="cursor-pointer"
-          onClick={() => canHaveChildren && setIsExpanded(!isExpanded)}
+          onClick={() => canHaveChildren && setIsManuallyExpanded(!isManuallyExpanded)}
         >
           {canHaveChildren ? (
             isExpanded ? (
@@ -865,6 +870,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
                   onClearClipboard={onClearClipboard}
                   hasClipboard={hasClipboard}
                   consistencyIssues={consistencyIssues}
+                  forceExpandedPaths={forceExpandedPaths}
                 />
               </SortableItem>
             ))}
@@ -919,6 +925,7 @@ interface SectionTreeProps {
   onClearClipboard: () => void;
   hasClipboard: boolean;
   consistencyIssues?: ConsistencyIssue[];
+  forceExpandedPaths?: Set<string>;
 }
 
 const SectionTree: React.FC<SectionTreeProps> = ({ 
@@ -943,9 +950,13 @@ const SectionTree: React.FC<SectionTreeProps> = ({
   onClearHistory,
   onClearClipboard,
   hasClipboard,
-  consistencyIssues = []
+  consistencyIssues = [],
+  forceExpandedPaths
 }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const pathKey = path.join('.');
+  const isForceExpanded = forceExpandedPaths?.has(pathKey) ?? false;
+  const [isManuallyExpanded, setIsManuallyExpanded] = useState(true);
+  const isExpanded = isManuallyExpanded || isForceExpanded;
   const availableRefs = useMemo(() => Object.keys(allSchemas), [allSchemas]);
   
   if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
@@ -999,6 +1010,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
                   onClearClipboard={onClearClipboard}
                   hasClipboard={hasClipboard}
                   consistencyIssues={consistencyIssues}
+                  forceExpandedPaths={forceExpandedPaths}
                 />
               </SortableItem>
             ))}
@@ -1069,6 +1081,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
                 onClearClipboard={onClearClipboard}
                 hasClipboard={hasClipboard}
                 consistencyIssues={consistencyIssues}
+                forceExpandedPaths={forceExpandedPaths}
               />
             </SortableItem>
           ))}
@@ -1101,7 +1114,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
           "flex items-center gap-3 p-3 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors",
           isExpanded && "border-b"
         )}
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={() => setIsManuallyExpanded(!isManuallyExpanded)}
       >
         {isExpanded ? (
           <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -1626,6 +1639,7 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
                   onClearClipboard={clearClipboard}
                   hasClipboard={hasClipboard}
                   consistencyIssues={consistencyIssues}
+                  forceExpandedPaths={searchExpandedPaths}
                 />
               ))}
               {rootSections.length === 0 && (
@@ -1674,6 +1688,7 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
                       onClearClipboard={clearClipboard}
                       hasClipboard={hasClipboard}
                       consistencyIssues={consistencyIssues}
+                      forceExpandedPaths={searchExpandedPaths}
                     />
                   </div>
                 ))
@@ -1776,6 +1791,7 @@ interface ComponentTreeEditableProps {
   onClearClipboard?: () => void;
   hasClipboard?: boolean;
   consistencyIssues?: ConsistencyIssue[];
+  forceExpandedPaths?: Set<string>;
 }
 
 const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({ 
@@ -1797,9 +1813,13 @@ const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({
   onClearHistory,
   onClearClipboard,
   hasClipboard,
-  consistencyIssues = []
+  consistencyIssues = [],
+  forceExpandedPaths
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const pathKey = basePath.join('.');
+  const isForceExpanded = forceExpandedPaths?.has(pathKey) ?? false;
+  const [isManuallyExpanded, setIsManuallyExpanded] = useState(false);
+  const isExpanded = isManuallyExpanded || isForceExpanded;
   const availableRefs = useMemo(() => Object.keys(allSchemas), [allSchemas]);
   
   // Check if this is a document reference
@@ -1824,7 +1844,7 @@ const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({
           "flex items-center gap-3 p-3 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors group",
           isExpanded && "border-b"
         )}
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={() => setIsManuallyExpanded(!isManuallyExpanded)}
       >
         {hasProperties || true ? (
           isExpanded ? (
@@ -1933,6 +1953,7 @@ const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({
                   onClearClipboard={onClearClipboard}
                   hasClipboard={hasClipboard}
                   consistencyIssues={consistencyIssues}
+                  forceExpandedPaths={forceExpandedPaths}
                 />
               </SortableItem>
             ))}
