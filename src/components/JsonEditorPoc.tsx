@@ -11,7 +11,7 @@ import { CollaborationIndicator } from '@/components/CollaborationIndicator';
 import { OpenApiStructureEditor } from '@/components/openapi/OpenApiStructureEditor';
 import { SchemaStructureEditor } from '@/components/schema/SchemaStructureEditor';
 import { Button } from '@/components/ui/button';
-import { Settings, Users, Code2, FileJson2, PanelLeftClose, PanelLeft, LayoutList } from 'lucide-react';
+import { Settings, Users, Code2, FileJson2, PanelLeftClose, PanelLeft, LayoutList, AlertTriangle } from 'lucide-react';
 import {
   Dialog,
   DialogContent, 
@@ -25,6 +25,9 @@ import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import { runLegacyCleanupOnce } from '@/utils/legacyCleanup';
+import { checkSchemaConsistency } from '@/lib/translationUtils';
+import { useConsistencyConfig } from '@/hooks/useConsistencyConfig';
+import { Badge } from '@/components/ui/badge';
 
 interface JsonEditorPocProps {
   value: string;
@@ -88,6 +91,29 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   
   // Structure view is available for all supported schema types
   const supportsStructureView = isOpenApi || isDiagram || isJsonSchema;
+  
+  // Consistency checking
+  const { config: consistencyConfig } = useConsistencyConfig();
+  const [showConsistencyIndicators, setShowConsistencyIndicators] = useState(() => {
+    const saved = localStorage.getItem('show-consistency-indicators');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  
+  // Persist consistency indicator preference
+  useEffect(() => {
+    localStorage.setItem('show-consistency-indicators', JSON.stringify(showConsistencyIndicators));
+  }, [showConsistencyIndicators]);
+  
+  // Run consistency checks on the schema
+  const consistencyIssues = useMemo(() => {
+    if (!parsedSchema || !showConsistencyIndicators) return [];
+    try {
+      return checkSchemaConsistency(parsedSchema, consistencyConfig);
+    } catch (error) {
+      console.error('Consistency check failed:', error);
+      return [];
+    }
+  }, [parsedSchema, consistencyConfig, showConsistencyIndicators]);
   
   // Clean up legacy editor history on component mount
   useEffect(() => {
@@ -450,6 +476,35 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
                 </button>
               </>
             )}
+            {supportsStructureView && viewMode === 'structure' && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setShowConsistencyIndicators(!showConsistencyIndicators)}
+                      className={`p-1.5 rounded transition-colors flex items-center gap-1 ${
+                        showConsistencyIndicators 
+                          ? 'bg-amber-500/20 text-amber-600 hover:bg-amber-500/30' 
+                          : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'
+                      }`}
+                      title={showConsistencyIndicators ? 'Hide Consistency Indicators' : 'Show Consistency Indicators'}
+                    >
+                      <AlertTriangle className="h-4 w-4" />
+                      {consistencyIssues.length > 0 && showConsistencyIndicators && (
+                        <Badge variant="outline" className="h-4 px-1 py-0 text-[10px] bg-amber-500/10 text-amber-600 border-0">
+                          {consistencyIssues.length}
+                        </Badge>
+                      )}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {showConsistencyIndicators 
+                      ? `Hide consistency indicators (${consistencyIssues.length} issues)` 
+                      : 'Show consistency indicators'}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
             {supportsStructureView && (
               <TooltipProvider>
                 <Tooltip>
@@ -498,6 +553,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
               onSchemaChange={(newSchema) => {
                 onChange(JSON.stringify(newSchema, null, 2));
               }}
+              consistencyIssues={showConsistencyIndicators ? consistencyIssues : []}
             />
           ) : (
             <SchemaStructureEditor
@@ -506,6 +562,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
               onSchemaChange={(newSchema) => {
                 onChange(JSON.stringify(newSchema, null, 2));
               }}
+              consistencyIssues={showConsistencyIndicators ? consistencyIssues : []}
             />
           )}
         </div>

@@ -9,43 +9,62 @@ interface ConsistencyIndicatorProps {
   issues: ConsistencyIssue[];
   path: string[];
   className?: string;
+  /** If true, includes issues from child paths (aggregation for parent nodes) */
+  includeChildren?: boolean;
 }
 
 export const ConsistencyIndicator: React.FC<ConsistencyIndicatorProps> = ({
   issues,
   path,
-  className
+  className,
+  includeChildren = true
 }) => {
-  // Match issues to this path - check if issue path starts with or equals this path
+  // Match issues to this path - supports both exact match and child path aggregation
   const relevantIssues = useMemo(() => {
     const pathStr = path.join('.');
-    const pathStrAlt = path.join('/');
+    const pathStrSlash = path.join('/');
     
     return issues.filter(issue => {
-      // Normalize the issue path for comparison
       const issuePath = issue.path || '';
       
-      // Check various path formats
-      // Exact match
-      if (issuePath === pathStr || issuePath === pathStrAlt) return true;
+      // Normalize issue path - remove leading # or /
+      const normalizedIssuePath = issuePath.replace(/^[#/]+/, '');
       
-      // Check if issue path starts with this path (for nested issues)
-      if (issuePath.startsWith(pathStr + '.') || issuePath.startsWith(pathStr + '/')) return true;
-      if (issuePath.startsWith(pathStrAlt + '.') || issuePath.startsWith(pathStrAlt + '/')) return true;
+      // For exact match (this specific property)
+      if (normalizedIssuePath === pathStr || normalizedIssuePath === pathStrSlash) {
+        return true;
+      }
       
-      // Check if the path ends with the property name for shorter issue paths
-      const lastPathSegment = path[path.length - 1];
-      if (lastPathSegment && issuePath.endsWith(lastPathSegment)) {
-        // Verify it's a proper match (not just a substring)
-        const beforeLastSegment = issuePath.slice(0, -(lastPathSegment.length));
-        if (beforeLastSegment === '' || beforeLastSegment.endsWith('.') || beforeLastSegment.endsWith('/')) {
+      // Check path segments match
+      const issueSegments = normalizedIssuePath.split(/[./]/);
+      const pathSegments = path;
+      
+      // Exact segment match
+      if (issueSegments.length === pathSegments.length) {
+        const matches = issueSegments.every((seg, i) => seg === pathSegments[i]);
+        if (matches) return true;
+      }
+      
+      // For aggregation - include child issues
+      if (includeChildren) {
+        // Check if issue path starts with this path
+        if (normalizedIssuePath.startsWith(pathStr + '.') || 
+            normalizedIssuePath.startsWith(pathStr + '/') ||
+            normalizedIssuePath.startsWith(pathStrSlash + '.') || 
+            normalizedIssuePath.startsWith(pathStrSlash + '/')) {
           return true;
+        }
+        
+        // Check segment-based child match
+        if (issueSegments.length > pathSegments.length) {
+          const prefixMatches = pathSegments.every((seg, i) => seg === issueSegments[i]);
+          if (prefixMatches) return true;
         }
       }
       
       return false;
     });
-  }, [issues, path]);
+  }, [issues, path, includeChildren]);
 
   if (relevantIssues.length === 0) return null;
 
@@ -90,7 +109,7 @@ export const ConsistencyIndicator: React.FC<ConsistencyIndicatorProps> = ({
             {relevantIssues.length} consistency issue{relevantIssues.length !== 1 ? 's' : ''}
           </p>
           <ul className="text-xs space-y-0.5">
-            {relevantIssues.slice(0, 3).map((issue, i) => (
+            {relevantIssues.slice(0, 5).map((issue, i) => (
               <li key={i} className="flex items-start gap-1">
                 {issue.severity === 'error' && <AlertCircle className="h-3 w-3 text-destructive shrink-0 mt-0.5" />}
                 {issue.severity === 'warning' && <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0 mt-0.5" />}
@@ -98,9 +117,9 @@ export const ConsistencyIndicator: React.FC<ConsistencyIndicatorProps> = ({
                 <span className="text-muted-foreground">{issue.message}</span>
               </li>
             ))}
-            {relevantIssues.length > 3 && (
+            {relevantIssues.length > 5 && (
               <li className="text-muted-foreground">
-                +{relevantIssues.length - 3} more...
+                +{relevantIssues.length - 5} more...
               </li>
             )}
           </ul>
@@ -118,15 +137,14 @@ export const ConsistencyIndicator: React.FC<ConsistencyIndicatorProps> = ({
 // Helper function to get all issues for a subtree (including nested)
 export function getIssuesForPath(issues: ConsistencyIssue[], path: string[]): ConsistencyIssue[] {
   const pathStr = path.join('.');
-  const pathStrAlt = path.join('/');
+  const pathStrSlash = path.join('/');
   
   return issues.filter(issue => {
-    const issuePath = issue.path || '';
+    const issuePath = (issue.path || '').replace(/^[#/]+/, '');
     
-    // Exact match or nested under this path
-    if (issuePath === pathStr || issuePath === pathStrAlt) return true;
+    if (issuePath === pathStr || issuePath === pathStrSlash) return true;
     if (issuePath.startsWith(pathStr + '.') || issuePath.startsWith(pathStr + '/')) return true;
-    if (issuePath.startsWith(pathStrAlt + '.') || issuePath.startsWith(pathStrAlt + '/')) return true;
+    if (issuePath.startsWith(pathStrSlash + '.') || issuePath.startsWith(pathStrSlash + '/')) return true;
     
     return false;
   });
