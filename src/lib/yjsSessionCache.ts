@@ -5,7 +5,10 @@ export interface YjsSession {
   doc: Y.Doc;
   text: Y.Text;
   lastAccess: number;
+  /** True once the user has made local edits in this browser session */
+  dirty: boolean;
 }
+
 
 const MAX_SESSIONS = 10;
 const sessions = new Map<string, YjsSession>();
@@ -32,14 +35,26 @@ export function getOrCreateYjsSession(documentId: string, initialContent?: strin
   if (existing) {
     existing.lastAccess = Date.now();
 
-    // If the cached doc is empty but we now have initialContent, populate it.
-    // This can happen when a session was created before the server data arrived.
-    if (initialContent && existing.text.length === 0) {
+    // Once the user has made local edits, the cache becomes authoritative.
+    // Don't parse / hydrate on every upstream value change.
+    if (existing.dirty) return existing;
+
+    // If we receive authoritative initialContent later (e.g. after async load),
+    // hydrate the cached doc only if the user hasn't made local edits yet.
+    if (initialContent) {
       try {
         JSON.parse(initialContent);
-        existing.doc.transact(() => {
-          existing.text.insert(0, initialContent);
-        }, 'init');
+
+        const current = existing.text.toString();
+        const shouldHydrate =
+          current.length === 0 || (!existing.dirty && current !== initialContent);
+
+        if (shouldHydrate) {
+          existing.doc.transact(() => {
+            existing.text.delete(0, existing.text.length);
+            existing.text.insert(0, initialContent);
+          }, 'init');
+        }
       } catch {
         // skip if not valid JSON
       }
@@ -67,14 +82,17 @@ export function getOrCreateYjsSession(documentId: string, initialContent?: strin
     documentId,
     doc,
     text,
-    lastAccess: Date.now()
+    lastAccess: Date.now(),
+    dirty: false
   };
+
 
   sessions.set(documentId, session);
   evictIfNeeded();
 
   return session;
 }
+
 
 
 export function clearYjsSession(documentId: string) {

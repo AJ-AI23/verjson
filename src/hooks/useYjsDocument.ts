@@ -3,7 +3,8 @@ import * as Y from 'yjs';
 import { Awareness } from 'y-protocols/awareness';
 import { useAuth } from '@/contexts/AuthContext';
 import { CustomYjsProvider } from './useCustomYjsProvider';
-import { getOrCreateYjsSession } from '@/lib/yjsSessionCache';
+import { getOrCreateYjsSession, type YjsSession } from '@/lib/yjsSessionCache';
+
 
 interface UseYjsDocumentProps {
   documentId: string | null;
@@ -51,13 +52,21 @@ export const useYjsDocument = ({
   const textRef = useRef<Y.Text | null>(null);
   const observerRef = useRef<((event: Y.YTextEvent) => void) | null>(null);
 
+  const sessionRef = useRef<YjsSession | null>(null);
+
   const providerRef = useRef<CustomYjsProvider | null>(null);
   const awarenessRef = useRef<Awareness | null>(null);
   const awarenessChangeHandlerRef = useRef<(() => void) | null>(null);
 
+  const onContentChangeRef = useRef<typeof onContentChange>(onContentChange);
+  useEffect(() => {
+    onContentChangeRef.current = onContentChange;
+  }, [onContentChange]);
+
   const getAuthToken = useCallback(() => {
     return session?.access_token || null;
   }, [session]);
+
 
   const disconnectProvider = useCallback(() => {
     // Awareness cleanup (only relevant when collaboration is enabled)
@@ -86,6 +95,7 @@ export const useYjsDocument = ({
 
     observerRef.current = null;
     textRef.current = null;
+    sessionRef.current = null;
 
     disconnectProvider();
 
@@ -94,6 +104,7 @@ export const useYjsDocument = ({
     // when switching documents and coming back during the same browser session.
     setYjsDoc(null);
   }, [disconnectProvider]);
+
 
   const getTextContent = useCallback(() => {
     return textRef.current?.toString() || '';
@@ -105,6 +116,12 @@ export const useYjsDocument = ({
 
     const current = text.toString();
     if (current === content) return;
+
+    // Mark session as having local edits so we don't auto-hydrate over it later.
+    if (sessionRef.current) {
+      sessionRef.current.dirty = true;
+      sessionRef.current.lastAccess = Date.now();
+    }
 
     // Group into a single transaction so UndoManager treats it as one step.
     text.doc?.transact(() => {
@@ -126,9 +143,11 @@ export const useYjsDocument = ({
     }
 
     // Always create (or reuse) a local Y.Doc so undo/redo works even without collaboration.
-    const sessionDoc = getOrCreateYjsSession(documentId, initialContent);
+    // NOTE: we do NOT hydrate from initialContent here to avoid re-initializing on every keystroke.
+    const sessionDoc = getOrCreateYjsSession(documentId);
     const text = sessionDoc.text;
 
+    sessionRef.current = sessionDoc;
     textRef.current = text;
     setYjsDoc(sessionDoc.doc);
 
@@ -137,7 +156,7 @@ export const useYjsDocument = ({
       const content = text.toString();
       try {
         JSON.parse(content);
-        onContentChange?.(content);
+        onContentChangeRef.current?.(content);
       } catch {
         // ignore invalid intermediate states
       }
@@ -146,15 +165,18 @@ export const useYjsDocument = ({
     observerRef.current = observer;
     text.observe(observer);
 
-    // Immediately sync current cached content outward (important when reopening a document).
-    try {
-      const current = text.toString();
-      if (current) {
-        JSON.parse(current);
-        onContentChange?.(current);
+    // If there are local unsaved edits for this doc, surface them immediately.
+    // Otherwise, let the outer React state (server-loaded) remain authoritative.
+    if (sessionDoc.dirty) {
+      try {
+        const current = text.toString();
+        if (current) {
+          JSON.parse(current);
+          onContentChangeRef.current?.(current);
+        }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
     }
 
     const connectCollaboration = async () => {
@@ -242,13 +264,22 @@ export const useYjsDocument = ({
 
       observerRef.current = null;
       textRef.current = null;
+      sessionRef.current = null;
 
       disconnectProvider();
+
 
       // Do NOT destroy sessionDoc.doc (kept in cache)
       setYjsDoc(null);
     };
-  }, [documentId, collaborationEnabled, initialContent, onContentChange, user, profile, getAuthToken, disconnect, disconnectProvider]);
+  }, [documentId, collaborationEnabled, user, profile, getAuthToken, disconnect, disconnectProvider]);
+
+  // Hydrate cached docs from authoritative initialContent (e.g. server-loaded JSON)
+  // without tearing down observers/providers.
+  useEffect(() => {
+    if (!documentId || !initialContent) return;
+    getOrCreateYjsSession(documentId, initialContent);
+  }, [documentId, initialContent]);
 
   return {
     yjsDoc,
