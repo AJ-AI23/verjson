@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { ChevronRight, ChevronDown, Box, Link2, Hash, Type, List, ToggleLeft, FileText, Plus, Trash2, Pencil, Check, X, Copy, Undo2, Redo2, Scissors, Clipboard } from 'lucide-react';
+import { ChevronRight, ChevronDown, Box, Link2, Hash, Type, List, ToggleLeft, FileText, Plus, Trash2, Pencil, Check, X, Copy, Undo2, Redo2, Scissors, Clipboard, AlignLeft, FileCode } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
@@ -712,6 +712,76 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
               {JSON.stringify(propertySchema).slice(0, 50)}
             </span>
           ) : null}
+          
+          {/* Description button - only for schema properties with type */}
+          {isSchemaWithType && !isPrimitive && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className={cn(
+                    "h-5 w-5 p-0 opacity-0 group-hover:opacity-100",
+                    propertySchema?.description && "opacity-100 text-blue-500 hover:text-blue-600"
+                  )}
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    if (propertySchema?.description) {
+                      // Remove description
+                      const { description, ...rest } = propertySchema;
+                      onPropertyChange(path, { schema: rest });
+                    } else {
+                      // Add description
+                      onPropertyChange(path, { schema: { ...propertySchema, description: '' } });
+                    }
+                  }}
+                >
+                  <AlignLeft className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {propertySchema?.description ? 'Remove description' : 'Add description'}
+              </TooltipContent>
+            </Tooltip>
+          )}
+          
+          {/* Example button - only for schema properties with type */}
+          {isSchemaWithType && !isPrimitive && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className={cn(
+                    "h-5 w-5 p-0 opacity-0 group-hover:opacity-100",
+                    propertySchema?.example !== undefined && "opacity-100 text-green-500 hover:text-green-600"
+                  )}
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    if (propertySchema?.example !== undefined) {
+                      // Remove example
+                      const { example, ...rest } = propertySchema;
+                      onPropertyChange(path, { schema: rest });
+                    } else {
+                      // Add example based on type
+                      let exampleValue: any = '';
+                      const typeValue = propertySchema?.type;
+                      if (typeValue === 'integer' || typeValue === 'number') exampleValue = 0;
+                      else if (typeValue === 'boolean') exampleValue = true;
+                      else if (typeValue === 'array') exampleValue = [];
+                      else if (typeValue === 'object') exampleValue = {};
+                      onPropertyChange(path, { schema: { ...propertySchema, example: exampleValue } });
+                    }
+                  }}
+                >
+                  <FileCode className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {propertySchema?.example !== undefined ? 'Remove example' : 'Add example'}
+              </TooltipContent>
+            </Tooltip>
+          )}
           
           {Array.isArray(propertySchema) && (
             <Button 
