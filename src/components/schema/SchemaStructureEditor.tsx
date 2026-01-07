@@ -71,6 +71,7 @@ interface EditablePropertyNodeProps {
   clipboardHistory?: ClipboardItem[];
   onSelectFromHistory?: (item: ClipboardItem) => void;
   onClearHistory?: () => void;
+  onClearClipboard?: () => void;
   hasClipboard?: boolean;
 }
 
@@ -356,6 +357,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
   clipboardHistory,
   onSelectFromHistory,
   onClearHistory,
+  onClearClipboard,
   hasClipboard
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -597,6 +599,13 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
         onDeleteProperty(path);
       }
     }
+    // Escape to clear clipboard
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (onClearClipboard && hasClipboard) {
+        onClearClipboard();
+      }
+    }
   };
 
   // Check if this property is in the clipboard
@@ -806,6 +815,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
                     clipboardHistory={clipboardHistory}
                     onSelectFromHistory={onSelectFromHistory}
                     onClearHistory={onClearHistory}
+                    onClearClipboard={onClearClipboard}
                     hasClipboard={hasClipboard}
                   />
                 </SortableItem>
@@ -859,6 +869,7 @@ interface SectionTreeProps {
   clipboardHistory: ClipboardItem[];
   onSelectFromHistory: (item: ClipboardItem) => void;
   onClearHistory: () => void;
+  onClearClipboard: () => void;
   hasClipboard: boolean;
 }
 
@@ -882,6 +893,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
   clipboardHistory,
   onSelectFromHistory,
   onClearHistory,
+  onClearClipboard,
   hasClipboard
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -935,6 +947,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
                     clipboardHistory={clipboardHistory}
                     onSelectFromHistory={onSelectFromHistory}
                     onClearHistory={onClearHistory}
+                    onClearClipboard={onClearClipboard}
                     hasClipboard={hasClipboard}
                   />
               </SortableItem>
@@ -1003,6 +1016,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
                 clipboardHistory={clipboardHistory}
                 onSelectFromHistory={onSelectFromHistory}
                 onClearHistory={onClearHistory}
+                onClearClipboard={onClearClipboard}
                 hasClipboard={hasClipboard}
               />
             </SortableItem>
@@ -1072,7 +1086,7 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
   );
 
   // Clipboard for cut/copy/paste
-  const { clipboard, history: clipboardHistory, copy, cut, paste, selectFromHistory, hasClipboard, clearHistory } = usePropertyClipboard();
+  const { clipboard, history: clipboardHistory, copy, cut, paste, selectFromHistory, hasClipboard, clearHistory, clearClipboard } = usePropertyClipboard();
 
   // Get definitions based on schema type
   const definitions = useMemo(() => {
@@ -1433,6 +1447,7 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
               clipboardHistory={clipboardHistory}
               onSelectFromHistory={selectFromHistory}
               onClearHistory={clearHistory}
+              onClearClipboard={clearClipboard}
               hasClipboard={hasClipboard}
             />
           ))}

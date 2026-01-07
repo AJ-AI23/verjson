@@ -19,6 +19,7 @@ interface UsePropertyClipboardResult {
   selectFromHistory: (item: ClipboardItem) => void;
   hasClipboard: boolean;
   clearHistory: () => void;
+  clearClipboard: () => void;
 }
 
 export function usePropertyClipboard(): UsePropertyClipboardResult {
@@ -85,6 +86,10 @@ export function usePropertyClipboard(): UsePropertyClipboardResult {
     setClipboard(null);
   }, []);
 
+  const clearClipboard = useCallback(() => {
+    setClipboard(null);
+  }, []);
+
   return {
     clipboard,
     history,
@@ -94,5 +99,6 @@ export function usePropertyClipboard(): UsePropertyClipboardResult {
     selectFromHistory,
     hasClipboard: clipboard !== null,
     clearHistory,
+    clearClipboard,
   };
 }
