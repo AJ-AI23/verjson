@@ -551,7 +551,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
             <OpenApiStructureEditor
               schema={parsedSchema}
               onSchemaChange={(newSchema) => {
-                onChange(JSON.stringify(newSchema, null, 2));
+                handleChange(JSON.stringify(newSchema, null, 2));
               }}
               consistencyIssues={showConsistencyIndicators ? consistencyIssues : []}
             />
@@ -560,7 +560,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
               schema={parsedSchema}
               schemaType={isDiagram ? 'diagram' : 'json-schema'}
               onSchemaChange={(newSchema) => {
-                onChange(JSON.stringify(newSchema, null, 2));
+                handleChange(JSON.stringify(newSchema, null, 2));
               }}
               consistencyIssues={showConsistencyIndicators ? consistencyIssues : []}
             />
