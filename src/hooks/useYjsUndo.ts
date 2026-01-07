@@ -32,7 +32,20 @@ export const useYjsUndo = ({
   
   const undoManagerRef = useRef<Y.UndoManager | null>(null);
   const isUndoRedoOperationRef = useRef(false);
+  const undoRedoResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMountedRef = useRef(true);
+
+  const scheduleUndoRedoReset = useCallback(() => {
+    if (undoRedoResetTimerRef.current) {
+      clearTimeout(undoRedoResetTimerRef.current);
+    }
+
+    // Keep the flag true long enough for React + JSONEditor sync to settle,
+    // otherwise an undo can be re-recorded as a new edit.
+    undoRedoResetTimerRef.current = setTimeout(() => {
+      isUndoRedoOperationRef.current = false;
+    }, 250);
+  }, []);
 
   // Safe state updater that checks if component is still mounted
   const updateState = useCallback(() => {
@@ -61,11 +74,9 @@ export const useYjsUndo = ({
       isUndoRedoOperationRef.current = true;
       um.undo();
       updateState();
-      setTimeout(() => {
-        isUndoRedoOperationRef.current = false;
-      }, 0);
+      scheduleUndoRedoReset();
     }
-  }, [updateState]);
+  }, [scheduleUndoRedoReset, updateState]);
 
   const redo = useCallback(() => {
     const um = undoManagerRef.current;
@@ -73,11 +84,9 @@ export const useYjsUndo = ({
       isUndoRedoOperationRef.current = true;
       um.redo();
       updateState();
-      setTimeout(() => {
-        isUndoRedoOperationRef.current = false;
-      }, 0);
+      scheduleUndoRedoReset();
     }
-  }, [updateState]);
+  }, [scheduleUndoRedoReset, updateState]);
 
   const clearHistory = useCallback(() => {
     if (undoManagerRef.current) {
