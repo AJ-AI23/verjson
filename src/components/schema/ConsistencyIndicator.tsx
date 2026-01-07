@@ -91,17 +91,19 @@ export const ConsistencyIndicator: React.FC<ConsistencyIndicatorProps> = ({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Badge
-          variant="outline"
-          className={cn(
-            'h-4 px-1 py-0 text-[10px] font-medium cursor-pointer border-0',
-            colorClasses[highestSeverity],
-            className
-          )}
-        >
-          <Icon className="h-2.5 w-2.5 mr-0.5" />
-          {relevantIssues.length}
-        </Badge>
+        <span className="inline-flex" tabIndex={0}>
+          <Badge
+            variant="outline"
+            className={cn(
+              'h-4 px-1 py-0 text-[10px] font-medium cursor-pointer border-0',
+              colorClasses[highestSeverity],
+              className
+            )}
+          >
+            <Icon className="h-2.5 w-2.5 mr-0.5" />
+            {relevantIssues.length}
+          </Badge>
+        </span>
       </TooltipTrigger>
       <TooltipContent side="right" className="max-w-xs">
         <div className="space-y-1">
