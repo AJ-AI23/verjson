@@ -543,13 +543,13 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
   };
 
   const handleCopy = () => {
-    if (onCopy && !parentIsArray) {
+    if (onCopy) {
       onCopy(name, propertySchema, path);
     }
   };
 
   const handleCut = () => {
-    if (onCut && !parentIsArray) {
+    if (onCut) {
       onCut(name, propertySchema, path);
     }
   };
@@ -703,8 +703,8 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
             </Button>
           )}
           
-          {/* Copy button - only for non-array items */}
-          {onCopy && !parentIsArray && (
+          {/* Copy button */}
+          {onCopy && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button 
@@ -720,8 +720,8 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
             </Tooltip>
           )}
           
-          {/* Cut button - only for non-array items */}
-          {onCut && !parentIsArray && (
+          {/* Cut button */}
+          {onCut && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button 
@@ -940,7 +940,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
               </SortableItem>
             ))}
           </SortablePropertyList>
-          <div className="py-1 px-2 pl-6">
+          <div className="py-1 px-2 pl-6 flex items-center gap-1">
             <Button 
               variant="ghost" 
               size="sm" 
@@ -950,6 +950,26 @@ const SectionTree: React.FC<SectionTreeProps> = ({
               <Plus className="h-3 w-3" />
               Add Item
             </Button>
+            {hasClipboard && clipboard && (
+              <ClipboardHistoryPopover
+                clipboard={clipboard}
+                history={clipboardHistory}
+                onPaste={(selectedItem) => {
+                  // Paste as new array item
+                  const item = selectedItem || clipboard;
+                  if (item) {
+                    onAddArrayItem(path, item.schema);
+                  }
+                }}
+                onSelectFromHistory={onSelectFromHistory}
+                onClearHistory={onClearHistory}
+              >
+                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1">
+                  <Clipboard className="h-3 w-3" />
+                  Paste Item
+                </Button>
+              </ClipboardHistoryPopover>
+            )}
           </div>
         </div>
       );
