@@ -548,10 +548,10 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
 
   const handlePaste = (selectedItem?: ClipboardItem) => {
     if (onPaste && canHaveChildren) {
-      // Paste into this node's properties
-      const pastePath = propertySchema?.type === 'object' || (!isPrimitive && !isSchemaWithType) 
-        ? [...path, 'properties'] 
-        : path;
+      // Only add 'properties' if this is a JSON Schema object with type: 'object'
+      // For plain objects (no type field), paste directly into the object
+      const isJsonSchemaObject = propertySchema?.type === 'object';
+      const pastePath = isJsonSchemaObject ? [...path, 'properties'] : path;
       onPaste(pastePath, selectedItem);
     }
   };
@@ -594,13 +594,14 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
   // Check if this property is in the clipboard
   const isInClipboard = useMemo(() => {
     if (!clipboard) return null;
-    const currentPathStr = path.join('/');
-    const clipboardPathStr = clipboard.sourcePath.join('/');
-    if (currentPathStr === clipboardPathStr && name === clipboard.name) {
+    // Compare paths - the source path already includes the property name as last element
+    const currentFullPath = path.join('/');
+    const clipboardFullPath = clipboard.sourcePath.join('/');
+    if (currentFullPath === clipboardFullPath) {
       return clipboard.isCut ? 'cut' : 'copied';
     }
     return null;
-  }, [clipboard, path, name]);
+  }, [clipboard, path]);
 
   return (
     <div className="select-none">

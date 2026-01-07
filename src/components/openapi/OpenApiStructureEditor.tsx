@@ -580,9 +580,9 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
     if (onPaste && canHaveChildren) {
       const types = propertySchema?.types || propertySchema?.type;
       const typeValue = Array.isArray(types) ? types[0] : types;
-      const pastePath = typeValue === 'object' || (!isPrimitive && !isSchemaWithType) 
-        ? [...path, 'properties'] 
-        : path;
+      // Only add 'properties' if this is a JSON Schema object with explicit type: 'object'
+      const isJsonSchemaObject = typeValue === 'object';
+      const pastePath = isJsonSchemaObject ? [...path, 'properties'] : path;
       onPaste(pastePath, selectedItem);
     }
   };
@@ -622,12 +622,25 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
     }
   };
 
+  // Check if this property is in the clipboard
+  const isInClipboard = useMemo(() => {
+    if (!clipboard) return null;
+    const currentFullPath = path.join('/');
+    const clipboardFullPath = clipboard.sourcePath.join('/');
+    if (currentFullPath === clipboardFullPath) {
+      return clipboard.isCut ? 'cut' : 'copied';
+    }
+    return null;
+  }, [clipboard, path]);
+
   return (
     <div className="select-none">
       <div 
         className={cn(
           "flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors group focus:outline-none focus:ring-1 focus:ring-ring",
-          depth > 0 && "ml-4"
+          depth > 0 && "ml-4",
+          isInClipboard === 'cut' && "bg-destructive/10 border border-dashed border-destructive/50",
+          isInClipboard === 'copied' && "bg-primary/10 border border-dashed border-primary/50"
         )}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
         tabIndex={0}
