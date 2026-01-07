@@ -13,6 +13,8 @@ import { useSchemaHistory } from '@/hooks/useSchemaHistory';
 import { usePropertyClipboard, ClipboardItem } from '@/hooks/usePropertyClipboard';
 import { ClipboardHistoryPopover } from './ClipboardHistoryPopover';
 import { RefTargetConfirmDialog, RefTargetInfo } from '@/components/openapi/RefTargetConfirmDialog';
+import { ConsistencyIndicator } from './ConsistencyIndicator';
+import { ConsistencyIssue } from '@/types/consistency';
 const JSON_SCHEMA_TYPES = [
   'string',
   'integer', 
@@ -48,6 +50,7 @@ interface SchemaStructureEditorProps {
   schema: any;
   onSchemaChange: (schema: any) => void;
   schemaType: 'json-schema' | 'diagram';
+  consistencyIssues?: ConsistencyIssue[];
 }
 
 interface EditablePropertyNodeProps {
@@ -74,6 +77,7 @@ interface EditablePropertyNodeProps {
   onClearHistory?: () => void;
   onClearClipboard?: () => void;
   hasClipboard?: boolean;
+  consistencyIssues?: ConsistencyIssue[];
 }
 
 const getTypeIcon = (schema: any) => {
@@ -359,7 +363,8 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
   onSelectFromHistory,
   onClearHistory,
   onClearClipboard,
-  hasClipboard
+  hasClipboard,
+  consistencyIssues = []
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -685,6 +690,11 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
           </span>
         )}
         
+        {/* Consistency issues indicator */}
+        {consistencyIssues.length > 0 && (
+          <ConsistencyIndicator issues={consistencyIssues} path={path} />
+        )}
+        
         <div className="ml-auto flex items-center gap-1">
           {isPrimitive ? (
             <EditableValue value={propertySchema} onValueChange={handleValueChange} />
@@ -816,6 +826,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
                     onClearHistory={onClearHistory}
                     onClearClipboard={onClearClipboard}
                     hasClipboard={hasClipboard}
+                    consistencyIssues={consistencyIssues}
                   />
                 </SortableItem>
               ))}
@@ -940,15 +951,15 @@ const SectionTree: React.FC<SectionTreeProps> = ({
                   onAddArrayItem={onAddArrayItem}
                   onReorderProperties={onReorderProperties}
                   onCopy={onCopy}
-                    onCut={onCut}
-                    onPaste={onPaste}
-                    clipboard={clipboard}
-                    clipboardHistory={clipboardHistory}
-                    onSelectFromHistory={onSelectFromHistory}
-                    onClearHistory={onClearHistory}
-                    onClearClipboard={onClearClipboard}
-                    hasClipboard={hasClipboard}
-                  />
+                  onCut={onCut}
+                  onPaste={onPaste}
+                  clipboard={clipboard}
+                  clipboardHistory={clipboardHistory}
+                  onSelectFromHistory={onSelectFromHistory}
+                  onClearHistory={onClearHistory}
+                  onClearClipboard={onClearClipboard}
+                  hasClipboard={hasClipboard}
+                />
               </SortableItem>
             ))}
           </SortablePropertyList>
@@ -1074,7 +1085,8 @@ const SectionTree: React.FC<SectionTreeProps> = ({
 export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
   schema,
   onSchemaChange,
-  schemaType
+  schemaType,
+  consistencyIssues = []
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   
