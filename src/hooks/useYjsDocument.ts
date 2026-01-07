@@ -3,9 +3,11 @@ import * as Y from 'yjs';
 import { Awareness } from 'y-protocols/awareness';
 import { useAuth } from '@/contexts/AuthContext';
 import { CustomYjsProvider } from './useCustomYjsProvider';
+import { getOrCreateYjsSession } from '@/lib/yjsSessionCache';
 
 interface UseYjsDocumentProps {
   documentId: string | null;
+  collaborationEnabled?: boolean;
   initialContent?: string;
   onContentChange?: (content: string) => void;
 }
@@ -29,6 +31,7 @@ interface UseYjsDocumentResult {
 
 export const useYjsDocument = ({
   documentId,
+  collaborationEnabled = false,
   initialContent,
   onContentChange
 }: UseYjsDocumentProps): UseYjsDocumentResult => {
@@ -48,154 +51,204 @@ export const useYjsDocument = ({
   const textRef = useRef<Y.Text | null>(null);
   const observerRef = useRef<((event: Y.YTextEvent) => void) | null>(null);
 
+  const providerRef = useRef<CustomYjsProvider | null>(null);
+  const awarenessRef = useRef<Awareness | null>(null);
+  const awarenessChangeHandlerRef = useRef<(() => void) | null>(null);
+
   const getAuthToken = useCallback(() => {
     return session?.access_token || null;
   }, [session]);
 
-  const initializeYjsDocument = useCallback(async () => {
-    if (!documentId || !user) return;
-
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      // Create new Y.Doc
-      const doc = new Y.Doc();
-      const text = doc.getText('content');
-      
-      // Set initial content if provided and document is empty
-      if (initialContent && text.length === 0) {
-        // Validate that initial content is valid JSON before inserting
-        try {
-          JSON.parse(initialContent);
-          text.insert(0, initialContent);
-        } catch (e) {
-          console.warn('Initial content is not valid JSON, skipping insertion:', e);
-        }
-      }
-
-      // Get auth token for WebSocket connection
-      const authToken = await getAuthToken();
-      
-      // Create custom YJS provider with proper binary handling
-      const wsUrl = `wss://swghcmyqracwifpdfyap.functions.supabase.co/functions/v1/yjs-sync?documentId=${documentId}&token=${authToken}`;
-      const awareness = new Awareness(doc);
-      const wsProvider = new CustomYjsProvider(wsUrl, documentId, doc, awareness);
-
-      // Set up connection event listeners
-      wsProvider.on('status', (event: { status: string }) => {
-        setIsConnected(event.status === 'connected');
-        if (event.status === 'connected') {
-          setIsLoading(false);
-        }
-      });
-
-      wsProvider.on('connection-error', (event: Event) => {
-        console.error('WebSocket connection error:', event);
-        setError('Failed to connect to collaboration server');
-        setIsLoading(false);
-      });
-
-      wsProvider.on('synced', () => {
-        console.log('YJS document synchronized');
-        setIsLoading(false);
-      });
-      
-      // Set user info for awareness from AuthContext
-      awareness.setLocalStateField('user', {
-        id: user.id,
-        name: profile?.full_name || profile?.username || user.email?.split('@')[0] || 'Anonymous',
-        avatar: profile?.avatar_url
-      });
-
-      // Listen to awareness changes (other users)
-      awareness.on('change', () => {
-        const users = Array.from(awareness.getStates().entries())
-          .filter(([clientId, state]) => clientId !== awareness.clientID)
-          .map(([clientId, state]) => ({
-            id: state.user?.id || clientId.toString(),
-            name: state.user?.name,
-            avatar: state.user?.avatar,
-            cursor: state.cursor
-          }));
-        setActiveUsers(users);
-      });
-
-      // Set up text change observer
-      const observer = (event: Y.YTextEvent) => {
-        const content = text.toString();
-        // Only notify of changes if content is valid JSON
-        try {
-          JSON.parse(content);
-          onContentChange?.(content);
-        } catch (e) {
-          // Content is not valid JSON yet, skip notification
-          // This prevents errors during partial sync operations
-        }
-      };
-
-      text.observe(observer);
-
-      // Store references
-      textRef.current = text;
-      observerRef.current = observer;
-      setYjsDoc(doc);
-      setProvider(wsProvider);
-
-    } catch (err) {
-      console.error('Error initializing Yjs document:', err);
-      setError('Failed to initialize collaborative editing');
-      setIsLoading(false);
+  const disconnectProvider = useCallback(() => {
+    // Awareness cleanup (only relevant when collaboration is enabled)
+    if (awarenessRef.current && awarenessChangeHandlerRef.current) {
+      awarenessRef.current.off('change', awarenessChangeHandlerRef.current);
     }
-  }, [documentId, user, session, profile, getAuthToken]);
 
-  const getTextContent = useCallback(() => {
-    return textRef.current?.toString() || '';
-  }, []);
+    awarenessRef.current = null;
+    awarenessChangeHandlerRef.current = null;
 
-  const updateContent = useCallback((content: string) => {
-    if (!textRef.current) return;
+    if (providerRef.current) {
+      providerRef.current.destroy();
+      providerRef.current = null;
+    }
 
-    // Replace entire content
-    textRef.current.delete(0, textRef.current.length);
-    textRef.current.insert(0, content);
+    setProvider(null);
+    setIsConnected(false);
+    setIsLoading(false);
+    setActiveUsers([]);
   }, []);
 
   const disconnect = useCallback(() => {
     if (observerRef.current && textRef.current) {
       textRef.current.unobserve(observerRef.current);
     }
-    
-    if (provider) {
-      provider.destroy();
-    }
-    
-    if (yjsDoc) {
-      yjsDoc.destroy();
-    }
 
-    setYjsDoc(null);
-    setProvider(null);
-    setIsConnected(false);
-    setActiveUsers([]);
-    textRef.current = null;
     observerRef.current = null;
-  }, [provider, yjsDoc]);
+    textRef.current = null;
 
-  // Initialize when documentId changes
+    disconnectProvider();
+
+    // IMPORTANT: we intentionally do NOT destroy the Y.Doc.
+    // We keep it in an in-memory cache so local undo/redo history persists
+    // when switching documents and coming back during the same browser session.
+    setYjsDoc(null);
+  }, [disconnectProvider]);
+
+  const getTextContent = useCallback(() => {
+    return textRef.current?.toString() || '';
+  }, []);
+
+  const updateContent = useCallback((content: string) => {
+    const text = textRef.current;
+    if (!text) return;
+
+    const current = text.toString();
+    if (current === content) return;
+
+    // Group into a single transaction so UndoManager treats it as one step.
+    text.doc?.transact(() => {
+      text.delete(0, text.length);
+      text.insert(0, content);
+    }, 'content-replace');
+  }, []);
+
   useEffect(() => {
-    if (documentId) {
-      // Cleanup previous connection before initializing new one
-      disconnect();
-      initializeYjsDocument();
-    } else {
-      disconnect();
+    let cancelled = false;
+
+    // Tear down provider + observers for the previous document / mode.
+    disconnect();
+
+    if (!documentId) {
+      return () => {
+        // disconnect already called above
+      };
     }
+
+    // Always create (or reuse) a local Y.Doc so undo/redo works even without collaboration.
+    const sessionDoc = getOrCreateYjsSession(documentId, initialContent);
+    const text = sessionDoc.text;
+
+    textRef.current = text;
+    setYjsDoc(sessionDoc.doc);
+
+    // Observe changes (valid JSON only) and propagate to the parent.
+    const observer = () => {
+      const content = text.toString();
+      try {
+        JSON.parse(content);
+        onContentChange?.(content);
+      } catch {
+        // ignore invalid intermediate states
+      }
+    };
+
+    observerRef.current = observer;
+    text.observe(observer);
+
+    // Immediately sync current cached content outward (important when reopening a document).
+    try {
+      const current = text.toString();
+      if (current) {
+        JSON.parse(current);
+        onContentChange?.(current);
+      }
+    } catch {
+      // ignore
+    }
+
+    const connectCollaboration = async () => {
+      if (!collaborationEnabled) {
+        setError(null);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!user) {
+        setError('You must be signed in to use collaboration');
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const authToken = await getAuthToken();
+        if (cancelled) return;
+
+        const awareness = new Awareness(sessionDoc.doc);
+        awarenessRef.current = awareness;
+
+        awareness.setLocalStateField('user', {
+          id: user.id,
+          name: profile?.full_name || profile?.username || user.email?.split('@')[0] || 'Anonymous',
+          avatar: profile?.avatar_url
+        });
+
+        const handleAwarenessChange = () => {
+          const users = Array.from(awareness.getStates().entries())
+            .filter(([clientId]) => clientId !== awareness.clientID)
+            .map(([clientId, state]) => ({
+              id: state.user?.id || clientId.toString(),
+              name: state.user?.name,
+              avatar: state.user?.avatar,
+              cursor: state.cursor
+            }));
+          setActiveUsers(users);
+        };
+
+        awarenessChangeHandlerRef.current = handleAwarenessChange;
+        awareness.on('change', handleAwarenessChange);
+
+        const wsUrl = `wss://swghcmyqracwifpdfyap.functions.supabase.co/functions/v1/yjs-sync?documentId=${documentId}&token=${authToken}`;
+        const wsProvider = new CustomYjsProvider(wsUrl, documentId, sessionDoc.doc, awareness);
+
+        providerRef.current = wsProvider;
+        setProvider(wsProvider);
+
+        wsProvider.on('status', (event: { status: string }) => {
+          setIsConnected(event.status === 'connected');
+          if (event.status === 'connected') {
+            setIsLoading(false);
+          }
+        });
+
+        wsProvider.on('connection-error', (event: Event) => {
+          console.error('WebSocket connection error:', event);
+          setError('Failed to connect to collaboration server');
+          setIsLoading(false);
+        });
+
+        wsProvider.on('synced', () => {
+          setIsLoading(false);
+        });
+
+      } catch (err) {
+        console.error('Error initializing Yjs collaboration:', err);
+        setError('Failed to initialize collaborative editing');
+        setIsLoading(false);
+      }
+    };
+
+    connectCollaboration();
 
     return () => {
-      disconnect();
+      cancelled = true;
+
+      if (observerRef.current && textRef.current) {
+        textRef.current.unobserve(observerRef.current);
+      }
+
+      observerRef.current = null;
+      textRef.current = null;
+
+      disconnectProvider();
+
+      // Do NOT destroy sessionDoc.doc (kept in cache)
+      setYjsDoc(null);
     };
-  }, [documentId]);
+  }, [documentId, collaborationEnabled, initialContent, onContentChange, user, profile, getAuthToken, disconnect, disconnectProvider]);
 
   return {
     yjsDoc,
