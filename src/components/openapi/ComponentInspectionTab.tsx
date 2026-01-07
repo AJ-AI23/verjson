@@ -1,8 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronRight, ChevronDown, Box, Link2, Hash, Type, List, ToggleLeft, Calendar, FileText } from 'lucide-react';
+import { ChevronRight, ChevronDown, Box, Link2, Hash, Type, List, ToggleLeft, Calendar, FileText, Copy, Scissors } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { usePropertyClipboard, ClipboardItem } from '@/hooks/usePropertyClipboard';
 
 interface ComponentInfo {
   name: string;
@@ -22,6 +25,10 @@ interface PropertyNodeProps {
   allSchemas: Record<string, any>;
   depth?: number;
   isArrayItem?: boolean;
+  path: string[];
+  onCopy?: (name: string, schema: any, path: string[]) => void;
+  onCut?: (name: string, schema: any, path: string[]) => void;
+  clipboard?: ClipboardItem | null;
 }
 
 const getTypeIcon = (schema: any) => {
@@ -78,7 +85,11 @@ const PropertyNode: React.FC<PropertyNodeProps> = ({
   schema, 
   allSchemas, 
   depth = 0,
-  isArrayItem = false 
+  isArrayItem = false,
+  path,
+  onCopy,
+  onCut,
+  clipboard
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   
@@ -143,10 +154,39 @@ const PropertyNode: React.FC<PropertyNodeProps> = ({
   const typeLabel = getTypeLabel(schema);
   const isRef = !!schema.$ref || !!(schema.items?.$ref);
 
+  // Check if this property is in the clipboard
+  const isInClipboard = useMemo(() => {
+    if (!clipboard) return null;
+    const currentFullPath = path.join('/');
+    const clipboardFullPath = clipboard.sourcePath.join('/');
+    if (currentFullPath === clipboardFullPath) {
+      return clipboard.isCut ? 'cut' : 'copied';
+    }
+    return null;
+  }, [clipboard, path]);
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onCopy) {
+      onCopy(name, schema, path);
+    }
+  };
+
+  const handleCut = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onCut) {
+      onCut(name, schema, path);
+    }
+  };
+
   return (
     <div className="select-none">
       <div 
-        className="flex items-center gap-2 py-1.5 px-2 rounded-md cursor-pointer hover:bg-muted/50 transition-colors"
+        className={cn(
+          "flex items-center gap-2 py-1.5 px-2 rounded-md cursor-pointer hover:bg-muted/50 transition-colors group",
+          isInClipboard === 'cut' && "bg-destructive/10 border border-dashed border-destructive/50",
+          isInClipboard === 'copied' && "bg-primary/10 border border-dashed border-primary/50"
+        )}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
         onClick={() => hasChildren && setIsExpanded(!isExpanded)}
       >
@@ -169,10 +209,44 @@ const PropertyNode: React.FC<PropertyNodeProps> = ({
           {isArrayItem ? `[${name}]` : name}
         </span>
         
+        {/* Copy/Cut buttons */}
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
+          {onCopy && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0"
+                  onClick={handleCopy}
+                >
+                  <Copy className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">Copy (Ctrl+C)</TooltipContent>
+            </Tooltip>
+          )}
+          {onCut && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0"
+                  onClick={handleCut}
+                >
+                  <Scissors className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">Cut (Ctrl+X)</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+        
         <Badge 
           variant={isRef ? "default" : "secondary"} 
           className={cn(
-            "text-xs font-normal ml-auto",
+            "text-xs font-normal",
             isRef && "bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 border-blue-500/20"
           )}
         >
@@ -189,6 +263,10 @@ const PropertyNode: React.FC<PropertyNodeProps> = ({
               schema={propSchema as any}
               allSchemas={allSchemas}
               depth={depth + 1}
+              path={[...path, 'properties', propName]}
+              onCopy={onCopy}
+              onCut={onCut}
+              clipboard={clipboard}
             />
           ))}
         </div>
@@ -200,19 +278,51 @@ const PropertyNode: React.FC<PropertyNodeProps> = ({
 interface ComponentTreeProps {
   component: ComponentInfo;
   allSchemas: Record<string, any>;
+  onCopy?: (name: string, schema: any, path: string[]) => void;
+  onCut?: (name: string, schema: any, path: string[]) => void;
+  clipboard?: ClipboardItem | null;
 }
 
-const ComponentTree: React.FC<ComponentTreeProps> = ({ component, allSchemas }) => {
+const ComponentTree: React.FC<ComponentTreeProps> = ({ component, allSchemas, onCopy, onCut, clipboard }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   
   const properties = component.schema?.properties || {};
   const hasProperties = Object.keys(properties).length > 0;
 
+  // Check if this component is in the clipboard
+  const isInClipboard = useMemo(() => {
+    if (!clipboard) return null;
+    const currentFullPath = ['components', 'schemas', component.name].join('/');
+    const clipboardFullPath = clipboard.sourcePath.join('/');
+    if (currentFullPath === clipboardFullPath) {
+      return clipboard.isCut ? 'cut' : 'copied';
+    }
+    return null;
+  }, [clipboard, component.name]);
+
+  const handleCopyComponent = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onCopy) {
+      onCopy(component.name, component.schema, ['components', 'schemas', component.name]);
+    }
+  };
+
+  const handleCutComponent = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onCut) {
+      onCut(component.name, component.schema, ['components', 'schemas', component.name]);
+    }
+  };
+
   return (
-    <div className="border rounded-lg overflow-hidden">
+    <div className={cn(
+      "border rounded-lg overflow-hidden",
+      isInClipboard === 'cut' && "border-dashed border-destructive/50 bg-destructive/5",
+      isInClipboard === 'copied' && "border-dashed border-primary/50 bg-primary/5"
+    )}>
       <div 
         className={cn(
-          "flex items-center gap-3 p-3 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors",
+          "flex items-center gap-3 p-3 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors group",
           isExpanded && "border-b"
         )}
         onClick={() => setIsExpanded(!isExpanded)}
@@ -243,6 +353,40 @@ const ComponentTree: React.FC<ComponentTreeProps> = ({ component, allSchemas }) 
           )}
         </div>
         
+        {/* Copy/Cut buttons for component */}
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onCopy && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={handleCopyComponent}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">Copy component</TooltipContent>
+            </Tooltip>
+          )}
+          {onCut && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={handleCutComponent}
+                >
+                  <Scissors className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">Cut component</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+        
         <Badge variant="secondary" className="text-xs shrink-0">
           {Object.keys(properties).length} properties
         </Badge>
@@ -256,6 +400,10 @@ const ComponentTree: React.FC<ComponentTreeProps> = ({ component, allSchemas }) 
               name={propName}
               schema={propSchema as any}
               allSchemas={allSchemas}
+              path={['components', 'schemas', component.name, 'properties', propName]}
+              onCopy={onCopy}
+              onCut={onCut}
+              clipboard={clipboard}
             />
           ))}
         </div>
@@ -269,6 +417,7 @@ export const ComponentInspectionTab: React.FC<ComponentInspectionTabProps> = ({
   allSchemas
 }) => {
   const [filter, setFilter] = useState<'all' | 'top-level'>('all');
+  const { clipboard, copy, cut } = usePropertyClipboard();
   
   const filteredComponents = useMemo(() => {
     if (filter === 'top-level') {
@@ -313,6 +462,15 @@ export const ComponentInspectionTab: React.FC<ComponentInspectionTabProps> = ({
         </div>
       </div>
       
+      {clipboard && (
+        <div className="text-xs text-muted-foreground flex items-center gap-2 px-2 py-1 bg-muted/50 rounded">
+          <Copy className="h-3 w-3" />
+          <span>
+            {clipboard.isCut ? 'Cut' : 'Copied'}: <strong>{clipboard.name}</strong>
+          </span>
+        </div>
+      )}
+      
       <ScrollArea className="h-[400px]">
         <div className="space-y-3 pr-4">
           {filteredComponents.map((component) => (
@@ -320,6 +478,9 @@ export const ComponentInspectionTab: React.FC<ComponentInspectionTabProps> = ({
               key={component.name} 
               component={component} 
               allSchemas={allSchemas}
+              onCopy={copy}
+              onCut={cut}
+              clipboard={clipboard}
             />
           ))}
         </div>
