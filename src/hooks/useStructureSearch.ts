@@ -12,27 +12,19 @@ interface UseStructureSearchOptions {
   onExpandPath?: (path: string[]) => void;
 }
 
-// Debounce hook for search
-function useDebouncedValue<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-
-  return debouncedValue;
-}
-
 export function useStructureSearch({ schema, containerRef }: UseStructureSearchOptions) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [matches, setMatches] = useState<SearchMatch[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
   
-  // Debounce search query to avoid running search on every keystroke
-  const debouncedQuery = useDebouncedValue(searchQuery, 200);
+  // Inline debounce effect
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery), 200);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Memoize schema string for comparison to avoid re-running search on same schema
   const schemaRef = useRef<any>(null);
