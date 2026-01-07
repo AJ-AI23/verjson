@@ -1422,6 +1422,29 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
     }
   }
 
+  // Helper to resolve a $ref path and get the referenced component
+  function resolveRef(refPath: string): { component: any; componentPath: string } | null {
+    if (!refPath || typeof refPath !== 'string' || !refPath.startsWith('#/')) {
+      return null;
+    }
+    
+    const pathParts = refPath.slice(2).split('/'); // Remove '#/' and split
+    let current: any = obj;
+    
+    for (const part of pathParts) {
+      if (current && typeof current === 'object' && part in current) {
+        current = current[part];
+      } else {
+        return null;
+      }
+    }
+    
+    return { component: current, componentPath: pathParts.join('.') };
+  }
+
+  // Track which component paths we've already reported as missing descriptions
+  const reportedMissingDescriptionRefs = new Set<string>();
+
   // Check for missing descriptions in schema properties (excluding object types)
   function checkMissingDescriptions(currentObj: any, path: string[] = []) {
     if (currentObj === null || currentObj === undefined) {
@@ -1458,27 +1481,50 @@ export function checkSchemaConsistency(obj: any, config?: any): ConsistencyIssue
         // Also exclude arrays where items reference another schema via $ref
         const isArrayOfRefs = isArrayType && currentObj.items && typeof currentObj.items.$ref === 'string';
 
-        const shouldCheck = schemaTypes.length > 0 && !isObjectType && !isArrayOfObjects && !isArrayOfRefs && !hasRef;
-
-        if (shouldCheck && !hasDescription) {
-          const propertyName = path[path.length - 1];
-          const typeInfo = (() => {
-            if (isArrayType) {
-              const item = itemTypes.length > 0 ? itemTypes.join(' | ') : 'unknown';
-              return `array<${item}>`;
+        // For $ref properties, check if the referenced component has a description
+        if (hasRef) {
+          const resolved = resolveRef(currentObj.$ref);
+          if (resolved && !reportedMissingDescriptionRefs.has(resolved.componentPath)) {
+            const refHasDescription = resolved.component && 
+              typeof resolved.component.description === 'string' && 
+              resolved.component.description.trim().length > 0;
+            
+            if (!refHasDescription) {
+              reportedMissingDescriptionRefs.add(resolved.componentPath);
+              const componentName = resolved.componentPath.split('.').pop() || resolved.componentPath;
+              issues.push({
+                type: 'missing-description',
+                path: resolved.componentPath,
+                value: componentName,
+                message: `Referenced component "${componentName}" is missing a description`,
+                severity: 'info',
+                rule: 'Missing Description'
+              });
             }
-            return schemaTypes.join(' | ');
-          })();
-          const typeDisplay = currentObj.format ? `${typeInfo} (${currentObj.format})` : typeInfo;
+          }
+        } else {
+          const shouldCheck = schemaTypes.length > 0 && !isObjectType && !isArrayOfObjects && !isArrayOfRefs;
 
-          issues.push({
-            type: 'missing-description',
-            path: path.join('.'),
-            value: propertyName,
-            message: `Property "${propertyName}" of type "${typeDisplay}" is missing a description`,
-            severity: 'info',
-            rule: 'Missing Description'
-          });
+          if (shouldCheck && !hasDescription) {
+            const propertyName = path[path.length - 1];
+            const typeInfo = (() => {
+              if (isArrayType) {
+                const item = itemTypes.length > 0 ? itemTypes.join(' | ') : 'unknown';
+                return `array<${item}>`;
+              }
+              return schemaTypes.join(' | ');
+            })();
+            const typeDisplay = currentObj.format ? `${typeInfo} (${currentObj.format})` : typeInfo;
+
+            issues.push({
+              type: 'missing-description',
+              path: path.join('.'),
+              value: propertyName,
+              message: `Property "${propertyName}" of type "${typeDisplay}" is missing a description`,
+              severity: 'info',
+              rule: 'Missing Description'
+            });
+          }
         }
       }
 
