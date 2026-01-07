@@ -655,6 +655,10 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
         tabIndex={0}
         onKeyDown={handleKeyDown}
+        onClick={(e) => {
+          // Focus this element on click so keyboard shortcuts work
+          (e.currentTarget as HTMLElement).focus();
+        }}
       >
         <span 
           className="cursor-pointer"
