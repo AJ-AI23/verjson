@@ -621,7 +621,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
   }, [clipboard, path]);
 
   return (
-    <div className="select-none" style={{ marginLeft: `${depth * 16}px` }}>
+    <div className="select-none">
       <div 
         className={cn(
           "flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors group focus:outline-none focus:ring-1 focus:ring-ring",
@@ -790,7 +790,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
               }}
             >
               {Object.entries(childProperties).map(([propName, propSchema]) => (
-                <SortableItem key={propName} id={propName}>
+                <SortableItem key={propName} id={propName} indentPx={(depth + 1) * 16}>
                   <EditablePropertyNode
                     name={propName}
                     propertySchema={propSchema as any}
