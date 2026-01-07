@@ -1701,6 +1701,7 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
                       onClearHistory={clearHistory}
                       onClearClipboard={clearClipboard}
                       hasClipboard={hasClipboard}
+                      consistencyIssues={consistencyIssues}
                     />
                   </div>
                 ))
@@ -1874,6 +1875,9 @@ const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-sm">{component.name}</span>
+            {consistencyIssues.length > 0 && (
+              <ConsistencyIndicator issues={consistencyIssues} path={basePath} />
+            )}
             {isDocumentRef && (
               <Badge variant="outline" className="text-xs gap-1 text-blue-600 border-blue-300">
                 <Link2 className="h-2.5 w-2.5" />
