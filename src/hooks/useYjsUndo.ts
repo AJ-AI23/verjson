@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as Y from 'yjs';
 
+const undoManagerCache = new WeakMap<Y.Doc, Map<string, Y.UndoManager>>();
+
 interface UseYjsUndoProps {
   yjsDoc: Y.Doc | null;
   textKey?: string;
@@ -80,7 +82,7 @@ export const useYjsUndo = ({
     }
   }, [updateState]);
 
-  // Initialize undo manager when yjsDoc changes
+  // Initialize (or reuse) undo manager when yjsDoc changes
   useEffect(() => {
     if (!yjsDoc) {
       undoManagerRef.current = null;
@@ -89,12 +91,22 @@ export const useYjsUndo = ({
     }
 
     const text = yjsDoc.getText(textKey);
-    const undoManager = new Y.UndoManager([text], {
-      captureTimeout: 500, // Group operations within 500ms
-      deleteFilter: () => true // Allow deletion undo
-    });
 
-    // Listen to undo manager changes
+    const docCache = undoManagerCache.get(yjsDoc) ?? new Map<string, Y.UndoManager>();
+    if (!undoManagerCache.has(yjsDoc)) {
+      undoManagerCache.set(yjsDoc, docCache);
+    }
+
+    let undoManager = docCache.get(textKey);
+    if (!undoManager) {
+      undoManager = new Y.UndoManager([text], {
+        captureTimeout: 500,
+        deleteFilter: () => true
+      });
+      docCache.set(textKey, undoManager);
+    }
+
+    // Listen to undo manager changes (avoid duplicate listeners by always cleaning up)
     const handleStackItemAdded = () => updateState();
     const handleStackItemPopped = () => updateState();
 
@@ -107,10 +119,14 @@ export const useYjsUndo = ({
     return () => {
       undoManager.off('stack-item-added', handleStackItemAdded);
       undoManager.off('stack-item-popped', handleStackItemPopped);
-      undoManager.destroy();
+
+      // IMPORTANT: do not destroy the UndoManager here.
+      // We keep it alive so local history persists across document close/reopen
+      // within the same browser session.
       undoManagerRef.current = null;
     };
   }, [yjsDoc, textKey, updateState]);
+
 
   // Set up keyboard shortcuts
   useEffect(() => {

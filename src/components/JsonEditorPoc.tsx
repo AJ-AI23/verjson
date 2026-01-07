@@ -155,7 +155,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     }
   }, [onChange]);
 
-  // Initialize Yjs collaborative document
+  // Initialize Yjs document (always-on local doc, optional collaboration provider)
   const {
     yjsDoc,
     provider,
@@ -166,7 +166,8 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     getTextContent,
     updateContent
   } = useYjsDocument({
-    documentId: collaborationEnabled ? documentId : null,
+    documentId: documentId ?? null,
+    collaborationEnabled,
     initialContent: value,
     onContentChange: onContentChangeRef.current
   });
@@ -186,7 +187,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   // Get collaboration info
   const { activeUsers: dbActiveUsers } = useCollaboration({ documentId });
   
-  // Wrap onChange to update Yjs document 
+  // Route ALL edits through Yjs (even in single-user mode) so UndoManager always works.
   const handleChange = useCallback((newValue: string) => {
     console.log('[YJS] Handle change:', { 
       collaborationEnabled, 
@@ -195,16 +196,18 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
       hasYjsDoc: !!yjsDoc,
       documentId 
     });
-    
+
     // Don't update Yjs if this change is from an undo/redo operation
-    if (collaborationEnabled && !isUpdatingFromYjs.current && !isUndoRedoOperation() && yjsDoc) {
-      console.log('[YJS] Updating YJS document with new content');
+    // or if we're currently applying a Yjs-driven update to React state.
+    if (yjsDoc && !isUpdatingFromYjs.current && !isUndoRedoOperation()) {
       updateContent(newValue);
-    } else if (!collaborationEnabled) {
-      // Regular onChange when collaboration is disabled
-      onChange(newValue);
+      return;
     }
+
+    // Fallback (should be rare): keep the app responsive even if Yjs isn't available.
+    onChange(newValue);
   }, [collaborationEnabled, updateContent, yjsDoc, onChange, isUndoRedoOperation, documentId]);
+
 
   // Wrap onToggleCollapse 
   const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
@@ -258,36 +261,6 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
       destroyEditor();
     };
   }, []);
-
-  // Update editor content when Yjs content changes or document switches
-  useEffect(() => {
-    if (collaborationEnabled && yjsDoc && documentId) {
-      const content = getTextContent();
-      console.log('[YJS] Document content sync:', { documentId, hasContent: !!content, contentLength: content?.length || 0 });
-      
-      if (content && content !== value) {
-        console.log('[YJS] Updating editor with YJS content');
-        // Set flag to prevent recursive updates
-        isUpdatingFromYjs.current = true;
-        try {
-          // Validate JSON before updating to avoid invalid intermediate states
-          JSON.parse(content);
-          onChange(content);
-        } catch (e) {
-          // If content is not valid JSON, don't update the editor yet
-          // This can happen during partial sync operations
-          console.log('Waiting for complete Yjs sync, content not yet valid JSON');
-        } finally {
-          // Reset flag after a short delay
-          setTimeout(() => {
-            isUpdatingFromYjs.current = false;
-          }, 100);
-        }
-      } else if (content && content === value) {
-        console.log('[YJS] Editor and YJS content already in sync');
-      }
-    }
-  }, [collaborationEnabled, yjsDoc, documentId, getTextContent, value, onChange]);
 
   // Show toast notifications for collaboration (only when enabled)
   const previousYjsErrorRef = useRef<string | null>(null);
