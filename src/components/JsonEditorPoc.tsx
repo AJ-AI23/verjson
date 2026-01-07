@@ -189,24 +189,50 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   
   // Route ALL edits through Yjs (even in single-user mode) so UndoManager always works.
   const handleChange = useCallback((newValue: string) => {
-    console.log('[YJS] Handle change:', { 
-      collaborationEnabled, 
-      isUpdatingFromYjs: isUpdatingFromYjs.current, 
+    console.log('[YJS] Handle change:', {
+      collaborationEnabled,
+      isUpdatingFromYjs: isUpdatingFromYjs.current,
       isUndoRedo: isUndoRedoOperation(),
       hasYjsDoc: !!yjsDoc,
-      documentId 
+      documentId
     });
 
-    // Don't update Yjs if this change is from an undo/redo operation
-    // or if we're currently applying a Yjs-driven update to React state.
-    if (yjsDoc && !isUpdatingFromYjs.current && !isUndoRedoOperation()) {
+    if (yjsDoc) {
+      // Avoid re-recording the same content (common with delayed JSONEditor change events
+      // after programmatic updates like undo/redo or remote sync).
+      const stableSortKeys = (v: any): any => {
+        if (Array.isArray(v)) return v.map(stableSortKeys);
+        if (v && typeof v === 'object' && v.constructor === Object) {
+          const out: Record<string, any> = {};
+          for (const k of Object.keys(v).sort()) out[k] = stableSortKeys(v[k]);
+          return out;
+        }
+        return v;
+      };
+
+      const normalizeForCompare = (s: string): string | null => {
+        try {
+          return JSON.stringify(stableSortKeys(JSON.parse(s)));
+        } catch {
+          return null;
+        }
+      };
+
+      const current = getTextContent();
+      if (newValue === current) return;
+
+      const nextNorm = normalizeForCompare(newValue);
+      const currentNorm = normalizeForCompare(current);
+      if (nextNorm !== null && currentNorm !== null && nextNorm === currentNorm) return;
+
       updateContent(newValue);
       return;
     }
 
     // Fallback (should be rare): keep the app responsive even if Yjs isn't available.
     onChange(newValue);
-  }, [collaborationEnabled, updateContent, yjsDoc, onChange, isUndoRedoOperation, documentId]);
+  }, [collaborationEnabled, documentId, getTextContent, isUndoRedoOperation, onChange, updateContent, yjsDoc]);
+
 
 
   // Wrap onToggleCollapse 
