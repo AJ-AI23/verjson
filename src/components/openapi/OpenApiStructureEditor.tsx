@@ -1653,6 +1653,7 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
                   onClearHistory={clearHistory}
                   onClearClipboard={clearClipboard}
                   hasClipboard={hasClipboard}
+                  consistencyIssues={consistencyIssues}
                 />
               ))}
               {rootSections.length === 0 && (

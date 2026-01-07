@@ -881,6 +881,7 @@ interface SectionTreeProps {
   onClearHistory: () => void;
   onClearClipboard: () => void;
   hasClipboard: boolean;
+  consistencyIssues?: ConsistencyIssue[];
 }
 
 const SectionTree: React.FC<SectionTreeProps> = ({ 
@@ -904,7 +905,8 @@ const SectionTree: React.FC<SectionTreeProps> = ({
   onSelectFromHistory,
   onClearHistory,
   onClearClipboard,
-  hasClipboard
+  hasClipboard,
+  consistencyIssues = []
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const availableRefs = useMemo(() => Object.keys(definitions), [definitions]);
@@ -934,34 +936,35 @@ const SectionTree: React.FC<SectionTreeProps> = ({
             items={arrayItemIds}
             onReorder={(oldIndex, newIndex) => onReorderProperties(path, oldIndex, newIndex)}
           >
-            {data.map((item, index) => (
-              <SortableItem key={index} id={String(index)} indentPx={16}>
-                <EditablePropertyNode
-                  name={String(index)}
-                  propertySchema={item}
-                  path={[...path, String(index)]}
-                  definitions={definitions}
-                  isArrayItem={true}
-                  parentIsArray={true}
-                  onPropertyChange={onPropertyChange}
-                  onPropertyRename={onPropertyRename}
-                  onAddProperty={onAddProperty}
-                  onDeleteProperty={onDeleteProperty}
-                  onDuplicateProperty={onDuplicateProperty}
-                  onAddArrayItem={onAddArrayItem}
-                  onReorderProperties={onReorderProperties}
-                  onCopy={onCopy}
-                  onCut={onCut}
-                  onPaste={onPaste}
-                  clipboard={clipboard}
-                  clipboardHistory={clipboardHistory}
-                  onSelectFromHistory={onSelectFromHistory}
-                  onClearHistory={onClearHistory}
-                  onClearClipboard={onClearClipboard}
-                  hasClipboard={hasClipboard}
-                />
-              </SortableItem>
-            ))}
+              {data.map((item, index) => (
+                <SortableItem key={index} id={String(index)} indentPx={16}>
+                  <EditablePropertyNode
+                    name={String(index)}
+                    propertySchema={item}
+                    path={[...path, String(index)]}
+                    definitions={definitions}
+                    isArrayItem={true}
+                    parentIsArray={true}
+                    onPropertyChange={onPropertyChange}
+                    onPropertyRename={onPropertyRename}
+                    onAddProperty={onAddProperty}
+                    onDeleteProperty={onDeleteProperty}
+                    onDuplicateProperty={onDuplicateProperty}
+                    onAddArrayItem={onAddArrayItem}
+                    onReorderProperties={onReorderProperties}
+                    onCopy={onCopy}
+                    onCut={onCut}
+                    onPaste={onPaste}
+                    clipboard={clipboard}
+                    clipboardHistory={clipboardHistory}
+                    onSelectFromHistory={onSelectFromHistory}
+                    onClearHistory={onClearHistory}
+                    onClearClipboard={onClearClipboard}
+                    hasClipboard={hasClipboard}
+                    consistencyIssues={consistencyIssues}
+                  />
+                </SortableItem>
+              ))}
           </SortablePropertyList>
           <div className="py-1 px-2 pl-6 flex items-center gap-1">
             <Button 
@@ -1028,6 +1031,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
                 onClearHistory={onClearHistory}
                 onClearClipboard={onClearClipboard}
                 hasClipboard={hasClipboard}
+                consistencyIssues={consistencyIssues}
               />
             </SortableItem>
           ))}
@@ -1638,6 +1642,7 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
               onClearHistory={clearHistory}
               onClearClipboard={clearClipboard}
               hasClipboard={hasClipboard}
+              consistencyIssues={consistencyIssues}
             />
           ))}
           
