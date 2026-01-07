@@ -81,25 +81,25 @@ interface EditablePropertyNodeProps {
 }
 
 const getTypeIcon = (schema: any) => {
-  if (schema?.$ref) return <Link2 className="h-3.5 w-3.5 text-blue-500" />;
+  if (schema?.$ref) return <Link2 className="h-3.5 w-3.5 shrink-0 text-blue-500" />;
   
   const types = schema?.type;
   const typeValue = Array.isArray(types) ? types[0] : types;
   
   switch (typeValue) {
     case 'string':
-      return <Type className="h-3.5 w-3.5 text-green-500" />;
+      return <Type className="h-3.5 w-3.5 shrink-0 text-green-500" />;
     case 'integer':
     case 'number':
-      return <Hash className="h-3.5 w-3.5 text-orange-500" />;
+      return <Hash className="h-3.5 w-3.5 shrink-0 text-orange-500" />;
     case 'boolean':
-      return <ToggleLeft className="h-3.5 w-3.5 text-pink-500" />;
+      return <ToggleLeft className="h-3.5 w-3.5 shrink-0 text-pink-500" />;
     case 'array':
-      return <List className="h-3.5 w-3.5 text-cyan-500" />;
+      return <List className="h-3.5 w-3.5 shrink-0 text-cyan-500" />;
     case 'object':
-      return <Box className="h-3.5 w-3.5 text-yellow-500" />;
+      return <Box className="h-3.5 w-3.5 shrink-0 text-yellow-500" />;
     default:
-      return <FileText className="h-3.5 w-3.5 text-muted-foreground" />;
+      return <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />;
   }
 };
 
@@ -256,11 +256,14 @@ const EditableValue: React.FC<{
 
   return (
     <span 
-      className="text-xs text-muted-foreground cursor-pointer hover:text-foreground hover:underline group inline-flex items-center gap-1"
+      className="text-xs text-muted-foreground cursor-pointer hover:text-foreground hover:underline group inline-flex items-center gap-1 max-w-[200px] truncate"
       onClick={() => setIsEditing(true)}
+      title={typeof value === 'boolean' ? (value ? 'true' : 'false') : String(value)}
     >
-      {typeof value === 'boolean' ? (value ? 'true' : 'false') : String(value)}
-      <Pencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-50" />
+      <span className="truncate">
+        {typeof value === 'boolean' ? (value ? 'true' : 'false') : String(value)}
+      </span>
+      <Pencil className="h-2.5 w-2.5 shrink-0 opacity-0 group-hover:opacity-50" />
     </span>
   );
 };
@@ -705,7 +708,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
               onTypeSelect={handleTypeChange}
             />
           ) : isValueOnly && !hasChildren && !isSchemaWithType ? (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground max-w-[150px] truncate" title={JSON.stringify(propertySchema)}>
               {JSON.stringify(propertySchema).slice(0, 50)}
             </span>
           ) : null}
