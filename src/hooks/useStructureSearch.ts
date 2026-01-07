@@ -93,31 +93,26 @@ export function useStructureSearch({ schema, containerRef }: UseStructureSearchO
     }
   }, [searchQuery, schema, findMatches]);
 
-  // Get paths that need to be expanded for the current match
+  // Get paths that need to be expanded for ALL matches (so user can see them)
   const pathsToExpand = useMemo(() => {
-    if (matches.length === 0 || currentMatchIndex >= matches.length) {
-      return new Set<string>();
-    }
-    
-    const match = matches[currentMatchIndex];
     const paths = new Set<string>();
     
-    // Add all ancestor paths
-    for (let i = 1; i <= match.path.length; i++) {
-      paths.add(match.path.slice(0, i).join('.'));
-    }
+    // Add ancestor paths for all matches so they're all visible
+    matches.forEach(match => {
+      for (let i = 1; i <= match.path.length; i++) {
+        paths.add(match.path.slice(0, i).join('.'));
+      }
+    });
     
     return paths;
-  }, [matches, currentMatchIndex]);
+  }, [matches]);
 
-  // Expand paths when match changes
+  // Update expanded paths when matches change
   useEffect(() => {
     if (pathsToExpand.size > 0) {
-      setExpandedPaths(prev => {
-        const next = new Set(prev);
-        pathsToExpand.forEach(p => next.add(p));
-        return next;
-      });
+      setExpandedPaths(pathsToExpand);
+    } else {
+      setExpandedPaths(new Set());
     }
   }, [pathsToExpand]);
 
