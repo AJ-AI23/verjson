@@ -535,7 +535,12 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
 
   const handleAddChildProperty = (childName: string, childSchema: any) => {
     if (onAddProperty) {
-      onAddProperty([...path, 'properties'], childName, childSchema);
+      // Only add to 'properties' if this is a JSON Schema object with type: 'object'
+      const types = propertySchema?.types || propertySchema?.type;
+      const typeValue = Array.isArray(types) ? types[0] : types;
+      const isJsonSchemaObject = typeValue === 'object';
+      const addPath = isJsonSchemaObject ? [...path, 'properties'] : path;
+      onAddProperty(addPath, childName, childSchema);
     }
   };
 
@@ -832,8 +837,8 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
             ))}
           </SortablePropertyList>
           
-          {/* Add property button for objects */}
-          {!Array.isArray(propertySchema) && isSchemaWithType && onAddProperty && (
+          {/* Add property button for objects (both JSON Schema and plain objects) */}
+          {!Array.isArray(propertySchema) && canHaveChildren && onAddProperty && (
             <div className="py-1 px-2" style={{ paddingLeft: `${(depth + 1) * 16 + 8}px` }}>
               <AddPropertyButton onAdd={handleAddChildProperty} availableRefs={availableRefs} />
             </div>
