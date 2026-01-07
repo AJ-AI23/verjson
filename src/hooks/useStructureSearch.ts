@@ -127,48 +127,41 @@ export function useStructureSearch({ schema, containerRef }: UseStructureSearchO
     }
   }, [debouncedQuery, schema, findMatches]);
 
-  // Get paths that need to be expanded for ALL matches (so user can see them)
+  // Get paths that need to be expanded for CURRENT match only (performance optimization)
   const pathsToExpand = useMemo(() => {
-    const paths = new Set<string>();
+    if (matches.length === 0 || currentMatchIndex >= matches.length) {
+      return new Set<string>();
+    }
     
-    // Add ancestor paths for all matches so they're all visible
-    matches.forEach(match => {
-      for (let i = 1; i <= match.path.length; i++) {
-        paths.add(match.path.slice(0, i).join('.'));
-      }
-    });
+    const paths = new Set<string>();
+    const currentMatch = matches[currentMatchIndex];
+    
+    // Only expand ancestors of current match
+    for (let i = 1; i <= currentMatch.path.length; i++) {
+      paths.add(currentMatch.path.slice(0, i).join('.'));
+    }
     
     return paths;
-  }, [matches]);
+  }, [matches, currentMatchIndex]);
 
-  // Update expanded paths when matches change
+  // Update expanded paths when current match changes
   useEffect(() => {
-    if (pathsToExpand.size > 0) {
-      setExpandedPaths(pathsToExpand);
-    } else {
-      setExpandedPaths(new Set());
-    }
+    setExpandedPaths(pathsToExpand);
   }, [pathsToExpand]);
 
   // Scroll to the matched element
   const scrollToMatch = useCallback((matchPath: string[]) => {
     if (!containerRef.current) return;
     
-    // Give the DOM time to update after expansion
+    // Use a single rAF for faster response
     requestAnimationFrame(() => {
-      setTimeout(() => {
-        const pathId = matchPath.join('.');
-        // Look for element with data-search-path attribute
-        const element = containerRef.current?.querySelector(`[data-search-path="${pathId}"]`);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          // Add highlight effect
-          element.classList.add('search-highlight');
-          setTimeout(() => {
-            element.classList.remove('search-highlight');
-          }, 2000);
-        }
-      }, 100);
+      const pathId = matchPath.join('.');
+      const element = containerRef.current?.querySelector(`[data-search-path="${pathId}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.classList.add('search-highlight');
+        setTimeout(() => element.classList.remove('search-highlight'), 2000);
+      }
     });
   }, [containerRef]);
 
