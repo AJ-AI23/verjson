@@ -823,7 +823,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
         </div>
       </div>
       
-      {isExpanded && canHaveChildren && (
+      {isExpanded && canHaveChildren && childProperties && (
         <div className="border-l border-border/50">
           <SortablePropertyList
             items={Object.keys(childProperties)}
