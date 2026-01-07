@@ -923,7 +923,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
             onReorder={(oldIndex, newIndex) => onReorderProperties(path, oldIndex, newIndex)}
           >
             {data.map((item, index) => (
-              <SortableItem key={index} id={String(index)}>
+              <SortableItem key={index} id={String(index)} indentPx={16}>
                 <EditablePropertyNode
                   name={String(index)}
                   propertySchema={item}
@@ -994,7 +994,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
           onReorder={(oldIndex, newIndex) => onReorderProperties(path, oldIndex, newIndex)}
         >
           {Object.entries(data).map(([key, value]) => (
-            <SortableItem key={key} id={key}>
+            <SortableItem key={key} id={key} indentPx={16}>
               <EditablePropertyNode
                 name={key}
                 propertySchema={value as any}
