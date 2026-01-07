@@ -621,14 +621,13 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
   }, [clipboard, path]);
 
   return (
-    <div className="select-none">
+    <div className="select-none" style={{ marginLeft: `${depth * 16}px` }}>
       <div 
         className={cn(
           "flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors group focus:outline-none focus:ring-1 focus:ring-ring",
           isInClipboard === 'cut' && "bg-destructive/10 border border-dashed border-destructive/50",
           isInClipboard === 'copied' && "bg-primary/10 border border-dashed border-primary/50"
         )}
-        style={{ paddingLeft: `${depth * 16 + 8}px` }}
         tabIndex={0}
         onKeyDown={handleKeyDown}
         onClick={(e) => {
@@ -779,7 +778,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
       </div>
       
       {isExpanded && canHaveChildren && (
-        <div className="border-l border-border/50" style={{ marginLeft: '20px' }}>
+        <div className="border-l border-border/50 ml-2">
           {childProperties && Object.keys(childProperties).length > 0 && (
             <SortablePropertyList
               items={Object.keys(childProperties)}
@@ -824,7 +823,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
           
           {/* Add property button for objects (both JSON Schema and plain objects) */}
           {!Array.isArray(propertySchema) && canHaveChildren && onAddProperty && (
-            <div className="py-1 px-2 flex items-center gap-1" style={{ paddingLeft: `${(depth + 1) * 16 + 8}px` }}>
+            <div className="py-1 px-2 flex items-center gap-1 ml-4">
               <AddPropertyButton onAdd={handleAddChildProperty} availableRefs={availableRefs} />
               {hasClipboard && clipboard && clipboardHistory && onSelectFromHistory && onClearHistory && (
                 <ClipboardHistoryPopover
