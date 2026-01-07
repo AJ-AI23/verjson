@@ -63,6 +63,10 @@ export const useYjsDocument = ({
     onContentChangeRef.current = onContentChange;
   }, [onContentChange]);
 
+  // Track the documentId that has been fully initialized so we can gate hydration.
+  const stableDocIdRef = useRef<string | null>(null);
+
+
   const getAuthToken = useCallback(() => {
     return session?.access_token || null;
   }, [session]);
@@ -133,6 +137,9 @@ export const useYjsDocument = ({
   useEffect(() => {
     let cancelled = false;
 
+    // Reset stableDocIdRef immediately when documentId changes so hydration effect waits.
+    stableDocIdRef.current = null;
+
     // Tear down provider + observers for the previous document / mode.
     disconnect();
 
@@ -141,6 +148,7 @@ export const useYjsDocument = ({
         // disconnect already called above
       };
     }
+
 
     // Always create (or reuse) a local Y.Doc so undo/redo works even without collaboration.
     // NOTE: we do NOT hydrate from initialContent here to avoid re-initializing on every keystroke.
@@ -165,6 +173,9 @@ export const useYjsDocument = ({
     observerRef.current = observer;
     text.observe(observer);
 
+    // Mark this documentId as stable so hydration effect can run.
+    stableDocIdRef.current = documentId;
+
     // If there are local unsaved edits for this doc, surface them immediately.
     // Otherwise, let the outer React state (server-loaded) remain authoritative.
     if (sessionDoc.dirty) {
@@ -178,6 +189,7 @@ export const useYjsDocument = ({
         // ignore
       }
     }
+
 
     const connectCollaboration = async () => {
       if (!collaborationEnabled) {
@@ -276,10 +288,15 @@ export const useYjsDocument = ({
 
   // Hydrate cached docs from authoritative initialContent (e.g. server-loaded JSON)
   // without tearing down observers/providers.
+  // IMPORTANT: only run when stableDocIdRef matches to avoid hydrating old content into new doc.
   useEffect(() => {
     if (!documentId || !initialContent) return;
+    // Wait until the main effect has finished setting up and marked documentId as stable.
+    if (stableDocIdRef.current !== documentId) return;
+
     getOrCreateYjsSession(documentId, initialContent);
   }, [documentId, initialContent]);
+
 
   return {
     yjsDoc,
