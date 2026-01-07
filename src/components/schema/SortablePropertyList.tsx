@@ -23,9 +23,16 @@ interface SortableItemProps {
   id: string;
   children: React.ReactNode;
   disabled?: boolean;
+  /** Indentation applied to the whole row (including drag handle), in px */
+  indentPx?: number;
 }
 
-export const SortableItem: React.FC<SortableItemProps> = ({ id, children, disabled = false }) => {
+export const SortableItem: React.FC<SortableItemProps> = ({
+  id,
+  children,
+  disabled = false,
+  indentPx,
+}) => {
   const {
     attributes,
     listeners,
@@ -35,9 +42,10 @@ export const SortableItem: React.FC<SortableItemProps> = ({ id, children, disabl
     isDragging,
   } = useSortable({ id, disabled });
 
-  const style = {
+  const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
+    marginLeft: indentPx,
   };
 
   return (
