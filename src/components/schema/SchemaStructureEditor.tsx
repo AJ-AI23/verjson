@@ -376,6 +376,11 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
       return true; // Arrays can always have items added
     }
     
+    // Array items that are objects should always be expandable
+    if (isArrayItem && typeof propertySchema === 'object' && propertySchema !== null) {
+      return true;
+    }
+    
     if (typeof propertySchema === 'object' && propertySchema !== null && !isSchemaWithType) {
       return true; // Plain objects can have properties added
     }
@@ -395,7 +400,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
       }
     }
     return false;
-  }, [propertySchema, isSchemaWithType, isPrimitive]);
+  }, [propertySchema, isSchemaWithType, isPrimitive, isArrayItem]);
 
   const hasChildren = useMemo(() => {
     if (isPrimitive) return false;
