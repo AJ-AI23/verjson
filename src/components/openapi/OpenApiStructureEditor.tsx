@@ -1181,6 +1181,32 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
       current = current?.[key];
     }
     
+    // After traversing the entire path, check if the final destination is itself a $ref
+    if (current?.$ref && typeof current.$ref === 'string') {
+      if (current.$ref.startsWith('#/components/schemas/')) {
+        const refName = current.$ref.split('/').pop();
+        if (refName) {
+          return {
+            resolvedPath: ['components', 'schemas', refName, 'properties'],
+            targetComponentName: refName
+          };
+        }
+      }
+    }
+    
+    // Also check if the destination is an array with items.$ref
+    if (current?.items?.$ref && typeof current.items.$ref === 'string') {
+      if (current.items.$ref.startsWith('#/components/schemas/')) {
+        const refName = current.items.$ref.split('/').pop();
+        if (refName) {
+          return {
+            resolvedPath: ['components', 'schemas', refName, 'properties'],
+            targetComponentName: refName
+          };
+        }
+      }
+    }
+    
     return { resolvedPath, targetComponentName: null };
   }, [schema]);
 

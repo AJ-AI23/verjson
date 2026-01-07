@@ -1166,6 +1166,48 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
       current = current?.[key];
     }
     
+    // After traversing the entire path, check if the final destination is itself a $ref
+    if (current?.$ref && typeof current.$ref === 'string') {
+      if (current.$ref.startsWith('#/$defs/')) {
+        const refName = current.$ref.split('/').pop();
+        if (refName) {
+          return {
+            resolvedPath: ['$defs', refName, 'properties'],
+            targetComponentName: refName
+          };
+        }
+      } else if (current.$ref.startsWith('#/definitions/')) {
+        const refName = current.$ref.split('/').pop();
+        if (refName) {
+          return {
+            resolvedPath: ['definitions', refName, 'properties'],
+            targetComponentName: refName
+          };
+        }
+      }
+    }
+    
+    // Also check if the destination is an array with items.$ref
+    if (current?.items?.$ref && typeof current.items.$ref === 'string') {
+      if (current.items.$ref.startsWith('#/$defs/')) {
+        const refName = current.items.$ref.split('/').pop();
+        if (refName) {
+          return {
+            resolvedPath: ['$defs', refName, 'properties'],
+            targetComponentName: refName
+          };
+        }
+      } else if (current.items.$ref.startsWith('#/definitions/')) {
+        const refName = current.items.$ref.split('/').pop();
+        if (refName) {
+          return {
+            resolvedPath: ['definitions', refName, 'properties'],
+            targetComponentName: refName
+          };
+        }
+      }
+    }
+    
     return { resolvedPath, targetComponentName: null };
   }, [schema]);
 
