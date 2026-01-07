@@ -658,9 +658,9 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
       >
         <span 
           className="cursor-pointer"
-          onClick={() => hasChildren && setIsExpanded(!isExpanded)}
+          onClick={() => canHaveChildren && setIsExpanded(!isExpanded)}
         >
-          {hasChildren ? (
+          {canHaveChildren ? (
             isExpanded ? (
               <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
             ) : (
@@ -801,7 +801,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
         </div>
       </div>
       
-      {isExpanded && childProperties && (
+      {isExpanded && canHaveChildren && (
         <div className="border-l border-border/50 ml-4" style={{ marginLeft: `${depth * 16 + 20}px` }}>
           <SortablePropertyList
             items={Object.keys(childProperties)}
