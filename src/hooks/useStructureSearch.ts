@@ -190,13 +190,6 @@ export function useStructureSearch({ schema, containerRef }: UseStructureSearchO
     setCurrentMatchIndex((i) => (i - 1 + matches.length) % matches.length);
   }, [matches.length]);
 
-  // Scroll to the current match when it changes (after expansion render)
-  useEffect(() => {
-    const match = matches[currentMatchIndex];
-    if (!match) return;
-    scrollToMatch(match.path);
-  }, [currentMatchIndex, matches, scrollToMatch]);
-
   // Focus search input
   const focusSearch = useCallback(() => {
     searchInputRef.current?.focus();
@@ -235,6 +228,7 @@ export function useStructureSearch({ schema, containerRef }: UseStructureSearchO
     searchInputRef,
     isPathExpandedBySearch,
     expandedPaths,
+    scrollToPath: scrollToMatch,
     hasMatches: matches.length > 0,
   };
 }

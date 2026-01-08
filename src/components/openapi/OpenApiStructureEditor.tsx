@@ -1142,6 +1142,7 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
   consistencyIssues = []
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [activeTab, setActiveTab] = useState<'structure' | 'components'>('structure');
   
   // Search functionality
   const {
@@ -1154,8 +1155,26 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
     clearSearch,
     searchInputRef,
     expandedPaths: searchExpandedPaths,
+    scrollToPath,
   } = useStructureSearch({ schema, containerRef });
-  
+
+  useEffect(() => {
+    if (!searchQuery.trim()) return;
+    const match = matches[currentMatchIndex];
+    if (!match) return;
+    const desiredTab = match.path[0] === 'components' ? 'components' : 'structure';
+    if (activeTab !== desiredTab) setActiveTab(desiredTab);
+  }, [searchQuery, matches, currentMatchIndex, activeTab]);
+
+  useEffect(() => {
+    if (!searchQuery.trim()) return;
+    const match = matches[currentMatchIndex];
+    if (!match) return;
+    const desiredTab = match.path[0] === 'components' ? 'components' : 'structure';
+    if (activeTab !== desiredTab) return;
+    scrollToPath(match.path);
+  }, [searchQuery, matches, currentMatchIndex, activeTab, scrollToPath]);
+
   // Use the document ref resolver for sideloading referenced documents
   const { getAllResolvedSchemas, resolvedDocuments } = useDocumentRefResolver(schema);
 
@@ -1588,7 +1607,11 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
 
   return (
     <div ref={containerRef} className="h-full flex flex-col" tabIndex={-1}>
-      <Tabs defaultValue="structure" className="h-full flex flex-col">
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as 'structure' | 'components')}
+        className="h-full flex flex-col"
+      >
         <div className="flex items-center gap-1 border-b bg-muted/30">
           <TabsList className="justify-start rounded-none bg-transparent">
             <TabsTrigger value="structure" className="data-[state=active]:bg-muted">
@@ -1817,7 +1840,17 @@ const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({
   forceExpandedPaths
 }) => {
   const pathKey = basePath.join('.');
-  const isForceExpanded = forceExpandedPaths?.has(pathKey) ?? false;
+
+  const isForceExpanded = useMemo(() => {
+    if (!forceExpandedPaths) return false;
+    if (forceExpandedPaths.has(pathKey)) return true;
+    // Expand the component container if any expanded path is a descendant
+    for (const p of forceExpandedPaths) {
+      if (p.startsWith(pathKey + '.')) return true;
+    }
+    return false;
+  }, [forceExpandedPaths, pathKey]);
+
   const [isManuallyExpanded, setIsManuallyExpanded] = useState(false);
   const isExpanded = isManuallyExpanded || isForceExpanded;
   const availableRefs = useMemo(() => Object.keys(allSchemas), [allSchemas]);
