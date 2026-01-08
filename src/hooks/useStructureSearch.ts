@@ -17,9 +17,8 @@ export function useStructureSearch({ schema, containerRef }: UseStructureSearchO
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [matches, setMatches] = useState<SearchMatch[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
-  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Inline debounce effect
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(searchQuery), 200);
@@ -128,42 +127,39 @@ export function useStructureSearch({ schema, containerRef }: UseStructureSearchO
   }, [debouncedQuery, schema, findMatches]);
 
   // Get paths that need to be expanded for CURRENT match only (performance optimization)
-  const pathsToExpand = useMemo(() => {
+  const expandedPaths = useMemo(() => {
     if (matches.length === 0 || currentMatchIndex >= matches.length) {
       return new Set<string>();
     }
-    
+
     const paths = new Set<string>();
     const currentMatch = matches[currentMatchIndex];
-    
+
     // Include all ancestor paths from root to the full path
     // This ensures all parent containers are expanded
     for (let i = 1; i <= currentMatch.path.length; i++) {
       paths.add(currentMatch.path.slice(0, i).join('.'));
     }
-    
+
     // Also add 'root' path in case structure uses it
     if (currentMatch.path.length > 0) {
       paths.add('root');
       paths.add(`root.${currentMatch.path[0]}`);
     }
-    
+
     // For component paths (e.g., components.schemas.ComponentName.properties.field),
     // ensure the component container path is included
-    if (currentMatch.path.length >= 3 && 
-        currentMatch.path[0] === 'components' && 
-        currentMatch.path[1] === 'schemas') {
+    if (
+      currentMatch.path.length >= 3 &&
+      currentMatch.path[0] === 'components' &&
+      currentMatch.path[1] === 'schemas'
+    ) {
       // Add the component container path: components.schemas.ComponentName
       paths.add(currentMatch.path.slice(0, 3).join('.'));
     }
-    
+
     return paths;
   }, [matches, currentMatchIndex]);
-
-  // Update expanded paths when current match changes
-  useEffect(() => {
-    setExpandedPaths(pathsToExpand);
-  }, [pathsToExpand]);
 
   // Scroll to the matched element
   const scrollToMatch = useCallback((matchPath: string[]) => {
@@ -186,24 +182,20 @@ export function useStructureSearch({ schema, containerRef }: UseStructureSearchO
   // Navigate to next/previous match
   const goToNextMatch = useCallback(() => {
     if (matches.length === 0) return;
-    const nextIndex = (currentMatchIndex + 1) % matches.length;
-    setCurrentMatchIndex(nextIndex);
-    scrollToMatch(matches[nextIndex].path);
-  }, [matches, currentMatchIndex, scrollToMatch]);
+    setCurrentMatchIndex((i) => (i + 1) % matches.length);
+  }, [matches.length]);
 
   const goToPrevMatch = useCallback(() => {
     if (matches.length === 0) return;
-    const prevIndex = (currentMatchIndex - 1 + matches.length) % matches.length;
-    setCurrentMatchIndex(prevIndex);
-    scrollToMatch(matches[prevIndex].path);
-  }, [matches, currentMatchIndex, scrollToMatch]);
+    setCurrentMatchIndex((i) => (i - 1 + matches.length) % matches.length);
+  }, [matches.length]);
 
-  // Scroll to first match when search results change
+  // Scroll to the current match when it changes (after expansion render)
   useEffect(() => {
-    if (matches.length > 0) {
-      scrollToMatch(matches[0].path);
-    }
-  }, [matches.length > 0 ? matches[0]?.path.join('.') : '']);
+    const match = matches[currentMatchIndex];
+    if (!match) return;
+    scrollToMatch(match.path);
+  }, [currentMatchIndex, matches, scrollToMatch]);
 
   // Focus search input
   const focusSearch = useCallback(() => {
