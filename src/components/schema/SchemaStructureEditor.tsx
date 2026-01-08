@@ -1192,7 +1192,15 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     clearSearch,
     searchInputRef,
     expandedPaths: searchExpandedPaths,
+    scrollToPath,
   } = useStructureSearch({ schema, containerRef });
+
+  useEffect(() => {
+    const match = matches[currentMatchIndex];
+    if (!match) return;
+    scrollToPath(match.path);
+  }, [matches, currentMatchIndex, scrollToPath]);
+
 
   // Clipboard for cut/copy/paste
   const { clipboard, history: clipboardHistory, copy, cut, paste, selectFromHistory, hasClipboard, clearHistory, clearClipboard } = usePropertyClipboard();
