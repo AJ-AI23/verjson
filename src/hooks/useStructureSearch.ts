@@ -117,19 +117,26 @@ export function useStructureSearch({ schema, containerRef, scope = 'all' }: UseS
     return results;
   }, []);
 
+  // Store last unfiltered matches for scope switching without re-searching
+  const unfilteredMatchesRef = useRef<SearchMatch[]>([]);
+
   // Update matches when debounced query or schema changes
   useEffect(() => {
     if (debouncedQuery.trim()) {
-      // Check cache first
-      if (
-        cachedMatchesRef.current.query === debouncedQuery &&
-        cachedMatchesRef.current.scope === scope &&
-        schemaRef.current === schema
-      ) {
-        return;
+      // Need to re-search only if query or schema changed
+      const needsNewSearch =
+        cachedMatchesRef.current.query !== debouncedQuery || schemaRef.current !== schema;
+
+      let foundAll: SearchMatch[];
+      if (needsNewSearch) {
+        foundAll = findMatches(debouncedQuery, schema);
+        unfilteredMatchesRef.current = foundAll;
+        schemaRef.current = schema;
+      } else {
+        foundAll = unfilteredMatchesRef.current;
       }
 
-      const foundAll = findMatches(debouncedQuery, schema);
+      // Apply scope filter
       const found =
         scope === 'components'
           ? foundAll.filter((m) => m.path[0] === 'components')
@@ -137,12 +144,16 @@ export function useStructureSearch({ schema, containerRef, scope = 'all' }: UseS
             ? foundAll.filter((m) => m.path[0] !== 'components')
             : foundAll;
 
-      setMatches(found);
-      setCurrentMatchIndex(0);
-
-      // Update cache
-      cachedMatchesRef.current = { query: debouncedQuery, scope, matches: found };
-      schemaRef.current = schema;
+      // Only update state if results actually changed
+      if (
+        cachedMatchesRef.current.query !== debouncedQuery ||
+        cachedMatchesRef.current.scope !== scope ||
+        needsNewSearch
+      ) {
+        setMatches(found);
+        setCurrentMatchIndex(0);
+        cachedMatchesRef.current = { query: debouncedQuery, scope, matches: found };
+      }
     } else {
       setMatches([]);
       setCurrentMatchIndex(0);
