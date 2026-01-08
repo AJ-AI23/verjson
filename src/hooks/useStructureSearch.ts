@@ -6,13 +6,22 @@ export interface SearchMatch {
   matchedText: string;
 }
 
+type StructureSearchScope = 'all' | 'structure' | 'components';
+
 interface UseStructureSearchOptions {
   schema: any;
   containerRef: React.RefObject<HTMLElement>;
   onExpandPath?: (path: string[]) => void;
+  /**
+   * Limits matches to the part of the OpenAPI tree currently visible.
+   * - 'components': only matches under `components.*`
+   * - 'structure': excludes `components.*`
+   * - 'all': no filtering (default)
+   */
+  scope?: StructureSearchScope;
 }
 
-export function useStructureSearch({ schema, containerRef }: UseStructureSearchOptions) {
+export function useStructureSearch({ schema, containerRef, scope = 'all' }: UseStructureSearchOptions) {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [matches, setMatches] = useState<SearchMatch[]>([]);
@@ -27,7 +36,11 @@ export function useStructureSearch({ schema, containerRef }: UseStructureSearchO
 
   // Memoize schema string for comparison to avoid re-running search on same schema
   const schemaRef = useRef<any>(null);
-  const cachedMatchesRef = useRef<{ query: string; matches: SearchMatch[] }>({ query: '', matches: [] });
+  const cachedMatchesRef = useRef<{ query: string; scope: StructureSearchScope; matches: SearchMatch[] }>({
+    query: '',
+    scope: 'all',
+    matches: [],
+  });
 
   // Find all matches in the schema - optimized with early termination and limits
   const findMatches = useCallback((query: string, obj: any): SearchMatch[] => {
@@ -108,23 +121,34 @@ export function useStructureSearch({ schema, containerRef }: UseStructureSearchO
   useEffect(() => {
     if (debouncedQuery.trim()) {
       // Check cache first
-      if (cachedMatchesRef.current.query === debouncedQuery && schemaRef.current === schema) {
+      if (
+        cachedMatchesRef.current.query === debouncedQuery &&
+        cachedMatchesRef.current.scope === scope &&
+        schemaRef.current === schema
+      ) {
         return;
       }
-      
-      const found = findMatches(debouncedQuery, schema);
+
+      const foundAll = findMatches(debouncedQuery, schema);
+      const found =
+        scope === 'components'
+          ? foundAll.filter((m) => m.path[0] === 'components')
+          : scope === 'structure'
+            ? foundAll.filter((m) => m.path[0] !== 'components')
+            : foundAll;
+
       setMatches(found);
       setCurrentMatchIndex(0);
-      
+
       // Update cache
-      cachedMatchesRef.current = { query: debouncedQuery, matches: found };
+      cachedMatchesRef.current = { query: debouncedQuery, scope, matches: found };
       schemaRef.current = schema;
     } else {
       setMatches([]);
       setCurrentMatchIndex(0);
-      cachedMatchesRef.current = { query: '', matches: [] };
+      cachedMatchesRef.current = { query: '', scope, matches: [] };
     }
-  }, [debouncedQuery, schema, findMatches]);
+  }, [debouncedQuery, schema, scope, findMatches]);
 
   // Get paths that need to be expanded for CURRENT match only (performance optimization)
   const expandedPaths = useMemo(() => {

@@ -1143,8 +1143,8 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<'structure' | 'components'>('structure');
-  
-  // Search functionality
+
+  // Search functionality (scoped to the active tab)
   const {
     searchQuery,
     setSearchQuery,
@@ -1156,24 +1156,14 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
     searchInputRef,
     expandedPaths: searchExpandedPaths,
     scrollToPath,
-  } = useStructureSearch({ schema, containerRef });
+  } = useStructureSearch({ schema, containerRef, scope: activeTab });
 
   useEffect(() => {
     if (!searchQuery.trim()) return;
     const match = matches[currentMatchIndex];
     if (!match) return;
-    const desiredTab = match.path[0] === 'components' ? 'components' : 'structure';
-    if (activeTab !== desiredTab) setActiveTab(desiredTab);
-  }, [searchQuery, matches, currentMatchIndex, activeTab]);
-
-  useEffect(() => {
-    if (!searchQuery.trim()) return;
-    const match = matches[currentMatchIndex];
-    if (!match) return;
-    const desiredTab = match.path[0] === 'components' ? 'components' : 'structure';
-    if (activeTab !== desiredTab) return;
     scrollToPath(match.path);
-  }, [searchQuery, matches, currentMatchIndex, activeTab, scrollToPath]);
+  }, [searchQuery, matches, currentMatchIndex, scrollToPath]);
 
   // Use the document ref resolver for sideloading referenced documents
   const { getAllResolvedSchemas, resolvedDocuments } = useDocumentRefResolver(schema);
