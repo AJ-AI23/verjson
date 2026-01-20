@@ -414,16 +414,20 @@ const FitViewHelper: React.FC<{
               const nodeY = node.yPosition || 100;
               const nodeCenterY = nodeY + (nodeHeight / 2);
               
+              // Preserve existing anchor IDs if they exist, only generate new ones if truly missing
+              const existingAnchor0 = node.anchors?.[0];
+              const existingAnchor1 = node.anchors?.[1];
+              
               const newAnchors: [AnchorNodeType, AnchorNodeType] = [
                 { 
-                  id: `anchor-${Date.now()}-1`, 
-                  lifelineId: sourceLifeline.id,
-                  anchorType: 'source'
+                  id: existingAnchor0?.id || `anchor-${Date.now()}-1`, 
+                  lifelineId: existingAnchor0?.lifelineId || sourceLifeline.id,
+                  anchorType: existingAnchor0?.anchorType || 'source'
                 },
                 { 
-                  id: `anchor-${Date.now()}-2`, 
-                  lifelineId: targetLifeline.id,
-                  anchorType: 'target'
+                  id: existingAnchor1?.id || `anchor-${Date.now()}-2`, 
+                  lifelineId: existingAnchor1?.lifelineId || targetLifeline.id,
+                  anchorType: existingAnchor1?.anchorType || 'target'
                 }
               ];
               
