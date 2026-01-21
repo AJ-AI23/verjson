@@ -1,6 +1,13 @@
 import Ajv from 'ajv';
+import addFormats from 'ajv-formats';
 
-const diagramSchema = {
+/**
+ * VerjSON Diagram Schema v1.0.0
+ * 
+ * This is the authoritative schema for VerjSON diagram documents.
+ * Keep in sync with public/api/diagram-schema.v1.json
+ */
+export const diagramSchema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
   $id: 'https://verjson.lovable.app/schemas/diagram/v1.0.0',
   title: 'VerjSON Diagram Schema',
@@ -18,6 +25,24 @@ const diagramSchema = {
       enum: ['sequence', 'flowchart'],
       description: 'Type of diagram'
     },
+    info: {
+      $ref: '#/definitions/info'
+    },
+    selectedTheme: {
+      type: 'string',
+      description: 'Currently active theme (e.g., "light" or "dark")'
+    },
+    data: {
+      oneOf: [
+        { $ref: '#/definitions/sequenceDiagramData' },
+        { $ref: '#/definitions/flowchartData' }
+      ]
+    },
+    styles: {
+      $ref: '#/definitions/diagramStyles'
+    }
+  },
+  definitions: {
     info: {
       type: 'object',
       required: ['version', 'title'],
@@ -52,21 +77,9 @@ const diagramSchema = {
         }
       }
     },
-    data: {
-      oneOf: [
-        {
-          $ref: '#/definitions/sequenceDiagramData'
-        },
-        {
-          $ref: '#/definitions/flowchartData'
-        }
-      ]
-    }
-  },
-  definitions: {
     sequenceDiagramData: {
       type: 'object',
-      required: ['lifelines', 'nodes', 'edges'],
+      required: ['lifelines', 'nodes'],
       properties: {
         lifelines: {
           type: 'array',
@@ -75,13 +88,13 @@ const diagramSchema = {
         },
         nodes: {
           type: 'array',
-          items: { $ref: '#/definitions/node' },
-          description: 'Diagram nodes'
+          items: { $ref: '#/definitions/diagramNode' },
+          description: 'Diagram nodes representing interactions'
         },
-        edges: {
+        processes: {
           type: 'array',
-          items: { $ref: '#/definitions/edge' },
-          description: 'Connections between nodes'
+          items: { $ref: '#/definitions/processNode' },
+          description: 'Process nodes spanning multiple anchors'
         }
       }
     },
@@ -91,12 +104,12 @@ const diagramSchema = {
       properties: {
         nodes: {
           type: 'array',
-          items: { $ref: '#/definitions/node' },
+          items: { $ref: '#/definitions/diagramNode' },
           description: 'Diagram nodes'
         },
         edges: {
           type: 'array',
-          items: { $ref: '#/definitions/edge' },
+          items: { $ref: '#/definitions/diagramEdge' },
           description: 'Connections between nodes'
         }
       }
@@ -115,11 +128,6 @@ const diagramSchema = {
           minLength: 1,
           description: 'Lifeline name'
         },
-        color: {
-          type: 'string',
-          pattern: '^#[0-9A-Fa-f]{6}$',
-          description: 'Hex color code'
-        },
         order: {
           type: 'number',
           minimum: 0,
@@ -133,12 +141,22 @@ const diagramSchema = {
         description: {
           type: 'string',
           description: 'Optional description'
+        },
+        color: {
+          type: 'string',
+          pattern: '^#[0-9A-Fa-f]{6}$',
+          description: 'Hex color code'
+        },
+        anchorColor: {
+          type: 'string',
+          pattern: '^#[0-9A-Fa-f]{6}$',
+          description: 'Anchor color override'
         }
       }
     },
-    anchor: {
+    anchorNode: {
       type: 'object',
-      required: ['id', 'lifelineId', 'yPosition', 'anchorType'],
+      required: ['id', 'lifelineId', 'anchorType'],
       properties: {
         id: {
           type: 'string',
@@ -150,18 +168,18 @@ const diagramSchema = {
           minLength: 1,
           description: 'Reference to lifeline ID'
         },
-        yPosition: {
-          type: 'number',
-          description: 'Vertical position'
-        },
         anchorType: {
           type: 'string',
           enum: ['source', 'target'],
-          description: 'Anchor type'
+          description: 'Anchor type (source or target of interaction)'
+        },
+        processId: {
+          type: 'string',
+          description: 'ID of the process this anchor belongs to (if any)'
         }
       }
     },
-    node: {
+    diagramNode: {
       type: 'object',
       required: ['id', 'type', 'label', 'anchors'],
       properties: {
@@ -188,16 +206,12 @@ const diagramSchema = {
           type: 'array',
           minItems: 2,
           maxItems: 2,
-          items: { $ref: '#/definitions/anchor' },
+          items: { $ref: '#/definitions/anchorNode' },
           description: 'Source and target anchors'
         },
-        position: {
-          type: 'object',
-          properties: {
-            x: { type: 'number' },
-            y: { type: 'number' }
-          },
-          required: ['x', 'y']
+        yPosition: {
+          type: 'number',
+          description: 'Vertical position in the diagram'
         },
         data: {
           type: 'object',
@@ -229,11 +243,52 @@ const diagramSchema = {
               type: 'string',
               description: 'Custom color'
             }
-          }
+          },
+          additionalProperties: true
         }
       }
     },
-    edge: {
+    processNode: {
+      type: 'object',
+      required: ['id', 'type', 'lifelineId', 'anchorIds', 'description'],
+      properties: {
+        id: {
+          type: 'string',
+          minLength: 1,
+          description: 'Unique process identifier'
+        },
+        type: {
+          type: 'string',
+          const: 'lifelineProcess',
+          description: 'Process type'
+        },
+        lifelineId: {
+          type: 'string',
+          minLength: 1,
+          description: 'ID of the lifeline this process belongs to'
+        },
+        anchorIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of anchor IDs connected to this process'
+        },
+        description: {
+          type: 'string',
+          description: 'Process description'
+        },
+        parallelIndex: {
+          type: 'number',
+          minimum: 0,
+          maximum: 2,
+          description: 'Index for parallel process positioning (0-2)'
+        },
+        color: {
+          type: 'string',
+          description: 'Optional custom color'
+        }
+      }
+    },
+    diagramEdge: {
       type: 'object',
       required: ['id', 'source', 'target'],
       properties: {
@@ -274,11 +329,93 @@ const diagramSchema = {
           }
         }
       }
+    },
+    diagramStyles: {
+      type: 'object',
+      properties: {
+        themes: {
+          type: 'object',
+          additionalProperties: { $ref: '#/definitions/diagramTheme' },
+          description: 'Named theme configurations'
+        }
+      }
+    },
+    diagramTheme: {
+      type: 'object',
+      properties: {
+        background: { type: 'string' },
+        nodeBackground: { type: 'string' },
+        nodeBorder: { type: 'string' },
+        nodeText: { type: 'string' },
+        edgeColor: { type: 'string' },
+        lifelineColors: {
+          type: 'object',
+          additionalProperties: {
+            type: 'object',
+            properties: {
+              background: { type: 'string' },
+              anchorColor: { type: 'string' },
+              anchorBorder: { type: 'string' },
+              processColor: { type: 'string' }
+            }
+          }
+        }
+      }
     }
   }
 };
 
-const ajv = new Ajv({ allErrors: true });
-export const validateDiagram = ajv.compile(diagramSchema);
+// Helper to get schema definitions for use in structure editor
+export const getDiagramSchemaDefinitions = () => diagramSchema.definitions;
 
-export { diagramSchema };
+// Helper to get item schema for a specific array path
+export const getDiagramArrayItemSchema = (arrayPath: string): Record<string, any> | null => {
+  const definitions = diagramSchema.definitions as Record<string, any>;
+  
+  // Map array paths to their item schema definitions
+  const pathToSchema: Record<string, string> = {
+    'data.lifelines': 'lifeline',
+    'data.nodes': 'diagramNode',
+    'data.processes': 'processNode',
+    'data.edges': 'diagramEdge',
+  };
+  
+  const schemaKey = pathToSchema[arrayPath];
+  if (schemaKey && definitions[schemaKey]) {
+    return definitions[schemaKey];
+  }
+  
+  return null;
+};
+
+// Get property schema for diagram fields
+export const getDiagramPropertySchema = (path: string): Record<string, any> | null => {
+  const parts = path.split('.');
+  let current: any = diagramSchema;
+  
+  for (const part of parts) {
+    if (current.properties?.[part]) {
+      current = current.properties[part];
+    } else if (current.$ref) {
+      const refPath = current.$ref.replace('#/definitions/', '');
+      current = (diagramSchema.definitions as Record<string, any>)[refPath];
+      if (current?.properties?.[part]) {
+        current = current.properties[part];
+      }
+    } else {
+      return null;
+    }
+  }
+  
+  // Resolve $ref if present
+  if (current?.$ref) {
+    const refPath = current.$ref.replace('#/definitions/', '');
+    return (diagramSchema.definitions as Record<string, any>)[refPath] || null;
+  }
+  
+  return current || null;
+};
+
+const ajv = new Ajv({ allErrors: true });
+addFormats(ajv);
+export const validateDiagram = ajv.compile(diagramSchema);

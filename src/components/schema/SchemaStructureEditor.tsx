@@ -16,6 +16,7 @@ import { ConsistencyIndicator } from './ConsistencyIndicator';
 import { ConsistencyIssue } from '@/types/consistency';
 import { useStructureSearch } from '@/hooks/useStructureSearch';
 import { StructureSearchBar } from './StructureSearchBar';
+import { getDiagramSchemaDefinitions, getDiagramArrayItemSchema } from '@/lib/schemas/diagramSchema';
 const JSON_SCHEMA_TYPES = [
   'string',
   'integer', 
@@ -62,6 +63,7 @@ interface EditablePropertyNodeProps {
   depth?: number;
   isArrayItem?: boolean;
   parentIsArray?: boolean;
+  diagramArrayPath?: string; // e.g., 'data.lifelines', 'data.nodes', 'data.processes'
   onPropertyChange: (path: string[], updates: { name?: string; schema?: any }) => void;
   onPropertyRename: (path: string[], oldName: string, newName: string) => void;
   onAddProperty?: (path: string[], name: string, schema: any) => void;
@@ -125,6 +127,41 @@ const getTypeLabel = (schema: any): string | null => {
   }
   
   return typeValue || null;
+};
+
+// Get the diagram schema type for a property within an array item
+const getDiagramItemPropertyType = (propertyName: string, diagramArrayPath: string | undefined): string | null => {
+  if (!diagramArrayPath) return null;
+  
+  const itemSchema = getDiagramArrayItemSchema(diagramArrayPath);
+  if (!itemSchema?.properties?.[propertyName]) return null;
+  
+  const propSchema = itemSchema.properties[propertyName];
+  
+  // Handle $ref
+  if (propSchema.$ref) {
+    return propSchema.$ref.split('/').pop() || null;
+  }
+  
+  // Handle enum types - show as the enum type
+  if (propSchema.enum && Array.isArray(propSchema.enum)) {
+    return `enum(${propSchema.enum.join('|')})`;
+  }
+  
+  // Handle const values
+  if (propSchema.const !== undefined) {
+    return `const(${propSchema.const})`;
+  }
+  
+  // Handle array types
+  if (propSchema.type === 'array') {
+    if (propSchema.items?.$ref) {
+      return `${propSchema.items.$ref.split('/').pop() || 'any'}[]`;
+    }
+    return `${propSchema.items?.type || 'any'}[]`;
+  }
+  
+  return propSchema.type || null;
 };
 
 const hasSchemaType = (schema: any): boolean => {
@@ -353,6 +390,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
   depth = 0,
   isArrayItem = false,
   parentIsArray = false,
+  diagramArrayPath,
   onPropertyChange,
   onPropertyRename,
   onAddProperty,
@@ -500,7 +538,17 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
     return null;
   }, [isExpanded, propertySchema, definitions, isSchemaWithType, isArrayItem]);
 
-  const typeLabel = getTypeLabel(propertySchema);
+  // Get type label - check diagram schema first for properties within diagram array items
+  const typeLabel = useMemo(() => {
+    // If we're inside a diagram array item, check if the diagram schema has type info for this property
+    if (diagramArrayPath && !isArrayItem) {
+      const diagramType = getDiagramItemPropertyType(name, diagramArrayPath);
+      if (diagramType) {
+        return diagramType;
+      }
+    }
+    return getTypeLabel(propertySchema);
+  }, [name, propertySchema, diagramArrayPath, isArrayItem]);
 
   const handleNameSubmit = () => {
     if (editedName && editedName !== name) {
@@ -895,6 +943,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
                     depth={depth + 1}
                     isArrayItem={Array.isArray(propertySchema)}
                     parentIsArray={Array.isArray(propertySchema)}
+                    diagramArrayPath={diagramArrayPath}
                     onPropertyChange={onPropertyChange}
                     onPropertyRename={onPropertyRename}
                     onAddProperty={onAddProperty}
@@ -951,6 +1000,7 @@ interface SectionTreeProps {
   data: any;
   path: string[];
   definitions: Record<string, any>;
+  diagramArrayPath?: string; // For diagram sections: 'data.lifelines', 'data.nodes', etc.
   onPropertyChange: (path: string[], updates: { name?: string; schema?: any }) => void;
   onPropertyRename: (path: string[], oldName: string, newName: string) => void;
   onAddProperty: (path: string[], name: string, schema: any) => void;
@@ -977,6 +1027,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
   data,
   path,
   definitions,
+  diagramArrayPath,
   onPropertyChange,
   onPropertyRename,
   onAddProperty,
@@ -1036,6 +1087,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
                     definitions={definitions}
                     isArrayItem={true}
                     parentIsArray={true}
+                    diagramArrayPath={diagramArrayPath}
                     onPropertyChange={onPropertyChange}
                     onPropertyRename={onPropertyRename}
                     onAddProperty={onAddProperty}
@@ -1578,7 +1630,7 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
 
   // Build sections based on schema type
   const rootSections = useMemo(() => {
-    const sections: { key: string; title: string; icon: React.ReactNode; data: any }[] = [];
+    const sections: { key: string; title: string; icon: React.ReactNode; data: any; diagramArrayPath?: string }[] = [];
     
     if (schemaType === 'json-schema') {
       // JSON Schema sections
@@ -1608,16 +1660,16 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
         // New verjson format: data contains lifelines, nodes, etc.
         const diagramData = schema.data;
         if (diagramData?.lifelines) {
-          sections.push({ key: 'data.lifelines', title: 'Lifelines', icon: <List className="h-4 w-4 text-green-500" />, data: diagramData.lifelines });
+          sections.push({ key: 'data.lifelines', title: 'Lifelines', icon: <List className="h-4 w-4 text-green-500" />, data: diagramData.lifelines, diagramArrayPath: 'data.lifelines' });
         }
         if (diagramData?.nodes) {
-          sections.push({ key: 'data.nodes', title: 'Nodes', icon: <Box className="h-4 w-4 text-primary" />, data: diagramData.nodes });
+          sections.push({ key: 'data.nodes', title: 'Nodes', icon: <Box className="h-4 w-4 text-primary" />, data: diagramData.nodes, diagramArrayPath: 'data.nodes' });
         }
         if (diagramData?.processes) {
-          sections.push({ key: 'data.processes', title: 'Processes', icon: <Box className="h-4 w-4 text-purple-500" />, data: diagramData.processes });
+          sections.push({ key: 'data.processes', title: 'Processes', icon: <Box className="h-4 w-4 text-purple-500" />, data: diagramData.processes, diagramArrayPath: 'data.processes' });
         }
         if (diagramData?.edges) {
-          sections.push({ key: 'data.edges', title: 'Edges', icon: <Link2 className="h-4 w-4 text-blue-500" />, data: diagramData.edges });
+          sections.push({ key: 'data.edges', title: 'Edges', icon: <Link2 className="h-4 w-4 text-blue-500" />, data: diagramData.edges, diagramArrayPath: 'data.edges' });
         }
       } else {
         // Legacy flat diagram format
@@ -1846,6 +1898,7 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
               data={section.data}
               path={section.key.includes('.') ? section.key.split('.') : [section.key]}
               definitions={definitions}
+              diagramArrayPath={section.diagramArrayPath}
               onPropertyChange={handlePropertyChange}
               onPropertyRename={handlePropertyRename}
               onAddProperty={handleAddProperty}
