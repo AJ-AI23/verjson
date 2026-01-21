@@ -42,12 +42,26 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [autoVersion, setAutoVersion] = useState(true);
   
-  // Update editable version when the version prop changes (e.g., from history selection)
-  useEffect(() => {
-    setEditableVersion({ ...version });
+  // Calculate next version (patch bump by default for auto-versioning preview)
+  const nextVersion = React.useMemo((): Version => {
+    return {
+      major: version.major,
+      minor: version.minor,
+      patch: version.patch + 1
+    };
   }, [version.major, version.minor, version.patch]);
+  
+  // Update editable version when the version prop changes (e.g., from history selection)
+  // When auto-versioning, show next version; when manual, show current version
+  useEffect(() => {
+    if (autoVersion) {
+      setEditableVersion({ ...nextVersion });
+    } else {
+      setEditableVersion({ ...version });
+    }
+  }, [version.major, version.minor, version.patch, autoVersion]);
 
-  // Apply suggested version when it changes
+  // Apply suggested version when it changes (for validation errors)
   useEffect(() => {
     if (suggestedVersion) {
       setEditableVersion({ ...suggestedVersion });
