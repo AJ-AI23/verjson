@@ -39,7 +39,7 @@ try {
   console.warn('Could not pre-load draft 2020-12 meta-schema:', e);
 }
 
-export type SchemaType = 'json-schema' | 'openapi';
+export type SchemaType = 'json-schema' | 'openapi' | 'diagram';
 
 export const validateJsonSchema = (jsonString: string, schemaType: SchemaType = 'json-schema'): any => {
   // Handle empty or whitespace-only strings
@@ -51,12 +51,36 @@ export const validateJsonSchema = (jsonString: string, schemaType: SchemaType = 
     // Parse JSON
     const parsedSchema = JSON.parse(jsonString);
     
-    // Auto-detect schema type if validation fails with provided type
+    // Auto-detect schema type (prefer OpenAPI/Diagram when confidently detected)
     const detectedType = detectSchemaType(parsedSchema);
-    const typeToUse = detectedType === 'openapi' ? 'openapi' : schemaType;
+    const typeToUse: SchemaType =
+      detectedType === 'openapi' || detectedType === 'diagram' ? detectedType : schemaType;
     
     // Validate based on the detected or provided schema type
-    if (typeToUse === 'json-schema') {
+    if (typeToUse === 'diagram') {
+      const isVerjson =
+        parsedSchema?.verjson !== undefined &&
+        (parsedSchema?.type === 'sequence' || parsedSchema?.type === 'flowchart');
+
+      const isVerjsonNested =
+        parsedSchema?.verjson !== undefined &&
+        parsedSchema?.data &&
+        (parsedSchema.data.nodes !== undefined ||
+          parsedSchema.data.lifelines !== undefined ||
+          parsedSchema.data.processes !== undefined ||
+          parsedSchema.data.edges !== undefined);
+
+      const isLegacy =
+        parsedSchema?.nodes !== undefined ||
+        parsedSchema?.lifelines !== undefined ||
+        parsedSchema?.processes !== undefined ||
+        parsedSchema?.edges !== undefined;
+
+      if (!isVerjson && !isVerjsonNested && !isLegacy) {
+        console.warn('Schema is missing VerjSON diagram structure properties');
+        throw new Error('Schema is missing VerjSON diagram structure properties');
+      }
+    } else if (typeToUse === 'json-schema') {
       // Check if it has the basic structure of a JSON Schema
       if (!parsedSchema.type && !parsedSchema.$schema && !parsedSchema.properties && !parsedSchema.definitions && !parsedSchema.$defs) {
         console.warn('Schema is missing JSON Schema structure properties');
@@ -158,6 +182,16 @@ export const detectSchemaType = (schema: any): SchemaType => {
   if (!schema || typeof schema !== 'object') {
     return 'json-schema'; // Default fallback
   }
+
+  // Check for VerjSON diagram indicators (new + legacy)
+  if (
+    (schema.verjson !== undefined && (schema.type === 'sequence' || schema.type === 'flowchart')) ||
+    (schema.data && (schema.data.nodes !== undefined || schema.data.lifelines !== undefined || schema.data.processes !== undefined || schema.data.edges !== undefined)) ||
+    schema.nodes !== undefined ||
+    schema.lifelines !== undefined
+  ) {
+    return 'diagram';
+  }
   
   // Check for OpenAPI indicators
   if (schema.openapi || schema.swagger) {
@@ -181,17 +215,21 @@ export const extractSchemaComponents = (schema: any, schemaType: SchemaType = 'j
     return null;
   }
   
-  if (schemaType === 'json-schema') {
-    // For JSON Schema, return the schema directly
-    console.log('Returning JSON schema directly');
-    return schema;
-  } else if (schemaType === 'openapi') {
-    // For OpenAPI schemas, return the full schema to preserve OpenAPI structure
-    console.log('Returning full OpenAPI schema for diagram visualization');
+  // For all supported schema types, return the full document structure.
+  // (Diagrams/OpenAPI/JSON Schema all need the full object for downstream rendering.)
+  if (schemaType === 'diagram') {
+    console.log('Returning full diagram document');
     return schema;
   }
-  
-  console.log('Schema did not match expected format, returning original');
+  if (schemaType === 'json-schema') {
+    console.log('Returning JSON schema directly');
+    return schema;
+  }
+  if (schemaType === 'openapi') {
+    console.log('Returning full OpenAPI schema for visualization');
+    return schema;
+  }
+
   return schema;
 };
 
