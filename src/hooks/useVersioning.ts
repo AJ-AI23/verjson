@@ -428,7 +428,7 @@ export const useVersioning = ({
     }
   };
 
-  const handleDeleteVersion = async (patchId: string) => {
+  const handleDeleteVersion = async (patchId: string, skipDbDelete: boolean = true) => {
     // Don't delete version if no document is loaded
     if (!documentId) {
       return;
@@ -444,10 +444,13 @@ export const useVersioning = ({
         return;
       }
       
-      // Delete from database
-      const success = await deleteVersionFromDb(patchId);
-      if (!success) {
-        return; // Error already handled in useDocumentVersions
+      // Skip DB deletion if already handled by the caller (VersionHistory calls deleteVersion first)
+      if (!skipDbDelete) {
+        // Delete from database
+        const success = await deleteVersionFromDb(patchId);
+        if (!success) {
+          return; // Error already handled in useDocumentVersions
+        }
       }
       
       // Refresh versions from database to ensure UI is in sync
