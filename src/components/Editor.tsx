@@ -152,12 +152,19 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     }
   }, [selectedDocument?.file_type, schemaType, handleSchemaTypeChange]);
 
+  // Refs for tracking loaded document - define early so they can be reset
+  const lastLoadedSchemaRef = React.useRef<any>(null);
+  const lastLoadedDocumentIdRef = React.useRef<string | null>(null);
+
   // Clear editor state when onClearRequest is triggered
   React.useEffect(() => {
     if (onClearRequest) {
+      console.log(`[Editor ${editorInstanceId}] onClearRequest: resetting tracking refs`);
+      lastLoadedSchemaRef.current = null;
+      lastLoadedDocumentIdRef.current = null;
       clearEditorState();
     }
-  }, [onClearRequest, clearEditorState]);
+  }, [onClearRequest, clearEditorState, editorInstanceId]);
 
   // Handle reloading editor with latest version
   const handleReloadWithLatestVersion = React.useCallback(() => {
@@ -263,8 +270,6 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
   }, [versions, loadedVersionId, isModified, selectedDocument?.id, handleReloadWithLatestVersion]);
 
   // Update editor state when initialSchema changes (document selection)
-  const lastLoadedSchemaRef = React.useRef<any>(null);
-  const lastLoadedDocumentIdRef = React.useRef<string | null>(null);
   
   React.useEffect(() => {
     // Only load initialSchema when:
