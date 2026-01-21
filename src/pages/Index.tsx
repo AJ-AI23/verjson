@@ -220,7 +220,7 @@ const Index = () => {
             {selectedDocument ? (
               // Only render Editor once we have content for the first time.
               // After initial load, keep it mounted during refetches to preserve internal state.
-              documentContent?.content ? (
+              documentContent?.content && documentContent.id === selectedDocument.id ? (
                 <div className="h-full animate-fade-in relative">
                   <Editor 
                     initialSchema={documentContent.content}

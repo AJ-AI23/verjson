@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Document } from '@/types/workspace';
 import { getEffectiveDocumentContentForEditor } from '@/lib/documentUtils';
@@ -8,6 +8,7 @@ export function useDocumentContent(documentId?: string) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetchedDocumentId, setFetchedDocumentId] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     console.log('[useDocumentContent] 🔄 Effect triggered:', {
@@ -33,8 +34,11 @@ export function useDocumentContent(documentId?: string) {
     }
 
     const fetchDocumentContent = async () => {
+      const requestId = ++requestIdRef.current;
       try {
         console.log('[useDocumentContent] 📥 Fetching content for document:', documentId);
+        // Clear stale content immediately so we never show previous doc while loading the next one
+        setContent(null);
         setLoading(true);
         setError(null);
 
@@ -44,14 +48,24 @@ export function useDocumentContent(documentId?: string) {
 
         if (error) throw error;
 
+        // Ignore stale responses (user switched documents while request was in flight)
+        if (requestId !== requestIdRef.current) {
+          console.log('[useDocumentContent] ⏭️ Ignoring stale response for document:', documentId);
+          return;
+        }
+
         console.log('[useDocumentContent] ✅ Content loaded successfully, content length:', JSON.stringify(data.document?.content || {}).length);
         setContent(data.document);
         setFetchedDocumentId(documentId);
       } catch (err) {
         console.error('[useDocumentContent] ❌ Error fetching content:', err);
+        // Ignore stale errors
+        if (requestId !== requestIdRef.current) return;
         setError(err instanceof Error ? err.message : 'Failed to load document content');
       } finally {
-        setLoading(false);
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+        }
       }
     };
 
