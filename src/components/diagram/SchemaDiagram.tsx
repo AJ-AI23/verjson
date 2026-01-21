@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useRef } from 'react';
 import '@xyflow/react/dist/style.css';
 import { DiagramContainer } from './DiagramContainer';
 import { CollapsedState } from '@/lib/diagram/types';
@@ -72,21 +72,38 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   
   const isSequenceDiagram = diagramDocument?.type === 'sequence';
 
-  // Ensure styles are initialized
+  // Track if we've already initialized styles for this document to prevent re-triggering
+  // after version saves which could cause the editor to reset
+  const stylesInitializedRef = useRef<string | null>(null);
+  const documentId = diagramDocument?.info?.title || (diagramDocument?.type === 'sequence' && (diagramDocument?.data as SequenceDiagramData)?.lifelines?.map((l) => l.id).join(',')) || 'doc';
+
+  // Ensure styles are initialized - only once per document identity
   React.useEffect(() => {
-    if (diagramDocument && !diagramDocument.styles && onSchemaChange) {
-      const updatedDocument = {
-        ...diagramDocument,
-        styles: {
-          themes: {
-            light: defaultLightTheme,
-            dark: defaultDarkTheme
-          }
-        }
-      };
-      onSchemaChange(updatedDocument);
+    // Skip if already initialized for this document or if styles already exist
+    if (!diagramDocument || !onSchemaChange) return;
+    if (diagramDocument.styles) {
+      // Mark as initialized since styles exist
+      stylesInitializedRef.current = documentId;
+      return;
     }
-  }, [diagramDocument, onSchemaChange]);
+    if (stylesInitializedRef.current === documentId) {
+      // Already initialized for this document, skip
+      return;
+    }
+    
+    // Initialize styles
+    stylesInitializedRef.current = documentId;
+    const updatedDocument = {
+      ...diagramDocument,
+      styles: {
+        themes: {
+          light: defaultLightTheme,
+          dark: defaultDarkTheme
+        }
+      }
+    };
+    onSchemaChange(updatedDocument);
+  }, [diagramDocument, onSchemaChange, documentId]);
 
   if (isSequenceDiagram && diagramDocument) {
     // Ensure styles are always defined with defaults
