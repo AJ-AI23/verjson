@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import { SplitPane } from '@/components/SplitPane';
 import { JsonEditorWrapper } from '@/components/JsonEditorWrapper';
 import { SchemaDiagram } from '@/components/diagram/SchemaDiagram';
@@ -71,7 +71,40 @@ export const EditorContent: React.FC<EditorContentProps> = ({
 }) => {
   const isMobile = useIsMobile();
   const [showDiagram, setShowDiagram] = React.useState(true);
-
+  
+  // Track the last schema we received from the editor to prevent echo updates from diagram
+  const lastEditorSchemaRef = useRef<string>(schema);
+  
+  // Update ref when schema prop changes (from editor)
+  React.useEffect(() => {
+    lastEditorSchemaRef.current = schema;
+  }, [schema]);
+  
+  // Stable callback that prevents diagram from overwriting editor with stale/same content
+  const handleDiagramSchemaChange = useCallback((updatedSchema: any) => {
+    const newSchemaString = JSON.stringify(updatedSchema, null, 2);
+    
+    // Compare normalized JSON to avoid spurious updates from formatting differences
+    const normalize = (s: string) => {
+      try {
+        return JSON.stringify(JSON.parse(s));
+      } catch {
+        return s;
+      }
+    };
+    
+    const currentNormalized = normalize(lastEditorSchemaRef.current);
+    const newNormalized = normalize(newSchemaString);
+    
+    // Only propagate if content actually changed
+    if (currentNormalized !== newNormalized) {
+      console.log('📊 Diagram schema change detected, propagating to editor');
+      lastEditorSchemaRef.current = newSchemaString;
+      onEditorChange(newSchemaString);
+    } else {
+      console.log('📊 Diagram schema change skipped (no actual change)');
+    }
+  }, [onEditorChange]);
   const editorPane = (
     <div className="flex flex-col h-full">
       <JsonEditorWrapper
@@ -119,10 +152,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
       onToggleFullscreen={onToggleFullscreen}
       diagramRef={diagramRef}
       onToggleCollapse={onToggleCollapse}
-      onSchemaChange={(updatedSchema) => {
-        // When diagram is edited, update the JSON editor
-        onEditorChange(JSON.stringify(updatedSchema, null, 2));
-      }}
+      onSchemaChange={handleDiagramSchemaChange}
     />
   );
 
