@@ -1,11 +1,74 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronRight, ChevronDown, Box, Link2, Hash, Type, List, ToggleLeft, Calendar, FileText, Copy, Scissors } from 'lucide-react';
+import { ChevronRight, ChevronDown, Box, Link2, Hash, Type, List, ToggleLeft, Calendar, FileText, Copy, Scissors, Info } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { usePropertyClipboard, ClipboardItem } from '@/hooks/usePropertyClipboard';
+
+interface RequiredFieldInfo {
+  path: string;
+  type: string;
+}
+
+/**
+ * Recursively collects all required fields from a schema, including nested objects and refs.
+ */
+function collectRequiredFields(
+  schema: any,
+  allSchemas: Record<string, any>,
+  currentPath: string = '',
+  visited: Set<string> = new Set()
+): RequiredFieldInfo[] {
+  const results: RequiredFieldInfo[] = [];
+  
+  if (!schema || typeof schema !== 'object') return results;
+  
+  // Handle $ref
+  if (schema.$ref) {
+    const refName = schema.$ref.split('/').pop();
+    if (refName && !visited.has(refName)) {
+      visited.add(refName);
+      const resolved = allSchemas[refName];
+      if (resolved) {
+        return collectRequiredFields(resolved, allSchemas, currentPath, visited);
+      }
+    }
+    return results;
+  }
+  
+  const types = schema.types || schema.type;
+  const typeValue = Array.isArray(types) ? types[0] : types;
+  
+  // Handle object with properties
+  if (typeValue === 'object' || schema.properties) {
+    const requiredProps: string[] = schema.required || [];
+    const properties = schema.properties || {};
+    
+    for (const [propName, propSchema] of Object.entries(properties)) {
+      const propPath = currentPath ? `${currentPath}.${propName}` : propName;
+      const prop = propSchema as any;
+      
+      if (requiredProps.includes(propName)) {
+        const propType = getTypeLabel(prop);
+        results.push({ path: propPath, type: propType });
+      }
+      
+      // Recurse into nested objects/arrays
+      results.push(...collectRequiredFields(prop, allSchemas, propPath, visited));
+    }
+  }
+  
+  // Handle arrays
+  if (typeValue === 'array' && schema.items) {
+    const itemPath = currentPath ? `${currentPath}[]` : '[]';
+    results.push(...collectRequiredFields(schema.items, allSchemas, itemPath, visited));
+  }
+  
+  return results;
+}
 
 interface ComponentInfo {
   name: string;
@@ -285,9 +348,15 @@ interface ComponentTreeProps {
 
 const ComponentTree: React.FC<ComponentTreeProps> = ({ component, allSchemas, onCopy, onCut, clipboard }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
   
   const properties = component.schema?.properties || {};
   const hasProperties = Object.keys(properties).length > 0;
+
+  // Collect required fields for summary
+  const requiredFields = useMemo(() => {
+    return collectRequiredFields(component.schema, allSchemas);
+  }, [component.schema, allSchemas]);
 
   // Check if this component is in the clipboard
   const isInClipboard = useMemo(() => {
@@ -314,101 +383,181 @@ const ComponentTree: React.FC<ComponentTreeProps> = ({ component, allSchemas, on
     }
   };
 
+  const handleShowSummary = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowSummary(true);
+  };
+
   return (
-    <div className={cn(
-      "border rounded-lg overflow-hidden",
-      isInClipboard === 'cut' && "border-dashed border-destructive/50 bg-destructive/5",
-      isInClipboard === 'copied' && "border-dashed border-primary/50 bg-primary/5"
-    )}>
-      <div 
-        className={cn(
-          "flex items-center gap-3 p-3 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors group",
-          isExpanded && "border-b"
-        )}
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        {hasProperties ? (
-          isExpanded ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+    <>
+      <div className={cn(
+        "border rounded-lg overflow-hidden",
+        isInClipboard === 'cut' && "border-dashed border-destructive/50 bg-destructive/5",
+        isInClipboard === 'copied' && "border-dashed border-primary/50 bg-primary/5"
+      )}>
+        <div 
+          className={cn(
+            "flex items-center gap-3 p-3 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors group",
+            isExpanded && "border-b"
+          )}
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          {hasProperties ? (
+            isExpanded ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )
           ) : (
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          )
-        ) : (
-          <span className="w-4" />
-        )}
-        
-        <Box className="h-4 w-4 text-primary" />
-        
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm">{component.name}</span>
-            {component.isTopLevel && (
-              <Badge variant="outline" className="text-xs">Top Level</Badge>
+            <span className="w-4" />
+          )}
+          
+          <Box className="h-4 w-4 text-primary" />
+          
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-sm">{component.name}</span>
+              {component.isTopLevel && (
+                <Badge variant="outline" className="text-xs">Top Level</Badge>
+              )}
+            </div>
+            {component.description && (
+              <p className="text-xs text-muted-foreground truncate mt-0.5">
+                {component.description}
+              </p>
             )}
           </div>
-          {component.description && (
-            <p className="text-xs text-muted-foreground truncate mt-0.5">
-              {component.description}
-            </p>
-          )}
-        </div>
-        
-        {/* Copy/Cut buttons for component */}
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {onCopy && (
+          
+          {/* Action buttons */}
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Summary button */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-6 w-6 p-0"
-                  onClick={handleCopyComponent}
+                  onClick={handleShowSummary}
                 >
-                  <Copy className="h-3.5 w-3.5" />
+                  <Info className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top">Copy component</TooltipContent>
+              <TooltipContent side="top">View summary</TooltipContent>
             </Tooltip>
-          )}
-          {onCut && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0"
-                  onClick={handleCutComponent}
-                >
-                  <Scissors className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top">Cut component</TooltipContent>
-            </Tooltip>
-          )}
+            {onCopy && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={handleCopyComponent}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">Copy component</TooltipContent>
+              </Tooltip>
+            )}
+            {onCut && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={handleCutComponent}
+                  >
+                    <Scissors className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">Cut component</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+          
+          <Badge variant="secondary" className="text-xs shrink-0">
+            {Object.keys(properties).length} properties
+          </Badge>
         </div>
         
-        <Badge variant="secondary" className="text-xs shrink-0">
-          {Object.keys(properties).length} properties
-        </Badge>
+        {isExpanded && hasProperties && (
+          <div className="p-2 bg-background">
+            {Object.entries(properties).map(([propName, propSchema]) => (
+              <PropertyNode
+                key={propName}
+                name={propName}
+                schema={propSchema as any}
+                allSchemas={allSchemas}
+                path={['components', 'schemas', component.name, 'properties', propName]}
+                onCopy={onCopy}
+                onCut={onCut}
+                clipboard={clipboard}
+              />
+            ))}
+          </div>
+        )}
       </div>
-      
-      {isExpanded && hasProperties && (
-        <div className="p-2 bg-background">
-          {Object.entries(properties).map(([propName, propSchema]) => (
-            <PropertyNode
-              key={propName}
-              name={propName}
-              schema={propSchema as any}
-              allSchemas={allSchemas}
-              path={['components', 'schemas', component.name, 'properties', propName]}
-              onCopy={onCopy}
-              onCut={onCut}
-              clipboard={clipboard}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+
+      {/* Summary Dialog */}
+      <Dialog open={showSummary} onOpenChange={setShowSummary}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Box className="h-5 w-5 text-primary" />
+              {component.name} Summary
+            </DialogTitle>
+            <DialogDescription>
+              Overview of required fields in this component
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Stats */}
+            <div className="flex gap-4">
+              <div className="flex-1 p-3 bg-muted/50 rounded-lg text-center">
+                <div className="text-2xl font-bold text-primary">{requiredFields.length}</div>
+                <div className="text-xs text-muted-foreground">Required Fields</div>
+              </div>
+              <div className="flex-1 p-3 bg-muted/50 rounded-lg text-center">
+                <div className="text-2xl font-bold">{Object.keys(properties).length}</div>
+                <div className="text-xs text-muted-foreground">Total Properties</div>
+              </div>
+            </div>
+            
+            {/* Required fields list */}
+            {requiredFields.length > 0 ? (
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Required Field Paths:</h4>
+                <ScrollArea className="h-[200px] border rounded-md">
+                  <div className="p-2 space-y-1">
+                    {requiredFields.map((field, index) => (
+                      <div 
+                        key={index}
+                        className="flex items-center justify-between py-1.5 px-2 bg-muted/30 rounded text-sm hover:bg-muted/50 transition-colors"
+                      >
+                        <code className="font-mono text-xs text-foreground">{field.path}</code>
+                        <Badge variant="secondary" className="text-xs ml-2 shrink-0">
+                          {field.type}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground">
+                <p className="text-sm">No required fields in this component</p>
+              </div>
+            )}
+          </div>
+          
+          <DialogClose asChild>
+            <Button variant="outline" className="w-full mt-2">Close</Button>
+          </DialogClose>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
