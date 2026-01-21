@@ -64,6 +64,7 @@ interface EditablePropertyNodeProps {
   isArrayItem?: boolean;
   parentIsArray?: boolean;
   diagramArrayPath?: string; // e.g., 'data.lifelines', 'data.nodes', 'data.processes'
+  fixedItemType?: string; // Fixed type name for array items constrained by schema (e.g., via items.$ref)
   onPropertyChange: (path: string[], updates: { name?: string; schema?: any }) => void;
   onPropertyRename: (path: string[], oldName: string, newName: string) => void;
   onAddProperty?: (path: string[], name: string, schema: any) => void;
@@ -382,7 +383,21 @@ const AddPropertyButton: React.FC<{
   );
 };
 
-const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({ 
+// Helper to extract fixed item type from a schema with items.$ref
+const getFixedItemTypeFromSchema = (parentSchema: any): string | null => {
+  if (!parentSchema) return null;
+  
+  // Check for array with items.$ref
+  if (parentSchema.type === 'array' && parentSchema.items?.$ref) {
+    const ref = parentSchema.items.$ref;
+    // Extract the type name from the ref path
+    return ref.split('/').pop() || null;
+  }
+  
+  return null;
+};
+
+const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
   name, 
   propertySchema, 
   path,
@@ -391,6 +406,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
   isArrayItem = false,
   parentIsArray = false,
   diagramArrayPath,
+  fixedItemType,
   onPropertyChange,
   onPropertyRename,
   onAddProperty,
@@ -550,13 +566,18 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
     return getTypeLabel(propertySchema);
   }, [name, propertySchema, diagramArrayPath, isArrayItem]);
 
-  // Check if this is a diagram array item with a fixed type (e.g., lifeline, diagramNode)
-  const fixedDiagramType = useMemo(() => {
+  // Check if this item has a fixed type (either from diagram schema or from parent array's items.$ref)
+  const fixedType = useMemo(() => {
+    // First check if explicitly passed from parent
+    if (fixedItemType && isArrayItem) {
+      return fixedItemType;
+    }
+    // Then check diagram-specific fixed types
     if (isArrayItem && diagramArrayPath) {
       return getDiagramArrayItemTypeName(diagramArrayPath);
     }
     return null;
-  }, [isArrayItem, diagramArrayPath]);
+  }, [isArrayItem, diagramArrayPath, fixedItemType]);
 
   const handleNameSubmit = () => {
     if (editedName && editedName !== name) {
@@ -769,10 +790,10 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
         <div className="ml-auto flex items-center gap-1">
           {isPrimitive ? (
             <EditableValue value={propertySchema} onValueChange={handleValueChange} />
-          ) : fixedDiagramType ? (
-            // Fixed diagram type - display as static badge (no dropdown)
+          ) : fixedType ? (
+            // Fixed type - display as static badge (no dropdown)
             <Badge variant="secondary" className="text-xs font-normal">
-              {fixedDiagramType}
+              {fixedType}
             </Badge>
           ) : typeLabel ? (
             <TypeSelector
@@ -946,7 +967,12 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
                 }
               }}
             >
-              {Object.entries(childProperties).map(([propName, propSchema]) => (
+              {Object.entries(childProperties).map(([propName, propSchema]) => {
+                // For array children, check if items have a fixed type
+                const childFixedItemType = Array.isArray(propertySchema) 
+                  ? getFixedItemTypeFromSchema(propertySchema) 
+                  : undefined;
+                return (
                 <SortableItem key={propName} id={propName} indentPx={16}>
                   <EditablePropertyNode
                     name={propName}
@@ -957,6 +983,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
                     isArrayItem={Array.isArray(propertySchema)}
                     parentIsArray={Array.isArray(propertySchema)}
                     diagramArrayPath={diagramArrayPath}
+                    fixedItemType={childFixedItemType}
                     onPropertyChange={onPropertyChange}
                     onPropertyRename={onPropertyRename}
                     onAddProperty={onAddProperty}
@@ -977,7 +1004,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
                     forceExpandedPaths={forceExpandedPaths}
                   />
                 </SortableItem>
-              ))}
+              )})}
             </SortablePropertyList>
           )}
           
@@ -1014,6 +1041,7 @@ interface SectionTreeProps {
   path: string[];
   definitions: Record<string, any>;
   diagramArrayPath?: string; // For diagram sections: 'data.lifelines', 'data.nodes', etc.
+  parentSchema?: any; // Schema definition for this section (to detect items.$ref)
   onPropertyChange: (path: string[], updates: { name?: string; schema?: any }) => void;
   onPropertyRename: (path: string[], oldName: string, newName: string) => void;
   onAddProperty: (path: string[], name: string, schema: any) => void;
@@ -1033,7 +1061,6 @@ interface SectionTreeProps {
   consistencyIssues?: ConsistencyIssue[];
   forceExpandedPaths?: Set<string>;
 }
-
 const SectionTree: React.FC<SectionTreeProps> = ({ 
   title, 
   icon, 
@@ -1041,6 +1068,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
   path,
   definitions,
   diagramArrayPath,
+  parentSchema,
   onPropertyChange,
   onPropertyRename,
   onAddProperty,
@@ -1065,6 +1093,11 @@ const SectionTree: React.FC<SectionTreeProps> = ({
   const [isManuallyExpanded, setIsManuallyExpanded] = useState(true);
   const isExpanded = isManuallyExpanded || isForceExpanded;
   const availableRefs = useMemo(() => Object.keys(definitions), [definitions]);
+  
+  // Determine if array items have a fixed type from parent schema's items.$ref
+  const fixedItemType = useMemo(() => {
+    return getFixedItemTypeFromSchema(parentSchema);
+  }, [parentSchema]);
   
   if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
     return null;
@@ -1101,6 +1134,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
                     isArrayItem={true}
                     parentIsArray={true}
                     diagramArrayPath={diagramArrayPath}
+                    fixedItemType={fixedItemType || undefined}
                     onPropertyChange={onPropertyChange}
                     onPropertyRename={onPropertyRename}
                     onAddProperty={onAddProperty}
