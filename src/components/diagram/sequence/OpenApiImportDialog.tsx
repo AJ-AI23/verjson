@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { useDocuments } from '@/hooks/useDocuments';
 import { DiagramNode, Lifeline } from '@/types/diagram';
 import { getMethodColor } from '@/lib/diagram/sequenceNodeTypes';
+import { generateBatchNodeIds, generateBatchAnchorIds } from '@/lib/diagram/idGenerator';
 import { FileJson, Search, Upload } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
@@ -122,36 +123,40 @@ export const OpenApiImportDialog: React.FC<OpenApiImportDialogProps> = ({
       ? lifelines.find(l => l.id !== targetLifelineId)?.id || targetLifelineId
       : targetLifelineId;
     
-    endpoints.forEach(endpoint => {
+    // Filter selected endpoints first to get the count
+    const selectedEndpointsList = endpoints.filter(endpoint => {
       const key = `${endpoint.method}:${endpoint.path}`;
-      if (selectedEndpoints.has(key)) {
-        const nodeId = `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const anchorId1 = `anchor-${Date.now()}-1`;
-        const anchorId2 = `anchor-${Date.now()}-2`;
+      return selectedEndpoints.has(key);
+    });
+    
+    // Generate all IDs upfront to ensure incrementing
+    const nodeIds = generateBatchNodeIds([], selectedEndpointsList.length);
+    const anchorIdPairs = generateBatchAnchorIds([], selectedEndpointsList.length);
+    
+    selectedEndpointsList.forEach((endpoint, index) => {
+      const nodeId = nodeIds[index];
+      const [anchorId1, anchorId2] = anchorIdPairs[index];
         
-        const yPos = 100;
-        
-        const node: DiagramNode = {
-          id: nodeId,
-          type: 'endpoint',
-          label: endpoint.summary || `${endpoint.method} ${endpoint.path}`,
-          anchors: [
-            { id: anchorId1, lifelineId: sourceLifelineId, anchorType: 'source' },
-            { id: anchorId2, lifelineId: targetLifelineNextId, anchorType: 'target' }
-          ],
-          data: {
-            method: endpoint.method,
+      const node: DiagramNode = {
+        id: nodeId,
+        type: 'endpoint',
+        label: endpoint.summary || `${endpoint.method} ${endpoint.path}`,
+        anchors: [
+          { id: anchorId1, lifelineId: sourceLifelineId, anchorType: 'source' },
+          { id: anchorId2, lifelineId: targetLifelineNextId, anchorType: 'target' }
+        ],
+        data: {
+          method: endpoint.method,
+          path: endpoint.path,
+          description: endpoint.description || endpoint.summary,
+          openApiRef: {
+            documentId: endpoint.documentId,
             path: endpoint.path,
-            description: endpoint.description || endpoint.summary,
-            openApiRef: {
-              documentId: endpoint.documentId,
-              path: endpoint.path,
-              method: endpoint.method
-            }
+            method: endpoint.method
           }
-        };
-        nodesToImport.push(node);
-      }
+        }
+      };
+      nodesToImport.push(node);
     });
 
     onImport(nodesToImport);

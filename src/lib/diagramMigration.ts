@@ -1,4 +1,4 @@
-import { DiagramDocument, SequenceDiagramData } from '@/types/diagram';
+import { DiagramDocument, SequenceDiagramData, DiagramNode } from '@/types/diagram';
 
 /**
  * Migrates old diagram documents with swimlanes/columns to new lifeline-based structure
@@ -53,6 +53,23 @@ export const migrateDiagramDocument = (document: DiagramDocument): DiagramDocume
 
   // Update nodes to embed anchors instead of using separate arrays
   if (data.nodes) {
+    // Track anchor counter for generating incremental IDs
+    let anchorCounter = 1;
+    
+    // First pass: find the highest existing anchor number
+    data.nodes.forEach((node: any) => {
+      if (node.anchors && Array.isArray(node.anchors)) {
+        node.anchors.forEach((anchor: any) => {
+          if (anchor.id && anchor.id.startsWith('anchor-')) {
+            const num = parseInt(anchor.id.replace('anchor-', ''), 10);
+            if (!isNaN(num) && num >= anchorCounter) {
+              anchorCounter = num + 1;
+            }
+          }
+        });
+      }
+    });
+    
     data.nodes = data.nodes.map((node: any, index: number) => {
       const updatedNode = { ...node };
       
@@ -75,13 +92,13 @@ export const migrateDiagramDocument = (document: DiagramDocument): DiagramDocume
         const yPos = node.position?.y || 100 + index * 140;
         updatedNode.anchors = [
           {
-            id: node.anchors[0].id || `anchor-${Date.now()}-1`,
+            id: node.anchors[0].id || `anchor-${anchorCounter++}`,
             lifelineId: node.anchors[0].lifelineId || lifelineId,
             yPosition: yPos,
             anchorType: 'source'
           },
           {
-            id: node.anchors[1].id || `anchor-${Date.now()}-2`,
+            id: node.anchors[1].id || `anchor-${anchorCounter++}`,
             lifelineId: node.anchors[1].lifelineId || (data.lifelines && data.lifelines.length > 1 ? data.lifelines[1].id : lifelineId),
             yPosition: yPos,
             anchorType: 'target'
@@ -101,13 +118,13 @@ export const migrateDiagramDocument = (document: DiagramDocument): DiagramDocume
       
       updatedNode.anchors = [
         {
-          id: `anchor-${Date.now()}-1`,
+          id: `anchor-${anchorCounter++}`,
           lifelineId: sourceLifelineId,
           yPosition: yPos,
           anchorType: 'source'
         },
         {
-          id: `anchor-${Date.now()}-2`,
+          id: `anchor-${anchorCounter++}`,
           lifelineId: targetLifelineId,
           yPosition: yPos,
           anchorType: 'target'

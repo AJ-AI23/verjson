@@ -15,6 +15,7 @@ import {
   useReactFlow
 } from '@xyflow/react';
 import { SequenceDiagramData, DiagramNode, DiagramEdge, DiagramNodeType, Lifeline, AnchorNode as AnchorNodeType } from '@/types/diagram';
+import { generateNodeId, generateAnchorIds, generateLifelineId } from '@/lib/diagram/idGenerator';
 import { DiagramStyles, defaultLightTheme } from '@/types/diagramStyles';
 import { calculateSequenceLayout, calculateProcessLayout } from '@/lib/diagram/sequenceLayout';
 import { getNodeTypeConfig } from '@/lib/diagram/sequenceNodeTypes';
@@ -314,9 +315,8 @@ const FitViewHelper: React.FC<{
       return;
     }
     
-    const nodeId = `node-${Date.now()}`;
-    const anchorId1 = `anchor-${Date.now()}-1`;
-    const anchorId2 = `anchor-${Date.now()}-2`;
+    const nodeId = generateNodeId(diagramNodes);
+    const [anchorId1, anchorId2] = generateAnchorIds(diagramNodes);
     
     // Find the source lifeline and get the next one
     const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
@@ -331,7 +331,7 @@ const FitViewHelper: React.FC<{
       targetLifelineId = sortedLifelines[sourceIndex + 1].id;
     } else {
       // Create a new lifeline
-      const newLifelineId = `lifeline-${Date.now()}`;
+      const newLifelineId = generateLifelineId(lifelines);
       const newLifeline: Lifeline = {
         id: newLifelineId,
         name: `Service ${sortedLifelines.length + 1}`,
@@ -418,14 +418,19 @@ const FitViewHelper: React.FC<{
               const existingAnchor0 = node.anchors?.[0];
               const existingAnchor1 = node.anchors?.[1];
               
+              // Generate fallback IDs only if needed
+              const fallbackIds = (!existingAnchor0?.id || !existingAnchor1?.id) 
+                ? generateAnchorIds(diagramNodes) 
+                : [existingAnchor0.id, existingAnchor1.id];
+              
               const newAnchors: [AnchorNodeType, AnchorNodeType] = [
                 { 
-                  id: existingAnchor0?.id || `anchor-${Date.now()}-1`, 
+                  id: existingAnchor0?.id || fallbackIds[0], 
                   lifelineId: existingAnchor0?.lifelineId || sourceLifeline.id,
                   anchorType: existingAnchor0?.anchorType || 'source'
                 },
                 { 
-                  id: existingAnchor1?.id || `anchor-${Date.now()}-2`, 
+                  id: existingAnchor1?.id || fallbackIds[1], 
                   lifelineId: existingAnchor1?.lifelineId || targetLifeline.id,
                   anchorType: existingAnchor1?.anchorType || 'target'
                 }
