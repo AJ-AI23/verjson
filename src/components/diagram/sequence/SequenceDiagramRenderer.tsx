@@ -315,8 +315,8 @@ const FitViewHelper: React.FC<{
     }
     
     const nodeId = `node-${Date.now()}`;
-    const anchorId1 = `${nodeId}-anchor-source`;
-    const anchorId2 = `${nodeId}-anchor-target`;
+    const anchorId1 = `anchor-${Date.now()}-1`;
+    const anchorId2 = `anchor-${Date.now()}-2`;
     
     // Find the source lifeline and get the next one
     const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);

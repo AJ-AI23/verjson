@@ -75,13 +75,13 @@ export const migrateDiagramDocument = (document: DiagramDocument): DiagramDocume
         const yPos = node.position?.y || 100 + index * 140;
         updatedNode.anchors = [
           {
-            id: node.anchors[0].id || `${node.id}-anchor-source`,
+            id: node.anchors[0].id || `anchor-${Date.now()}-1`,
             lifelineId: node.anchors[0].lifelineId || lifelineId,
             yPosition: yPos,
             anchorType: 'source'
           },
           {
-            id: node.anchors[1].id || `${node.id}-anchor-target`,
+            id: node.anchors[1].id || `anchor-${Date.now()}-2`,
             lifelineId: node.anchors[1].lifelineId || (data.lifelines && data.lifelines.length > 1 ? data.lifelines[1].id : lifelineId),
             yPosition: yPos,
             anchorType: 'target'
@@ -101,13 +101,13 @@ export const migrateDiagramDocument = (document: DiagramDocument): DiagramDocume
       
       updatedNode.anchors = [
         {
-          id: `${node.id}-anchor-source`,
+          id: `anchor-${Date.now()}-1`,
           lifelineId: sourceLifelineId,
           yPosition: yPos,
           anchorType: 'source'
         },
         {
-          id: `${node.id}-anchor-target`,
+          id: `anchor-${Date.now()}-2`,
           lifelineId: targetLifelineId,
           yPosition: yPos,
           anchorType: 'target'

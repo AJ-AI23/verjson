@@ -126,8 +126,8 @@ export const OpenApiImportDialog: React.FC<OpenApiImportDialogProps> = ({
       const key = `${endpoint.method}:${endpoint.path}`;
       if (selectedEndpoints.has(key)) {
         const nodeId = `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const anchorId1 = `${nodeId}-anchor-source`;
-        const anchorId2 = `${nodeId}-anchor-target`;
+        const anchorId1 = `anchor-${Date.now()}-1`;
+        const anchorId2 = `anchor-${Date.now()}-2`;
         
         const yPos = 100;
         
