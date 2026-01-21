@@ -162,10 +162,10 @@ export const useVersioning = ({
     }
   }, [documentId]);
 
-  const handleVersionBump = async (newVersion: Version, tier: VersionTier, description: string, isReleased: boolean = false, autoVersion: boolean = false) => {
+  const handleVersionBump = async (newVersion: Version, tier: VersionTier, description: string, isReleased: boolean = false, autoVersion: boolean = false): Promise<string | null> => {
     if (!documentId) {
       toast.error('No document selected for version creation');
-      return;
+      return null;
     }
 
     try {
@@ -184,7 +184,7 @@ export const useVersioning = ({
               ? `${validation.error}. Try version ${formatVersion(validation.suggestedVersion)} instead.`
               : validation.error,
           });
-          return;
+          return null;
         }
       }
       
@@ -214,16 +214,20 @@ export const useVersioning = ({
       };
       
       // Save to database
-      await createVersion(patchWithAutoVersion);
+      const newVersionRecord = await createVersion(patchWithAutoVersion);
       
       // Update saved schema and database version to current schema
       setSavedSchema(schema);
       setDatabaseVersion(schema);
       
+      // Return the new version ID for tracking
+      return newVersionRecord?.id || null;
+      
     } catch (err) {
       toast.error('Failed to create version', {
         description: (err as Error).message,
       });
+      return null;
     }
   };
 

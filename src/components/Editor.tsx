@@ -283,7 +283,14 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         maxDepth={settings.maxDepth}
         userRole={userPermissions.role}
         onEditorChange={handleEditorChange}
-        onVersionBump={handleVersionBump}
+        onVersionBump={async (newVersion, tier, description) => {
+          const newVersionId = await handleVersionBump(newVersion, tier, description);
+          // Track the newly created version to prevent mismatch detection
+          if (newVersionId) {
+            console.log('📌 Tracking newly committed version:', newVersionId);
+            setLoadedVersionId(newVersionId);
+          }
+        }}
         onToggleCollapse={handleToggleCollapse}
         onAddNotation={handleAddNotation}
         expandedNotationPaths={expandedNotationPaths}
