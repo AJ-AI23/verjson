@@ -670,12 +670,11 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                                       if (patch.isSelected && onToggleSelection) {
                                         await onToggleSelection(patch.id);
                                       }
-                                      // Use only onDeleteVersion if provided (handles both DB and local state)
-                                      // Otherwise fall back to deleteVersion from the hook
-                                      if (onDeleteVersion) {
+                                      // Call deleteVersion from hook for immediate UI update
+                                      const success = await deleteVersion(patch.id);
+                                      // Also call onDeleteVersion for schema recalculation (no duplicate toast - removed from useVersioning)
+                                      if (success && onDeleteVersion) {
                                         await onDeleteVersion(patch.id);
-                                      } else {
-                                        await deleteVersion(patch.id);
                                       }
                                     }}
                                  >
