@@ -150,6 +150,17 @@ export function getOrCreateYjsSession(documentId: string, initialContent?: strin
 
 
 
+/**
+ * Reset the dirty flag for a session, allowing it to be hydrated with new content.
+ * Call this when the user explicitly switches to a document to ensure fresh content loads.
+ */
+export function resetYjsSessionDirtyFlag(documentId: string): void {
+  const session = sessions.get(documentId);
+  if (session) {
+    session.dirty = false;
+  }
+}
+
 export function clearYjsSession(documentId: string) {
   const session = sessions.get(documentId);
   if (!session) return;

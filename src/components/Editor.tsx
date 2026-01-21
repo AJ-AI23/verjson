@@ -11,6 +11,7 @@ import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 import { useDocumentPermissions } from '@/hooks/useDocumentPermissions';
 import { useDocumentVersions } from '@/hooks/useDocumentVersions';
 import { useAuth } from '@/contexts/AuthContext';
+import { resetYjsSessionDirtyFlag } from '@/lib/yjsSessionCache';
 
 interface EditorProps {
   initialSchema?: any;
@@ -326,6 +327,11 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         prevDocId: lastLoadedDocumentIdRef.current,
         wasModified: isModified,
       });
+      
+      // Reset the Yjs dirty flag for the new document to allow fresh content to load
+      if (currentDocId) {
+        resetYjsSessionDirtyFlag(currentDocId);
+      }
       
       const detectedType = detectSchemaType(initialSchema);
       if (detectedType !== schemaType) {
