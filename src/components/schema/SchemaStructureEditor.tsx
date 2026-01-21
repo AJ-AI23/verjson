@@ -1595,40 +1595,100 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
         sections.push({ key: 'oneOf', title: 'One Of', icon: <List className="h-4 w-4 text-orange-500" />, data: schema.oneOf });
       }
     } else if (schemaType === 'diagram') {
-      // Diagram sections
-      if (schema?.nodes) {
-        sections.push({ key: 'nodes', title: 'Nodes', icon: <Box className="h-4 w-4 text-primary" />, data: schema.nodes });
-      }
-      if (schema?.edges) {
-        sections.push({ key: 'edges', title: 'Edges', icon: <Link2 className="h-4 w-4 text-blue-500" />, data: schema.edges });
-      }
-      if (schema?.lifelines) {
-        sections.push({ key: 'lifelines', title: 'Lifelines', icon: <List className="h-4 w-4 text-green-500" />, data: schema.lifelines });
-      }
-      if (schema?.processes) {
-        sections.push({ key: 'processes', title: 'Processes', icon: <Box className="h-4 w-4 text-purple-500" />, data: schema.processes });
-      }
-      if (schema?.viewport) {
-        sections.push({ key: 'viewport', title: 'Viewport', icon: <Box className="h-4 w-4 text-muted-foreground" />, data: schema.viewport });
+      // VerjSON Diagram sections - check for new verjson structure
+      const isVerjsonFormat = schema?.verjson !== undefined;
+      
+      if (isVerjsonFormat) {
+        // New verjson format: data contains lifelines, nodes, etc.
+        const diagramData = schema.data;
+        if (diagramData?.lifelines) {
+          sections.push({ key: 'data.lifelines', title: 'Lifelines', icon: <List className="h-4 w-4 text-green-500" />, data: diagramData.lifelines });
+        }
+        if (diagramData?.nodes) {
+          sections.push({ key: 'data.nodes', title: 'Nodes', icon: <Box className="h-4 w-4 text-primary" />, data: diagramData.nodes });
+        }
+        if (diagramData?.processes) {
+          sections.push({ key: 'data.processes', title: 'Processes', icon: <Box className="h-4 w-4 text-purple-500" />, data: diagramData.processes });
+        }
+        if (diagramData?.edges) {
+          sections.push({ key: 'data.edges', title: 'Edges', icon: <Link2 className="h-4 w-4 text-blue-500" />, data: diagramData.edges });
+        }
+      } else {
+        // Legacy flat diagram format
+        if (schema?.lifelines) {
+          sections.push({ key: 'lifelines', title: 'Lifelines', icon: <List className="h-4 w-4 text-green-500" />, data: schema.lifelines });
+        }
+        if (schema?.nodes) {
+          sections.push({ key: 'nodes', title: 'Nodes', icon: <Box className="h-4 w-4 text-primary" />, data: schema.nodes });
+        }
+        if (schema?.processes) {
+          sections.push({ key: 'processes', title: 'Processes', icon: <Box className="h-4 w-4 text-purple-500" />, data: schema.processes });
+        }
+        if (schema?.edges) {
+          sections.push({ key: 'edges', title: 'Edges', icon: <Link2 className="h-4 w-4 text-blue-500" />, data: schema.edges });
+        }
+        if (schema?.viewport) {
+          sections.push({ key: 'viewport', title: 'Viewport', icon: <Box className="h-4 w-4 text-muted-foreground" />, data: schema.viewport });
+        }
       }
     }
     
     return sections;
   }, [schema, schemaType]);
 
-  // Metadata section (title, description, etc.)
-  const metadataFields = useMemo(() => {
-    const fields: { key: string; value: any }[] = [];
-    const metaKeys = ['title', 'description', '$id', '$schema', 'type', 'name', 'version'];
+  // Document/Metadata section - different for verjson diagrams vs json-schema
+  const documentFields = useMemo(() => {
+    const fields: { key: string; value: any; path: string[] }[] = [];
     
-    for (const key of metaKeys) {
-      if (schema?.[key] !== undefined) {
-        fields.push({ key, value: schema[key] });
+    // Check if this is a verjson diagram document
+    const isVerjsonFormat = schemaType === 'diagram' && schema?.verjson !== undefined;
+    
+    if (isVerjsonFormat) {
+      // VerjSON Document section: verjson, type, selectedTheme
+      if (schema.verjson !== undefined) {
+        fields.push({ key: 'verjson', value: schema.verjson, path: ['verjson'] });
+      }
+      if (schema.type !== undefined) {
+        fields.push({ key: 'type', value: schema.type, path: ['type'] });
+      }
+      if (schema.selectedTheme !== undefined) {
+        fields.push({ key: 'selectedTheme', value: schema.selectedTheme, path: ['selectedTheme'] });
+      }
+    } else {
+      // JSON Schema or legacy diagram: standard metadata fields
+      const metaKeys = ['title', 'description', '$id', '$schema', 'type', 'name', 'version'];
+      for (const key of metaKeys) {
+        if (schema?.[key] !== undefined) {
+          fields.push({ key, value: schema[key], path: [key] });
+        }
       }
     }
     
     return fields;
-  }, [schema]);
+  }, [schema, schemaType]);
+
+  // Info section for verjson diagrams (version, title, description, etc.)
+  const infoFields = useMemo(() => {
+    const fields: { key: string; value: any; path: string[] }[] = [];
+    
+    const isVerjsonFormat = schemaType === 'diagram' && schema?.verjson !== undefined;
+    
+    if (isVerjsonFormat && schema.info) {
+      const infoKeys = ['version', 'title', 'description', 'author', 'created', 'modified'];
+      for (const key of infoKeys) {
+        if (schema.info[key] !== undefined) {
+          fields.push({ key, value: schema.info[key], path: ['info', key] });
+        }
+      }
+    }
+    
+    return fields;
+  }, [schema, schemaType]);
+
+  // Styles section for verjson diagrams
+  const hasStyles = useMemo(() => {
+    return schemaType === 'diagram' && schema?.verjson !== undefined && schema?.styles;
+  }, [schema, schemaType]);
 
   if (!schema || typeof schema !== 'object') {
     return (
@@ -1657,35 +1717,88 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
       
       <ScrollArea className="flex-1">
         <div className="space-y-3 p-4">
-          {/* Metadata section */}
-          {metadataFields.length > 0 && (
+          {/* Document section (verjson format) or Metadata section (JSON Schema) */}
+          {documentFields.length > 0 && (
             <div className="border rounded-lg overflow-hidden">
               <div className="flex items-center gap-3 p-3 bg-muted/30 border-b">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <span className="font-semibold text-sm">Metadata</span>
+                <FileCode className="h-4 w-4 text-muted-foreground" />
+                <span className="font-semibold text-sm">
+                  {schemaType === 'diagram' && schema?.verjson ? 'Document' : 'Metadata'}
+                </span>
               </div>
               <div className="p-3 bg-background space-y-2">
-                {metadataFields.map(({ key, value }) => (
-                  <div key={key} className="flex items-center gap-2 text-sm" data-search-path={key}>
-                    <span className="font-medium text-muted-foreground w-24">{key}:</span>
+                {documentFields.map(({ key, value, path }) => (
+                  <div key={key} className="flex items-center gap-2 text-sm" data-search-path={path.join('.')}>
+                    <span className="font-medium text-muted-foreground w-28">{key}:</span>
                     <EditableValue 
                       value={value} 
-                      onValueChange={(v) => handlePropertyChange([key], { schema: v })} 
+                      onValueChange={(v) => handlePropertyChange(path, { schema: v })} 
                     />
                   </div>
                 ))}
               </div>
             </div>
           )}
+
+          {/* Info section for verjson diagrams */}
+          {infoFields.length > 0 && (
+            <div className="border rounded-lg overflow-hidden">
+              <div className="flex items-center gap-3 p-3 bg-muted/30 border-b">
+                <FileText className="h-4 w-4 text-blue-500" />
+                <span className="font-semibold text-sm">Info</span>
+              </div>
+              <div className="p-3 bg-background space-y-2">
+                {infoFields.map(({ key, value, path }) => (
+                  <div key={key} className="flex items-center gap-2 text-sm" data-search-path={path.join('.')}>
+                    <span className="font-medium text-muted-foreground w-28">{key}:</span>
+                    <EditableValue 
+                      value={value} 
+                      onValueChange={(v) => handlePropertyChange(path, { schema: v })} 
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Styles section for verjson diagrams */}
+          {hasStyles && (
+            <SectionTree
+              key="styles"
+              title="Styles"
+              icon={<Box className="h-4 w-4 text-amber-500" />}
+              data={schema.styles}
+              path={['styles']}
+              definitions={definitions}
+              onPropertyChange={handlePropertyChange}
+              onPropertyRename={handlePropertyRename}
+              onAddProperty={handleAddProperty}
+              onDeleteProperty={handleDeleteProperty}
+              onDuplicateProperty={handleDuplicateProperty}
+              onAddArrayItem={handleAddArrayItem}
+              onReorderProperties={handleReorderProperties}
+              onCopy={copy}
+              onCut={cut}
+              onPaste={handlePaste}
+              clipboard={clipboard}
+              clipboardHistory={clipboardHistory}
+              onSelectFromHistory={selectFromHistory}
+              onClearHistory={clearHistory}
+              onClearClipboard={clearClipboard}
+              hasClipboard={hasClipboard}
+              consistencyIssues={consistencyIssues}
+              forceExpandedPaths={searchExpandedPaths}
+            />
+          )}
           
-          {/* Main sections */}
+          {/* Main sections (Data for diagrams, Properties/Definitions for JSON Schema) */}
           {rootSections.map((section) => (
             <SectionTree
               key={section.key}
               title={section.title}
               icon={section.icon}
               data={section.data}
-              path={[section.key]}
+              path={section.key.includes('.') ? section.key.split('.') : [section.key]}
               definitions={definitions}
               onPropertyChange={handlePropertyChange}
               onPropertyRename={handlePropertyRename}
@@ -1708,7 +1821,7 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
             />
           ))}
           
-          {rootSections.length === 0 && metadataFields.length === 0 && (
+          {rootSections.length === 0 && documentFields.length === 0 && infoFields.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
               <p className="text-muted-foreground">No structure found</p>
