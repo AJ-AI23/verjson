@@ -186,6 +186,17 @@ export const useVersioning = ({
     }
 
     try {
+      console.log('[useVersioning] handleVersionBump START', {
+        documentId,
+        newVersion,
+        tier,
+        isReleased,
+        autoVersion,
+        schemaLength: schema?.length,
+        databaseVersionLength: databaseVersion?.length,
+        savedSchemaLength: savedSchema?.length,
+      });
+
       // Only validate version number if NOT using auto versioning
       if (!autoVersion) {
         const validation = validateVersionForCreation(patches, newVersion);
@@ -232,11 +243,22 @@ export const useVersioning = ({
       
       // Save to database
       const newVersionRecord = await createVersion(patchWithAutoVersion);
+
+      console.log('[useVersioning] handleVersionBump CREATED', {
+        documentId,
+        newVersionId: newVersionRecord?.id,
+      });
       
       // Update saved schema and database version to current schema
       lastCommitRef.current = { at: Date.now(), schema };
       setSavedSchema(schema);
       setDatabaseVersion(schema);
+
+      console.log('[useVersioning] handleVersionBump FINALIZE', {
+        documentId,
+        lastCommitAt: lastCommitRef.current?.at,
+        schemaLength: schema?.length,
+      });
       
       // Return the new version ID for tracking
       return newVersionRecord?.id || null;

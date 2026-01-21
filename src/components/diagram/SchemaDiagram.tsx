@@ -48,6 +48,35 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   diagramRef,
   onToggleCollapse
 }) => {
+  const diagramInstanceId = useRef(Math.random().toString(36).slice(2, 8)).current;
+
+  // Debug tracing for diagram/editor reset
+  React.useEffect(() => {
+    console.log(`[SchemaDiagram ${diagramInstanceId}] MOUNT`, {
+      isDiagram,
+      error,
+      hasSchema: !!schema,
+    });
+    return () => console.log(`[SchemaDiagram ${diagramInstanceId}] UNMOUNT`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  React.useEffect(() => {
+    const schemaSummary = schema && typeof schema === 'object'
+      ? {
+          keys: Object.keys(schema).slice(0, 12),
+          verjson: (schema as any).verjson,
+          type: (schema as any).type,
+          hasOpenapi: !!(schema as any).openapi,
+        }
+      : { type: typeof schema };
+
+    console.log(`[SchemaDiagram ${diagramInstanceId}] props update`, {
+      isDiagram,
+      error,
+      schemaSummary,
+    });
+  }, [isDiagram, error, schema, diagramInstanceId]);
   // Theme preference stored in localStorage, not in document
   const [selectedTheme, setSelectedTheme] = React.useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -83,15 +112,18 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
     if (!diagramDocument || !onSchemaChange) return;
     if (diagramDocument.styles) {
       // Mark as initialized since styles exist
+      console.log(`[SchemaDiagram ${diagramInstanceId}] styles init: already has styles`, { documentId });
       stylesInitializedRef.current = documentId;
       return;
     }
     if (stylesInitializedRef.current === documentId) {
       // Already initialized for this document, skip
+      console.log(`[SchemaDiagram ${diagramInstanceId}] styles init: already initialized for doc`, { documentId });
       return;
     }
     
     // Initialize styles
+    console.log(`[SchemaDiagram ${diagramInstanceId}] styles init: APPLY default styles`, { documentId });
     stylesInitializedRef.current = documentId;
     const updatedDocument = {
       ...diagramDocument,
@@ -103,7 +135,7 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
       }
     };
     onSchemaChange(updatedDocument);
-  }, [diagramDocument, onSchemaChange, documentId]);
+  }, [diagramDocument, onSchemaChange, documentId, diagramInstanceId]);
 
   if (isSequenceDiagram && diagramDocument) {
     // Ensure styles are always defined with defaults
@@ -128,6 +160,12 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
           isFullscreen={isFullscreen}
           onToggleFullscreen={onToggleFullscreen}
           onDataChange={(newData) => {
+            console.log(`[SchemaDiagram ${diagramInstanceId}] onDataChange from renderer`, {
+              docId: documentId,
+              lifelines: (newData as any)?.lifelines?.length,
+              nodes: (newData as any)?.nodes?.length,
+              processes: (newData as any)?.processes?.length,
+            });
             if (onSchemaChange) {
               const updatedDocument = {
                 ...diagramDocument,
@@ -138,9 +176,15 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
                 }
               };
               onSchemaChange(updatedDocument);
+            } else {
+              console.warn(`[SchemaDiagram ${diagramInstanceId}] onDataChange ignored (no onSchemaChange)`);
             }
           }}
           onStylesChange={(newStyles: DiagramStyles) => {
+            console.log(`[SchemaDiagram ${diagramInstanceId}] onStylesChange from renderer`, {
+              docId: documentId,
+              themeKeys: Object.keys(newStyles?.themes || {}),
+            });
             if (onSchemaChange) {
               const updatedDocument = {
                 ...diagramDocument,
@@ -151,6 +195,8 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
                 }
               };
               onSchemaChange(updatedDocument);
+            } else {
+              console.warn(`[SchemaDiagram ${diagramInstanceId}] onStylesChange ignored (no onSchemaChange)`);
             }
           }}
           onThemeChange={handleThemeChange}

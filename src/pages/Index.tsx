@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Editor } from '@/components/Editor';
 import { AuthButton } from '@/components/AuthButton';
@@ -14,6 +14,7 @@ import { useDocumentPinSecurity } from '@/hooks/useDocumentPinSecurity';
 import { toast } from 'sonner';
 import { FileText } from 'lucide-react';
 const Index = () => {
+  const indexInstanceId = useRef(Math.random().toString(36).slice(2, 8)).current;
   const { user, loading } = useAuth();
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [clearEditorRequest, setClearEditorRequest] = useState(false);
@@ -22,6 +23,34 @@ const Index = () => {
   const { updateDocument } = useDocuments(undefined); // Only for updates, no fetching
   const { content: documentContent, loading: contentLoading } = useDocumentContent(selectedDocument?.id);
   const { checkDocumentPinStatus } = useDocumentPinSecurity();
+
+  // Debug tracing for editor reset issues
+  useEffect(() => {
+    console.log(`[Index ${indexInstanceId}] selectedDocument change`, {
+      id: selectedDocument?.id,
+      file_type: selectedDocument?.file_type,
+      name: selectedDocument?.name,
+    });
+  }, [selectedDocument?.id]);
+
+  useEffect(() => {
+    console.log(`[Index ${indexInstanceId}] documentContent update`, {
+      id: documentContent?.id,
+      hasContent: !!documentContent?.content,
+      contentType: typeof documentContent?.content,
+      contentKeys:
+        documentContent?.content && typeof documentContent.content === 'object'
+          ? Object.keys(documentContent.content).slice(0, 12)
+          : undefined,
+    });
+  }, [documentContent]);
+
+  useEffect(() => {
+    console.log(`[Index ${indexInstanceId}] contentLoading`, {
+      contentLoading,
+      willRenderEditor: !!selectedDocument && !!documentContent?.content,
+    });
+  }, [contentLoading, selectedDocument, documentContent]);
 
   // Merge documentContent metadata (like is_public) into selectedDocument when loaded
   useEffect(() => {
