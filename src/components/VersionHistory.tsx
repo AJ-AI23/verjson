@@ -665,18 +665,19 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                                <AlertDialogCancel>Cancel</AlertDialogCancel>
                                  <AlertDialogAction
                                    className="bg-red-600 hover:bg-red-700"
-                                   onClick={async () => {
-                                     // If the version is selected, deselect it first
-                                     if (patch.isSelected && onToggleSelection) {
-                                       await onToggleSelection(patch.id);
-                                     }
-                                     // Use the hook's deleteVersion function for immediate UI update
-                                     const success = await deleteVersion(patch.id);
-                                     // Also call the prop callback if provided for any additional logic
-                                     if (success && onDeleteVersion) {
-                                       onDeleteVersion(patch.id);
-                                     }
-                                   }}
+                                    onClick={async () => {
+                                      // If the version is selected, deselect it first
+                                      if (patch.isSelected && onToggleSelection) {
+                                        await onToggleSelection(patch.id);
+                                      }
+                                      // Use only onDeleteVersion if provided (handles both DB and local state)
+                                      // Otherwise fall back to deleteVersion from the hook
+                                      if (onDeleteVersion) {
+                                        await onDeleteVersion(patch.id);
+                                      } else {
+                                        await deleteVersion(patch.id);
+                                      }
+                                    }}
                                  >
                                   Delete
                                 </AlertDialogAction>
