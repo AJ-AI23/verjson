@@ -124,6 +124,16 @@ export const useProcessManagement = ({
     return node.anchors.find(a => a.id !== anchorId) || null;
   }, [getAnchorNode]);
 
+  // Get the actual lifeline of a process by looking at its existing anchors
+  const getProcessActualLifeline = useCallback((processId: string): string | null => {
+    const process = processes.find(p => p.id === processId);
+    if (!process || process.anchorIds.length === 0) return process?.lifelineId || null;
+    
+    // Get the lifeline from the first anchor in the process
+    const firstAnchorId = process.anchorIds[0];
+    return getAnchorLifeline(firstAnchorId);
+  }, [processes, getAnchorLifeline]);
+
   // Add an anchor to an existing process
   const addAnchorToProcess = useCallback((anchorId: string, processId: string): boolean => {
     const process = processes.find(p => p.id === processId);
@@ -133,7 +143,23 @@ export const useProcessManagement = ({
     }
 
     const anchorLifeline = getAnchorLifeline(anchorId);
-    if (anchorLifeline !== process.lifelineId) {
+    
+    // Get the actual lifeline from the process's existing anchors (more reliable than stored lifelineId)
+    const processActualLifeline = getProcessActualLifeline(processId);
+    
+    console.log('🔍 addAnchorToProcess lifeline check:', {
+      anchorId,
+      processId,
+      anchorLifeline,
+      processStoredLifeline: process.lifelineId,
+      processActualLifeline,
+      processAnchorIds: process.anchorIds
+    });
+    
+    // Compare against the actual lifeline derived from existing anchors
+    const targetLifeline = processActualLifeline || process.lifelineId;
+    
+    if (anchorLifeline !== targetLifeline) {
       toast.error('Anchor must be on the same lifeline as the process');
       return false;
     }
@@ -167,7 +193,7 @@ export const useProcessManagement = ({
     onProcessesChange(updatedProcesses);
     toast.success('Anchor added to process');
     return true;
-  }, [processes, isAnchorInProcess, getAnchorLifeline, getSiblingAnchor, onProcessesChange]);
+  }, [processes, isAnchorInProcess, getAnchorLifeline, getProcessActualLifeline, getSiblingAnchor, onProcessesChange]);
 
   // Remove an anchor from a process
   const removeAnchorFromProcess = useCallback((anchorId: string, processId: string): boolean => {
