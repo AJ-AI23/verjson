@@ -372,7 +372,7 @@ export const getDiagramSchemaDefinitions = () => diagramSchema.definitions;
 export const getDiagramArrayItemSchema = (arrayPath: string): Record<string, any> | null => {
   const definitions = diagramSchema.definitions as Record<string, any>;
   
-  // Map array paths to their item schema definitions
+// Map array paths to their item schema definitions
   const pathToSchema: Record<string, string> = {
     'data.lifelines': 'lifeline',
     'data.nodes': 'diagramNode',
@@ -386,6 +386,18 @@ export const getDiagramArrayItemSchema = (arrayPath: string): Record<string, any
   }
   
   return null;
+};
+
+// Get the fixed type name for diagram array items (returns null if type is not fixed/single)
+export const getDiagramArrayItemTypeName = (arrayPath: string): string | null => {
+  const pathToTypeName: Record<string, string> = {
+    'data.lifelines': 'lifeline',
+    'data.nodes': 'diagramNode',
+    'data.processes': 'processNode',
+    'data.edges': 'diagramEdge',
+  };
+  
+  return pathToTypeName[arrayPath] || null;
 };
 
 // Get property schema for diagram fields

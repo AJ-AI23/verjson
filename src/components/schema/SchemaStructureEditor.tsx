@@ -16,7 +16,7 @@ import { ConsistencyIndicator } from './ConsistencyIndicator';
 import { ConsistencyIssue } from '@/types/consistency';
 import { useStructureSearch } from '@/hooks/useStructureSearch';
 import { StructureSearchBar } from './StructureSearchBar';
-import { getDiagramSchemaDefinitions, getDiagramArrayItemSchema } from '@/lib/schemas/diagramSchema';
+import { getDiagramSchemaDefinitions, getDiagramArrayItemSchema, getDiagramArrayItemTypeName } from '@/lib/schemas/diagramSchema';
 const JSON_SCHEMA_TYPES = [
   'string',
   'integer', 
@@ -550,6 +550,14 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
     return getTypeLabel(propertySchema);
   }, [name, propertySchema, diagramArrayPath, isArrayItem]);
 
+  // Check if this is a diagram array item with a fixed type (e.g., lifeline, diagramNode)
+  const fixedDiagramType = useMemo(() => {
+    if (isArrayItem && diagramArrayPath) {
+      return getDiagramArrayItemTypeName(diagramArrayPath);
+    }
+    return null;
+  }, [isArrayItem, diagramArrayPath]);
+
   const handleNameSubmit = () => {
     if (editedName && editedName !== name) {
       onPropertyRename(path, name, editedName);
@@ -761,6 +769,11 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
         <div className="ml-auto flex items-center gap-1">
           {isPrimitive ? (
             <EditableValue value={propertySchema} onValueChange={handleValueChange} />
+          ) : fixedDiagramType ? (
+            // Fixed diagram type - display as static badge (no dropdown)
+            <Badge variant="secondary" className="text-xs font-normal">
+              {fixedDiagramType}
+            </Badge>
           ) : typeLabel ? (
             <TypeSelector
               currentType={typeLabel}
