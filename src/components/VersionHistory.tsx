@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { SchemaPatch, formatVersion, applySelectedPatches } from '@/lib/versionUtils';
 import { DocumentVersionComparison } from '@/lib/importVersionUtils';
 import { ImportVersionDialog } from './ImportVersionDialog';
@@ -76,6 +76,12 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   
   // Fetch document versions directly from database - use versions state directly for reactivity
   const { versions, userRole: hookUserRole, loading, error, deleteVersion, refetch } = useDocumentVersions(documentId);
+  
+  // Refetch versions when the component mounts to ensure we have the latest data
+  useEffect(() => {
+    console.log('🔄 VersionHistory: Component mounted/updated, refetching versions');
+    refetch();
+  }, [refetch]);
   
   // Use userRole from hook if available, otherwise fall back to prop
   const effectiveUserRole = hookUserRole || userRole;
