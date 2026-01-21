@@ -189,27 +189,33 @@ const Index = () => {
           
           <main className="flex-1 p-2 md:p-4 min-h-0">
             {selectedDocument ? (
-              // Keep the Editor mounted even while (re)loading documentContent.
-              // Unmount/remount resets internal refs and can revert to stale initialSchema.
-              <div className="h-full animate-fade-in relative">
-                <Editor 
-                  initialSchema={documentContent?.content}
-                  onSave={handleDocumentSave}
-                  documentName={selectedDocument?.name}
-                  selectedDocument={selectedDocument}
-                  onClearRequest={clearEditorRequest}
-                  onClose={handleCloseDocument}
-                  onDocumentUpdate={(updates) => {
-                    setSelectedDocument(prev => prev ? { ...prev, ...updates } : null);
-                  }}
-                />
+              // Only render Editor once we have content for the first time.
+              // After initial load, keep it mounted during refetches to preserve internal state.
+              documentContent?.content ? (
+                <div className="h-full animate-fade-in relative">
+                  <Editor 
+                    initialSchema={documentContent.content}
+                    onSave={handleDocumentSave}
+                    documentName={selectedDocument?.name}
+                    selectedDocument={selectedDocument}
+                    onClearRequest={clearEditorRequest}
+                    onClose={handleCloseDocument}
+                    onDocumentUpdate={(updates) => {
+                      setSelectedDocument(prev => prev ? { ...prev, ...updates } : null);
+                    }}
+                  />
 
-                {contentLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm">
-                    <div className="animate-pulse text-muted-foreground">Loading document content...</div>
-                  </div>
-                )}
-              </div>
+                  {contentLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm z-10">
+                      <div className="animate-pulse text-muted-foreground">Refreshing...</div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <div className="animate-pulse text-muted-foreground">Loading document content...</div>
+                </div>
+              )
             ) : (
               <div className="h-full flex items-center justify-center bg-muted/30 rounded-lg">
                 <div className="flex flex-col items-center gap-4 text-muted-foreground">
