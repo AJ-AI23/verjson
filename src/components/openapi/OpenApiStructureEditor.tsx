@@ -1564,6 +1564,25 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
     }));
   }, [schema, componentReferenceCounts]);
 
+  // Document section - root-level fields like openapi version
+  const documentFields = useMemo(() => {
+    const fields: { key: string; value: any; path: string[] }[] = [];
+    
+    // OpenAPI version
+    if (schema?.openapi !== undefined) {
+      fields.push({ key: 'openapi', value: schema.openapi, path: ['openapi'] });
+    } else if (schema?.swagger !== undefined) {
+      fields.push({ key: 'swagger', value: schema.swagger, path: ['swagger'] });
+    }
+    
+    // JSON Schema reference if present
+    if (schema?.jsonSchemaDialect !== undefined) {
+      fields.push({ key: 'jsonSchemaDialect', value: schema.jsonSchemaDialect, path: ['jsonSchemaDialect'] });
+    }
+    
+    return fields;
+  }, [schema]);
+
   const rootSections = useMemo(() => {
     const sections: { key: string; title: string; icon: React.ReactNode; data: any }[] = [];
     
@@ -1627,6 +1646,27 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
         <TabsContent value="structure" className="flex-1 mt-0 overflow-hidden">
           <ScrollArea className="h-full">
             <div className="space-y-3 p-4">
+              {/* Document section */}
+              {documentFields.length > 0 && (
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="flex items-center gap-3 p-3 bg-muted/30 border-b">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-semibold text-sm">Document</span>
+                  </div>
+                  <div className="p-3 bg-background space-y-2">
+                    {documentFields.map(({ key, value, path }) => (
+                      <div key={key} className="flex items-center gap-2 text-sm" data-search-path={path.join('.')}>
+                        <span className="font-medium text-muted-foreground w-28">{key}:</span>
+                        <EditableValue 
+                          value={value} 
+                          onValueChange={(v) => handlePropertyChange(path, { schema: v })} 
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {rootSections.map((section) => (
                 <SectionTree
                   key={section.key}
@@ -1655,7 +1695,7 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
                   forceExpandedPaths={searchExpandedPaths}
                 />
               ))}
-              {rootSections.length === 0 && (
+              {rootSections.length === 0 && documentFields.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <Info className="h-12 w-12 text-muted-foreground/50 mb-4" />
                   <p className="text-muted-foreground">No root sections found</p>

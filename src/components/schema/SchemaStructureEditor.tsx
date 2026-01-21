@@ -1636,7 +1636,7 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     return sections;
   }, [schema, schemaType]);
 
-  // Document/Metadata section - different for verjson diagrams vs json-schema
+  // Document section - shows root-level document/format fields
   const documentFields = useMemo(() => {
     const fields: { key: string; value: any; path: string[] }[] = [];
     
@@ -1655,8 +1655,27 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
         fields.push({ key: 'selectedTheme', value: schema.selectedTheme, path: ['selectedTheme'] });
       }
     } else {
-      // JSON Schema or legacy diagram: standard metadata fields
-      const metaKeys = ['title', 'description', '$id', '$schema', 'type', 'name', 'version'];
+      // JSON Schema Document section: $schema, $id, type
+      const docKeys = ['$schema', '$id', 'type'];
+      for (const key of docKeys) {
+        if (schema?.[key] !== undefined) {
+          fields.push({ key, value: schema[key], path: [key] });
+        }
+      }
+    }
+    
+    return fields;
+  }, [schema, schemaType]);
+
+  // Metadata section - shows descriptive fields (title, description, etc.)
+  const metadataFields = useMemo(() => {
+    const fields: { key: string; value: any; path: string[] }[] = [];
+    
+    const isVerjsonFormat = schemaType === 'diagram' && schema?.verjson !== undefined;
+    
+    if (!isVerjsonFormat) {
+      // JSON Schema or legacy diagram: title, description, name, version
+      const metaKeys = ['title', 'description', 'name', 'version'];
       for (const key of metaKeys) {
         if (schema?.[key] !== undefined) {
           fields.push({ key, value: schema[key], path: [key] });
@@ -1761,6 +1780,27 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
             </div>
           )}
 
+          {/* Metadata section for JSON Schema (title, description, etc.) */}
+          {metadataFields.length > 0 && (
+            <div className="border rounded-lg overflow-hidden">
+              <div className="flex items-center gap-3 p-3 bg-muted/30 border-b">
+                <FileText className="h-4 w-4 text-purple-500" />
+                <span className="font-semibold text-sm">Metadata</span>
+              </div>
+              <div className="p-3 bg-background space-y-2">
+                {metadataFields.map(({ key, value, path }) => (
+                  <div key={key} className="flex items-center gap-2 text-sm" data-search-path={path.join('.')}>
+                    <span className="font-medium text-muted-foreground w-28">{key}:</span>
+                    <EditableValue 
+                      value={value} 
+                      onValueChange={(v) => handlePropertyChange(path, { schema: v })} 
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Styles section for verjson diagrams */}
           {hasStyles && (
             <SectionTree
@@ -1821,7 +1861,7 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
             />
           ))}
           
-          {rootSections.length === 0 && documentFields.length === 0 && infoFields.length === 0 && (
+          {rootSections.length === 0 && documentFields.length === 0 && infoFields.length === 0 && metadataFields.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
               <p className="text-muted-foreground">No structure found</p>
