@@ -403,10 +403,8 @@ export function useDocumentVersions(documentId?: string) {
     debugToast('🔔 Setting up real-time subscription for document', documentId);
     fetchVersions();
 
-    // Use unique channel name per document to avoid conflicts between multiple hook instances
-    const channelName = `document-version-changes-${documentId}-${Math.random().toString(36).substring(7)}`;
     const channel = supabase
-      .channel(channelName)
+      .channel('document-version-changes')
       .on(
         'postgres_changes',
         {
