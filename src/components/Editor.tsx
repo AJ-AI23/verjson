@@ -312,34 +312,14 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
       return;
     }
     
-    // CASE 2: Same document, same schema ref - skip
-    if (!isDocumentSwitch && isSameSchemaRef) {
-      console.log(`[Editor ${editorInstanceId}] initialSchema sync: skip (same ref, not a doc switch)`);
-      return;
-    }
-    
-    // CASE 3: Has uncommitted changes - NEVER reload
-    if (isModified) {
-      console.log('🛡️ Preventing schema reload - isModified=true');
-      console.log(`[Editor ${editorInstanceId}] initialSchema sync: skip (isModified=true)`);
-      lastLoadedSchemaRef.current = initialSchema;
-      return;
-    }
-    
-    // CASE 4: Schema differs from saved - NEVER reload
-    if (schema !== savedSchema) {
-      console.log('🛡️ Preventing schema reload - uncommitted changes detected');
-      console.log(`[Editor ${editorInstanceId}] initialSchema sync: skip (schema!=savedSchema)`);
-      lastLoadedSchemaRef.current = initialSchema;
-      return;
-    }
-    
-    // CASE 5: Document switch with valid schema - load it
+    // CASE 2: Document switch - ALWAYS load the new document
+    // The isModified state belongs to the OLD document, not the new one
     if (isDocumentSwitch && initialSchema && typeof initialSchema === 'object') {
       console.log('📝 EDITOR CHANGE from document switch - loading:', currentDocId);
-      console.log(`[Editor ${editorInstanceId}] initialSchema sync: APPLY`, {
+      console.log(`[Editor ${editorInstanceId}] initialSchema sync: APPLY (doc switch)`, {
         currentDocId,
         prevDocId: lastLoadedDocumentIdRef.current,
+        wasModified: isModified,
       });
       
       const detectedType = detectSchemaType(initialSchema);
@@ -354,6 +334,29 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
       setCollapsedPaths({ root: true });
       lastLoadedSchemaRef.current = initialSchema;
       lastLoadedDocumentIdRef.current = currentDocId;
+      return;
+    }
+    
+    // CASE 3: Same document, same schema ref - skip
+    if (!isDocumentSwitch && isSameSchemaRef) {
+      console.log(`[Editor ${editorInstanceId}] initialSchema sync: skip (same ref, not a doc switch)`);
+      return;
+    }
+    
+    // CASE 4: Has uncommitted changes on SAME document - NEVER reload
+    if (isModified) {
+      console.log('🛡️ Preventing schema reload - isModified=true');
+      console.log(`[Editor ${editorInstanceId}] initialSchema sync: skip (isModified=true)`);
+      lastLoadedSchemaRef.current = initialSchema;
+      return;
+    }
+    
+    // CASE 5: Schema differs from saved on SAME document - NEVER reload
+    if (schema !== savedSchema) {
+      console.log('🛡️ Preventing schema reload - uncommitted changes detected');
+      console.log(`[Editor ${editorInstanceId}] initialSchema sync: skip (schema!=savedSchema)`);
+      lastLoadedSchemaRef.current = initialSchema;
+      return;
     }
   }, [initialSchema, selectedDocument?.id, isModified, schema, savedSchema, schemaType, handleSchemaTypeChange, setSchema, setSavedSchema, setCollapsedPaths, editorInstanceId]);
   
