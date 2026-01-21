@@ -34,8 +34,10 @@ export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({
   isOwner
 }) => {
   const { debugToast } = useDebug();
-  
-  debugToast('🔍 EditorVersionDialog: Rendering with documentId', documentId);
+
+  React.useEffect(() => {
+    debugToast('🔍 EditorVersionDialog: Mounted/updated with documentId', documentId);
+  }, [debugToast, documentId]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>

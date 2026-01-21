@@ -121,16 +121,24 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
 
   // Handle reloading editor with latest version
   const handleReloadWithLatestVersion = React.useCallback(() => {
-    const selectedVersion = versions.find(v => v.is_selected);
-    if (!selectedVersion?.full_document) {
-      console.warn('🔄 Cannot reload - no selected version with full_document');
+    // Prefer the newest version that has full_document (released snapshots)
+    const latestWithFullDocument = versions
+      .filter(v => !!v.full_document)
+      .reduce((latest, current) => {
+        const latestNum = latest.version_major * 1000000 + latest.version_minor * 1000 + latest.version_patch;
+        const currentNum = current.version_major * 1000000 + current.version_minor * 1000 + current.version_patch;
+        return currentNum > latestNum ? current : latest;
+      }, versions.find(v => !!v.full_document)!);
+
+    if (!latestWithFullDocument?.full_document) {
+      console.warn('🔄 Cannot reload - no version with full_document available');
       return;
     }
     
-    console.log('📝 EDITOR CHANGE from handleReloadWithLatestVersion - version:', selectedVersion.id);
+    console.log('📝 EDITOR CHANGE from handleReloadWithLatestVersion - version:', latestWithFullDocument.id);
     
     // Use the full_document from the selected version, NOT initialSchema
-    const versionContent = selectedVersion.full_document;
+    const versionContent = latestWithFullDocument.full_document;
     const detectedType = detectSchemaType(versionContent);
     if (detectedType !== schemaType) {
       handleSchemaTypeChange(detectedType);
@@ -141,7 +149,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     setSchema(schemaString);
     setSavedSchema(schemaString);
     setCollapsedPaths({ root: true });
-    setLoadedVersionId(selectedVersion.id);
+    setLoadedVersionId(latestWithFullDocument.id);
     setShowVersionMismatch(false);
   }, [versions, schemaType, handleSchemaTypeChange, setSchema, setSavedSchema, setCollapsedPaths]);
 
@@ -171,26 +179,31 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
       return;
     }
     
-    // If the loadedVersionId exists in the versions array, no mismatch
     const loadedVersionExists = versions.some(v => v.id === loadedVersionId);
-    if (loadedVersionExists) {
-      // Our tracked version still exists, no external changes detected
+
+    // If the tracked version isn't in the list yet, do nothing.
+    // This happens briefly right after committing (the Editor-level versions list lags behind).
+    if (!loadedVersionExists) {
+      console.log('⏳ Skipping mismatch check - tracked version not in version list yet', {
+        trackedVersionId: loadedVersionId,
+        latestVersionId: latestVersion.id,
+        versionsCount: versions.length,
+      });
       return;
     }
-    
-    // If our tracked version doesn't exist in the list, something changed externally
-    console.log('⚠️ Version mismatch detected - tracked version no longer exists:', {
-      trackedVersionId: loadedVersionId,
-      latestVersionId: latestVersion.id,
-      hasChanges: isModified
-    });
-    
-    // Only show warning if user has uncommitted changes
-    if (isModified) {
-      setShowVersionMismatch(true);
-    } else {
-      // Auto-reload if no changes
-      handleReloadWithLatestVersion();
+
+    // External change detected (a newer version exists than the one we loaded)
+    if (latestVersion.id !== loadedVersionId) {
+      console.log('⚠️ External version change detected:', {
+        trackedVersionId: loadedVersionId,
+        latestVersionId: latestVersion.id,
+        hasChanges: isModified
+      });
+
+      // Never auto-reload here (would discard user context); only warn when user has edits.
+      if (isModified) {
+        setShowVersionMismatch(true);
+      }
     }
   }, [versions, loadedVersionId, isModified, selectedDocument?.id, handleReloadWithLatestVersion]);
 
