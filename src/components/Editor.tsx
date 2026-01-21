@@ -149,39 +149,48 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
   React.useEffect(() => {
     if (!selectedDocument?.id || !versions.length) return;
     
-    const selectedVersion = versions.find(v => v.is_selected);
-    if (!selectedVersion) return;
+    // Find the latest version by version number (not just selected)
+    const latestVersion = versions.reduce((latest, current) => {
+      const latestNum = latest.version_major * 1000000 + latest.version_minor * 1000 + latest.version_patch;
+      const currentNum = current.version_major * 1000000 + current.version_minor * 1000 + current.version_patch;
+      return currentNum > latestNum ? current : latest;
+    });
     
     console.log('🔔 Version comparison:', {
       trackedVersionId: loadedVersionId,
-      latestVersionId: selectedVersion.id,
+      latestVersionId: latestVersion.id,
       versionsCount: versions.length,
       isModified,
-      match: selectedVersion.id === loadedVersionId
+      match: latestVersion.id === loadedVersionId
     });
     
-    // On first load, track the loaded version
+    // On first load, track the latest version
     if (!loadedVersionId) {
-      console.log('📌 Tracking loaded version:', selectedVersion.id);
-      setLoadedVersionId(selectedVersion.id);
+      console.log('📌 Tracking loaded version:', latestVersion.id);
+      setLoadedVersionId(latestVersion.id);
       return;
     }
     
-    // Detect version mismatch
-    if (selectedVersion.id !== loadedVersionId) {
-      console.log('⚠️ Version mismatch detected:', {
-        trackedVersionId: loadedVersionId,
-        latestVersionId: selectedVersion.id,
-        hasChanges: isModified
-      });
-      
-      // Only show warning if user has uncommitted changes
-      if (isModified) {
-        setShowVersionMismatch(true);
-      } else {
-        // Auto-reload if no changes
-        handleReloadWithLatestVersion();
-      }
+    // If the loadedVersionId exists in the versions array, no mismatch
+    const loadedVersionExists = versions.some(v => v.id === loadedVersionId);
+    if (loadedVersionExists) {
+      // Our tracked version still exists, no external changes detected
+      return;
+    }
+    
+    // If our tracked version doesn't exist in the list, something changed externally
+    console.log('⚠️ Version mismatch detected - tracked version no longer exists:', {
+      trackedVersionId: loadedVersionId,
+      latestVersionId: latestVersion.id,
+      hasChanges: isModified
+    });
+    
+    // Only show warning if user has uncommitted changes
+    if (isModified) {
+      setShowVersionMismatch(true);
+    } else {
+      // Auto-reload if no changes
+      handleReloadWithLatestVersion();
     }
   }, [versions, loadedVersionId, isModified, selectedDocument?.id, handleReloadWithLatestVersion]);
 
