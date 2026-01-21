@@ -193,6 +193,21 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     setShowVersionMismatch(false);
   }, [versions, schemaType, handleSchemaTypeChange, setSchema, setSavedSchema, setCollapsedPaths]);
 
+  // Reset version tracking when document changes
+  const prevDocumentIdRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    const currentDocId = selectedDocument?.id || null;
+    if (currentDocId !== prevDocumentIdRef.current) {
+      console.log('📌 Document changed, resetting version tracking:', {
+        prevDocId: prevDocumentIdRef.current,
+        newDocId: currentDocId,
+      });
+      setLoadedVersionId(null);
+      setShowVersionMismatch(false);
+      prevDocumentIdRef.current = currentDocId;
+    }
+  }, [selectedDocument?.id]);
+
   // Check for version mismatches
   React.useEffect(() => {
     if (!selectedDocument?.id || !versions.length) return;
@@ -256,46 +271,54 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     // 1. Document ID actually changes (switching documents)
     // 2. OR it's the first load of this component
     const currentDocId = selectedDocument?.id || null;
-
-    // IMPORTANT: initialize tracking on first render.
-    // On first open, useVersioning may mark isModified=true until patches load, which previously
-    // prevented this effect from ever setting lastLoadedDocumentIdRef.
-    // Later (e.g. right after a version commit when isModified becomes false), we'd incorrectly
-    // treat the current document as a "document switch" and overwrite the editor with stale
-    // initialSchema from the parent.
-    if (currentDocId && lastLoadedDocumentIdRef.current === null) {
-      lastLoadedDocumentIdRef.current = currentDocId;
-      lastLoadedSchemaRef.current = initialSchema;
-      console.log(`[Editor ${editorInstanceId}] initialSchema sync: INIT TRACKING`, {
-        currentDocId,
-        initialSchemaType: typeof initialSchema,
-      });
-      return;
-    }
-
     const isDocumentSwitch = currentDocId !== lastLoadedDocumentIdRef.current;
-    const isSameDocument = initialSchema === lastLoadedSchemaRef.current;
+    const isSameSchemaRef = initialSchema === lastLoadedSchemaRef.current;
 
     console.log(`[Editor ${editorInstanceId}] initialSchema sync check`, {
       currentDocId,
       lastLoadedDocumentId: lastLoadedDocumentIdRef.current,
       isDocumentSwitch,
-      isSameDocument,
+      isSameSchemaRef,
       isModified,
       schemaEqualsSaved: schema === savedSchema,
       schemaType,
       initialSchemaType: typeof initialSchema,
       hasInitialSchema: !!initialSchema,
     });
+
+    // CASE 1: First-time initialization (refs are null)
+    // We MUST load the schema here, not just track it
+    if (currentDocId && lastLoadedDocumentIdRef.current === null && initialSchema) {
+      console.log(`[Editor ${editorInstanceId}] initialSchema sync: FIRST LOAD`, {
+        currentDocId,
+        initialSchemaType: typeof initialSchema,
+      });
+      
+      if (typeof initialSchema === 'object') {
+        const detectedType = detectSchemaType(initialSchema);
+        if (detectedType !== schemaType) {
+          handleSchemaTypeChange(detectedType);
+        }
+        
+        const schemaString = JSON.stringify(initialSchema, null, 2);
+        console.log('📝 Setting schema from initialSchema prop (first load), length:', schemaString.length);
+        setSchema(schemaString);
+        setSavedSchema(schemaString);
+        setCollapsedPaths({ root: true });
+      }
+      
+      lastLoadedSchemaRef.current = initialSchema;
+      lastLoadedDocumentIdRef.current = currentDocId;
+      return;
+    }
     
-    // If it's the same document and we're not modified, ignore prop changes
-    // This prevents reloads from tab switching or parent re-renders
-    if (!isDocumentSwitch && isSameDocument) {
+    // CASE 2: Same document, same schema ref - skip
+    if (!isDocumentSwitch && isSameSchemaRef) {
       console.log(`[Editor ${editorInstanceId}] initialSchema sync: skip (same ref, not a doc switch)`);
       return;
     }
     
-    // If we have uncommitted changes, NEVER reload
+    // CASE 3: Has uncommitted changes - NEVER reload
     if (isModified) {
       console.log('🛡️ Preventing schema reload - isModified=true');
       console.log(`[Editor ${editorInstanceId}] initialSchema sync: skip (isModified=true)`);
@@ -303,7 +326,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
       return;
     }
     
-    // Additional check: if current schema differs from saved schema, don't reload
+    // CASE 4: Schema differs from saved - NEVER reload
     if (schema !== savedSchema) {
       console.log('🛡️ Preventing schema reload - uncommitted changes detected');
       console.log(`[Editor ${editorInstanceId}] initialSchema sync: skip (schema!=savedSchema)`);
@@ -311,7 +334,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
       return;
     }
     
-    // Safe to load only on document switch
+    // CASE 5: Document switch with valid schema - load it
     if (isDocumentSwitch && initialSchema && typeof initialSchema === 'object') {
       console.log('📝 EDITOR CHANGE from document switch - loading:', currentDocId);
       console.log(`[Editor ${editorInstanceId}] initialSchema sync: APPLY`, {
@@ -331,9 +354,6 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
       setCollapsedPaths({ root: true });
       lastLoadedSchemaRef.current = initialSchema;
       lastLoadedDocumentIdRef.current = currentDocId;
-      
-      // Track the loaded version
-      setLoadedVersionId(null); // Reset on document switch
     }
   }, [initialSchema, selectedDocument?.id, isModified, schema, savedSchema, schemaType, handleSchemaTypeChange, setSchema, setSavedSchema, setCollapsedPaths, editorInstanceId]);
   
