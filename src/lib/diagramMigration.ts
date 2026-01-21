@@ -1,14 +1,21 @@
 import { DiagramDocument, SequenceDiagramData, DiagramNode } from '@/types/diagram';
 
 /**
- * Migrates old diagram documents with swimlanes/columns to new lifeline-based structure
+ * Migrates old diagram documents to the current schema format.
+ * Handles:
+ * - Schema restructuring: version/metadata → verjson/info
+ * - Swimlanes/columns to lifeline-based structure
+ * - Anchor format updates
  */
-export const migrateDiagramDocument = (document: DiagramDocument): DiagramDocument => {
-  if (document.type !== 'sequence') {
-    return document;
+export const migrateDiagramDocument = (document: any): DiagramDocument => {
+  // First, migrate the root structure if needed (version/metadata → verjson/info)
+  let migratedDoc = migrateSchemaStructure(document);
+  
+  if (migratedDoc.type !== 'sequence') {
+    return migratedDoc;
   }
 
-  const data = document.data as any;
+  const data = migratedDoc.data as any;
 
   // Check if this is an old document with swimlanes and columns
   if (data.swimlanes || data.columns) {
@@ -32,7 +39,7 @@ export const migrateDiagramDocument = (document: DiagramDocument): DiagramDocume
     };
 
     return {
-      ...document,
+      ...migratedDoc,
       data: migratedData
     };
   }
@@ -145,5 +152,46 @@ export const migrateDiagramDocument = (document: DiagramDocument): DiagramDocume
     delete data.anchors;
   }
 
-  return document;
+  return migratedDoc;
+};
+
+/**
+ * Migrates old schema structure (version/metadata) to new structure (verjson/info)
+ */
+const migrateSchemaStructure = (document: any): DiagramDocument => {
+  // Already in new format
+  if (document.verjson && document.info) {
+    return document as DiagramDocument;
+  }
+
+  // Migrate from old format
+  const oldVersion = document.version;
+  const oldMetadata = document.metadata || {};
+
+  console.log('🔄 Migrating diagram schema structure: version/metadata → verjson/info');
+
+  const migratedDocument: DiagramDocument = {
+    verjson: '1.0.0',
+    type: document.type || 'sequence',
+    info: {
+      version: oldVersion || '0.1.0',
+      title: oldMetadata.title || 'Untitled Diagram',
+      description: oldMetadata.description,
+      author: oldMetadata.author,
+      created: oldMetadata.created,
+      modified: oldMetadata.modified || new Date().toISOString()
+    },
+    data: document.data || { lifelines: [], nodes: [] },
+    styles: document.styles,
+    selectedTheme: document.selectedTheme
+  };
+
+  // Clean up undefined properties from info
+  Object.keys(migratedDocument.info).forEach(key => {
+    if ((migratedDocument.info as any)[key] === undefined) {
+      delete (migratedDocument.info as any)[key];
+    }
+  });
+
+  return migratedDocument;
 };

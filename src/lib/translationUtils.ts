@@ -83,7 +83,13 @@ function isTranslatableProperty(
   }
   
   // Exclude version strings - these are technical metadata
+  // Covers both legacy "version" at root and new "info.version" structure
   if (key === 'version' || path.some(pathSegment => pathSegment === 'version')) {
+    return false;
+  }
+  
+  // Exclude verjson format version field (diagram schema format version)
+  if (key === 'verjson') {
     return false;
   }
 

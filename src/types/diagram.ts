@@ -1,9 +1,10 @@
 import { DiagramStyles } from './diagramStyles';
 
 export interface DiagramDocument {
-  version: string;
+  verjson: string; // Format version - always "1.0.0" for this schema version
   type: 'sequence' | 'flowchart';
-  metadata: {
+  info: {
+    version: string; // Document version (semantic versioning)
     title: string;
     description?: string;
     author?: string;

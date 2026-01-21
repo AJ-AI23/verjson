@@ -2,9 +2,10 @@ import { DiagramDocument } from '@/types/diagram';
 import { defaultLightTheme, defaultDarkTheme } from '@/types/diagramStyles';
 
 export const defaultDiagramSchema: DiagramDocument = {
-  version: '1.0.0',
+  verjson: '1.0.0',
   type: 'sequence',
-  metadata: {
+  info: {
+    version: '0.1.0',
     title: 'New Sequence Diagram',
     description: 'A sequence diagram showing interactions between components',
     created: new Date().toISOString(),
@@ -194,9 +195,10 @@ export const defaultDiagramSchema: DiagramDocument = {
 };
 
 export const defaultFlowchartSchema: DiagramDocument = {
-  version: '1.0.0',
+  verjson: '1.0.0',
   type: 'flowchart',
-  metadata: {
+  info: {
+    version: '0.1.0',
     title: 'New Flowchart',
     description: 'A basic flowchart diagram',
     created: new Date().toISOString(),

@@ -115,8 +115,8 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
               const updatedDocument = {
                 ...diagramDocument,
                 data: newData,
-                metadata: {
-                  ...diagramDocument.metadata,
+                info: {
+                  ...diagramDocument.info,
                   modified: new Date().toISOString()
                 }
               };
@@ -128,8 +128,8 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
               const updatedDocument = {
                 ...diagramDocument,
                 styles: newStyles,
-                metadata: {
-                  ...diagramDocument.metadata,
+                info: {
+                  ...diagramDocument.info,
                   modified: new Date().toISOString()
                 }
               };

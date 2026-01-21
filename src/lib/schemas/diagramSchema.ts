@@ -2,23 +2,31 @@ import Ajv from 'ajv';
 
 const diagramSchema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
+  $id: 'https://verjson.lovable.app/schemas/diagram/v1.0.0',
+  title: 'VerjSON Diagram Schema',
+  description: 'Schema for VerjSON diagram documents (sequence diagrams and flowcharts)',
   type: 'object',
-  required: ['version', 'type', 'metadata', 'data'],
+  required: ['verjson', 'type', 'info', 'data'],
   properties: {
-    version: {
+    verjson: {
       type: 'string',
-      pattern: '^\\d+\\.\\d+\\.\\d+$',
-      description: 'Semantic version of the diagram format'
+      const: '1.0.0',
+      description: 'VerjSON format version - always "1.0.0" for this schema version'
     },
     type: {
       type: 'string',
       enum: ['sequence', 'flowchart'],
       description: 'Type of diagram'
     },
-    metadata: {
+    info: {
       type: 'object',
-      required: ['title'],
+      required: ['version', 'title'],
       properties: {
+        version: {
+          type: 'string',
+          pattern: '^\\d+\\.\\d+\\.\\d+$',
+          description: 'Document version (semantic versioning)'
+        },
         title: {
           type: 'string',
           minLength: 1,

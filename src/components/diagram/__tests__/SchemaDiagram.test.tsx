@@ -44,14 +44,12 @@ describe('SchemaDiagram', () => {
 
   it('renders SequenceDiagramRenderer when isDiagram is true and type is sequence', () => {
     const mockDiagram = {
-      version: '1.0.0',
+      verjson: '1.0.0',
       type: 'sequence',
-      metadata: { title: 'Test Diagram' },
+      info: { version: '0.1.0', title: 'Test Diagram' },
       data: {
-        swimlanes: [],
-        columns: [],
-        nodes: [],
-        edges: []
+        lifelines: [],
+        nodes: []
       }
     };
     
