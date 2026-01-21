@@ -125,9 +125,9 @@ serve(async (req) => {
     // Handle specific permission errors with appropriate status codes
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     
-    if (errorMessage === 'Document not found') {
+    if (errorMessage === 'Document not found' || errorMessage === 'Version not found') {
       return new Response(
-        JSON.stringify({ error: 'Document not found' }),
+        JSON.stringify({ error: errorMessage }),
         { status: 404, headers: corsHeaders }
       );
     }
