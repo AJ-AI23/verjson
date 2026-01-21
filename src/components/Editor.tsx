@@ -256,6 +256,23 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     // 1. Document ID actually changes (switching documents)
     // 2. OR it's the first load of this component
     const currentDocId = selectedDocument?.id || null;
+
+    // IMPORTANT: initialize tracking on first render.
+    // On first open, useVersioning may mark isModified=true until patches load, which previously
+    // prevented this effect from ever setting lastLoadedDocumentIdRef.
+    // Later (e.g. right after a version commit when isModified becomes false), we'd incorrectly
+    // treat the current document as a "document switch" and overwrite the editor with stale
+    // initialSchema from the parent.
+    if (currentDocId && lastLoadedDocumentIdRef.current === null) {
+      lastLoadedDocumentIdRef.current = currentDocId;
+      lastLoadedSchemaRef.current = initialSchema;
+      console.log(`[Editor ${editorInstanceId}] initialSchema sync: INIT TRACKING`, {
+        currentDocId,
+        initialSchemaType: typeof initialSchema,
+      });
+      return;
+    }
+
     const isDocumentSwitch = currentDocId !== lastLoadedDocumentIdRef.current;
     const isSameDocument = initialSchema === lastLoadedSchemaRef.current;
 
