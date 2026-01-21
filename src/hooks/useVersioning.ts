@@ -450,6 +450,9 @@ export const useVersioning = ({
         return; // Error already handled in useDocumentVersions
       }
       
+      // Refresh versions from database to ensure UI is in sync
+      await refetch();
+      
       // Recalculate schema after deletion
       if (result.updatedPatches.length > 0) {
         try {
