@@ -395,30 +395,30 @@ const ComponentTree: React.FC<ComponentTreeProps> = ({ component, allSchemas, on
         isInClipboard === 'cut' && "border-dashed border-destructive/50 bg-destructive/5",
         isInClipboard === 'copied' && "border-dashed border-primary/50 bg-primary/5"
       )}>
+        {/* Main header row */}
         <div 
           className={cn(
-            "flex items-center gap-3 p-3 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors group",
-            isExpanded && "border-b"
+            "flex items-center gap-3 px-3 pt-3 pb-2 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
           )}
           onClick={() => setIsExpanded(!isExpanded)}
         >
           {hasProperties ? (
             isExpanded ? (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
             ) : (
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
             )
           ) : (
-            <span className="w-4" />
+            <span className="w-4 shrink-0" />
           )}
           
-          <Box className="h-4 w-4 text-primary" />
+          <Box className="h-4 w-4 text-primary shrink-0" />
           
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm">{component.name}</span>
+              <span className="font-semibold text-sm truncate">{component.name}</span>
               {component.isTopLevel && (
-                <Badge variant="outline" className="text-xs">Top Level</Badge>
+                <Badge variant="outline" className="text-xs shrink-0">Top Level</Badge>
               )}
             </div>
             {component.description && (
@@ -428,57 +428,62 @@ const ComponentTree: React.FC<ComponentTreeProps> = ({ component, allSchemas, on
             )}
           </div>
           
-          {/* Action buttons */}
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            {/* Summary button */}
+          <Badge variant="secondary" className="text-xs shrink-0">
+            {Object.keys(properties).length} properties
+          </Badge>
+        </div>
+        
+        {/* Footer row with action buttons */}
+        <div className={cn(
+          "flex items-center gap-1 px-3 pb-2 bg-muted/30",
+          isExpanded && "border-b"
+        )}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs gap-1"
+                onClick={handleShowSummary}
+              >
+                <Info className="h-3 w-3" />
+                Summary
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">View component summary</TooltipContent>
+          </Tooltip>
+          {onCopy && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 w-6 p-0"
-                  onClick={handleShowSummary}
+                  className="h-6 px-2 text-xs gap-1"
+                  onClick={handleCopyComponent}
                 >
-                  <Info className="h-3.5 w-3.5" />
+                  <Copy className="h-3 w-3" />
+                  Copy
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top">View summary</TooltipContent>
+              <TooltipContent side="top">Copy component</TooltipContent>
             </Tooltip>
-            {onCopy && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={handleCopyComponent}
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">Copy component</TooltipContent>
-              </Tooltip>
-            )}
-            {onCut && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={handleCutComponent}
-                  >
-                    <Scissors className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">Cut component</TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-          
-          <Badge variant="secondary" className="text-xs shrink-0">
-            {Object.keys(properties).length} properties
-          </Badge>
+          )}
+          {onCut && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs gap-1"
+                  onClick={handleCutComponent}
+                >
+                  <Scissors className="h-3 w-3" />
+                  Cut
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">Cut component</TooltipContent>
+            </Tooltip>
+          )}
         </div>
         
         {isExpanded && hasProperties && (
