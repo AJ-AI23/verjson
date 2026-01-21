@@ -461,6 +461,12 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
       }, {} as Record<string, any>);
     }
     
+    // Array items that are objects should show their properties directly
+    // (e.g., diagram nodes, lifelines, processes - they have a 'type' field but aren't JSON Schema types)
+    if (isArrayItem && typeof propertySchema === 'object' && propertySchema !== null) {
+      return propertySchema;
+    }
+    
     if (typeof propertySchema === 'object' && propertySchema !== null && !isSchemaWithType) {
       return propertySchema;
     }
@@ -492,7 +498,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
     }
     
     return null;
-  }, [isExpanded, propertySchema, definitions, isSchemaWithType]);
+  }, [isExpanded, propertySchema, definitions, isSchemaWithType, isArrayItem]);
 
   const typeLabel = getTypeLabel(propertySchema);
 
