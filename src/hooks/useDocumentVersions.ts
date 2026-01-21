@@ -268,8 +268,10 @@ export function useDocumentVersions(documentId?: string) {
       // Try to extract error message from FunctionsHttpError response body
       let message = 'Failed to delete version';
       try {
-        if (err?.context?.body) {
-          const body = await err.context.json();
+        // Check if we have a Response object we can parse
+        if (err?.context instanceof Response) {
+          const clonedResponse = err.context.clone();
+          const body = await clonedResponse.json();
           message = body?.error || message;
         } else if (err instanceof Error) {
           message = err.message;
