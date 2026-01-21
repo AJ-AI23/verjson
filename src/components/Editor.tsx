@@ -30,6 +30,46 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
   const [showVersionMismatch, setShowVersionMismatch] = React.useState(false);
   const [loadedVersionId, setLoadedVersionId] = React.useState<string | null>(null);
   const diagramRef = React.useRef<HTMLDivElement>(null);
+  const editorInstanceId = React.useRef(Math.random().toString(36).slice(2, 8)).current;
+
+  // Debug tracing for reset issues
+  React.useEffect(() => {
+    console.log(`[Editor ${editorInstanceId}] MOUNT`, {
+      selectedDocumentId: selectedDocument?.id,
+      fileType: selectedDocument?.file_type,
+      hasInitialSchema: !!initialSchema,
+      initialSchemaType: typeof initialSchema,
+    });
+    return () => {
+      console.log(`[Editor ${editorInstanceId}] UNMOUNT`, {
+        selectedDocumentId: selectedDocument?.id,
+        fileType: selectedDocument?.file_type,
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  React.useEffect(() => {
+    console.log(`[Editor ${editorInstanceId}] props update`, {
+      selectedDocumentId: selectedDocument?.id,
+      fileType: selectedDocument?.file_type,
+      initialSchemaType: typeof initialSchema,
+      initialSchemaSignals: initialSchema && typeof initialSchema === 'object'
+        ? {
+            hasVerjson: !!(initialSchema as any).verjson,
+            hasOpenapi: !!(initialSchema as any).openapi,
+            type: (initialSchema as any).type,
+            verjson: (initialSchema as any).verjson,
+          }
+        : null,
+    });
+  }, [selectedDocument?.id, selectedDocument?.file_type, initialSchema]);
+
+  React.useEffect(() => {
+    console.log(`[Editor ${editorInstanceId}] loadedVersionId`, {
+      loadedVersionId,
+    });
+  }, [loadedVersionId]);
   
   // Fetch versions to detect mismatches
   const { versions, getSchemaPatches } = useDocumentVersions(selectedDocument?.id);
@@ -218,16 +258,30 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     const currentDocId = selectedDocument?.id || null;
     const isDocumentSwitch = currentDocId !== lastLoadedDocumentIdRef.current;
     const isSameDocument = initialSchema === lastLoadedSchemaRef.current;
+
+    console.log(`[Editor ${editorInstanceId}] initialSchema sync check`, {
+      currentDocId,
+      lastLoadedDocumentId: lastLoadedDocumentIdRef.current,
+      isDocumentSwitch,
+      isSameDocument,
+      isModified,
+      schemaEqualsSaved: schema === savedSchema,
+      schemaType,
+      initialSchemaType: typeof initialSchema,
+      hasInitialSchema: !!initialSchema,
+    });
     
     // If it's the same document and we're not modified, ignore prop changes
     // This prevents reloads from tab switching or parent re-renders
     if (!isDocumentSwitch && isSameDocument) {
+      console.log(`[Editor ${editorInstanceId}] initialSchema sync: skip (same ref, not a doc switch)`);
       return;
     }
     
     // If we have uncommitted changes, NEVER reload
     if (isModified) {
       console.log('🛡️ Preventing schema reload - isModified=true');
+      console.log(`[Editor ${editorInstanceId}] initialSchema sync: skip (isModified=true)`);
       lastLoadedSchemaRef.current = initialSchema;
       return;
     }
@@ -235,6 +289,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     // Additional check: if current schema differs from saved schema, don't reload
     if (schema !== savedSchema) {
       console.log('🛡️ Preventing schema reload - uncommitted changes detected');
+      console.log(`[Editor ${editorInstanceId}] initialSchema sync: skip (schema!=savedSchema)`);
       lastLoadedSchemaRef.current = initialSchema;
       return;
     }
@@ -242,6 +297,10 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     // Safe to load only on document switch
     if (isDocumentSwitch && initialSchema && typeof initialSchema === 'object') {
       console.log('📝 EDITOR CHANGE from document switch - loading:', currentDocId);
+      console.log(`[Editor ${editorInstanceId}] initialSchema sync: APPLY`, {
+        currentDocId,
+        prevDocId: lastLoadedDocumentIdRef.current,
+      });
       
       const detectedType = detectSchemaType(initialSchema);
       if (detectedType !== schemaType) {
@@ -259,7 +318,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
       // Track the loaded version
       setLoadedVersionId(null); // Reset on document switch
     }
-  }, [initialSchema, selectedDocument?.id, isModified, schema, savedSchema, schemaType, handleSchemaTypeChange, setSchema, setSavedSchema, setCollapsedPaths]);
+  }, [initialSchema, selectedDocument?.id, isModified, schema, savedSchema, schemaType, handleSchemaTypeChange, setSchema, setSavedSchema, setCollapsedPaths, editorInstanceId]);
   
   
   return (

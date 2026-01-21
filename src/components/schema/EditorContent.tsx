@@ -71,6 +71,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
 }) => {
   const isMobile = useIsMobile();
   const [showDiagram, setShowDiagram] = React.useState(true);
+  const editorContentInstanceId = useRef(Math.random().toString(36).slice(2, 8)).current;
   
   // Track the last schema we received from the editor to prevent echo updates from diagram
   const lastEditorSchemaRef = useRef<string>(schema);
@@ -98,11 +99,19 @@ export const EditorContent: React.FC<EditorContentProps> = ({
     
     // Only propagate if content actually changed
     if (currentNormalized !== newNormalized) {
-      console.log('📊 Diagram schema change detected, propagating to editor');
+      console.log(`[EditorContent ${editorContentInstanceId}] diagram->editor APPLY`, {
+        documentId,
+        currentFileType,
+        prevLen: lastEditorSchemaRef.current.length,
+        nextLen: newSchemaString.length,
+      });
       lastEditorSchemaRef.current = newSchemaString;
       onEditorChange(newSchemaString);
     } else {
-      console.log('📊 Diagram schema change skipped (no actual change)');
+      console.log(`[EditorContent ${editorContentInstanceId}] diagram->editor SKIP (no actual change)`, {
+        documentId,
+        currentFileType,
+      });
     }
   }, [onEditorChange]);
   const editorPane = (
