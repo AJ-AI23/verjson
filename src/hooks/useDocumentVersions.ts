@@ -262,18 +262,39 @@ export function useDocumentVersions(documentId?: string) {
       
       toast.success(data.message || 'Version deleted successfully');
       return true;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to delete version';
-      setError(message);
+    } catch (err: any) {
       console.error('🗑️ deleteVersion: Error deleting document version:', err);
       
-      // Handle permission-based errors with specific messaging
+      // Try to extract error message from FunctionsHttpError response body
+      let message = 'Failed to delete version';
+      try {
+        if (err?.context?.body) {
+          const body = await err.context.json();
+          message = body?.error || message;
+        } else if (err instanceof Error) {
+          message = err.message;
+        }
+      } catch {
+        if (err instanceof Error) {
+          message = err.message;
+        }
+      }
+      
+      setError(message);
+      
+      // Handle specific error cases with user-friendly messaging
       if (message.includes('Only document owners can delete versions')) {
         toast.error('Only document owners can delete versions');
       } else if (message.includes('Cannot delete selected version')) {
         toast.error('Cannot delete selected version. Please deselect it first.');
       } else if (message.includes('Access denied') || message.includes('insufficient permissions')) {
         toast.error('You do not have permission to access this document');
+      } else if (message.includes('Version not found')) {
+        // Version was already deleted (possibly by another session or race condition)
+        toast.info('Version was already deleted');
+        // Refresh the versions list to sync with server state
+        await fetchVersions();
+        return true; // Consider it a success since the version is gone
       } else {
         toast.error(message);
       }
