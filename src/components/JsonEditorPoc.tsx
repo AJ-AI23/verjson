@@ -82,6 +82,11 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   }, [parsedSchema]);
   
   const isDiagram = useMemo(() => {
+    // Check for new verjson format first
+    if (parsedSchema?.verjson !== undefined && (parsedSchema?.type === 'sequence' || parsedSchema?.type === 'flowchart')) {
+      return true;
+    }
+    // Legacy flat diagram format
     return parsedSchema?.nodes !== undefined || parsedSchema?.lifelines !== undefined;
   }, [parsedSchema]);
   
