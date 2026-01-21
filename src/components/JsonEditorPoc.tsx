@@ -219,12 +219,27 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
       };
 
       const current = getTextContent();
-      if (newValue === current) return;
+      if (newValue === current) {
+        console.log('[YJS] Skipping update: exact match');
+        return;
+      }
 
       const nextNorm = normalizeForCompare(newValue);
       const currentNorm = normalizeForCompare(current);
-      if (nextNorm !== null && currentNorm !== null && nextNorm === currentNorm) return;
+      if (nextNorm !== null && currentNorm !== null && nextNorm === currentNorm) {
+        console.log('[YJS] Skipping update: normalized match', {
+          newValueLength: newValue.length,
+          currentLength: current.length
+        });
+        return;
+      }
 
+      console.log('[YJS] Updating content', {
+        newValueLength: newValue.length,
+        currentLength: current.length,
+        nextNorm: nextNorm?.substring(0, 100),
+        currentNorm: currentNorm?.substring(0, 100)
+      });
       updateContent(newValue);
       return;
     }
