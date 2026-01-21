@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { ProcessNode, AnchorNode, DiagramNode } from '@/types/diagram';
+import { generateProcessId } from '@/lib/diagram/idGenerator';
 import { toast } from 'sonner';
 
 interface UseProcessManagementProps {
@@ -98,7 +99,7 @@ export const useProcessManagement = ({
     const parallelIndex = getNextParallelIndex(lifelineId, anchorY);
 
     const newProcess: ProcessNode = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: generateProcessId(processes),
       type: 'lifelineProcess',
       lifelineId,
       anchorIds: [anchorId],
