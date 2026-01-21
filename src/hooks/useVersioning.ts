@@ -109,9 +109,6 @@ export const useVersioning = ({
       const currentMergedSchema = applySelectedPatches(schemaPatches);
       const mergedSchemaString = JSON.stringify(currentMergedSchema, null, 2);
 
-      // Only consider editor syncing when the user has no uncommitted local edits
-      const hasUncommittedChanges = schema !== savedSchema;
-
       // If we just committed, never let a stale merge overwrite the editor.
       const recentlyCommitted =
         !!lastCommitRef.current && Date.now() - lastCommitRef.current.at < 2500;
@@ -124,21 +121,16 @@ export const useVersioning = ({
         setDatabaseVersion(mergedSchemaString);
       }
 
-      // Only sync editor from DB when:
-      // - user has no local edits
-      // - AND it's not within the post-commit safety window
-      if (!hasUncommittedChanges && !recentlyCommitted) {
-        console.log('📝 EDITOR CHANGE from useVersioning - syncing with database version, length:', mergedSchemaString.length);
-        debugToast('Syncing editor schema with database version', mergedSchemaString.substring(0, 100));
-        setSchema(mergedSchemaString);
-        setSavedSchema(mergedSchemaString);
-        debugToast('Database version and editor schema synchronized');
-      } else if (hasUncommittedChanges) {
-        console.log('📝 SKIPPING editor sync - user has uncommitted changes');
-        debugToast('Skipping sync - user has uncommitted changes');
-      } else if (recentlyCommitted && !mergedMatchesEditor) {
-        console.log('🛡️ SKIPPING editor sync - recent commit safety window');
-        debugToast('Skipping sync - recent commit safety window');
+      // IMPORTANT:
+      // Never overwrite the editor content from here.
+      // Version commits must not trigger any editor reload/sync; editor updates happen only
+      // via explicit user actions (toggle selection / manual reload) and the editor itself.
+      if (!mergedMatchesEditor) {
+        debugToast('DB merge differs from editor (no auto-sync)', {
+          recentlyCommitted,
+          mergedLength: mergedSchemaString.length,
+          editorLength: schema.length,
+        });
       }
     } catch (err) {
       console.error('Failed to calculate database version from patches:', err);
@@ -147,7 +139,7 @@ export const useVersioning = ({
         description: (err as Error).message,
       });
     }
-  }, [documentId, debugToast, schema, savedSchema, setSchema, setSavedSchema]);
+  }, [documentId, debugToast, schema]);
 
   // Update patches when database versions change
   useEffect(() => {
