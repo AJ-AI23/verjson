@@ -226,20 +226,21 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
 
       const nextNorm = normalizeForCompare(newValue);
       const currentNorm = normalizeForCompare(current);
+      
+      console.log('[YJS] Comparing:', {
+        newValueLength: newValue.length,
+        currentLength: current.length,
+        nextNormLength: nextNorm?.length ?? 'null',
+        currentNormLength: currentNorm?.length ?? 'null',
+        areNormsEqual: nextNorm === currentNorm
+      });
+      
       if (nextNorm !== null && currentNorm !== null && nextNorm === currentNorm) {
-        console.log('[YJS] Skipping update: normalized match', {
-          newValueLength: newValue.length,
-          currentLength: current.length
-        });
+        console.log('[YJS] Skipping update: normalized match');
         return;
       }
 
-      console.log('[YJS] Updating content', {
-        newValueLength: newValue.length,
-        currentLength: current.length,
-        nextNorm: nextNorm?.substring(0, 100),
-        currentNorm: currentNorm?.substring(0, 100)
-      });
+      console.log('[YJS] Updating content');
       updateContent(newValue);
       return;
     }
