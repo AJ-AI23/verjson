@@ -475,7 +475,7 @@ export const useVersioning = ({
         setDatabaseVersion('');
       }
       
-      toast.success('Version deleted successfully');
+      // Success toast is handled inside useDocumentVersions.deleteVersionFromDb
     } catch (err) {
       toast.error('Failed to delete version', {
         description: (err as Error).message,
