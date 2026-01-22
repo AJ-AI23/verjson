@@ -4,21 +4,9 @@ import { Node, Edge, useNodesState, useEdgesState } from '@xyflow/react';
 import { generateNodesAndEdges } from '@/lib/diagram';
 import { useNodePositions } from './useNodePositions';
 import { CollapsedState } from '@/lib/diagram/types';
+import { diagramDbg } from '@/lib/diagram/diagramDebug';
 
-const isDiagramDebugEnabled = () => {
-  try {
-    return typeof window !== 'undefined' && localStorage.getItem('diagram-debug-mode') === 'true';
-  } catch {
-    return false;
-  }
-};
-
-const dbg = (...args: any[]) => {
-  if (isDiagramDebugEnabled()) {
-    // eslint-disable-next-line no-console
-    console.info('[DiagramDebug][useDiagramNodes]', ...args);
-  }
-};
+const dbg = (message: string, data?: any) => diagramDbg('useDiagramNodes', message, data);
 
 export const useDiagramNodes = (
   schema: any, 

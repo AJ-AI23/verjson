@@ -9,21 +9,9 @@ import { toast } from 'sonner';
 import { CollapsedState } from '@/lib/diagram/types';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 import { useCollisionAvoidance } from '@/hooks/useCollisionAvoidance';
+import { diagramDbg } from '@/lib/diagram/diagramDebug';
 
-const isDiagramDebugEnabled = () => {
-  try {
-    return typeof window !== 'undefined' && localStorage.getItem('diagram-debug-mode') === 'true';
-  } catch {
-    return false;
-  }
-};
-
-const dbg = (...args: any[]) => {
-  if (isDiagramDebugEnabled()) {
-    // eslint-disable-next-line no-console
-    console.info('[DiagramDebug][DiagramContainer]', ...args);
-  }
-};
+const dbg = (message: string, data?: any) => diagramDbg('DiagramContainer', message, data);
 
 interface DiagramContainerProps {
   schema: any;
@@ -52,6 +40,16 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   const { enabled: smartSpacing, toggle: toggleSmartSpacing, resolveAnimatedIfEnabled } = useCollisionAvoidance();
   const collisionTimeoutRef = useRef<number | null>(null);
   const prevSchemaKeyRef = useRef<number>(-1);
+
+  // Debug: confirm the container is mounted (and whether Smart Spacing is enabled)
+  useEffect(() => {
+    dbg('MOUNT', {
+      smartSpacing,
+      collisionAvoidancePref: typeof window !== 'undefined' ? localStorage.getItem('diagram-collision-avoidance') : undefined,
+    });
+    return () => dbg('UNMOUNT');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   // Update local maxDepth when prop changes
   useEffect(() => {
@@ -121,12 +119,11 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
 
   // Helper function to trigger smart spacing with delay
   const triggerSmartSpacing = useCallback((delay: number = 250) => {
-    if (!smartSpacing || !nodes || nodes.length < 2) return;
-
     dbg('triggerSmartSpacing scheduled', {
       delay,
       schemaKey,
-      nodeCount: nodes.length,
+      smartSpacing,
+      nodeCount: nodes?.length ?? 0,
     });
     
     // Clear any pending timeout
@@ -136,18 +133,25 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     
     // Wait for nodes to be measured by React Flow
     collisionTimeoutRef.current = window.setTimeout(() => {
-      // Check if nodes have been measured
-      const hasMeasuredNodes = nodes.some((node: any) => node.measured?.width && node.measured?.height);
+      const currentNodes = nodes;
+      const nodeCount = currentNodes?.length ?? 0;
+      const measuredCount = (currentNodes || []).filter((n: any) => n.measured?.width && n.measured?.height).length;
+      const hasMeasuredNodes = measuredCount > 0;
+
       dbg('triggerSmartSpacing fired', {
         schemaKey,
-        nodeCount: nodes.length,
+        smartSpacing,
+        nodeCount,
         hasMeasuredNodes,
-        measuredCount: nodes.filter((n: any) => n.measured?.width && n.measured?.height).length,
+        measuredCount,
       });
-      if (hasMeasuredNodes) {
-        dbg('calling resolveAnimatedIfEnabled (triggerSmartSpacing)', { schemaKey });
-        resolveAnimatedIfEnabled(nodes, setNodes, true);
-      }
+
+      if (!smartSpacing) return;
+      if (!currentNodes || nodeCount < 2) return;
+      if (!hasMeasuredNodes) return;
+
+      dbg('calling resolveAnimatedIfEnabled (triggerSmartSpacing)', { schemaKey });
+      resolveAnimatedIfEnabled(currentNodes, setNodes, true);
     }, delay);
   }, [smartSpacing, nodes, setNodes, resolveAnimatedIfEnabled]);
 
@@ -167,6 +171,7 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
         prevSchemaKey: prevSchemaKeyRef.current,
         nextSchemaKey: schemaKey,
         nodeCount: nodes?.length ?? 0,
+        smartSpacing,
       });
       prevSchemaKeyRef.current = schemaKey;
       
@@ -177,20 +182,25 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
       
       // Wait for nodes to be measured by React Flow (longer delay for collapse changes)
       collisionTimeoutRef.current = window.setTimeout(() => {
-        if (smartSpacing && nodes && nodes.length >= 2) {
-          // Check if nodes have been measured
-          const hasMeasuredNodes = nodes.some((node: any) => node.measured?.width && node.measured?.height);
-          dbg('auto smart spacing fired (schemaKey effect)', {
-            schemaKey,
-            nodeCount: nodes.length,
-            hasMeasuredNodes,
-            measuredCount: nodes.filter((n: any) => n.measured?.width && n.measured?.height).length,
-          });
-          if (hasMeasuredNodes) {
-            dbg('calling resolveAnimatedIfEnabled (schemaKey effect)', { schemaKey });
-            resolveAnimatedIfEnabled(nodes, setNodes, true);
-          }
-        }
+        const currentNodes = nodes;
+        const nodeCount = currentNodes?.length ?? 0;
+        const measuredCount = (currentNodes || []).filter((n: any) => n.measured?.width && n.measured?.height).length;
+        const hasMeasuredNodes = measuredCount > 0;
+
+        dbg('auto smart spacing timeout (schemaKey effect)', {
+          schemaKey,
+          smartSpacing,
+          nodeCount,
+          hasMeasuredNodes,
+          measuredCount,
+        });
+
+        if (!smartSpacing) return;
+        if (!currentNodes || nodeCount < 2) return;
+        if (!hasMeasuredNodes) return;
+
+        dbg('calling resolveAnimatedIfEnabled (schemaKey effect)', { schemaKey });
+        resolveAnimatedIfEnabled(currentNodes, setNodes, true);
       }, 350);
     }
     
