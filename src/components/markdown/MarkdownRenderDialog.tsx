@@ -70,21 +70,181 @@ export const MarkdownRenderDialog: React.FC<MarkdownRenderDialogProps> = ({
     };
   }, [pages, overridePageSizes, globalPageSize, globalOrientation]);
 
-  // Generate preview styles from theme
-  const previewStyles = useMemo(() => {
+  // Create styled markdown components based on theme
+  const markdownComponents = useMemo(() => {
     if (!themeData) return {};
+    
     return {
-      '--md-font-family': themeData.fonts?.bodyFont || 'system-ui, sans-serif',
-      '--md-font-size': themeData.fonts?.baseFontSize || '16px',
-      '--md-line-height': themeData.elements?.paragraph?.lineHeight || '1.6',
-      '--md-text-color': themeData.colors?.text || '#1a1a1a',
-      '--md-background': themeData.colors?.background || '#ffffff',
-      '--md-heading-color': themeData.elements?.h1?.color || '#111111',
-      '--md-link-color': themeData.colors?.link || '#0066cc',
-      '--md-code-bg': themeData.colors?.codeBackground || '#f5f5f5',
-      '--md-code-color': themeData.colors?.codeText || '#333333',
-      '--md-blockquote-border': themeData.colors?.blockquoteBorder || '#e0e0e0',
-    } as React.CSSProperties;
+      h1: ({ children }: any) => (
+        <h1 style={{ 
+          fontSize: themeData.elements?.h1?.fontSize,
+          fontWeight: themeData.elements?.h1?.fontWeight as any,
+          color: themeData.elements?.h1?.color,
+          margin: themeData.elements?.h1?.margin,
+          fontFamily: themeData.fonts?.headingFont,
+        }}>{children}</h1>
+      ),
+      h2: ({ children }: any) => (
+        <h2 style={{ 
+          fontSize: themeData.elements?.h2?.fontSize,
+          fontWeight: themeData.elements?.h2?.fontWeight as any,
+          color: themeData.elements?.h2?.color,
+          margin: themeData.elements?.h2?.margin,
+          fontFamily: themeData.fonts?.headingFont,
+        }}>{children}</h2>
+      ),
+      h3: ({ children }: any) => (
+        <h3 style={{ 
+          fontSize: themeData.elements?.h3?.fontSize,
+          fontWeight: themeData.elements?.h3?.fontWeight as any,
+          color: themeData.elements?.h3?.color,
+          margin: themeData.elements?.h3?.margin,
+          fontFamily: themeData.fonts?.headingFont,
+        }}>{children}</h3>
+      ),
+      h4: ({ children }: any) => (
+        <h4 style={{ 
+          fontSize: themeData.elements?.h4?.fontSize,
+          fontWeight: themeData.elements?.h4?.fontWeight as any,
+          color: themeData.elements?.h4?.color,
+          margin: themeData.elements?.h4?.margin,
+          fontFamily: themeData.fonts?.headingFont,
+        }}>{children}</h4>
+      ),
+      h5: ({ children }: any) => (
+        <h5 style={{ 
+          fontSize: themeData.elements?.h5?.fontSize,
+          fontWeight: themeData.elements?.h5?.fontWeight as any,
+          color: themeData.elements?.h5?.color,
+          margin: themeData.elements?.h5?.margin,
+          fontFamily: themeData.fonts?.headingFont,
+        }}>{children}</h5>
+      ),
+      h6: ({ children }: any) => (
+        <h6 style={{ 
+          fontSize: themeData.elements?.h6?.fontSize,
+          fontWeight: themeData.elements?.h6?.fontWeight as any,
+          color: themeData.elements?.h6?.color,
+          margin: themeData.elements?.h6?.margin,
+          fontFamily: themeData.fonts?.headingFont,
+        }}>{children}</h6>
+      ),
+      p: ({ children }: any) => (
+        <p style={{ 
+          fontSize: themeData.elements?.paragraph?.fontSize,
+          lineHeight: themeData.elements?.paragraph?.lineHeight,
+          color: themeData.elements?.paragraph?.color || themeData.colors?.text,
+          margin: themeData.elements?.paragraph?.margin,
+          fontFamily: themeData.fonts?.bodyFont,
+        }}>{children}</p>
+      ),
+      strong: ({ children }: any) => (
+        <strong style={{ fontWeight: themeData.elements?.bold?.fontWeight as any }}>{children}</strong>
+      ),
+      em: ({ children }: any) => (
+        <em style={{ fontStyle: themeData.elements?.italic?.fontStyle as any }}>{children}</em>
+      ),
+      a: ({ href, children }: any) => (
+        <a 
+          href={href} 
+          style={{ 
+            color: themeData.colors?.link,
+            textDecoration: themeData.elements?.link?.textDecoration,
+          }}
+        >{children}</a>
+      ),
+      code: ({ className, children }: any) => {
+        const isBlock = className?.includes('language-');
+        if (isBlock) {
+          return (
+            <pre style={{
+              backgroundColor: themeData.elements?.codeBlock?.backgroundColor || themeData.colors?.codeBackground,
+              color: themeData.elements?.codeBlock?.color || themeData.colors?.codeText,
+              padding: themeData.elements?.codeBlock?.padding,
+              fontFamily: themeData.fonts?.codeFont,
+              fontSize: themeData.elements?.codeBlock?.fontSize,
+              borderRadius: '0.375rem',
+              overflowX: 'auto',
+            }}>
+              <code>{children}</code>
+            </pre>
+          );
+        }
+        return (
+          <code style={{
+            backgroundColor: themeData.elements?.code?.backgroundColor || themeData.colors?.codeBackground,
+            color: themeData.colors?.codeText,
+            padding: themeData.elements?.code?.padding,
+            fontFamily: themeData.fonts?.codeFont,
+            fontSize: themeData.elements?.code?.fontSize,
+            borderRadius: '0.25rem',
+          }}>{children}</code>
+        );
+      },
+      blockquote: ({ children }: any) => (
+        <blockquote style={{
+          borderLeftColor: themeData.elements?.blockquote?.borderColor || themeData.colors?.blockquoteBorder,
+          borderLeftWidth: themeData.elements?.blockquote?.borderWidth,
+          borderLeftStyle: 'solid',
+          backgroundColor: themeData.elements?.blockquote?.backgroundColor || themeData.colors?.blockquoteBackground,
+          padding: themeData.elements?.blockquote?.padding,
+          fontStyle: themeData.elements?.blockquote?.fontStyle as any,
+          margin: '1rem 0',
+        }}>{children}</blockquote>
+      ),
+      ul: ({ children }: any) => (
+        <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', margin: '0.5rem 0' }}>{children}</ul>
+      ),
+      ol: ({ children }: any) => (
+        <ol style={{ listStyleType: 'decimal', paddingLeft: '1.5rem', margin: '0.5rem 0' }}>{children}</ol>
+      ),
+      li: ({ children }: any) => (
+        <li style={{ margin: themeData.elements?.listItem?.margin }}>{children}</li>
+      ),
+      hr: () => (
+        <hr style={{ 
+          borderColor: themeData.colors?.hrColor,
+          margin: themeData.elements?.hr?.margin,
+        }} />
+      ),
+      table: ({ children }: any) => (
+        <table style={{
+          borderCollapse: 'collapse',
+          width: '100%',
+          margin: '1rem 0',
+        }}>{children}</table>
+      ),
+      thead: ({ children }: any) => (
+        <thead style={{
+          backgroundColor: themeData.colors?.tableHeaderBackground,
+        }}>{children}</thead>
+      ),
+      th: ({ children }: any) => (
+        <th style={{
+          border: `1px solid ${themeData.colors?.tableBorder}`,
+          padding: themeData.elements?.tableHeader?.padding,
+          fontWeight: themeData.elements?.tableHeader?.fontWeight as any,
+          textAlign: 'left',
+        }}>{children}</th>
+      ),
+      td: ({ children }: any) => (
+        <td style={{
+          border: `1px solid ${themeData.colors?.tableBorder}`,
+          padding: themeData.elements?.tableCell?.padding,
+        }}>{children}</td>
+      ),
+      img: ({ src, alt }: any) => (
+        <img 
+          src={src} 
+          alt={alt} 
+          style={{ 
+            maxWidth: '100%', 
+            height: 'auto',
+            margin: themeData.elements?.image?.margin,
+          }} 
+        />
+      ),
+    };
   }, [themeData]);
 
   // Render a single page content
@@ -104,30 +264,28 @@ export const MarkdownRenderDialog: React.FC<MarkdownRenderDialogProps> = ({
       <div
         key={page.id}
         ref={(el) => { pageRefs.current[pageIndex] = el; }}
-        className="bg-white shadow-lg border overflow-hidden flex-shrink-0"
+        className="shadow-lg border overflow-hidden flex-shrink-0"
         style={{
           width: `${widthPx}px`,
           height: `${heightPx}px`,
-          ...previewStyles,
-          fontFamily: 'var(--md-font-family)',
-          fontSize: 'var(--md-font-size)',
-          lineHeight: 'var(--md-line-height)',
-          color: 'var(--md-text-color)',
-          backgroundColor: 'var(--md-background)',
+          backgroundColor: themeData?.colors?.background || '#ffffff',
+          color: themeData?.colors?.text || '#1a1a1a',
+          fontFamily: themeData?.fonts?.bodyFont || 'system-ui, sans-serif',
+          fontSize: themeData?.fonts?.baseFontSize || '16px',
+          lineHeight: themeData?.elements?.paragraph?.lineHeight || '1.6',
         }}
       >
-        <div className="p-8 h-full overflow-auto prose prose-sm max-w-none" style={{
-          '--tw-prose-headings': 'var(--md-heading-color)',
-          '--tw-prose-links': 'var(--md-link-color)',
-          '--tw-prose-code': 'var(--md-code-color)',
-        } as React.CSSProperties}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        <div className="p-8 h-full overflow-auto">
+          <ReactMarkdown 
+            remarkPlugins={[remarkGfm]}
+            components={markdownComponents}
+          >
             {markdownContent}
           </ReactMarkdown>
         </div>
       </div>
     );
-  }, [pages, getPageDimensions, previewStyles]);
+  }, [pages, getPageDimensions, themeData, markdownComponents]);
 
   // Handle PDF generation
   const handleRender = async () => {
