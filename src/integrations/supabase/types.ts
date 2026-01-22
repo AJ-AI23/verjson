@@ -469,6 +469,44 @@ export type Database = {
           },
         ]
       }
+      markdown_renders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          document_id: string
+          id: string
+          page_count: number
+          storage_path: string
+          style_theme: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          document_id: string
+          id?: string
+          page_count?: number
+          storage_path: string
+          style_theme?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          document_id?: string
+          id?: string
+          page_count?: number
+          storage_path?: string
+          style_theme?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "markdown_renders_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string

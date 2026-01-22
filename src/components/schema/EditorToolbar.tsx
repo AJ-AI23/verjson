@@ -127,13 +127,14 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     
     try {
       // Get the latest PDF render for this document
+      // Using type assertion since the table was just created and types may not be updated
       const { data: render, error } = await supabase
-        .from('markdown_renders')
+        .from('markdown_renders' as any)
         .select('storage_path')
         .eq('document_id', selectedDocument.id)
         .order('created_at', { ascending: false })
         .limit(1)
-        .maybeSingle();
+        .maybeSingle() as { data: { storage_path: string } | null, error: any };
       
       if (error) throw error;
       
