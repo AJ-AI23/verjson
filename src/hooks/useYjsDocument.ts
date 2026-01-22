@@ -67,6 +67,13 @@ export const useYjsDocument = ({
   // Track the documentId that has been fully initialized so we can gate hydration.
   const stableDocIdRef = useRef<string | null>(null);
 
+  // Prevent repeatedly hydrating the same document from `initialContent`.
+  // This is critical because hydration in yjsSessionCache uses a non-null origin
+  // (e.g. 'init') which UndoManager does not track by default; if we hydrate on
+  // every React state update (like typing in the markdown textarea), changes will
+  // bypass the shared Yjs undo/redo history.
+  const didHydrateFromInitialContentRef = useRef<Set<string>>(new Set());
+
 
   const getAuthToken = useCallback(() => {
     return session?.access_token || null;
@@ -296,7 +303,16 @@ export const useYjsDocument = ({
     // Wait until the main effect has finished setting up and marked documentId as stable.
     if (stableDocIdRef.current !== documentId) return;
 
+    // Only hydrate once per document id.
+    // After the initial hydration, subsequent content changes should flow through
+    // `updateContent()` (null origin) so UndoManager can track shared history.
+    if (didHydrateFromInitialContentRef.current.has(documentId)) return;
+
+    // If the user has started editing locally (e.g. via preview textarea), don't overwrite.
+    if (sessionRef.current?.dirty) return;
+
     getOrCreateYjsSession(documentId, initialContent);
+    didHydrateFromInitialContentRef.current.add(documentId);
   }, [documentId, initialContent]);
 
 
