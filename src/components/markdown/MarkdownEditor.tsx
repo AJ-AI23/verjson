@@ -21,7 +21,9 @@ import {
   ChevronRight,
   Plus,
   Sun,
-  Moon
+  Moon,
+  Maximize,
+  Minimize
 } from 'lucide-react';
 import { MarkdownDocument, MarkdownPage } from '@/types/markdown';
 import { MarkdownStyleTheme, defaultMarkdownLightTheme, defaultMarkdownDarkTheme } from '@/types/markdownStyles';
@@ -35,12 +37,16 @@ interface MarkdownEditorProps {
   document: MarkdownDocument;
   onDocumentChange: (updatedDocument: MarkdownDocument) => void;
   readOnly?: boolean;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   document,
   onDocumentChange,
-  readOnly = false
+  readOnly = false,
+  isFullscreen = false,
+  onToggleFullscreen
 }) => {
   const [activePageIndex, setActivePageIndex] = useState(0);
   const [viewMode, setViewMode] = useState<'edit' | 'preview' | 'split'>('split');
@@ -543,6 +549,24 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             <Eye className="h-4 w-4 mr-1" />
             Preview
           </Button>
+          {onToggleFullscreen && (
+            <>
+              <div className="w-px h-6 bg-border mx-1" />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onToggleFullscreen}
+                className="h-8 px-2"
+                title={isFullscreen ? "Exit fullscreen (Esc)" : "Enter fullscreen"}
+              >
+                {isFullscreen ? (
+                  <Minimize className="h-4 w-4" />
+                ) : (
+                  <Maximize className="h-4 w-4" />
+                )}
+              </Button>
+            </>
+          )}
         </div>
       </div>
       
