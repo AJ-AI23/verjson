@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { MarkdownStyles, MarkdownStyleTheme, MarkdownElementStyle } from '@/types/markdownStyles';
 import { Palette, Sun, Moon, Type, Heading, Code, Quote, Table } from 'lucide-react';
 import { ColorInput, StyleTextInput } from './StyleInputs';
+import { FontSizePicker } from './FontSizePicker';
 
 interface MarkdownStylesDialogProps {
   isOpen: boolean;
@@ -124,7 +125,7 @@ export const MarkdownStylesDialog: React.FC<MarkdownStylesDialogProps> = ({
           )}
           {showFont && (
             <>
-              <StyleTextInput
+              <FontSizePicker
                 label="Font Size"
                 value={elementStyle?.fontSize || ''}
                 onChange={(v) => handleElementStyleChange(element, 'fontSize', v)}
@@ -139,7 +140,7 @@ export const MarkdownStylesDialog: React.FC<MarkdownStylesDialogProps> = ({
             </>
           )}
           {showFontSize && !showFont && (
-            <StyleTextInput
+            <FontSizePicker
               label="Font Size"
               value={elementStyle?.fontSize || ''}
               onChange={(v) => handleElementStyleChange(element, 'fontSize', v)}
@@ -364,7 +365,7 @@ export const MarkdownStylesDialog: React.FC<MarkdownStylesDialogProps> = ({
                             onChange={(v) => handleFontChange('codeFont', v)}
                             placeholder="ui-monospace, monospace"
                           />
-                          <StyleTextInput
+                          <FontSizePicker
                             label="Base Font Size"
                             value={currentTheme.fonts.baseFontSize}
                             onChange={(v) => handleFontChange('baseFontSize', v)}
