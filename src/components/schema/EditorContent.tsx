@@ -3,12 +3,14 @@ import React, { useCallback, useRef } from 'react';
 import { SplitPane } from '@/components/SplitPane';
 import { JsonEditorWrapper } from '@/components/JsonEditorWrapper';
 import { SchemaDiagram } from '@/components/diagram/SchemaDiagram';
+import { MarkdownEditor } from '@/components/markdown/MarkdownEditor';
 import { VersionControls } from '@/components/VersionControls';
 import { CollapsedState } from '@/lib/diagram/types';
 import { DocumentVersionComparison } from '@/lib/importVersionUtils';
 import { Version, VersionTier } from '@/lib/versionUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { MarkdownDocument } from '@/types/markdown';
 
 interface EditorContentProps {
   schema: string;
@@ -165,19 +167,33 @@ export const EditorContent: React.FC<EditorContentProps> = ({
     />
   );
 
+  // Markdown editor pane for markdown documents
+  const markdownPane = parsedSchema && currentFileType === 'markdown' ? (
+    <MarkdownEditor
+      document={parsedSchema as MarkdownDocument}
+      onDocumentChange={handleDiagramSchemaChange}
+      readOnly={userRole === 'viewer'}
+    />
+  ) : null;
+
+  // Determine which right pane to show
+  const isMarkdown = currentFileType === 'markdown';
+  const rightPane = isMarkdown ? markdownPane : diagramPane;
+  const rightPaneLabel = isMarkdown ? 'Preview' : 'Diagram';
+
   if (isMobile) {
     return (
       <Tabs defaultValue="editor" className="h-full flex flex-col">
         <TabsList className="w-full justify-start rounded-none border-b">
           <TabsTrigger value="editor" className="flex-1">Editor</TabsTrigger>
-          {showDiagram && <TabsTrigger value="diagram" className="flex-1">Diagram</TabsTrigger>}
+          {showDiagram && <TabsTrigger value="diagram" className="flex-1">{rightPaneLabel}</TabsTrigger>}
         </TabsList>
         <TabsContent value="editor" className="flex-1 mt-0">
           {editorPane}
         </TabsContent>
         {showDiagram && (
           <TabsContent value="diagram" className="flex-1 mt-0">
-            {diagramPane}
+            {rightPane}
           </TabsContent>
         )}
       </Tabs>
@@ -192,7 +208,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
   return (
     <SplitPane>
       {editorPane}
-      {diagramPane}
+      {rightPane}
     </SplitPane>
   );
 };

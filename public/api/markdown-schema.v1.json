@@ -1,7 +1,4 @@
-import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
-
-export const markdownSchema = {
+{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://verjson.io/schemas/markdown.v1.json",
   "title": "VerjSON Markdown Document",
@@ -136,87 +133,4 @@ export const markdownSchema = {
       }
     }
   }
-};
-
-// Initialize Ajv for validation
-const ajv = new Ajv({ allErrors: true, strict: false });
-addFormats(ajv);
-
-export const validateMarkdown = ajv.compile(markdownSchema);
-
-/**
- * Get all schema definitions
- */
-export function getMarkdownSchemaDefinitions(): Record<string, any> {
-  return markdownSchema.$defs || {};
-}
-
-/**
- * Get the schema for items within a specific array path
- */
-export function getMarkdownArrayItemSchema(arrayPath: string): any {
-  const definitions = getMarkdownSchemaDefinitions();
-  
-  if (arrayPath === 'data.pages') {
-    return definitions.markdownPage;
-  }
-  if (arrayPath === 'data.embeds') {
-    return definitions.markdownEmbed;
-  }
-  
-  return null;
-}
-
-/**
- * Get the fixed type name for array items
- */
-export function getMarkdownArrayItemTypeName(arrayPath: string): string | null {
-  const typeMap: Record<string, string> = {
-    'data.pages': 'page',
-    'data.embeds': 'embed'
-  };
-  
-  return typeMap[arrayPath] || null;
-}
-
-/**
- * Get schema for a specific property path
- */
-export function getMarkdownPropertySchema(path: string): any {
-  const parts = path.split('.');
-  let current: any = markdownSchema;
-  
-  for (const part of parts) {
-    if (current.properties && current.properties[part]) {
-      current = current.properties[part];
-    } else if (current.$ref) {
-      const refPath = current.$ref.replace('#/$defs/', '');
-      const definitions = getMarkdownSchemaDefinitions();
-      current = definitions[refPath];
-      if (current?.properties?.[part]) {
-        current = current.properties[part];
-      }
-    } else {
-      return null;
-    }
-  }
-  
-  return current;
-}
-
-/**
- * Get the type for a property within a markdown array item (page or embed)
- */
-export function getMarkdownItemPropertyType(arrayPath: string, propertyName: string): string | null {
-  const itemSchema = getMarkdownArrayItemSchema(arrayPath);
-  if (!itemSchema?.properties?.[propertyName]) return null;
-  
-  const propSchema = itemSchema.properties[propertyName];
-  if (propSchema.type) return propSchema.type;
-  if (propSchema.enum) return 'enum';
-  if (propSchema.$ref) {
-    const refName = propSchema.$ref.replace('#/$defs/', '');
-    return refName;
-  }
-  return null;
 }

@@ -51,7 +51,7 @@ const isPrimitiveValue = (value: any): boolean => {
 interface SchemaStructureEditorProps {
   schema: any;
   onSchemaChange: (schema: any) => void;
-  schemaType: 'json-schema' | 'diagram';
+  schemaType: 'json-schema' | 'diagram' | 'markdown';
   consistencyIssues?: ConsistencyIssue[];
 }
 
@@ -1736,6 +1736,15 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
           sections.push({ key: 'viewport', title: 'Viewport', icon: <Box className="h-4 w-4 text-muted-foreground" />, data: schema.viewport });
         }
       }
+    } else if (schemaType === 'markdown') {
+      // VerjSON Markdown sections
+      const markdownData = schema?.data;
+      if (markdownData?.pages) {
+        sections.push({ key: 'data.pages', title: 'Pages', icon: <FileText className="h-4 w-4 text-primary" />, data: markdownData.pages, diagramArrayPath: 'data.pages' });
+      }
+      if (markdownData?.embeds) {
+        sections.push({ key: 'data.embeds', title: 'Embeds', icon: <Link2 className="h-4 w-4 text-blue-500" />, data: markdownData.embeds, diagramArrayPath: 'data.embeds' });
+      }
     }
     
     return sections;
@@ -1745,8 +1754,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
   const documentFields = useMemo(() => {
     const fields: { key: string; value: any; path: string[] }[] = [];
     
-    // Check if this is a verjson diagram document
-    const isVerjsonFormat = schemaType === 'diagram' && schema?.verjson !== undefined;
+    // Check if this is a verjson format document (diagram or markdown)
+    const isVerjsonFormat = (schemaType === 'diagram' || schemaType === 'markdown') && schema?.verjson !== undefined;
     
     if (isVerjsonFormat) {
       // VerjSON Document section: verjson, type, selectedTheme
@@ -1776,7 +1785,7 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
   const metadataFields = useMemo(() => {
     const fields: { key: string; value: any; path: string[] }[] = [];
     
-    const isVerjsonFormat = schemaType === 'diagram' && schema?.verjson !== undefined;
+    const isVerjsonFormat = (schemaType === 'diagram' || schemaType === 'markdown') && schema?.verjson !== undefined;
     
     if (!isVerjsonFormat) {
       // JSON Schema or legacy diagram: title, description, name, version
@@ -1791,11 +1800,11 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     return fields;
   }, [schema, schemaType]);
 
-  // Info section for verjson diagrams (version, title, description, etc.)
+  // Info section for verjson documents (version, title, description, etc.)
   const infoFields = useMemo(() => {
     const fields: { key: string; value: any; path: string[] }[] = [];
     
-    const isVerjsonFormat = schemaType === 'diagram' && schema?.verjson !== undefined;
+    const isVerjsonFormat = (schemaType === 'diagram' || schemaType === 'markdown') && schema?.verjson !== undefined;
     
     if (isVerjsonFormat && schema.info) {
       const infoKeys = ['version', 'title', 'description', 'author', 'created', 'modified'];
@@ -1809,9 +1818,9 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     return fields;
   }, [schema, schemaType]);
 
-  // Styles section for verjson diagrams
+  // Styles section for verjson documents
   const hasStyles = useMemo(() => {
-    return schemaType === 'diagram' && schema?.verjson !== undefined && schema?.styles;
+    return (schemaType === 'diagram' || schemaType === 'markdown') && schema?.verjson !== undefined && schema?.styles;
   }, [schema, schemaType]);
 
   if (!schema || typeof schema !== 'object') {
