@@ -128,6 +128,7 @@ function calculateSubtreeWidths(node: LayoutNode, config: TreeLayoutConfig): num
 
 /**
  * Top-down pass: Assign positions
+ * Children are centered relative to their parent node's CENTER, not its left edge.
  */
 function assignPositions(
   node: LayoutNode,
@@ -141,15 +142,20 @@ function assignPositions(
   
   if (node.children.length === 0) return;
   
-  // Calculate starting X for children
+  // Calculate total width needed for all children including gaps
   const childrenTotalWidth = node.children.reduce((sum, child) => sum + child.subtreeWidth, 0)
     + (node.children.length - 1) * config.horizontalGap;
   
-  let currentX = centerX - childrenTotalWidth / 2;
+  // Calculate the parent node's visual center (where children should be centered around)
+  // This ensures children are centered under the parent's visual center, not offset
+  const parentCenterX = centerX;
+  
+  // Starting X is calculated so children are centered under the parent
+  let currentX = parentCenterX - childrenTotalWidth / 2;
   const childY = y + node.height + config.verticalGap;
   
   for (const child of node.children) {
-    // Center child within its subtree space
+    // Each child is positioned at the center of its subtree allocation
     const childCenterX = currentX + child.subtreeWidth / 2;
     assignPositions(child, childCenterX, childY, config);
     currentX += child.subtreeWidth + config.horizontalGap;

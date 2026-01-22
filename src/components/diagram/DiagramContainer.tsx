@@ -95,9 +95,11 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     onNodesChange,
     onEdgesChange,
     nodePositionsRef,
+    userDraggedPositionsRef,
     schemaKey,
     setNodes,
-    clearStoredPositions
+    clearStoredPositions,
+    recordUserDrag
   } = useDiagramNodes(
     memoizedSchema, 
     error, 
@@ -220,14 +222,16 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schemaKey, smartSpacing, setNodes, resolveAnimatedIfEnabled]);
 
-  // Handle node drag stop - trigger smart spacing after dropping a node
+  // Handle node drag stop - record user drag position and trigger smart spacing
   const handleNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
+    // Record this position as user-dragged (will be preserved across layout recalculations)
+    recordUserDrag(node.id, node.position);
     // Trigger smart spacing with a short delay after drag ends
     triggerSmartSpacing(100);
-  }, [triggerSmartSpacing]);
+  }, [triggerSmartSpacing, recordUserDrag]);
 
-  // Check if there are any stored node positions
-  const hasStoredPositions = Object.keys(nodePositionsRef.current).length > 0;
+  // Check if there are any user-dragged node positions (these are preserved across layout recalculations)
+  const hasStoredPositions = Object.keys(userDraggedPositionsRef.current).length > 0;
 
   const handleMaxDepthChange = (newDepth: number) => {
     setLocalMaxDepth(newDepth);
