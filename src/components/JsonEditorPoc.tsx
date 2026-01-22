@@ -74,6 +74,16 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   // Track view mode: JSON editor or Structure editor
   const [viewMode, setViewMode] = useState<'json' | 'structure'>('structure');
   
+  // When switching to structure view, expand root to sync with diagram
+  const prevViewModeRef = useRef(viewMode);
+  useEffect(() => {
+    if (viewMode === 'structure' && prevViewModeRef.current !== 'structure' && onToggleCollapse) {
+      // Expand root so structure editor sections are visible and synced
+      onToggleCollapse('root', false);
+    }
+    prevViewModeRef.current = viewMode;
+  }, [viewMode, onToggleCollapse]);
+  
   // Parse schema for structure editor
   const parsedSchema = useMemo(() => {
     try {

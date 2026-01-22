@@ -1028,6 +1028,8 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
                     hasClipboard={hasClipboard}
                     consistencyIssues={consistencyIssues}
                     forceExpandedPaths={forceExpandedPaths}
+                    externalCollapsedPaths={externalCollapsedPaths}
+                    onExternalToggleCollapse={onExternalToggleCollapse}
                   />
                 </SortableItem>
               )})}
@@ -1086,6 +1088,8 @@ interface SectionTreeProps {
   hasClipboard: boolean;
   consistencyIssues?: ConsistencyIssue[];
   forceExpandedPaths?: Set<string>;
+  externalCollapsedPaths?: CollapsedState;
+  onExternalToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 const SectionTree: React.FC<SectionTreeProps> = ({ 
   title, 
@@ -1112,13 +1116,33 @@ const SectionTree: React.FC<SectionTreeProps> = ({
   onClearClipboard,
   hasClipboard,
   consistencyIssues = [],
-  forceExpandedPaths
+  forceExpandedPaths,
+  externalCollapsedPaths,
+  onExternalToggleCollapse
 }) => {
   const pathKey = path.join('.');
   const isForceExpanded = forceExpandedPaths?.has(pathKey) ?? false;
-  const [isManuallyExpanded, setIsManuallyExpanded] = useState(true);
+  
+  // Sync with external collapsed state - default to expanded (true) if not set
+  const externalExpanded = externalCollapsedPaths ? externalCollapsedPaths[pathKey] === false : undefined;
+  const [isManuallyExpanded, setIsManuallyExpanded] = useState(externalExpanded ?? true);
+  
+  // Sync local state with external when it changes
+  useEffect(() => {
+    if (externalExpanded !== undefined) {
+      setIsManuallyExpanded(externalExpanded);
+    }
+  }, [externalExpanded]);
+  
   const isExpanded = isManuallyExpanded || isForceExpanded;
   const availableRefs = useMemo(() => Object.keys(definitions), [definitions]);
+  
+  // Handle toggle and notify external
+  const handleToggleExpand = useCallback(() => {
+    const newExpanded = !isManuallyExpanded;
+    setIsManuallyExpanded(newExpanded);
+    onExternalToggleCollapse?.(pathKey, !newExpanded);
+  }, [isManuallyExpanded, onExternalToggleCollapse, pathKey]);
   
   // Determine if array items have a fixed type from parent schema's items.$ref
   const fixedItemType = useMemo(() => {
@@ -1179,6 +1203,8 @@ const SectionTree: React.FC<SectionTreeProps> = ({
                     hasClipboard={hasClipboard}
                     consistencyIssues={consistencyIssues}
                     forceExpandedPaths={forceExpandedPaths}
+                    externalCollapsedPaths={externalCollapsedPaths}
+                    onExternalToggleCollapse={onExternalToggleCollapse}
                   />
                 </SortableItem>
               ))}
@@ -1250,6 +1276,8 @@ const SectionTree: React.FC<SectionTreeProps> = ({
                 hasClipboard={hasClipboard}
                 consistencyIssues={consistencyIssues}
                 forceExpandedPaths={forceExpandedPaths}
+                externalCollapsedPaths={externalCollapsedPaths}
+                onExternalToggleCollapse={onExternalToggleCollapse}
               />
             </SortableItem>
           ))}
@@ -1282,7 +1310,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
           "flex items-center gap-3 p-3 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors",
           isExpanded && "border-b"
         )}
-        onClick={() => setIsManuallyExpanded(!isManuallyExpanded)}
+        onClick={handleToggleExpand}
       >
         {isExpanded ? (
           <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -1970,6 +1998,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
               hasClipboard={hasClipboard}
               consistencyIssues={consistencyIssues}
               forceExpandedPaths={searchExpandedPaths}
+              externalCollapsedPaths={externalCollapsedPaths}
+              onExternalToggleCollapse={externalOnToggleCollapse}
             />
           )}
           
@@ -2001,6 +2031,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
               hasClipboard={hasClipboard}
               consistencyIssues={consistencyIssues}
               forceExpandedPaths={searchExpandedPaths}
+              externalCollapsedPaths={externalCollapsedPaths}
+              onExternalToggleCollapse={externalOnToggleCollapse}
             />
           ))}
           
