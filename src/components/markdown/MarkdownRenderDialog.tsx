@@ -339,13 +339,14 @@ export const MarkdownRenderDialog: React.FC<MarkdownRenderDialogProps> = ({
         // Wait for fonts and images to load
         await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Capture as PNG
+        // Capture as PNG - skip web fonts to avoid font processing errors
         const dataUrl = await toPng(pageElement, {
           width: widthPx,
           height: heightPx,
           pixelRatio: 1,
           backgroundColor: themeData?.colors?.background || '#ffffff',
           cacheBust: true,
+          skipFonts: true, // Skip font embedding to avoid "font is undefined" errors
         });
         
         // Initialize PDF on first page
