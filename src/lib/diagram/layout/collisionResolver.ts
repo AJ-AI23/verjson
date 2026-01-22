@@ -55,20 +55,59 @@ export function getNodeBounds(nodes: Node[]): NodeBounds[] {
 }
 
 /**
- * Check if two nodes overlap (including minimum distance buffer)
+ * Check if two nodes overlap using proper bounding box collision detection.
+ * Returns collision info if boxes overlap or are within minDistance of each other.
  */
 function checkCollision(a: NodeBounds, b: NodeBounds, minDistance: number): CollisionPair | null {
-  const aRight = a.x + a.width + minDistance;
-  const aBottom = a.y + a.height + minDistance;
-  const bRight = b.x + b.width + minDistance;
-  const bBottom = b.y + b.height + minDistance;
+  // Calculate the actual edges of each node
+  const aLeft = a.x;
+  const aRight = a.x + a.width;
+  const aTop = a.y;
+  const aBottom = a.y + a.height;
+  
+  const bLeft = b.x;
+  const bRight = b.x + b.width;
+  const bTop = b.y;
+  const bBottom = b.y + b.height;
 
-  // Check if there's an overlap
-  const overlapX = Math.min(aRight, bRight) - Math.max(a.x, b.x);
-  const overlapY = Math.min(aBottom, bBottom) - Math.max(a.y, b.y);
+  // Check for actual bounding box overlap first (AABB collision)
+  const actualOverlapX = Math.min(aRight, bRight) - Math.max(aLeft, bLeft);
+  const actualOverlapY = Math.min(aBottom, bBottom) - Math.max(aTop, bTop);
+  
+  // If boxes actually overlap (not just close), this is a definite collision
+  if (actualOverlapX > 0 && actualOverlapY > 0) {
+    return { 
+      nodeA: a, 
+      nodeB: b, 
+      overlapX: actualOverlapX + minDistance, // Add minDistance to push them apart enough
+      overlapY: actualOverlapY + minDistance 
+    };
+  }
 
-  if (overlapX > 0 && overlapY > 0) {
-    return { nodeA: a, nodeB: b, overlapX, overlapY };
+  // Check if boxes are within minDistance of each other (proximity collision)
+  // Expand each box by minDistance/2 on each side and check for overlap
+  const expandedOverlapX = Math.min(aRight + minDistance, bRight + minDistance) - Math.max(aLeft - minDistance, bLeft - minDistance);
+  const expandedOverlapY = Math.min(aBottom + minDistance, bBottom + minDistance) - Math.max(aTop - minDistance, bTop - minDistance);
+  
+  // Calculate actual gap between boxes
+  const gapX = Math.max(bLeft - aRight, aLeft - bRight, 0);
+  const gapY = Math.max(bTop - aBottom, aTop - bBottom, 0);
+  
+  // If either gap is 0, boxes are adjacent or overlapping on that axis
+  // If both gaps are less than minDistance, boxes are too close
+  if (gapX < minDistance && gapY < minDistance) {
+    // Calculate how much we need to push to achieve minDistance gap
+    const neededPushX = gapX < minDistance ? minDistance - gapX : 0;
+    const neededPushY = gapY < minDistance ? minDistance - gapY : 0;
+    
+    if (neededPushX > 0 || neededPushY > 0) {
+      return { 
+        nodeA: a, 
+        nodeB: b, 
+        overlapX: neededPushX, 
+        overlapY: neededPushY 
+      };
+    }
   }
 
   return null;
