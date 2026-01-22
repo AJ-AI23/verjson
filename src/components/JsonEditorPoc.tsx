@@ -1,5 +1,5 @@
 // @refresh reset
-import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
+import React, { useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo } from 'react';
 import 'jsoneditor/dist/jsoneditor.css';
 import { CollapsedState } from '@/lib/diagram/types';
 import { useJsonEditor } from '@/hooks/useJsonEditor';
@@ -207,7 +207,9 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   // IMPORTANT: Some edits (like Markdown raw editor changes) update the `value` prop
   // without going through `handleChange`, so they never reach Yjs and won't be undoable.
   // This effect mirrors external value changes into Yjs so UndoManager captures them.
-  useEffect(() => {
+  // Use layout effect so external updates (e.g. Markdown editor edits/deletions) are pushed
+  // into Yjs before the next user input event (so Undo is immediately available).
+  useLayoutEffect(() => {
     if (!documentId || !yjsDoc) return;
 
     // Reset per-document guard
