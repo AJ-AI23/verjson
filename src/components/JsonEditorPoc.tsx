@@ -65,10 +65,6 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   // We use this for echo suppression (so external->Yjs sync doesn't re-push it).
   const lastYjsEmittedValueRef = useRef<string | null>(null);
 
-  // Debounce external->Yjs writes so a burst of typing becomes one undo step.
-  const externalSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingExternalValueRef = useRef<string | null>(null);
-
   // Track first external->Yjs sync per document to avoid creating noisy history entries
   const didInitialExternalSyncRef = useRef<{ documentId: string; done: boolean } | null>(null);
   
@@ -214,14 +210,6 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   useEffect(() => {
     if (!documentId || !yjsDoc) return;
 
-    // Clear any pending debounce timer when document changes / unmounts.
-    // (We re-create the timer per effect run below.)
-    if (didInitialExternalSyncRef.current?.documentId !== documentId && externalSyncTimerRef.current) {
-      clearTimeout(externalSyncTimerRef.current);
-      externalSyncTimerRef.current = null;
-      pendingExternalValueRef.current = null;
-    }
-
     // Reset per-document guard
     if (didInitialExternalSyncRef.current?.documentId !== documentId) {
       didInitialExternalSyncRef.current = { documentId, done: false };
@@ -262,34 +250,10 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
 
     // 2) After initial alignment, mirror external value changes into Yjs so they become undoable.
     if (current !== value) {
-      // Debounce so rapid external updates (like typing in Markdown textarea)
-      // become a single Yjs transaction / undo step.
-      pendingExternalValueRef.current = value;
-
-      if (externalSyncTimerRef.current) {
-        clearTimeout(externalSyncTimerRef.current);
-      }
-
-      externalSyncTimerRef.current = setTimeout(() => {
-        const next = pendingExternalValueRef.current;
-        pendingExternalValueRef.current = null;
-        externalSyncTimerRef.current = null;
-        if (!next) return;
-
-        // Avoid writing if it already matches (can happen if something else synced in the meantime)
-        if (getTextContent() === next) return;
-
-        updateContent(next);
-      }, 500);
+      // Push immediately. Yjs UndoManager already batches into a single undo step
+      // using its `captureTimeout` (configured in useYjsUndo).
+      updateContent(value);
     }
-
-    return () => {
-      if (externalSyncTimerRef.current) {
-        clearTimeout(externalSyncTimerRef.current);
-        externalSyncTimerRef.current = null;
-      }
-      pendingExternalValueRef.current = null;
-    };
   }, [documentId, getTextContent, updateContent, value, yjsDoc]);
 
   // Get collaboration info
