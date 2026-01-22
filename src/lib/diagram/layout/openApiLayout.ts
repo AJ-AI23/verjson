@@ -18,6 +18,7 @@ import {
   createTagNode,
   createGroupedServersNode,
   createGroupedTagsNode,
+  createGroupedEndpointsNode,
   createParametersNode,
   createTagsNode,
   createSecurityNode
@@ -25,6 +26,7 @@ import {
 import { createEdge } from '../edgeGenerator';
 import { processWithGrouping, processPropertiesWithGrouping } from '../utils/propertyGroupingUtils';
 import { processArrayItemsWithGrouping } from '../utils/arrayItemGroupingUtils';
+import { processObjectItemsWithGrouping } from '../utils/objectItemGroupingUtils';
 
 // OpenAPI 3.1 required structure properties
 const OPENAPI_REQUIRED_PROPERTIES = ['openapi', 'info', 'paths'];
@@ -165,7 +167,8 @@ export const generateOpenApiLayout = (
           result,
           maxDepth,
           collapsedPaths,
-          'root.paths'
+          'root.paths',
+          maxIndividualProperties
         );
       }
     }
@@ -431,70 +434,90 @@ function processOpenApiPaths(
   result: DiagramElements,
   maxDepth: number,
   collapsedPaths: CollapsedState,
-  parentPath: string
+  parentPath: string,
+  maxIndividualItems: number = 5
 ) {
-  const pathNames = Object.keys(paths);
-  const startX = xPos - (pathNames.length * xSpacing) / 2 + xSpacing / 2;
-  
-  pathNames.forEach((pathName, pathIndex) => {
-    const pathData = paths[pathName];
-    const pathX = startX + pathIndex * xSpacing;
-    const individualPathPath = `${parentPath}.${pathName}`;
-    
-    // Check if this individual path is expanded
-    const isIndividualPathExpanded = collapsedPaths[individualPathPath] === false || 
-      (collapsedPaths[individualPathPath] && typeof collapsedPaths[individualPathPath] === 'object');
-    
-    if (isIndividualPathExpanded) {
+  // Use the generic object grouping utility for paths
+  processObjectItemsWithGrouping<any>(
+    paths,
+    result,
+    {
+      maxIndividualItems,
+      xSpacing,
+      parentNodeId,
+      parentPath,
+      yPosition: yPos,
+      startXPosition: xPos,
+      collapsedPaths
+    },
+    // createItemNode - creates endpoint or method nodes based on expanded state
+    (pathName: string, pathData: any, nodeXPos: number, nodeYPos: number, isExpanded?: boolean) => {
+      if (isExpanded) {
+        // For expanded paths, we'll handle methods separately in processExpandedItem
+        // Create a placeholder that will be replaced by method nodes
+        // Actually, we should still create the endpoint node with expanded styling
+        return createEndpointNode(
+          pathName,
+          pathData,
+          nodeXPos,
+          nodeYPos,
+          false // Not collapsed (expanded)
+        );
+      } else {
+        // CONSOLIDATED MODE: Show single endpoint box with all methods
+        return createEndpointNode(
+          pathName,
+          pathData,
+          nodeXPos,
+          nodeYPos,
+          true // Collapsed
+        );
+      }
+    },
+    // createGroupedNode - creates grouped endpoints node
+    (groupedItems: Array<{ key: string; data: any }>, groupXPos: number, groupYPos: number, groupParentNodeId: string) => {
+      const groupedEndpoints = groupedItems.map(({ key, data }) => ({ path: key, pathData: data }));
+      return createGroupedEndpointsNode(groupedEndpoints, groupXPos, groupYPos, groupParentNodeId);
+    },
+    // processExpandedItem - handles expanded path by creating method nodes
+    (pathName: string, pathData: any, endpointNode: Node, expandedCollapsedPaths: Record<string, boolean>, itemPath: string) => {
       // EXPANDED MODE: Show individual method boxes for this path
       const methods = Object.entries(pathData || {})
         .filter(([method]) => ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'].includes(method.toLowerCase()));
       
-        const methodStartX = pathX - (methods.length * 150) / 2 + 75;
+      if (methods.length === 0) return;
+      
+      const methodYPos = yPos + 150;
+      const methodStartX = endpointNode.position.x - (methods.length * 150) / 2 + 75;
+      
+      methods.forEach(([method, methodData], methodIndex) => {
+        const methodX = methodStartX + methodIndex * 150;
+        const methodPath = `${itemPath}.${method.toLowerCase()}`;
         
-        methods.forEach(([method, methodData], methodIndex) => {
-          const methodX = methodStartX + methodIndex * 150;
-          const methodPath = `${individualPathPath}.${method.toLowerCase()}`;
-          
-          // Check if this specific method is collapsed
-          const isMethodCollapsed = collapsedPaths[methodPath] !== false;
-          
-          const methodNode = createMethodNode(
-            pathName,
-            method.toLowerCase(),
-            methodData,
-            methodX,
-            yPos,
-            isMethodCollapsed
-          );
-          
-          const edge = createEdge(parentNodeId, methodNode.id, undefined, false, {}, 'default');
-          
-          result.nodes.push(methodNode);
-          result.edges.push(edge);
-          
-          // Process responses and request bodies for individual method nodes when not collapsed
-          if (!isMethodCollapsed) {
-            processMethodDetails(methodData, methodNode, methodX, yPos, result, collapsedPaths, methodPath);
-          }
-        });
-    } else {
-      // CONSOLIDATED MODE: Show single endpoint box with all methods
-      const isEndpointCollapsed = collapsedPaths[individualPathPath] !== false;
-      const endpointNode = createEndpointNode(
-        pathName,
-        pathData,
-        pathX,
-        yPos,
-        isEndpointCollapsed
-      );
-      
-      const edge = createEdge(parentNodeId, endpointNode.id, undefined, false, {}, 'default');
-      
-      result.nodes.push(endpointNode);
-      result.edges.push(edge);
+        // Check if this specific method is collapsed
+        const isMethodCollapsed = expandedCollapsedPaths[methodPath] !== false;
+        
+        const methodNode = createMethodNode(
+          pathName,
+          method.toLowerCase(),
+          methodData,
+          methodX,
+          methodYPos,
+          isMethodCollapsed
+        );
+        
+        const edge = createEdge(endpointNode.id, methodNode.id, undefined, false, {}, 'default');
+        
+        result.nodes.push(methodNode);
+        result.edges.push(edge);
+        
+        // Process responses and request bodies for individual method nodes when not collapsed
+        if (!isMethodCollapsed) {
+          processMethodDetails(methodData, methodNode, methodX, methodYPos, result, expandedCollapsedPaths, methodPath);
+        }
+      });
     }
-  });
+  );
 }
 
 // Helper function to process method details (responses, request bodies, references)

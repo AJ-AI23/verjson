@@ -767,3 +767,44 @@ export const createGroupedPropertiesNode = (
     }
   };
 };
+
+/**
+ * Creates a grouped endpoints node for when there are too many API paths to display individually
+ */
+export const createGroupedEndpointsNode = (
+  groupedEndpoints: Array<{ path: string; pathData: any }>,
+  xPos: number,
+  yOffset: number,
+  parentNodeId: string
+): Node => {
+  const endpointCount = groupedEndpoints.length;
+  
+  const endpointDetails = groupedEndpoints.map(({ path, pathData }) => {
+    const methods = Object.entries(pathData || {})
+      .filter(([method]) => ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'].includes(method.toLowerCase()))
+      .map(([method]) => method.toUpperCase());
+    
+    return {
+      path,
+      methods,
+      methodCount: methods.length,
+      summary: methods.length > 0 ? `${methods.join(', ')} ${path}` : path
+    };
+  });
+  
+  return {
+    id: `${parentNodeId}-grouped-endpoints`,
+    type: 'schemaType',
+    position: { x: xPos, y: yOffset },
+    data: {
+      label: `${endpointCount} More Endpoints`,
+      type: 'grouped-endpoints',
+      isGrouped: true,
+      isGroupedEndpoints: true,
+      endpointDetails: endpointDetails,
+      hasCollapsibleContent: true,
+      isCollapsed: false,
+      description: `View details of ${endpointCount} grouped endpoints`
+    }
+  };
+};
