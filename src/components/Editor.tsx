@@ -196,7 +196,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
     console.log('📝 Setting schema from version.full_document, length:', schemaString.length);
     setSchema(schemaString);
     setSavedSchema(schemaString);
-    setCollapsedPaths({ root: true });
+    setCollapsedPaths({ root: false });
     setLoadedVersionId(latestWithFullDocument.id);
     setShowVersionMismatch(false);
   }, [versions, schemaType, handleSchemaTypeChange, setSchema, setSavedSchema, setCollapsedPaths]);
@@ -310,7 +310,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         console.log('📝 Setting schema from initialSchema prop (first load), length:', schemaString.length);
         setSchema(schemaString);
         setSavedSchema(schemaString);
-        setCollapsedPaths({ root: true });
+        setCollapsedPaths({ root: false });
       }
       
       lastLoadedSchemaRef.current = initialSchema;
@@ -342,7 +342,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
       console.log('📝 Setting schema from initialSchema prop, length:', schemaString.length);
       setSchema(schemaString);
       setSavedSchema(schemaString);
-      setCollapsedPaths({ root: true });
+      setCollapsedPaths({ root: false });
       lastLoadedSchemaRef.current = initialSchema;
       lastLoadedDocumentIdRef.current = currentDocId;
       return;
