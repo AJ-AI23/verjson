@@ -61,6 +61,14 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   // Track if we're updating from Yjs to avoid circular updates
   const isUpdatingFromYjs = useRef<boolean>(false);
 
+  // Track the last value that originated from Yjs -> React.
+  // We use this for echo suppression (so external->Yjs sync doesn't re-push it).
+  const lastYjsEmittedValueRef = useRef<string | null>(null);
+
+  // Debounce external->Yjs writes so a burst of typing becomes one undo step.
+  const externalSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingExternalValueRef = useRef<string | null>(null);
+
   // Track first external->Yjs sync per document to avoid creating noisy history entries
   const didInitialExternalSyncRef = useRef<{ documentId: string; done: boolean } | null>(null);
   
@@ -160,6 +168,10 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   onContentChangeRef.current = useCallback((content: string) => {
     if (!isUpdatingFromYjs.current) {
       isUpdatingFromYjs.current = true;
+
+      // Mark this content as coming from Yjs so we can suppress echo pushes.
+      lastYjsEmittedValueRef.current = content;
+
       onChange(content);
       setTimeout(() => {
         isUpdatingFromYjs.current = false;
@@ -201,11 +213,24 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   // This effect mirrors external value changes into Yjs so UndoManager captures them.
   useEffect(() => {
     if (!documentId || !yjsDoc) return;
-    if (isUpdatingFromYjs.current) return;
+
+    // Clear any pending debounce timer when document changes / unmounts.
+    // (We re-create the timer per effect run below.)
+    if (didInitialExternalSyncRef.current?.documentId !== documentId && externalSyncTimerRef.current) {
+      clearTimeout(externalSyncTimerRef.current);
+      externalSyncTimerRef.current = null;
+      pendingExternalValueRef.current = null;
+    }
 
     // Reset per-document guard
     if (didInitialExternalSyncRef.current?.documentId !== documentId) {
       didInitialExternalSyncRef.current = { documentId, done: false };
+    }
+
+    // Echo suppression: if React value is exactly what we just emitted from Yjs,
+    // do nothing (otherwise we create redundant undo items).
+    if (lastYjsEmittedValueRef.current === value) {
+      return;
     }
 
     // Only push valid JSON into Yjs (consistent with useYjsDocument observer behavior)
@@ -237,8 +262,34 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
 
     // 2) After initial alignment, mirror external value changes into Yjs so they become undoable.
     if (current !== value) {
-      updateContent(value);
+      // Debounce so rapid external updates (like typing in Markdown textarea)
+      // become a single Yjs transaction / undo step.
+      pendingExternalValueRef.current = value;
+
+      if (externalSyncTimerRef.current) {
+        clearTimeout(externalSyncTimerRef.current);
+      }
+
+      externalSyncTimerRef.current = setTimeout(() => {
+        const next = pendingExternalValueRef.current;
+        pendingExternalValueRef.current = null;
+        externalSyncTimerRef.current = null;
+        if (!next) return;
+
+        // Avoid writing if it already matches (can happen if something else synced in the meantime)
+        if (getTextContent() === next) return;
+
+        updateContent(next);
+      }, 500);
     }
+
+    return () => {
+      if (externalSyncTimerRef.current) {
+        clearTimeout(externalSyncTimerRef.current);
+        externalSyncTimerRef.current = null;
+      }
+      pendingExternalValueRef.current = null;
+    };
   }, [documentId, getTextContent, updateContent, value, yjsDoc]);
 
   // Get collaboration info
