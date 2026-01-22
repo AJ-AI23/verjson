@@ -16,8 +16,9 @@ import { jsPDF } from 'jspdf';
 import { Settings, Eye, FileText, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { createRoot } from 'react-dom/client';
 import { cn } from '@/lib/utils';
+import { getMarkdownPlugins } from '@/lib/markdown/markdownPluginPresets';
 
 interface MarkdownRenderDialogProps {
   open: boolean;
@@ -276,12 +277,18 @@ export const MarkdownRenderDialog: React.FC<MarkdownRenderDialogProps> = ({
         }}
       >
         <div className="p-8 h-full overflow-auto">
-          <ReactMarkdown 
-            remarkPlugins={[remarkGfm]}
-            components={markdownComponents}
-          >
-            {markdownContent}
-          </ReactMarkdown>
+          {(() => {
+            const plugins = getMarkdownPlugins(markdownDoc.type);
+            return (
+              <ReactMarkdown
+                remarkPlugins={plugins.remarkPlugins}
+                rehypePlugins={plugins.rehypePlugins}
+                components={markdownComponents}
+              >
+                {markdownContent}
+              </ReactMarkdown>
+            );
+          })()}
         </div>
       </div>
     );
@@ -329,15 +336,32 @@ export const MarkdownRenderDialog: React.FC<MarkdownRenderDialogProps> = ({
         pageElement.style.boxSizing = 'border-box';
         pageElement.style.overflow = 'hidden';
         
-        // Render markdown content
+        // Render markdown content using the same ReactMarkdown pipeline as preview
         const markdownContent = linesToMarkdown(page.lines);
-        pageElement.innerHTML = `<div style="max-width: 100%;">${markdownToStyledHtml(markdownContent)}</div>`;
+        const contentHost = window.document.createElement('div');
+        contentHost.style.maxWidth = '100%';
+        pageElement.innerHTML = '';
+        pageElement.appendChild(contentHost);
+
+        const root = createRoot(contentHost);
+        const plugins = getMarkdownPlugins(markdownDoc.type);
+        root.render(
+          <div>
+            <ReactMarkdown
+              remarkPlugins={plugins.remarkPlugins}
+              rehypePlugins={plugins.rehypePlugins}
+              components={markdownComponents}
+            >
+              {markdownContent}
+            </ReactMarkdown>
+          </div>
+        );
         
         renderContainer.innerHTML = '';
         renderContainer.appendChild(pageElement);
         
-        // Wait for fonts and images to load
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Wait a moment for React to flush + layout/images
+        await new Promise(resolve => setTimeout(resolve, 120));
         
         // Capture as PNG - skip web fonts to avoid font processing errors
         const dataUrl = await toPng(pageElement, {
@@ -348,6 +372,8 @@ export const MarkdownRenderDialog: React.FC<MarkdownRenderDialogProps> = ({
           cacheBust: true,
           skipFonts: true, // Skip font embedding to avoid "font is undefined" errors
         });
+
+        root.unmount();
         
         // Initialize PDF on first page
         if (i === 0) {

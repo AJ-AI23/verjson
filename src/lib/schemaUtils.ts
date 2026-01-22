@@ -41,6 +41,8 @@ try {
 
 export type SchemaType = 'json-schema' | 'openapi' | 'diagram' | 'markdown';
 
+const isMarkdownDocType = (t: any): boolean => t === 'markdown' || t === 'extended-markdown';
+
 export const validateJsonSchema = (jsonString: string, schemaType: SchemaType = 'json-schema'): any => {
   // Handle empty or whitespace-only strings
   if (!jsonString || jsonString.trim() === '') {
@@ -59,7 +61,7 @@ export const validateJsonSchema = (jsonString: string, schemaType: SchemaType = 
     // Validate based on the detected or provided schema type
     if (typeToUse === 'markdown') {
       // Check for VerjSON markdown structure
-      if (parsedSchema?.verjson === undefined || parsedSchema?.type !== 'markdown') {
+      if (parsedSchema?.verjson === undefined || !isMarkdownDocType(parsedSchema?.type)) {
         console.warn('Schema is missing VerjSON markdown structure properties');
         throw new Error('Schema is missing VerjSON markdown structure properties');
       }
@@ -194,7 +196,7 @@ export const detectSchemaType = (schema: any): SchemaType => {
   }
 
   // Check for VerjSON markdown type
-  if (schema.verjson !== undefined && schema.type === 'markdown') {
+  if (schema.verjson !== undefined && isMarkdownDocType(schema.type)) {
     return 'markdown';
   }
 

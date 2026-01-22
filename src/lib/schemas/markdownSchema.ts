@@ -16,7 +16,7 @@ export const markdownSchema = {
     },
     "type": {
       "type": "string",
-      "const": "markdown",
+      "enum": ["markdown", "extended-markdown"],
       "description": "Document type identifier"
     },
     "info": {

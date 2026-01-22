@@ -98,7 +98,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   }, [parsedSchema]);
   
   const isMarkdown = useMemo(() => {
-    return parsedSchema?.verjson !== undefined && parsedSchema?.type === 'markdown';
+    return parsedSchema?.verjson !== undefined && (parsedSchema?.type === 'markdown' || parsedSchema?.type === 'extended-markdown');
   }, [parsedSchema]);
   
   const isJsonSchema = useMemo(() => {
