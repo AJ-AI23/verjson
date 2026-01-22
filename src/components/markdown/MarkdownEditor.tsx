@@ -461,7 +461,10 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   );
   
   return (
-    <div className="h-full flex flex-col bg-background">
+    <div className={cn(
+      "h-full flex flex-col bg-background",
+      isFullscreen && "fixed inset-0 z-50"
+    )}>
       {/* Header with page navigation and view mode */}
       <div className="flex items-center justify-between p-2 border-b bg-muted/20">
         <div className="flex items-center gap-2">
