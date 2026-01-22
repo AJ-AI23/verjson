@@ -1,8 +1,8 @@
 import React, { memo } from 'react';
-import { Handle, Position } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { NodeExpandCollapseButton } from './NodeExpandCollapseButton';
+import { BaseNodeContainer } from './BaseNodeContainer';
 
 export interface MethodTagsNodeProps {
   data: {
@@ -26,18 +26,15 @@ export const MethodTagsNode = memo(({ data, isConnectable, id, onToggleCollapse 
   const nodePath = path || id;
 
   return (
-    <div className={cn(
-      'px-3 py-2 rounded-md shadow-sm border min-w-[160px] max-w-[240px]',
-      'bg-cyan-50 border-cyan-200',
-      isCollapsed && 'border-dashed bg-cyan-50/50'
-    )}>
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="custom-handle"
-        isConnectable={isConnectable}
-      />
-      
+    <BaseNodeContainer
+      id={id}
+      isConnectable={isConnectable}
+      className={cn(
+        'px-3 py-2 rounded-md shadow-sm border min-w-[160px] max-w-[240px]',
+        'bg-cyan-50 border-cyan-200',
+        isCollapsed && 'border-dashed bg-cyan-50/50'
+      )}
+    >
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
           {hasChildren && onToggleCollapse && (
@@ -72,14 +69,7 @@ export const MethodTagsNode = memo(({ data, isConnectable, id, onToggleCollapse 
           </div>
         )}
       </div>
-
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="custom-handle"
-        isConnectable={isConnectable}
-      />
-    </div>
+    </BaseNodeContainer>
   );
 });
 

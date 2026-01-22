@@ -1,10 +1,10 @@
 import React, { memo } from 'react';
-import { Handle, Position } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { NodeNotations } from './NodeNotations';
 import { NodeExpandCollapseButton } from './NodeExpandCollapseButton';
 import { NotationComment } from '@/types/notations';
+import { BaseNodeContainer } from './BaseNodeContainer';
 
 export interface ContentTypeNodeProps {
   data: {
@@ -46,20 +46,17 @@ export const ContentTypeNode = memo(({ data, isConnectable, id, onAddNotation, o
   };
 
   return (
-    <div className={cn(
-      'px-3 py-2 rounded-md shadow-sm min-w-[120px] max-w-[250px]',
-      'bg-slate-50 border-slate-200',
-      hasMoreLevels ? 'border-2 border-dashed' : 'border',
-      isCollapsed && 'border-dashed bg-slate-50/50',
-      hasNotations && 'border-l-2 border-l-amber-400'
-    )}>
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="custom-handle"
-        isConnectable={isConnectable}
-      />
-      
+    <BaseNodeContainer
+      id={id}
+      isConnectable={isConnectable}
+      className={cn(
+        'px-3 py-2 rounded-md shadow-sm min-w-[120px] max-w-[250px]',
+        'bg-slate-50 border-slate-200',
+        hasMoreLevels ? 'border-2 border-dashed' : 'border',
+        isCollapsed && 'border-dashed bg-slate-50/50',
+        hasNotations && 'border-l-2 border-l-amber-400'
+      )}
+    >
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
           {hasChildren && onToggleCollapse && (
@@ -121,14 +118,7 @@ export const ContentTypeNode = memo(({ data, isConnectable, id, onAddNotation, o
           </div>
         )}
       </div>
-
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="custom-handle"
-        isConnectable={isConnectable}
-      />
-    </div>
+    </BaseNodeContainer>
   );
 });
 

@@ -1,6 +1,5 @@
 
 import React, { memo, useMemo, useState, useEffect } from 'react';
-import { Handle, Position, useNodeId, useStore } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { NodeHeader } from './NodeHeader';
 import { NodeMetaInfo } from './NodeMetaInfo';
@@ -10,7 +9,7 @@ import { NodeExpandCollapseButton } from './NodeExpandCollapseButton';
 import { NotationsIndicator } from './NotationsIndicator';
 import { NotationsPanel } from './NotationsPanel';
 import { NotationComment } from '@/types/notations';
-import { useDebug } from '@/contexts/DebugContext';
+import { BaseNodeContainer } from './BaseNodeContainer';
 
 interface PropertyDetail {
   name: string;
@@ -67,21 +66,9 @@ interface SchemaTypeNodeProps {
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
   expandedNotationPaths?: Set<string>;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
-  // Position passed from React Flow
-  positionAbsoluteX?: number;
-  positionAbsoluteY?: number;
 }
 
-export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, expandedNotationPaths, onToggleCollapse, positionAbsoluteX, positionAbsoluteY }: SchemaTypeNodeProps) => {
-  const { showDiagramDebug } = useDebug();
-  
-  // Get measured dimensions from React Flow store
-  const node = useStore((state) => state.nodeLookup.get(id));
-  const measuredWidth = node?.measured?.width;
-  const measuredHeight = node?.measured?.height;
-  const nodeX = node?.position?.x ?? positionAbsoluteX ?? 0;
-  const nodeY = node?.position?.y ?? positionAbsoluteY ?? 0;
-  
+export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, expandedNotationPaths, onToggleCollapse }: SchemaTypeNodeProps) => {
   const {
     label,
     type,
@@ -161,17 +148,17 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
     );
   }, [type, required, isRoot, isGroup, isGrouped, data.isGroupedProperties, isCollapsed, hasMoreLevels, hasNotations]);
 
+  // Determine if we should show the source (bottom) handle
+  const showSourceHandle = type === 'object' || type === 'array' || type === 'reference' || type === 'openapi' || type === 'info' || type === 'components' || type === 'endpoint' || type === 'method' || type === 'truncated' || type === 'server' || type === 'tag';
+
   return (
-    <div className={nodeContainerClasses}>
-      {!isRoot && (
-        <Handle
-          type="target"
-          position={Position.Top}
-          className="custom-handle"
-          isConnectable={isConnectable}
-        />
-      )}
-      
+    <BaseNodeContainer
+      id={id}
+      isConnectable={isConnectable}
+      className={nodeContainerClasses}
+      showTargetHandle={!isRoot}
+      showSourceHandle={showSourceHandle}
+    >
       <div className="flex flex-col gap-1 min-w-0">
         <div className="flex items-start justify-between gap-2 min-w-0">
           {/* Expand/Collapse button */}
@@ -349,30 +336,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
           additionalPropsCount={additionalPropsCount}
         />
       </div>
-
-      {/* Debug info footer */}
-      {showDiagramDebug && (
-        <div className="mt-2 pt-2 border-t border-dashed border-muted-foreground/30 text-[10px] font-mono text-muted-foreground/70 space-y-0.5">
-          <div className="flex gap-2">
-            <span>x: {Math.round(nodeX)}</span>
-            <span>y: {Math.round(nodeY)}</span>
-          </div>
-          <div className="flex gap-2">
-            <span>w: {measuredWidth ?? '?'}</span>
-            <span>h: {measuredHeight ?? '?'}</span>
-          </div>
-        </div>
-      )}
-
-      {(type === 'object' || type === 'array' || type === 'reference' || type === 'openapi' || type === 'info' || type === 'components' || type === 'endpoint' || type === 'method' || type === 'truncated' || type === 'server' || type === 'tag') && (
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          className="custom-handle"
-          isConnectable={isConnectable}
-        />
-      )}
-    </div>
+    </BaseNodeContainer>
   );
 });
 
