@@ -1,5 +1,5 @@
 // @refresh reset
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import * as Y from 'yjs';
 import { Awareness } from 'y-protocols/awareness';
 import { useAuth } from '@/contexts/AuthContext';
@@ -143,7 +143,9 @@ export const useYjsDocument = ({
     });
   }, []);
 
-  useEffect(() => {
+  // IMPORTANT: useLayoutEffect so the local Y.Doc exists (and observers are attached)
+  // before the user can make the first keystroke after opening a document.
+  useLayoutEffect(() => {
     let cancelled = false;
 
     // Reset stableDocIdRef immediately when documentId changes so hydration effect waits.

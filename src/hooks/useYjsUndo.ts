@@ -1,5 +1,5 @@
 // @refresh reset
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import * as Y from 'yjs';
 
 
@@ -103,8 +103,10 @@ export const useYjsUndo = ({
     };
   }, []);
 
-  // Initialize (or reuse) undo manager when yjsDoc changes
-  useEffect(() => {
+  // Initialize (or reuse) undo manager when yjsDoc changes.
+  // IMPORTANT: useLayoutEffect so the UndoManager is ready before the user can make
+  // the first edit after opening/switching documents.
+  useLayoutEffect(() => {
     if (!yjsDoc) {
       undoManagerRef.current = null;
       updateState();
