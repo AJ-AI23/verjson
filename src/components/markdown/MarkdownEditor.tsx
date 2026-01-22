@@ -57,41 +57,63 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     return selectedTheme === 'dark' ? defaultMarkdownDarkTheme : defaultMarkdownLightTheme;
   }, [document.styles, document.selectedTheme]);
   
-  // Convert hierarchical lines to markdown string for editing
-  const markdownContent = useMemo(() => {
+  // Convert hierarchical lines to markdown string for preview (with hard breaks)
+  const markdownContentForPreview = useMemo(() => {
     if (!activePage?.lines) return '';
     return linesToMarkdown(activePage.lines);
   }, [activePage?.lines]);
   
-  // Track if we're in the middle of a user edit to prevent cursor jump
-  const isUserEditingRef = useRef(false);
-  const pendingCursorPosRef = useRef<number | null>(null);
+  // Convert hierarchical lines to raw markdown (without hard break modifications) for editing
+  const markdownContentForEdit = useMemo(() => {
+    if (!activePage?.lines) return '';
+    // Get flattened lines without the trailing space treatment
+    const sortedKeys = Object.keys(activePage.lines).sort((a, b) => {
+      const partsA = a.split('.').map(Number);
+      const partsB = b.split('.').map(Number);
+      const maxLength = Math.max(partsA.length, partsB.length);
+      for (let i = 0; i < maxLength; i++) {
+        const numA = partsA[i] ?? -1;
+        const numB = partsB[i] ?? -1;
+        if (numA !== numB) return numA - numB;
+      }
+      return 0;
+    });
+    return sortedKeys.map(key => activePage.lines[key]).join('\n');
+  }, [activePage?.lines]);
   
-  // Sync textarea value with markdownContent only when not actively editing
-  useEffect(() => {
-    if (textareaRef.current && !isUserEditingRef.current) {
-      textareaRef.current.value = markdownContent;
-    }
-  }, [markdownContent]);
+  // Track the last value we set in the textarea to detect external changes
+  const lastSetValueRef = useRef<string>(markdownContentForEdit);
+  const textareaValueRef = useRef<string>(markdownContentForEdit);
   
-  // Restore cursor position after React re-render
+  // Sync textarea value with markdownContentForEdit only when there's an external change
   useEffect(() => {
-    if (pendingCursorPosRef.current !== null && textareaRef.current) {
-      const pos = pendingCursorPosRef.current;
-      textareaRef.current.setSelectionRange(pos, pos);
-      pendingCursorPosRef.current = null;
+    if (textareaRef.current) {
+      // Only update if the new content differs from what we last set
+      // This means an external source changed the document (not user typing)
+      if (markdownContentForEdit !== lastSetValueRef.current) {
+        textareaRef.current.value = markdownContentForEdit;
+        lastSetValueRef.current = markdownContentForEdit;
+        textareaValueRef.current = markdownContentForEdit;
+      }
     }
-  });
+  }, [markdownContentForEdit]);
+  
+  // Update refs when page changes
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.value = markdownContentForEdit;
+      lastSetValueRef.current = markdownContentForEdit;
+      textareaValueRef.current = markdownContentForEdit;
+    }
+  }, [activePageIndex]);
   
   // Handle markdown text changes
-  const handleTextChange = useCallback((newText: string, cursorPos?: number) => {
+  const handleTextChange = useCallback((newText: string) => {
     if (readOnly) return;
     
-    // Mark that we're in a user edit to prevent external sync from resetting value
-    isUserEditingRef.current = true;
-    if (cursorPos !== undefined) {
-      pendingCursorPosRef.current = cursorPos;
-    }
+    // Update our tracking refs
+    lastSetValueRef.current = newText;
+    textareaValueRef.current = newText;
     
     const newLines = markdownToLines(newText);
     const updatedPages = [...document.data.pages];
@@ -111,11 +133,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         pages: updatedPages
       }
     });
-    
-    // Reset editing flag after a short delay to allow React to finish rendering
-    requestAnimationFrame(() => {
-      isUserEditingRef.current = false;
-    });
   }, [document, activePageIndex, onDocumentChange, readOnly]);
   
   // Insert formatting at cursor
@@ -125,22 +142,23 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     const textarea = textareaRef.current;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const selectedText = markdownContent.substring(start, end);
+    const currentValue = textarea.value;
+    const selectedText = currentValue.substring(start, end);
     
     const newText = 
-      markdownContent.substring(0, start) + 
+      currentValue.substring(0, start) + 
       prefix + selectedText + suffix + 
-      markdownContent.substring(end);
+      currentValue.substring(end);
     
+    // Update textarea value directly
+    textarea.value = newText;
     handleTextChange(newText);
     
     // Restore cursor position
-    setTimeout(() => {
-      textarea.focus();
-      const newCursorPos = start + prefix.length + selectedText.length + suffix.length;
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    }, 0);
-  }, [markdownContent, handleTextChange, readOnly]);
+    const newCursorPos = start + prefix.length + selectedText.length + suffix.length;
+    textarea.setSelectionRange(newCursorPos, newCursorPos);
+    textarea.focus();
+  }, [handleTextChange, readOnly]);
   
   // Toolbar actions
   const toolbarActions = useMemo(() => [
@@ -211,10 +229,9 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       )}
       <textarea
         ref={textareaRef}
-        defaultValue={markdownContent}
+        defaultValue={markdownContentForEdit}
         onChange={(e) => {
-          const cursorPos = e.target.selectionStart;
-          handleTextChange(e.target.value, cursorPos);
+          handleTextChange(e.target.value);
         }}
         readOnly={readOnly}
         className={cn(
@@ -431,7 +448,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             ),
           }}
         >
-          {markdownContent}
+          {markdownContentForPreview}
         </ReactMarkdown>
       </div>
     </ScrollArea>
