@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Node } from '@xyflow/react';
 import { 
   resolveCollisions, 
@@ -9,7 +9,11 @@ import {
 
 const STORAGE_KEY = 'diagram-collision-avoidance';
 
-export function useCollisionAvoidance(config: Partial<CollisionConfig> = {}) {
+// Keep default config referentially stable so hooks using `useCollisionAvoidance()`
+// don't recreate callbacks every render (which can cancel scheduled timeouts).
+const EMPTY_CONFIG: Partial<CollisionConfig> = {};
+
+export function useCollisionAvoidance(config: Partial<CollisionConfig> = EMPTY_CONFIG) {
   const [enabled, setEnabled] = useState(() => {
     // Load preference from localStorage
     if (typeof window !== 'undefined') {
@@ -19,10 +23,13 @@ export function useCollisionAvoidance(config: Partial<CollisionConfig> = {}) {
     return true;
   });
 
-  const mergedConfig: CollisionConfig = {
-    ...DEFAULT_COLLISION_CONFIG,
-    ...config
-  };
+  const mergedConfig: CollisionConfig = useMemo(
+    () => ({
+      ...DEFAULT_COLLISION_CONFIG,
+      ...config,
+    }),
+    [config]
+  );
 
   // Persist preference
   useEffect(() => {
