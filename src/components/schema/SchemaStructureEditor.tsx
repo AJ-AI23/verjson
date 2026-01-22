@@ -1850,13 +1850,13 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
       
       <ScrollArea className="flex-1">
         <div className="space-y-3 p-4">
-          {/* Document section (verjson format) or Metadata section (JSON Schema) */}
+          {/* Document section for verjson formats (diagram/markdown) or Metadata section (JSON Schema) */}
           {documentFields.length > 0 && (
             <div className="border rounded-lg overflow-hidden">
               <div className="flex items-center gap-3 p-3 bg-muted/30 border-b">
                 <FileCode className="h-4 w-4 text-muted-foreground" />
                 <span className="font-semibold text-sm">
-                  {schemaType === 'diagram' && schema?.verjson ? 'Document' : 'Metadata'}
+                  {(schemaType === 'diagram' || schemaType === 'markdown') && schema?.verjson ? 'Document' : 'Metadata'}
                 </span>
               </div>
               <div className="p-3 bg-background space-y-2">

@@ -2,9 +2,7 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { 
   Bold, 
   Italic, 
@@ -24,13 +22,10 @@ import {
   Plus
 } from 'lucide-react';
 import { MarkdownDocument, MarkdownPage } from '@/types/markdown';
+import { MarkdownStyleTheme, defaultMarkdownLightTheme, defaultMarkdownDarkTheme } from '@/types/markdownStyles';
 import { 
   linesToMarkdown, 
   markdownToLines, 
-  getSortedLineKeys,
-  insertAfterLine,
-  updateLine,
-  deleteLine
 } from '@/lib/markdownUtils';
 import { cn } from '@/lib/utils';
 
@@ -50,6 +45,15 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const activePage = document.data.pages[activePageIndex];
+  
+  // Get the current theme styles
+  const currentTheme: MarkdownStyleTheme = useMemo(() => {
+    const selectedTheme = document.selectedTheme || 'light';
+    if (document.styles?.themes?.[selectedTheme]) {
+      return document.styles.themes[selectedTheme]!;
+    }
+    return selectedTheme === 'dark' ? defaultMarkdownDarkTheme : defaultMarkdownLightTheme;
+  }, [document.styles, document.selectedTheme]);
   
   // Convert hierarchical lines to markdown string for editing
   const markdownContent = useMemo(() => {
@@ -158,7 +162,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     <div className="h-full flex flex-col">
       {!readOnly && (
         <div className="flex flex-wrap gap-1 p-2 border-b bg-muted/30">
-          {toolbarActions.map((action, index) => (
+          {toolbarActions.map((action) => (
             <Button
               key={action.label}
               variant="ghost"
@@ -186,11 +190,211 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       />
     </div>
   );
+
+  // Generate CSS styles from theme
+  const previewStyles = useMemo(() => {
+    const t = currentTheme;
+    return {
+      '--md-bg': t.colors.background,
+      '--md-text': t.colors.text,
+      '--md-link': t.colors.link,
+      '--md-link-hover': t.colors.linkHover,
+      '--md-code-bg': t.colors.codeBackground,
+      '--md-code-text': t.colors.codeText,
+      '--md-blockquote-border': t.colors.blockquoteBorder,
+      '--md-blockquote-bg': t.colors.blockquoteBackground,
+      '--md-table-border': t.colors.tableBorder,
+      '--md-table-header-bg': t.colors.tableHeaderBackground,
+      '--md-hr': t.colors.hrColor,
+      '--md-font-body': t.fonts.bodyFont,
+      '--md-font-heading': t.fonts.headingFont,
+      '--md-font-code': t.fonts.codeFont,
+      '--md-font-size': t.fonts.baseFontSize,
+    } as React.CSSProperties;
+  }, [currentTheme]);
   
   const PreviewPane = (
     <ScrollArea className="h-full">
-      <div className="p-4 prose prose-sm dark:prose-invert max-w-none">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+      <div 
+        className="p-4 markdown-preview"
+        style={previewStyles}
+      >
+        <ReactMarkdown 
+          remarkPlugins={[remarkGfm]}
+          components={{
+            h1: ({ children }) => (
+              <h1 style={{ 
+                fontSize: currentTheme.elements.h1.fontSize,
+                fontWeight: currentTheme.elements.h1.fontWeight as any,
+                color: currentTheme.elements.h1.color,
+                margin: currentTheme.elements.h1.margin,
+                fontFamily: currentTheme.fonts.headingFont,
+              }}>{children}</h1>
+            ),
+            h2: ({ children }) => (
+              <h2 style={{ 
+                fontSize: currentTheme.elements.h2.fontSize,
+                fontWeight: currentTheme.elements.h2.fontWeight as any,
+                color: currentTheme.elements.h2.color,
+                margin: currentTheme.elements.h2.margin,
+                fontFamily: currentTheme.fonts.headingFont,
+              }}>{children}</h2>
+            ),
+            h3: ({ children }) => (
+              <h3 style={{ 
+                fontSize: currentTheme.elements.h3.fontSize,
+                fontWeight: currentTheme.elements.h3.fontWeight as any,
+                color: currentTheme.elements.h3.color,
+                margin: currentTheme.elements.h3.margin,
+                fontFamily: currentTheme.fonts.headingFont,
+              }}>{children}</h3>
+            ),
+            h4: ({ children }) => (
+              <h4 style={{ 
+                fontSize: currentTheme.elements.h4.fontSize,
+                fontWeight: currentTheme.elements.h4.fontWeight as any,
+                color: currentTheme.elements.h4.color,
+                margin: currentTheme.elements.h4.margin,
+                fontFamily: currentTheme.fonts.headingFont,
+              }}>{children}</h4>
+            ),
+            h5: ({ children }) => (
+              <h5 style={{ 
+                fontSize: currentTheme.elements.h5.fontSize,
+                fontWeight: currentTheme.elements.h5.fontWeight as any,
+                color: currentTheme.elements.h5.color,
+                margin: currentTheme.elements.h5.margin,
+                fontFamily: currentTheme.fonts.headingFont,
+              }}>{children}</h5>
+            ),
+            h6: ({ children }) => (
+              <h6 style={{ 
+                fontSize: currentTheme.elements.h6.fontSize,
+                fontWeight: currentTheme.elements.h6.fontWeight as any,
+                color: currentTheme.elements.h6.color,
+                margin: currentTheme.elements.h6.margin,
+                fontFamily: currentTheme.fonts.headingFont,
+              }}>{children}</h6>
+            ),
+            p: ({ children }) => (
+              <p style={{ 
+                fontSize: currentTheme.elements.paragraph.fontSize,
+                lineHeight: currentTheme.elements.paragraph.lineHeight,
+                color: currentTheme.elements.paragraph.color || currentTheme.colors.text,
+                margin: currentTheme.elements.paragraph.margin,
+                fontFamily: currentTheme.fonts.bodyFont,
+              }}>{children}</p>
+            ),
+            strong: ({ children }) => (
+              <strong style={{ fontWeight: currentTheme.elements.bold.fontWeight as any }}>{children}</strong>
+            ),
+            em: ({ children }) => (
+              <em style={{ fontStyle: currentTheme.elements.italic.fontStyle as any }}>{children}</em>
+            ),
+            a: ({ href, children }) => (
+              <a 
+                href={href} 
+                style={{ 
+                  color: currentTheme.colors.link,
+                  textDecoration: currentTheme.elements.link.textDecoration,
+                }}
+                target="_blank"
+                rel="noopener noreferrer"
+              >{children}</a>
+            ),
+            code: ({ className, children }) => {
+              const isBlock = className?.includes('language-');
+              if (isBlock) {
+                return (
+                  <pre style={{
+                    backgroundColor: currentTheme.elements.codeBlock.backgroundColor || currentTheme.colors.codeBackground,
+                    color: currentTheme.elements.codeBlock.color || currentTheme.colors.codeText,
+                    padding: currentTheme.elements.codeBlock.padding,
+                    fontFamily: currentTheme.fonts.codeFont,
+                    fontSize: currentTheme.elements.codeBlock.fontSize,
+                    borderRadius: '0.375rem',
+                    overflowX: 'auto',
+                  }}>
+                    <code>{children}</code>
+                  </pre>
+                );
+              }
+              return (
+                <code style={{
+                  backgroundColor: currentTheme.elements.code.backgroundColor || currentTheme.colors.codeBackground,
+                  color: currentTheme.colors.codeText,
+                  padding: currentTheme.elements.code.padding,
+                  fontFamily: currentTheme.fonts.codeFont,
+                  fontSize: currentTheme.elements.code.fontSize,
+                  borderRadius: '0.25rem',
+                }}>{children}</code>
+              );
+            },
+            blockquote: ({ children }) => (
+              <blockquote style={{
+                borderLeftColor: currentTheme.elements.blockquote.borderColor || currentTheme.colors.blockquoteBorder,
+                borderLeftWidth: currentTheme.elements.blockquote.borderWidth,
+                borderLeftStyle: 'solid',
+                backgroundColor: currentTheme.elements.blockquote.backgroundColor || currentTheme.colors.blockquoteBackground,
+                padding: currentTheme.elements.blockquote.padding,
+                fontStyle: currentTheme.elements.blockquote.fontStyle as any,
+                margin: '1rem 0',
+              }}>{children}</blockquote>
+            ),
+            ul: ({ children }) => (
+              <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', margin: '0.5rem 0' }}>{children}</ul>
+            ),
+            ol: ({ children }) => (
+              <ol style={{ listStyleType: 'decimal', paddingLeft: '1.5rem', margin: '0.5rem 0' }}>{children}</ol>
+            ),
+            li: ({ children }) => (
+              <li style={{ margin: currentTheme.elements.listItem.margin }}>{children}</li>
+            ),
+            hr: () => (
+              <hr style={{ 
+                borderColor: currentTheme.colors.hrColor,
+                margin: currentTheme.elements.hr.margin,
+              }} />
+            ),
+            table: ({ children }) => (
+              <table style={{
+                borderCollapse: 'collapse',
+                width: '100%',
+                margin: '1rem 0',
+              }}>{children}</table>
+            ),
+            thead: ({ children }) => (
+              <thead style={{
+                backgroundColor: currentTheme.colors.tableHeaderBackground,
+              }}>{children}</thead>
+            ),
+            th: ({ children }) => (
+              <th style={{
+                border: `1px solid ${currentTheme.colors.tableBorder}`,
+                padding: currentTheme.elements.tableHeader.padding,
+                fontWeight: currentTheme.elements.tableHeader.fontWeight as any,
+                textAlign: 'left',
+              }}>{children}</th>
+            ),
+            td: ({ children }) => (
+              <td style={{
+                border: `1px solid ${currentTheme.colors.tableBorder}`,
+                padding: currentTheme.elements.tableCell.padding,
+              }}>{children}</td>
+            ),
+            img: ({ src, alt }) => (
+              <img 
+                src={src} 
+                alt={alt} 
+                style={{ 
+                  maxWidth: '100%', 
+                  height: 'auto',
+                  margin: currentTheme.elements.image.margin,
+                }} 
+              />
+            ),
+          }}
+        >
           {markdownContent}
         </ReactMarkdown>
       </div>

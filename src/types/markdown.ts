@@ -1,3 +1,5 @@
+import { MarkdownStyles } from './markdownStyles';
+
 export interface MarkdownDocument {
   verjson: string; // Format version - always "1.0.0" for this schema version
   type: 'markdown';
@@ -10,7 +12,7 @@ export interface MarkdownDocument {
     modified?: string;
   };
   data: MarkdownData;
-  styles?: Record<string, any>; // Optional styling configuration
+  styles: MarkdownStyles; // Required styling configuration (can be empty themes object)
   selectedTheme?: string;
 }
 

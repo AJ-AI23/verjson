@@ -240,10 +240,13 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
   const getFileTypeLabel = (fileType: string) => {
     if (fileType === 'diagram') return 'Diagram';
+    if (fileType === 'markdown') return 'Markdown';
     return fileType === 'openapi' ? 'OpenAPI' : 'JSON Schema';
   };
 
   const isDiagram = selectedDocument?.file_type === 'diagram';
+  const isMarkdown = selectedDocument?.file_type === 'markdown';
+  const supportsStyles = isDiagram || isMarkdown;
 
   return (
     <TooltipProvider>
@@ -401,13 +404,27 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                   )}
                 </Button>
 
-                {!isDiagram && (
+                {!isDiagram && !isMarkdown && (
                   <QADialog 
                     schema={schema}
                     documentName={selectedDocument?.name}
                     disabled={!selectedDocument}
                     selectedDocument={selectedDocument}
                   />
+                )}
+
+                {/* Styles button for diagram and markdown */}
+                {supportsStyles && onOpenStyles && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={onOpenStyles}
+                    className="gap-1 md:gap-2 h-8 text-xs md:text-sm"
+                    disabled={!selectedDocument}
+                  >
+                    <Palette className="h-4 w-4" />
+                    <span className="hidden sm:inline">Styles</span>
+                  </Button>
                 )}
 
                 {/* Diagram-specific buttons */}
@@ -423,18 +440,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                       >
                         <Upload className="h-4 w-4" />
                         <span className="hidden sm:inline">Import OpenAPI</span>
-                      </Button>
-                    )}
-                    {onOpenStyles && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={onOpenStyles}
-                        className="gap-1 md:gap-2 h-8 text-xs md:text-sm"
-                        disabled={!selectedDocument}
-                      >
-                        <Palette className="h-4 w-4" />
-                        <span className="hidden sm:inline">Styles</span>
                       </Button>
                     )}
                     <Button 
