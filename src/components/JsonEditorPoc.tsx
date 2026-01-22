@@ -208,19 +208,6 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
       didInitialExternalSyncRef.current = { documentId, done: false };
     }
 
-    const current = getTextContent();
-    if (current === value) {
-      // Once Yjs matches React state at least once, enable syncing for subsequent external edits
-      if (!didInitialExternalSyncRef.current?.done) {
-        didInitialExternalSyncRef.current = { documentId, done: true };
-      }
-      return;
-    }
-
-    // During initial hydration we let `useYjsDocument` handle syncing from `initialContent`.
-    // After hydration, mirror external edits into Yjs so they become undoable.
-    if (!didInitialExternalSyncRef.current?.done) return;
-
     // Only push valid JSON into Yjs (consistent with useYjsDocument observer behavior)
     try {
       JSON.parse(value);
@@ -228,7 +215,30 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
       return;
     }
 
-    updateContent(value);
+    const current = getTextContent();
+
+    // 1) One-time silent sync so Yjs starts from the current authoritative value
+    // without polluting the undo history.
+    if (!didInitialExternalSyncRef.current?.done) {
+      if (current !== value) {
+        const text = yjsDoc.getText('content');
+
+        // Use a non-null origin so UndoManager (which tracks null origin by default)
+        // does NOT record this initial alignment as an undo step.
+        yjsDoc.transact(() => {
+          text.delete(0, text.length);
+          text.insert(0, value);
+        }, 'external-sync');
+      }
+
+      didInitialExternalSyncRef.current = { documentId, done: true };
+      return;
+    }
+
+    // 2) After initial alignment, mirror external value changes into Yjs so they become undoable.
+    if (current !== value) {
+      updateContent(value);
+    }
   }, [documentId, getTextContent, updateContent, value, yjsDoc]);
 
   // Get collaboration info
