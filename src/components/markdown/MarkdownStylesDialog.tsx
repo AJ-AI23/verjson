@@ -1,15 +1,12 @@
-import React, { useState } from 'react';
-import { SketchPicker } from 'react-color';
+import React, { useState, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MarkdownStyles, MarkdownStyleTheme, MarkdownElementStyle } from '@/types/markdownStyles';
-import { Palette, Sun, Moon, Type, Heading, Code, Quote, Link, Image, Table, List } from 'lucide-react';
+import { Palette, Sun, Moon, Type, Heading, Code, Quote, Table } from 'lucide-react';
+import { ColorInput, StyleTextInput } from './StyleInputs';
 
 interface MarkdownStylesDialogProps {
   isOpen: boolean;
@@ -27,7 +24,7 @@ export const MarkdownStylesDialog: React.FC<MarkdownStylesDialogProps> = ({
   const [activeTab, setActiveTab] = useState<string>('light');
   const currentTheme = styles.themes[activeTab] || styles.themes.light;
 
-  const handleColorChange = (key: keyof MarkdownStyleTheme['colors'], value: string) => {
+  const handleColorChange = useCallback((key: keyof MarkdownStyleTheme['colors'], value: string) => {
     const updatedTheme = {
       ...currentTheme,
       colors: {
@@ -43,9 +40,9 @@ export const MarkdownStylesDialog: React.FC<MarkdownStylesDialogProps> = ({
         [activeTab]: updatedTheme
       }
     });
-  };
+  }, [currentTheme, styles, activeTab, onStylesChange]);
 
-  const handleElementStyleChange = (
+  const handleElementStyleChange = useCallback((
     element: keyof MarkdownStyleTheme['elements'],
     styleKey: keyof MarkdownElementStyle,
     value: string
@@ -68,9 +65,9 @@ export const MarkdownStylesDialog: React.FC<MarkdownStylesDialogProps> = ({
         [activeTab]: updatedTheme
       }
     });
-  };
+  }, [currentTheme, styles, activeTab, onStylesChange]);
 
-  const handleFontChange = (key: keyof MarkdownStyleTheme['fonts'], value: string) => {
+  const handleFontChange = useCallback((key: keyof MarkdownStyleTheme['fonts'], value: string) => {
     const updatedTheme = {
       ...currentTheme,
       fonts: {
@@ -86,83 +83,7 @@ export const MarkdownStylesDialog: React.FC<MarkdownStylesDialogProps> = ({
         [activeTab]: updatedTheme
       }
     });
-  };
-
-  const ColorInput = ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [localValue, setLocalValue] = useState(value);
-    
-    React.useEffect(() => {
-      if (!isOpen) {
-        setLocalValue(value);
-      }
-    }, [value, isOpen]);
-    
-    const handleChange = (newValue: string) => {
-      setLocalValue(newValue);
-    };
-    
-    const handleClose = () => {
-      setIsOpen(false);
-      if (localValue !== value) {
-        onChange(localValue);
-      }
-    };
-    
-    return (
-      <div className="space-y-2">
-        <Label className="text-sm">{label}</Label>
-        <div className="flex gap-2">
-          <Popover open={isOpen} onOpenChange={(open) => {
-            if (open) {
-              setIsOpen(true);
-            } else {
-              handleClose();
-            }
-          }}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-16 h-10 p-1 cursor-pointer"
-                style={{ backgroundColor: localValue }}
-              >
-                <span className="sr-only">Pick color</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 border-0" align="start">
-              <SketchPicker 
-                color={localValue} 
-                onChange={(color) => handleChange(color.hex)}
-                disableAlpha
-              />
-            </PopoverContent>
-          </Popover>
-          <Input
-            type="text"
-            value={localValue}
-            onChange={(e) => {
-              setLocalValue(e.target.value);
-              onChange(e.target.value);
-            }}
-            className="flex-1 font-mono text-xs"
-          />
-        </div>
-      </div>
-    );
-  };
-
-  const TextInput = ({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string }) => (
-    <div className="space-y-2">
-      <Label className="text-sm">{label}</Label>
-      <Input
-        type="text"
-        value={value || ''}
-        onChange={(e) => onChange(e.target.value)}
-        className="font-mono text-xs"
-        placeholder={placeholder}
-      />
-    </div>
-  );
+  }, [currentTheme, styles, activeTab, onStylesChange]);
 
   const ElementStyleEditor = ({ 
     element, 
@@ -203,13 +124,13 @@ export const MarkdownStylesDialog: React.FC<MarkdownStylesDialogProps> = ({
           )}
           {showFont && (
             <>
-              <TextInput
+              <StyleTextInput
                 label="Font Size"
                 value={elementStyle?.fontSize || ''}
                 onChange={(v) => handleElementStyleChange(element, 'fontSize', v)}
                 placeholder="1rem"
               />
-              <TextInput
+              <StyleTextInput
                 label="Font Weight"
                 value={elementStyle?.fontWeight || ''}
                 onChange={(v) => handleElementStyleChange(element, 'fontWeight', v)}
@@ -218,7 +139,7 @@ export const MarkdownStylesDialog: React.FC<MarkdownStylesDialogProps> = ({
             </>
           )}
           {showFontSize && !showFont && (
-            <TextInput
+            <StyleTextInput
               label="Font Size"
               value={elementStyle?.fontSize || ''}
               onChange={(v) => handleElementStyleChange(element, 'fontSize', v)}
@@ -425,25 +346,25 @@ export const MarkdownStylesDialog: React.FC<MarkdownStylesDialogProps> = ({
                       </AccordionTrigger>
                       <AccordionContent>
                         <div className="grid grid-cols-2 gap-4 p-2">
-                          <TextInput
+                          <StyleTextInput
                             label="Body Font"
                             value={currentTheme.fonts.bodyFont}
                             onChange={(v) => handleFontChange('bodyFont', v)}
                             placeholder="system-ui, sans-serif"
                           />
-                          <TextInput
+                          <StyleTextInput
                             label="Heading Font"
                             value={currentTheme.fonts.headingFont}
                             onChange={(v) => handleFontChange('headingFont', v)}
                             placeholder="system-ui, sans-serif"
                           />
-                          <TextInput
+                          <StyleTextInput
                             label="Code Font"
                             value={currentTheme.fonts.codeFont}
                             onChange={(v) => handleFontChange('codeFont', v)}
                             placeholder="ui-monospace, monospace"
                           />
-                          <TextInput
+                          <StyleTextInput
                             label="Base Font Size"
                             value={currentTheme.fonts.baseFontSize}
                             onChange={(v) => handleFontChange('baseFontSize', v)}

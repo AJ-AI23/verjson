@@ -216,10 +216,10 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   }, [currentTheme]);
   
   const PreviewPane = (
-    <ScrollArea className="h-full">
+    <ScrollArea className="h-full" style={{ backgroundColor: currentTheme.colors.background }}>
       <div 
         className="p-4 markdown-preview"
-        style={previewStyles}
+        style={{ ...previewStyles, backgroundColor: currentTheme.colors.background, color: currentTheme.colors.text, minHeight: '100%' }}
       >
         <ReactMarkdown 
           remarkPlugins={[remarkGfm]}
