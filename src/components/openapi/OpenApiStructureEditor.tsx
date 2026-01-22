@@ -52,10 +52,14 @@ const isPrimitiveValue = (value: any): boolean => {
   return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
 };
 
+import { CollapsedState } from '@/lib/diagram/types';
+
 interface OpenApiStructureEditorProps {
   schema: any;
   onSchemaChange: (schema: any) => void;
   consistencyIssues?: ConsistencyIssue[];
+  collapsedPaths?: CollapsedState;
+  onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
 interface EditablePropertyNodeProps {
@@ -84,6 +88,8 @@ interface EditablePropertyNodeProps {
   hasClipboard?: boolean;
   consistencyIssues?: ConsistencyIssue[];
   forceExpandedPaths?: Set<string>;
+  externalCollapsedPaths?: CollapsedState;
+  onExternalToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
 const getTypeIcon = (schema: any) => {
@@ -380,12 +386,32 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
   onClearClipboard,
   hasClipboard,
   consistencyIssues = [],
-  forceExpandedPaths
+  forceExpandedPaths,
+  externalCollapsedPaths,
+  onExternalToggleCollapse
 }) => {
   const pathKey = path.join('.');
   const isForceExpanded = forceExpandedPaths?.has(pathKey) ?? false;
-  const [isManuallyExpanded, setIsManuallyExpanded] = useState(false);
+  
+  // Sync with external collapsed state (from diagram)
+  const externalExpanded = externalCollapsedPaths ? externalCollapsedPaths[pathKey] === false : undefined;
+  const [isManuallyExpanded, setIsManuallyExpanded] = useState(externalExpanded ?? false);
+  
+  // Sync local state with external when it changes
+  useEffect(() => {
+    if (externalExpanded !== undefined) {
+      setIsManuallyExpanded(externalExpanded);
+    }
+  }, [externalExpanded]);
+  
   const isExpanded = isManuallyExpanded || isForceExpanded;
+  
+  // Handle toggle and notify external
+  const handleToggleExpand = useCallback(() => {
+    const newExpanded = !isManuallyExpanded;
+    setIsManuallyExpanded(newExpanded);
+    onExternalToggleCollapse?.(pathKey, !newExpanded);
+  }, [isManuallyExpanded, onExternalToggleCollapse, pathKey]);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(name);
   
@@ -684,7 +710,7 @@ const EditablePropertyNode: React.FC<EditablePropertyNodeProps> = ({
       >
         <span 
           className="cursor-pointer"
-          onClick={() => canHaveChildren && setIsManuallyExpanded(!isManuallyExpanded)}
+          onClick={() => canHaveChildren && handleToggleExpand()}
         >
           {canHaveChildren ? (
             isExpanded ? (
@@ -1139,7 +1165,9 @@ const SectionTree: React.FC<SectionTreeProps> = ({
 export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
   schema,
   onSchemaChange,
-  consistencyIssues = []
+  consistencyIssues = [],
+  collapsedPaths: externalCollapsedPaths,
+  onToggleCollapse: externalOnToggleCollapse
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<'structure' | 'components'>('structure');

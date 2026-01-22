@@ -635,6 +635,8 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
                 handleChange(JSON.stringify(newSchema, null, 2));
               }}
               consistencyIssues={showConsistencyIndicators ? consistencyIssues : []}
+              collapsedPaths={collapsedPaths}
+              onToggleCollapse={handleToggleCollapse}
             />
           ) : (
             <SchemaStructureEditor
@@ -644,6 +646,8 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
                 handleChange(JSON.stringify(newSchema, null, 2));
               }}
               consistencyIssues={showConsistencyIndicators ? consistencyIssues : []}
+              collapsedPaths={collapsedPaths}
+              onToggleCollapse={handleToggleCollapse}
             />
           )}
         </div>
