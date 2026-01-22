@@ -331,7 +331,7 @@ export const MarkdownRenderDialog: React.FC<MarkdownRenderDialogProps> = ({
         
         // Render markdown content
         const markdownContent = linesToMarkdown(page.lines);
-        pageElement.innerHTML = `<div class="prose max-w-none">${markdownToHtml(markdownContent)}</div>`;
+        pageElement.innerHTML = `<div style="max-width: 100%;">${markdownToStyledHtml(markdownContent)}</div>`;
         
         renderContainer.innerHTML = '';
         renderContainer.appendChild(pageElement);
@@ -404,18 +404,121 @@ export const MarkdownRenderDialog: React.FC<MarkdownRenderDialogProps> = ({
     }
   };
 
-  // Simple markdown to HTML converter for render container
-  const markdownToHtml = (md: string): string => {
-    // Basic markdown conversion - ReactMarkdown will handle the preview
-    return md
-      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-      .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
-      .replace(/\*(.*)\*/gim, '<em>$1</em>')
-      .replace(/^\- (.*$)/gim, '<li>$1</li>')
-      .replace(/\n/gim, '<br>');
-  };
+  // Convert markdown to styled HTML for PDF rendering
+  const markdownToStyledHtml = useCallback((md: string): string => {
+    if (!themeData) return md;
+    
+    const scaleFactor = 150 / 96; // DPI scaling
+    
+    // Helper to scale font size
+    const scaleSize = (size: string | undefined): string => {
+      if (!size) return '16px';
+      const numericValue = parseFloat(size);
+      if (isNaN(numericValue)) return size;
+      return `${numericValue * scaleFactor}px`;
+    };
+    
+    // Build inline styles for each element
+    const h1Style = `font-size: ${scaleSize(themeData.elements?.h1?.fontSize)}; font-weight: ${themeData.elements?.h1?.fontWeight || '700'}; color: ${themeData.elements?.h1?.color || themeData.colors?.text}; margin: ${themeData.elements?.h1?.margin || '0 0 1rem 0'}; font-family: ${themeData.fonts?.headingFont || 'system-ui, sans-serif'};`;
+    const h2Style = `font-size: ${scaleSize(themeData.elements?.h2?.fontSize)}; font-weight: ${themeData.elements?.h2?.fontWeight || '600'}; color: ${themeData.elements?.h2?.color || themeData.colors?.text}; margin: ${themeData.elements?.h2?.margin || '1.5rem 0 0.75rem 0'}; font-family: ${themeData.fonts?.headingFont || 'system-ui, sans-serif'};`;
+    const h3Style = `font-size: ${scaleSize(themeData.elements?.h3?.fontSize)}; font-weight: ${themeData.elements?.h3?.fontWeight || '600'}; color: ${themeData.elements?.h3?.color || themeData.colors?.text}; margin: ${themeData.elements?.h3?.margin || '1.25rem 0 0.5rem 0'}; font-family: ${themeData.fonts?.headingFont || 'system-ui, sans-serif'};`;
+    const h4Style = `font-size: ${scaleSize(themeData.elements?.h4?.fontSize)}; font-weight: ${themeData.elements?.h4?.fontWeight || '600'}; color: ${themeData.elements?.h4?.color || themeData.colors?.text}; margin: ${themeData.elements?.h4?.margin || '1rem 0 0.5rem 0'}; font-family: ${themeData.fonts?.headingFont || 'system-ui, sans-serif'};`;
+    const pStyle = `font-size: ${scaleSize(themeData.elements?.paragraph?.fontSize)}; line-height: ${themeData.elements?.paragraph?.lineHeight || '1.6'}; color: ${themeData.elements?.paragraph?.color || themeData.colors?.text}; margin: ${themeData.elements?.paragraph?.margin || '0 0 1rem 0'}; font-family: ${themeData.fonts?.bodyFont || 'system-ui, sans-serif'};`;
+    const strongStyle = `font-weight: ${themeData.elements?.bold?.fontWeight || '700'};`;
+    const emStyle = `font-style: ${themeData.elements?.italic?.fontStyle || 'italic'};`;
+    const linkStyle = `color: ${themeData.colors?.link || '#2563eb'}; text-decoration: ${themeData.elements?.link?.textDecoration || 'underline'};`;
+    const codeStyle = `background-color: ${themeData.colors?.codeBackground || '#f3f4f6'}; color: ${themeData.colors?.codeText || '#1f2937'}; padding: 0.125rem 0.25rem; font-family: ${themeData.fonts?.codeFont || 'monospace'}; font-size: ${scaleSize(themeData.elements?.code?.fontSize)}; border-radius: 0.25rem;`;
+    const blockquoteStyle = `border-left: 4px solid ${themeData.colors?.blockquoteBorder || '#d1d5db'}; background-color: ${themeData.colors?.blockquoteBackground || '#f9fafb'}; padding: 0.5rem 1rem; margin: 1rem 0; font-style: italic;`;
+    const ulStyle = `list-style-type: disc; padding-left: 1.5rem; margin: 0.5rem 0;`;
+    const olStyle = `list-style-type: decimal; padding-left: 1.5rem; margin: 0.5rem 0;`;
+    const liStyle = `margin: ${themeData.elements?.listItem?.margin || '0.25rem 0'};`;
+    const hrStyle = `border-color: ${themeData.colors?.hrColor || '#e5e7eb'}; margin: ${themeData.elements?.hr?.margin || '2rem 0'};`;
+    
+    // Process markdown line by line for better control
+    const lines = md.split('\n');
+    let html = '';
+    let inList = false;
+    let listType = '';
+    
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i];
+      
+      // Close list if we're not in a list item anymore
+      if (inList && !line.match(/^[\-\*\+]|\d+\.\s/)) {
+        html += listType === 'ul' ? '</ul>' : '</ol>';
+        inList = false;
+      }
+      
+      // Headers
+      if (line.startsWith('#### ')) {
+        html += `<h4 style="${h4Style}">${processInline(line.slice(5))}</h4>`;
+      } else if (line.startsWith('### ')) {
+        html += `<h3 style="${h3Style}">${processInline(line.slice(4))}</h3>`;
+      } else if (line.startsWith('## ')) {
+        html += `<h2 style="${h2Style}">${processInline(line.slice(3))}</h2>`;
+      } else if (line.startsWith('# ')) {
+        html += `<h1 style="${h1Style}">${processInline(line.slice(2))}</h1>`;
+      }
+      // Blockquote
+      else if (line.startsWith('> ')) {
+        html += `<blockquote style="${blockquoteStyle}">${processInline(line.slice(2))}</blockquote>`;
+      }
+      // Horizontal rule
+      else if (line.match(/^[\-\*\_]{3,}$/)) {
+        html += `<hr style="${hrStyle}" />`;
+      }
+      // Unordered list
+      else if (line.match(/^[\-\*\+]\s/)) {
+        if (!inList || listType !== 'ul') {
+          if (inList) html += listType === 'ul' ? '</ul>' : '</ol>';
+          html += `<ul style="${ulStyle}">`;
+          inList = true;
+          listType = 'ul';
+        }
+        html += `<li style="${liStyle}">${processInline(line.replace(/^[\-\*\+]\s/, ''))}</li>`;
+      }
+      // Ordered list
+      else if (line.match(/^\d+\.\s/)) {
+        if (!inList || listType !== 'ol') {
+          if (inList) html += listType === 'ul' ? '</ul>' : '</ol>';
+          html += `<ol style="${olStyle}">`;
+          inList = true;
+          listType = 'ol';
+        }
+        html += `<li style="${liStyle}">${processInline(line.replace(/^\d+\.\s/, ''))}</li>`;
+      }
+      // Empty line
+      else if (line.trim() === '') {
+        html += '<br />';
+      }
+      // Regular paragraph
+      else {
+        html += `<p style="${pStyle}">${processInline(line)}</p>`;
+      }
+    }
+    
+    // Close any open list
+    if (inList) {
+      html += listType === 'ul' ? '</ul>' : '</ol>';
+    }
+    
+    // Process inline elements
+    function processInline(text: string): string {
+      return text
+        // Code (before other formatting to avoid conflicts)
+        .replace(/`([^`]+)`/g, `<code style="${codeStyle}">$1</code>`)
+        // Bold
+        .replace(/\*\*([^*]+)\*\*/g, `<strong style="${strongStyle}">$1</strong>`)
+        .replace(/__([^_]+)__/g, `<strong style="${strongStyle}">$1</strong>`)
+        // Italic
+        .replace(/\*([^*]+)\*/g, `<em style="${emStyle}">$1</em>`)
+        .replace(/_([^_]+)_/g, `<em style="${emStyle}">$1</em>`)
+        // Links
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, `<a style="${linkStyle}" href="$2">$1</a>`);
+    }
+    
+    return html;
+  }, [themeData]);
 
   // Settings panel
   const SettingsPanel = () => (
