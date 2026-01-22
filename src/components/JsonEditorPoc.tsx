@@ -253,7 +253,9 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
       }
 
       didInitialExternalSyncRef.current = { documentId, done: true };
-      return;
+      // DO NOT return — fall through so the very next external change (first deletion)
+      // is captured by UndoManager. Instead, we skip the normal sync below only if
+      // the current Yjs content already matches the incoming value.
     }
 
     // 2) After initial alignment, mirror external value changes into Yjs so they become undoable.
