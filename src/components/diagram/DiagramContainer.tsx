@@ -36,7 +36,7 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const { enabled: smartSpacing, toggle: toggleSmartSpacing, resolveAnimatedIfEnabled } = useCollisionAvoidance();
   const collisionTimeoutRef = useRef<number | null>(null);
-  const prevCollapsedPathsRef = useRef<string>('');
+  const prevSchemaKeyRef = useRef<number>(-1);
   
   // Update local maxDepth when prop changes
   useEffect(() => {
@@ -73,7 +73,6 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   // Deep memoize the schema and collapsedPaths to prevent unnecessary re-renders
   const memoizedSchema = useMemo(() => schema, [JSON.stringify(schema)]);
   const memoizedCollapsedPaths = useMemo(() => collapsedPaths, [JSON.stringify(collapsedPaths)]);
-  const collapsedPathsString = useMemo(() => JSON.stringify(collapsedPaths), [collapsedPaths]);
 
   const {
     nodes,
@@ -115,32 +114,42 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   }, [smartSpacing, nodes, setNodes, resolveAnimatedIfEnabled]);
 
   // Auto-apply collision resolution after nodes are rendered and measured
-  // Triggered when schema changes
+  // schemaKey changes when: schema changes OR collapsedPaths changes
+  // This ensures we trigger smart spacing for both scenarios
   useEffect(() => {
-    triggerSmartSpacing(250);
+    // Skip initial render
+    if (prevSchemaKeyRef.current === -1) {
+      prevSchemaKeyRef.current = schemaKey;
+      return;
+    }
+    
+    // Only trigger if schemaKey actually changed
+    if (prevSchemaKeyRef.current !== schemaKey) {
+      prevSchemaKeyRef.current = schemaKey;
+      
+      // Clear any pending timeout
+      if (collisionTimeoutRef.current) {
+        clearTimeout(collisionTimeoutRef.current);
+      }
+      
+      // Wait for nodes to be measured by React Flow (longer delay for collapse changes)
+      collisionTimeoutRef.current = window.setTimeout(() => {
+        if (smartSpacing && nodes && nodes.length >= 2) {
+          // Check if nodes have been measured
+          const hasMeasuredNodes = nodes.some((node: any) => node.measured?.width && node.measured?.height);
+          if (hasMeasuredNodes) {
+            resolveAnimatedIfEnabled(nodes, setNodes, true);
+          }
+        }
+      }, 350);
+    }
     
     return () => {
       if (collisionTimeoutRef.current) {
         clearTimeout(collisionTimeoutRef.current);
       }
     };
-  }, [schemaKey]); // Only run when schema changes
-
-  // Auto-apply collision resolution when collapsedPaths changes
-  useEffect(() => {
-    // Skip initial render
-    if (prevCollapsedPathsRef.current === '') {
-      prevCollapsedPathsRef.current = collapsedPathsString;
-      return;
-    }
-    
-    // Only trigger if collapsedPaths actually changed
-    if (prevCollapsedPathsRef.current !== collapsedPathsString) {
-      prevCollapsedPathsRef.current = collapsedPathsString;
-      // Use a longer delay for collapse changes to allow for node recalculation
-      triggerSmartSpacing(350);
-    }
-  }, [collapsedPathsString, triggerSmartSpacing]);
+  }, [schemaKey, smartSpacing, nodes, setNodes, resolveAnimatedIfEnabled]);
 
   // Handle node drag stop - trigger smart spacing after dropping a node
   const handleNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
