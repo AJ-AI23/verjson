@@ -105,6 +105,15 @@ export const markdownSchema = {
             "type": "string"
           },
           "description": "Hierarchical line content with dot-notation keys (e.g., '1', '1.1', '1.2.1')"
+        },
+        "pageSize": {
+          "$ref": "#/$defs/pageSize",
+          "description": "Maximum page size for this page"
+        },
+        "orientation": {
+          "type": "string",
+          "enum": ["portrait", "landscape"],
+          "description": "Page orientation (default: portrait)"
         }
       }
     },
@@ -132,6 +141,20 @@ export const markdownSchema = {
         "caption": {
           "type": "string",
           "description": "Caption text"
+        }
+      }
+    },
+    "pageSize": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {
+        "width": {
+          "type": "number",
+          "description": "Page width in millimeters"
+        },
+        "height": {
+          "type": "number",
+          "description": "Page height in millimeters"
         }
       }
     }

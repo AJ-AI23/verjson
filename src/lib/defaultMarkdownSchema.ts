@@ -1,4 +1,4 @@
-import { MarkdownDocument } from '@/types/markdown';
+import { MarkdownDocument, PAGE_SIZES } from '@/types/markdown';
 import { defaultMarkdownStyles } from '@/types/markdownStyles';
 
 /**
@@ -23,6 +23,8 @@ export const defaultMarkdownSchema: MarkdownDocument = {
       {
         id: 'page-1',
         title: 'Introduction',
+        pageSize: PAGE_SIZES.A4,
+        orientation: 'portrait',
         lines: {
           "1": "# Welcome to Your Document",
           "2": "",
@@ -64,6 +66,8 @@ export function createMarkdownDocument(title: string, description?: string): Mar
         {
           id: "page-1",
           title: "Page 1",
+          pageSize: PAGE_SIZES.A4,
+          orientation: 'portrait',
           lines: {
             "1": `# ${title}`,
             "2": "",
