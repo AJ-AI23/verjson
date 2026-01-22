@@ -25,7 +25,7 @@ export const useDiagramNodes = (
   const [prevMaxIndividualArrayItems, setPrevMaxIndividualArrayItems] = useState(maxIndividualArrayItems);
   const [prevTruncateAncestral, setPrevTruncateAncestral] = useState(truncateAncestral);
   const [schemaKey, setSchemaKey] = useState(0);
-  const { nodePositionsRef, applyStoredPositions, clearPositions } = useNodePositions(nodes);
+  const { nodePositionsRef, userDraggedPositionsRef, applyStoredPositions, clearPositions, recordUserDrag } = useNodePositions(nodes);
   
   // Track schema changes
   const schemaStringRef = useRef<string>('');
@@ -229,8 +229,10 @@ export const useDiagramNodes = (
     onNodesChange,
     onEdgesChange,
     nodePositionsRef,
+    userDraggedPositionsRef,
     schemaKey,
     setNodes,
-    clearStoredPositions
+    clearStoredPositions,
+    recordUserDrag
   };
 };
