@@ -74,12 +74,18 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   // Track view mode: JSON editor or Structure editor
   const [viewMode, setViewMode] = useState<'json' | 'structure'>('structure');
   
-  // When switching to structure view, expand root to sync with diagram
-  const prevViewModeRef = useRef(viewMode);
+  // When switching to structure view (or on initial mount in structure view), expand root to sync with diagram
+  const prevViewModeRef = useRef<string | null>(null);
   useEffect(() => {
-    if (viewMode === 'structure' && prevViewModeRef.current !== 'structure' && onToggleCollapse) {
-      // Expand root so structure editor sections are visible and synced
-      onToggleCollapse('root', false);
+    // Trigger on first mount if starting in structure view, OR when switching to structure view
+    const isInitialMount = prevViewModeRef.current === null;
+    const isSwitchingToStructure = viewMode === 'structure' && prevViewModeRef.current !== 'structure';
+    
+    if ((isInitialMount && viewMode === 'structure') || isSwitchingToStructure) {
+      if (onToggleCollapse) {
+        // Expand root so structure editor sections are visible and synced
+        onToggleCollapse('root', false);
+      }
     }
     prevViewModeRef.current = viewMode;
   }, [viewMode, onToggleCollapse]);
