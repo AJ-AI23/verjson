@@ -55,7 +55,7 @@ interface CreateDocumentRequest {
   workspace_id: string;
   name: string;
   content: any;
-  file_type: 'json-schema' | 'openapi';
+  file_type: 'json-schema' | 'openapi' | 'diagram' | 'markdown';
   import_url?: string;
   import_auth_method?: 'basic' | 'bearer';
   import_auth_credentials?: string;
@@ -65,7 +65,7 @@ interface UpdateDocumentRequest {
   id: string;
   name?: string;
   content?: any;
-  file_type?: 'json-schema' | 'openapi';
+  file_type?: 'json-schema' | 'openapi' | 'diagram' | 'markdown';
 }
 
 const handler = async (req: Request): Promise<Response> => {

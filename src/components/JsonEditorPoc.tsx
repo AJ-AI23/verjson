@@ -90,12 +90,16 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     return parsedSchema?.nodes !== undefined || parsedSchema?.lifelines !== undefined;
   }, [parsedSchema]);
   
+  const isMarkdown = useMemo(() => {
+    return parsedSchema?.verjson !== undefined && parsedSchema?.type === 'markdown';
+  }, [parsedSchema]);
+  
   const isJsonSchema = useMemo(() => {
     return parsedSchema?.type || parsedSchema?.properties || parsedSchema?.$schema;
   }, [parsedSchema]);
   
   // Structure view is available for all supported schema types
-  const supportsStructureView = isOpenApi || isDiagram || isJsonSchema;
+  const supportsStructureView = isOpenApi || isDiagram || isJsonSchema || isMarkdown;
   
   // Consistency checking
   const { config: consistencyConfig } = useConsistencyConfig();
@@ -562,7 +566,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
           ) : (
             <SchemaStructureEditor
               schema={parsedSchema}
-              schemaType={isDiagram ? 'diagram' : 'json-schema'}
+              schemaType={isDiagram ? 'diagram' : isMarkdown ? 'markdown' : 'json-schema'}
               onSchemaChange={(newSchema) => {
                 handleChange(JSON.stringify(newSchema, null, 2));
               }}
