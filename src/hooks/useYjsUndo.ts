@@ -153,14 +153,16 @@ export const useYjsUndo = ({
   // Set up keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === 'z') {
+      const key = event.key.toLowerCase();
+
+      if ((event.ctrlKey || event.metaKey) && key === 'z') {
         event.preventDefault();
         if (event.shiftKey) {
           redo();
         } else {
           undo();
         }
-      } else if ((event.ctrlKey || event.metaKey) && event.key === 'y') {
+      } else if ((event.ctrlKey || event.metaKey) && key === 'y') {
         event.preventDefault();
         redo();
       }
