@@ -124,20 +124,16 @@ export const MarkdownStylesDialog: React.FC<MarkdownStylesDialogProps> = ({
             />
           )}
           {showFont && (
-            <>
+            <div className="col-span-2">
               <FontSizePicker
-                label="Font Size"
+                label="Font Size & Weight"
                 value={elementStyle?.fontSize || ''}
                 onChange={(v) => handleElementStyleChange(element, 'fontSize', v)}
                 placeholder="1rem"
+                fontWeight={elementStyle?.fontWeight || ''}
+                onFontWeightChange={(v) => handleElementStyleChange(element, 'fontWeight', v)}
               />
-              <StyleTextInput
-                label="Font Weight"
-                value={elementStyle?.fontWeight || ''}
-                onChange={(v) => handleElementStyleChange(element, 'fontWeight', v)}
-                placeholder="400"
-              />
-            </>
+            </div>
           )}
           {showFontSize && !showFont && (
             <FontSizePicker
