@@ -60,6 +60,9 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   
   // Track if we're updating from Yjs to avoid circular updates
   const isUpdatingFromYjs = useRef<boolean>(false);
+
+  // Track first external->Yjs sync per document to avoid creating noisy history entries
+  const didInitialExternalSyncRef = useRef<{ documentId: string; done: boolean } | null>(null);
   
   // Track the current editor mode
   const [editorMode, setEditorMode] = useState<'tree' | 'code'>('tree');
@@ -192,6 +195,41 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
     currentIndex,
     isUndoRedoOperation
   } = useYjsUndo({ yjsDoc });
+
+  // IMPORTANT: Some edits (like Markdown raw editor changes) update the `value` prop
+  // without going through `handleChange`, so they never reach Yjs and won't be undoable.
+  // This effect mirrors external value changes into Yjs so UndoManager captures them.
+  useEffect(() => {
+    if (!documentId || !yjsDoc) return;
+    if (isUpdatingFromYjs.current) return;
+
+    // Reset per-document guard
+    if (didInitialExternalSyncRef.current?.documentId !== documentId) {
+      didInitialExternalSyncRef.current = { documentId, done: false };
+    }
+
+    const current = getTextContent();
+    if (current === value) {
+      // Once Yjs matches React state at least once, enable syncing for subsequent external edits
+      if (!didInitialExternalSyncRef.current?.done) {
+        didInitialExternalSyncRef.current = { documentId, done: true };
+      }
+      return;
+    }
+
+    // During initial hydration we let `useYjsDocument` handle syncing from `initialContent`.
+    // After hydration, mirror external edits into Yjs so they become undoable.
+    if (!didInitialExternalSyncRef.current?.done) return;
+
+    // Only push valid JSON into Yjs (consistent with useYjsDocument observer behavior)
+    try {
+      JSON.parse(value);
+    } catch {
+      return;
+    }
+
+    updateContent(value);
+  }, [documentId, getTextContent, updateContent, value, yjsDoc]);
 
   // Get collaboration info
   const { activeUsers: dbActiveUsers } = useCollaboration({ documentId });
