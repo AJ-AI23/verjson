@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Maximize, Minimize, Settings, RotateCcw } from 'lucide-react';
+import { Maximize, Minimize, Settings, RotateCcw, Magnet } from 'lucide-react';
 import { DiagramSettingsDialog } from './DiagramSettingsDialog';
 import { DiagramStyles } from '@/types/diagramStyles';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
@@ -15,6 +15,9 @@ interface DiagramHeaderProps {
   currentTheme?: string;
   onThemeChange?: (theme: string) => void;
   onResetLayout?: () => void;
+  smartSpacing?: boolean;
+  onToggleSmartSpacing?: () => void;
+  onApplySmartSpacing?: () => void;
 }
 
 export const DiagramHeader: React.FC<DiagramHeaderProps> = ({ 
@@ -25,7 +28,10 @@ export const DiagramHeader: React.FC<DiagramHeaderProps> = ({
   onStylesChange,
   currentTheme,
   onThemeChange,
-  onResetLayout
+  onResetLayout,
+  smartSpacing,
+  onToggleSmartSpacing,
+  onApplySmartSpacing
 }) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -33,6 +39,47 @@ export const DiagramHeader: React.FC<DiagramHeaderProps> = ({
     <div className="p-2 border-b bg-card shadow-sm">
       <div className="flex items-center justify-end">
         <div className="flex items-center gap-2">
+          {onToggleSmartSpacing && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={smartSpacing ? "default" : "outline"}
+                    size="sm"
+                    onClick={onToggleSmartSpacing}
+                    className="gap-2"
+                  >
+                    <Magnet className="h-4 w-4" />
+                    Smart Spacing
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {smartSpacing 
+                    ? "Disable automatic node spacing" 
+                    : "Enable automatic node spacing to prevent overlaps"}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          {onApplySmartSpacing && smartSpacing && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onApplySmartSpacing}
+                    className="gap-2"
+                  >
+                    Apply Now
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Apply smart spacing to current layout
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           {onResetLayout && (
             <TooltipProvider>
               <Tooltip>

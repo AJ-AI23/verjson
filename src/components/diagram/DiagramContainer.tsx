@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { DiagramEmpty } from './DiagramEmpty';
 import { DiagramHeader } from './DiagramHeader';
 import { DiagramFlow } from './DiagramFlow';
@@ -7,6 +7,7 @@ import { useDiagramNodes } from './hooks/useDiagramNodes';
 import { toast } from 'sonner';
 import { CollapsedState } from '@/lib/diagram/types';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
+import { useCollisionAvoidance } from '@/hooks/useCollisionAvoidance';
 
 interface DiagramContainerProps {
   schema: any;
@@ -32,7 +33,7 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   const { settings } = useEditorSettings();
   const [localMaxDepth, setLocalMaxDepth] = useState(maxDepth);
   const [isFullscreen, setIsFullscreen] = useState(false);
-
+  const { enabled: smartSpacing, toggle: toggleSmartSpacing, resolveAnimatedIfEnabled } = useCollisionAvoidance();
   // Update local maxDepth when prop changes
   useEffect(() => {
     if (maxDepth !== undefined) {
@@ -75,7 +76,9 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     onNodesChange,
     onEdgesChange,
     nodePositionsRef,
-    schemaKey
+    schemaKey,
+    setNodes,
+    clearStoredPositions
   } = useDiagramNodes(
     memoizedSchema, 
     error, 
@@ -84,7 +87,8 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     localMaxDepth,
     settings.maxIndividualProperties,
     settings.maxIndividualArrayItems,
-    settings.truncateAncestralBoxes
+    settings.truncateAncestralBoxes,
+    smartSpacing
   );
 
   // Show diagram based on nodes count and error state
@@ -101,6 +105,17 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     setLocalMaxDepth(newDepth);
     toast.success(`Diagram depth set to ${newDepth} levels`);
   };
+
+  const handleResetLayout = useCallback(() => {
+    clearStoredPositions();
+    toast.success('Layout reset to calculated positions');
+  }, [clearStoredPositions]);
+
+  const handleApplySmartSpacing = useCallback(() => {
+    if (nodes && nodes.length > 1) {
+      resolveAnimatedIfEnabled(nodes, setNodes, true);
+    }
+  }, [nodes, setNodes, resolveAnimatedIfEnabled]);
 
   // Early returns for edge cases
   if (error) {
@@ -122,6 +137,10 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
         isFullscreen={isFullscreen}
         onToggleFullscreen={toggleFullscreen}
         diagramType="schema"
+        onResetLayout={handleResetLayout}
+        smartSpacing={smartSpacing}
+        onToggleSmartSpacing={toggleSmartSpacing}
+        onApplySmartSpacing={handleApplySmartSpacing}
       />
       <DiagramFlow
         nodes={nodes || []}

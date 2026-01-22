@@ -4,6 +4,7 @@ import { Node, Edge, useNodesState, useEdgesState } from '@xyflow/react';
 import { generateNodesAndEdges } from '@/lib/diagram';
 import { useNodePositions } from './useNodePositions';
 import { CollapsedState } from '@/lib/diagram/types';
+import { resolveCollisions, DEFAULT_COLLISION_CONFIG } from '@/lib/diagram/layout/collisionResolver';
 
 export const useDiagramNodes = (
   schema: any, 
@@ -13,7 +14,8 @@ export const useDiagramNodes = (
   maxDepth: number = 1,
   maxIndividualProperties: number = 5,
   maxIndividualArrayItems: number = 4,
-  truncateAncestral: boolean = false
+  truncateAncestral: boolean = false,
+  smartSpacing: boolean = true
 ) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -21,8 +23,9 @@ export const useDiagramNodes = (
   const [prevMaxIndividualProperties, setPrevMaxIndividualProperties] = useState(maxIndividualProperties);
   const [prevMaxIndividualArrayItems, setPrevMaxIndividualArrayItems] = useState(maxIndividualArrayItems);
   const [prevTruncateAncestral, setPrevTruncateAncestral] = useState(truncateAncestral);
+  const [prevSmartSpacing, setPrevSmartSpacing] = useState(smartSpacing);
   const [schemaKey, setSchemaKey] = useState(0);
-  const { nodePositionsRef, applyStoredPositions } = useNodePositions(nodes);
+  const { nodePositionsRef, applyStoredPositions, clearPositions } = useNodePositions(nodes);
   
   // Track schema changes
   const schemaStringRef = useRef<string>('');
@@ -141,7 +144,12 @@ export const useDiagramNodes = (
       );
       
       // Apply saved positions to new nodes where possible
-      const positionedNodes = applyStoredPositions(newNodes);
+      let positionedNodes = applyStoredPositions(newNodes);
+      
+      // Apply smart spacing collision resolution if enabled
+      if (smartSpacing && positionedNodes.length > 1) {
+        positionedNodes = resolveCollisions(positionedNodes, DEFAULT_COLLISION_CONFIG);
+      }
       
       // Set the new nodes and edges
       setNodes(positionedNodes);
@@ -171,6 +179,11 @@ export const useDiagramNodes = (
     if (prevTruncateAncestral !== truncateAncestral) {
       setPrevTruncateAncestral(truncateAncestral);
     }
+
+    // Update smartSpacing setting when it changes
+    if (prevSmartSpacing !== smartSpacing) {
+      setPrevSmartSpacing(smartSpacing);
+    }
     
   }, [
     schema, 
@@ -185,8 +198,16 @@ export const useDiagramNodes = (
     prevGroupSetting,
     maxIndividualProperties,
     maxIndividualArrayItems,
-    truncateAncestral
+    truncateAncestral,
+    smartSpacing
   ]);
+
+  // Create clearStoredPositions function that clears positions and triggers re-render
+  const clearStoredPositions = useCallback(() => {
+    clearPositions();
+    // Increment schema key to force re-layout
+    setSchemaKey(prev => prev + 1);
+  }, [clearPositions]);
 
   return {
     nodes,
@@ -194,6 +215,8 @@ export const useDiagramNodes = (
     onNodesChange,
     onEdgesChange,
     nodePositionsRef,
-    schemaKey
+    schemaKey,
+    setNodes,
+    clearStoredPositions
   };
 };

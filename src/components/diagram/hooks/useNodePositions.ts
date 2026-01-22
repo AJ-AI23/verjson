@@ -1,5 +1,5 @@
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import { Node } from '@xyflow/react';
 
 export const useNodePositions = (nodes: Node[]) => {
@@ -17,7 +17,7 @@ export const useNodePositions = (nodes: Node[]) => {
   }, [nodes]);
 
   // Apply saved positions to new nodes
-  const applyStoredPositions = (newNodes: Node[]): Node[] => {
+  const applyStoredPositions = useCallback((newNodes: Node[]): Node[] => {
     return newNodes.map(node => {
       if (nodePositionsRef.current[node.id]) {
         return {
@@ -27,10 +27,16 @@ export const useNodePositions = (nodes: Node[]) => {
       }
       return node;
     });
-  };
+  }, []);
+
+  // Clear all stored positions
+  const clearPositions = useCallback(() => {
+    nodePositionsRef.current = {};
+  }, []);
 
   return {
     nodePositionsRef,
-    applyStoredPositions
+    applyStoredPositions,
+    clearPositions
   };
 };
