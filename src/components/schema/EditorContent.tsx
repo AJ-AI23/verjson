@@ -187,6 +187,8 @@ export const EditorContent: React.FC<EditorContentProps> = ({
         document={parsedSchema as MarkdownDocument}
         onDocumentChange={handleDiagramSchemaChange}
         readOnly={userRole === 'viewer'}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={onToggleFullscreen}
       />
       <MarkdownStylesDialog
         isOpen={isStylesDialogOpen || false}
