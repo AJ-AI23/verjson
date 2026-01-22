@@ -56,9 +56,32 @@ export function flattenLines(lines: Record<string, string>): string[] {
 
 /**
  * Convert hierarchical lines to a markdown string
+ * Appends two spaces to non-empty lines to force hard line breaks in markdown rendering,
+ * except for lines that are blank or end with markdown block syntax.
  */
 export function linesToMarkdown(lines: Record<string, string>): string {
-  return flattenLines(lines).join('\n');
+  const flatLines = flattenLines(lines);
+  return flatLines.map((line, index) => {
+    // Don't modify empty lines, lines that are just whitespace, 
+    // or lines that already end with trailing spaces
+    if (!line.trim() || line.endsWith('  ')) {
+      return line;
+    }
+    // Don't add trailing spaces to lines that end with block-level markdown
+    // (headings, hr, code fence, list items start, etc. - they naturally break)
+    if (/^#{1,6}\s/.test(line) || // headings
+        /^[-*+]\s/.test(line) ||   // unordered list items
+        /^\d+\.\s/.test(line) ||   // ordered list items
+        /^>\s?/.test(line) ||      // blockquotes
+        /^```/.test(line) ||       // code fence
+        /^---$/.test(line) ||      // hr
+        /^\*\*\*$/.test(line) ||   // hr
+        /^___$/.test(line)) {      // hr
+      return line;
+    }
+    // Add two trailing spaces to force hard break
+    return line + '  ';
+  }).join('\n');
 }
 
 /**
