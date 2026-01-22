@@ -19,7 +19,9 @@ import {
   Edit3,
   ChevronLeft,
   ChevronRight,
-  Plus
+  Plus,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { MarkdownDocument, MarkdownPage } from '@/types/markdown';
 import { MarkdownStyleTheme, defaultMarkdownLightTheme, defaultMarkdownDarkTheme } from '@/types/markdownStyles';
@@ -444,6 +446,26 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         </div>
         
         <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              const newTheme = document.selectedTheme === 'dark' ? 'light' : 'dark';
+              onDocumentChange({
+                ...document,
+                selectedTheme: newTheme,
+              });
+            }}
+            className="h-8 w-8 p-0"
+            title={`Switch to ${document.selectedTheme === 'dark' ? 'light' : 'dark'} theme`}
+          >
+            {document.selectedTheme === 'dark' ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </Button>
+          <div className="w-px h-6 bg-border mx-1" />
           <Button
             variant={viewMode === 'edit' ? 'secondary' : 'ghost'}
             size="sm"

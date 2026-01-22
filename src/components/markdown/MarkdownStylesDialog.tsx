@@ -170,7 +170,8 @@ export const MarkdownStylesDialog: React.FC<MarkdownStylesDialogProps> = ({
     showColor = true,
     showBackground = false,
     showFont = true,
-    showBorder = false 
+    showBorder = false,
+    showFontSize = false
   }: { 
     element: keyof MarkdownStyleTheme['elements']; 
     label: string;
@@ -178,6 +179,7 @@ export const MarkdownStylesDialog: React.FC<MarkdownStylesDialogProps> = ({
     showBackground?: boolean;
     showFont?: boolean;
     showBorder?: boolean;
+    showFontSize?: boolean;
   }) => {
     const elementStyle = currentTheme.elements[element];
     
@@ -214,6 +216,14 @@ export const MarkdownStylesDialog: React.FC<MarkdownStylesDialogProps> = ({
                 placeholder="400"
               />
             </>
+          )}
+          {showFontSize && !showFont && (
+            <TextInput
+              label="Font Size"
+              value={elementStyle?.fontSize || ''}
+              onChange={(v) => handleElementStyleChange(element, 'fontSize', v)}
+              placeholder="1rem"
+            />
           )}
           {showBorder && (
             <ColorInput
@@ -350,10 +360,10 @@ export const MarkdownStylesDialog: React.FC<MarkdownStylesDialogProps> = ({
                       </AccordionTrigger>
                       <AccordionContent>
                         <div className="space-y-4 p-2">
-                          <ElementStyleEditor element="paragraph" label="Paragraph" />
+                          <ElementStyleEditor element="paragraph" label="Paragraph" showFontSize={true} />
                           <ElementStyleEditor element="bold" label="Bold" showColor={false} showFont={true} />
                           <ElementStyleEditor element="italic" label="Italic" showColor={false} showFont={true} />
-                          <ElementStyleEditor element="link" label="Links" />
+                          <ElementStyleEditor element="link" label="Links" showFontSize={true} />
                         </div>
                       </AccordionContent>
                     </AccordionItem>
@@ -368,8 +378,8 @@ export const MarkdownStylesDialog: React.FC<MarkdownStylesDialogProps> = ({
                       </AccordionTrigger>
                       <AccordionContent>
                         <div className="space-y-4 p-2">
-                          <ElementStyleEditor element="code" label="Inline Code" showBackground={true} />
-                          <ElementStyleEditor element="codeBlock" label="Code Block" showBackground={true} />
+                          <ElementStyleEditor element="code" label="Inline Code" showBackground={true} showFontSize={true} />
+                          <ElementStyleEditor element="codeBlock" label="Code Block" showBackground={true} showFontSize={true} />
                         </div>
                       </AccordionContent>
                     </AccordionItem>
@@ -384,8 +394,8 @@ export const MarkdownStylesDialog: React.FC<MarkdownStylesDialogProps> = ({
                       </AccordionTrigger>
                       <AccordionContent>
                         <div className="space-y-4 p-2">
-                          <ElementStyleEditor element="blockquote" label="Blockquote" showBackground={true} showBorder={true} />
-                          <ElementStyleEditor element="listItem" label="List Items" />
+                          <ElementStyleEditor element="blockquote" label="Blockquote" showBackground={true} showBorder={true} showFontSize={true} />
+                          <ElementStyleEditor element="listItem" label="List Items" showFontSize={true} />
                           <ElementStyleEditor element="hr" label="Horizontal Rule" showColor={false} showFont={false} showBorder={true} />
                         </div>
                       </AccordionContent>
@@ -402,8 +412,8 @@ export const MarkdownStylesDialog: React.FC<MarkdownStylesDialogProps> = ({
                       <AccordionContent>
                         <div className="space-y-4 p-2">
                           <ElementStyleEditor element="table" label="Table" showColor={false} showFont={false} showBorder={true} />
-                          <ElementStyleEditor element="tableHeader" label="Table Header" showBackground={true} />
-                          <ElementStyleEditor element="tableCell" label="Table Cell" showBorder={true} />
+                          <ElementStyleEditor element="tableHeader" label="Table Header" showBackground={true} showFontSize={true} />
+                          <ElementStyleEditor element="tableCell" label="Table Cell" showBorder={true} showFontSize={true} />
                         </div>
                       </AccordionContent>
                     </AccordionItem>
