@@ -1224,6 +1224,16 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
   }, [rawExternalOnToggleCollapse]);
   const [activeTab, setActiveTab] = useState<'structure' | 'components'>('structure');
 
+  // When switching to Components tab, expand root.components in the diagram
+  const prevActiveTabRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (activeTab === 'components' && prevActiveTabRef.current !== 'components' && rawExternalOnToggleCollapse) {
+      // Expand root.components so the components section is visible in the diagram
+      rawExternalOnToggleCollapse('root.components', false);
+    }
+    prevActiveTabRef.current = activeTab;
+  }, [activeTab, rawExternalOnToggleCollapse]);
+
   // Search functionality (scoped to the active tab)
   const {
     searchQuery,
@@ -1824,6 +1834,8 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
                       hasClipboard={hasClipboard}
                       consistencyIssues={consistencyIssues}
                       forceExpandedPaths={searchExpandedPaths}
+                      externalCollapsedPaths={normalizedCollapsedPaths}
+                      onExternalToggleCollapse={handleExternalToggleCollapse}
                     />
                   </div>
                 ))
@@ -1927,6 +1939,8 @@ interface ComponentTreeEditableProps {
   hasClipboard?: boolean;
   consistencyIssues?: ConsistencyIssue[];
   forceExpandedPaths?: Set<string>;
+  externalCollapsedPaths?: CollapsedState;
+  onExternalToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
 const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({ 
@@ -1949,7 +1963,9 @@ const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({
   onClearClipboard,
   hasClipboard,
   consistencyIssues = [],
-  forceExpandedPaths
+  forceExpandedPaths,
+  externalCollapsedPaths,
+  onExternalToggleCollapse
 }) => {
   const pathKey = basePath.join('.');
 
@@ -1963,9 +1979,26 @@ const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({
     return false;
   }, [forceExpandedPaths, pathKey]);
 
-  const [isManuallyExpanded, setIsManuallyExpanded] = useState(false);
+  // Sync with external collapsed state - default to collapsed for components
+  const externalExpanded = externalCollapsedPaths ? externalCollapsedPaths[pathKey] === false : undefined;
+  const [isManuallyExpanded, setIsManuallyExpanded] = useState(externalExpanded ?? false);
+  
+  // Sync local state with external when it changes
+  useEffect(() => {
+    if (externalExpanded !== undefined) {
+      setIsManuallyExpanded(externalExpanded);
+    }
+  }, [externalExpanded]);
+  
   const isExpanded = isManuallyExpanded || isForceExpanded;
   const availableRefs = useMemo(() => Object.keys(allSchemas), [allSchemas]);
+  
+  // Handle toggle and notify external
+  const handleToggleExpand = useCallback(() => {
+    const newExpanded = !isManuallyExpanded;
+    setIsManuallyExpanded(newExpanded);
+    onExternalToggleCollapse?.(pathKey, !newExpanded);
+  }, [isManuallyExpanded, onExternalToggleCollapse, pathKey]);
   
   // Check if this is a document reference
   const isDocumentRef = component.schema?.$ref?.startsWith('document://');
@@ -1989,7 +2022,7 @@ const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({
           "flex items-center gap-3 p-3 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors group",
           isExpanded && "border-b"
         )}
-        onClick={() => setIsManuallyExpanded(!isManuallyExpanded)}
+        onClick={handleToggleExpand}
       >
         {hasProperties || true ? (
           isExpanded ? (
@@ -2099,6 +2132,8 @@ const ComponentTreeEditable: React.FC<ComponentTreeEditableProps> = ({
                   hasClipboard={hasClipboard}
                   consistencyIssues={consistencyIssues}
                   forceExpandedPaths={forceExpandedPaths}
+                  externalCollapsedPaths={externalCollapsedPaths}
+                  onExternalToggleCollapse={onExternalToggleCollapse}
                 />
               </SortableItem>
             ))}
