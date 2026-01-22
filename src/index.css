@@ -183,3 +183,44 @@
 .search-match {
   @apply bg-yellow-200 dark:bg-yellow-800/50 rounded px-0.5;
 }
+
+/* Syntax highlighting (rehype-highlight / highlight.js) */
+.markdown-preview pre code.hljs,
+.hljs {
+  color: hsl(var(--foreground));
+  background: hsl(var(--muted));
+  display: block;
+  padding: 0.75rem;
+  border-radius: var(--radius);
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: hsl(var(--muted-foreground));
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-subst {
+  color: hsl(var(--primary));
+}
+
+.hljs-string,
+.hljs-title,
+.hljs-name,
+.hljs-type,
+.hljs-attribute,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+  color: hsl(var(--accent-foreground));
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-deletion {
+  color: hsl(var(--destructive));
+}

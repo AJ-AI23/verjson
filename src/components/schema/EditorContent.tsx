@@ -13,6 +13,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MarkdownDocument } from '@/types/markdown';
 import { MarkdownStyles, defaultMarkdownStyles } from '@/types/markdownStyles';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { detectExtendedMarkdownFeatures } from '@/lib/markdown/detectExtendedMarkdown';
 
 interface EditorContentProps {
   schema: string;
@@ -79,11 +90,38 @@ export const EditorContent: React.FC<EditorContentProps> = ({
   
   // Track the last schema we received from the editor to prevent echo updates from diagram
   const lastEditorSchemaRef = useRef<string>(schema);
+
+  const [pendingSchemaString, setPendingSchemaString] = React.useState<string | null>(null);
+  const [showMarkdownDowngradeWarning, setShowMarkdownDowngradeWarning] = React.useState(false);
   
   // Update ref when schema prop changes (from editor)
   React.useEffect(() => {
     lastEditorSchemaRef.current = schema;
   }, [schema]);
+
+  const guardedOnEditorChange = useCallback(
+    (nextSchemaString: string) => {
+      // Only guard markdown downgrade when we have a valid parsed schema object.
+      if (currentFileType === 'markdown' && parsedSchema?.type === 'extended-markdown') {
+        try {
+          const next = JSON.parse(nextSchemaString);
+          if (next?.type === 'markdown') {
+            const detected = detectExtendedMarkdownFeatures(parsedSchema as any);
+            if (detected.hasAny) {
+              setPendingSchemaString(nextSchemaString);
+              setShowMarkdownDowngradeWarning(true);
+              return;
+            }
+          }
+        } catch {
+          // Ignore JSON parse issues here; existing editor error UI handles invalid JSON.
+        }
+      }
+
+      onEditorChange(nextSchemaString);
+    },
+    [currentFileType, onEditorChange, parsedSchema]
+  );
   
   // Stable callback that prevents diagram from overwriting editor with stale/same content
   const handleDiagramSchemaChange = useCallback((updatedSchema: any) => {
@@ -110,19 +148,19 @@ export const EditorContent: React.FC<EditorContentProps> = ({
         nextLen: newSchemaString.length,
       });
       lastEditorSchemaRef.current = newSchemaString;
-      onEditorChange(newSchemaString);
+      guardedOnEditorChange(newSchemaString);
     } else {
       console.log(`[EditorContent ${editorContentInstanceId}] diagram->editor SKIP (no actual change)`, {
         documentId,
         currentFileType,
       });
     }
-  }, [onEditorChange]);
+  }, [guardedOnEditorChange]);
   const editorPane = (
     <div className="flex flex-col h-full">
       <JsonEditorWrapper
         value={schema} 
-        onChange={onEditorChange} 
+        onChange={guardedOnEditorChange} 
         error={error}
         collapsedPaths={collapsedPaths}
         onToggleCollapse={onToggleCollapse}
@@ -199,6 +237,38 @@ export const EditorContent: React.FC<EditorContentProps> = ({
     </>
   ) : null;
 
+  const downgradeWarningDialog = (
+    <AlertDialog open={showMarkdownDowngradeWarning} onOpenChange={setShowMarkdownDowngradeWarning}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Switch to Basic Markdown?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This document appears to use extended markdown features. Switching to basic markdown may render it incorrectly.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel
+            onClick={() => {
+              setPendingSchemaString(null);
+            }}
+          >
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              const pending = pendingSchemaString;
+              setPendingSchemaString(null);
+              setShowMarkdownDowngradeWarning(false);
+              if (pending) onEditorChange(pending);
+            }}
+          >
+            Switch anyway
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   // Determine which right pane to show
   const isMarkdown = currentFileType === 'markdown';
   const rightPane = isMarkdown ? markdownPane : diagramPane;
@@ -206,6 +276,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
 
   if (isMobile) {
     return (
+      <>
       <Tabs defaultValue="editor" className="h-full flex flex-col">
         <TabsList className="w-full justify-start rounded-none border-b">
           <TabsTrigger value="editor" className="flex-1">Editor</TabsTrigger>
@@ -220,18 +291,28 @@ export const EditorContent: React.FC<EditorContentProps> = ({
           </TabsContent>
         )}
       </Tabs>
+      {downgradeWarningDialog}
+      </>
     );
   }
 
   // Desktop view - if diagram is hidden, show only editor
   if (!showDiagram) {
-    return <div className="h-full">{editorPane}</div>;
+    return (
+      <>
+        <div className="h-full">{editorPane}</div>
+        {downgradeWarningDialog}
+      </>
+    );
   }
 
   return (
-    <SplitPane>
-      {editorPane}
-      {rightPane}
-    </SplitPane>
+    <>
+      <SplitPane>
+        {editorPane}
+        {rightPane}
+      </SplitPane>
+      {downgradeWarningDialog}
+    </>
   );
 };

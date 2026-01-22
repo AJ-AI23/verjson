@@ -19,7 +19,7 @@ export type PageOrientation = 'portrait' | 'landscape';
 
 export interface MarkdownDocument {
   verjson: string; // Format version - always "1.0.0" for this schema version
-  type: 'markdown';
+  type: 'markdown' | 'extended-markdown';
   info: {
     version: string; // Document version (semantic versioning)
     title: string;
@@ -32,6 +32,11 @@ export interface MarkdownDocument {
   styles: MarkdownStyles; // Required styling configuration (can be empty themes object)
   selectedTheme?: string;
 }
+
+export const isExtendedMarkdown = (doc: MarkdownDocument): boolean => doc.type === 'extended-markdown';
+
+export const isMarkdownLike = (doc: any): doc is MarkdownDocument =>
+  !!doc && typeof doc === 'object' && doc.verjson !== undefined && (doc.type === 'markdown' || doc.type === 'extended-markdown');
 
 export interface MarkdownData {
   pages: MarkdownPage[];
