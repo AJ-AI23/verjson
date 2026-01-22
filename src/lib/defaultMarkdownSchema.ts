@@ -1,40 +1,47 @@
 import { MarkdownDocument } from '@/types/markdown';
+import { defaultMarkdownStyles } from '@/types/markdownStyles';
 
+/**
+ * Default VerjSON Markdown Schema
+ * 
+ * A starter template for markdown documents using the hierarchical line indexing format.
+ */
 export const defaultMarkdownSchema: MarkdownDocument = {
-  verjson: "1.0.0",
-  type: "markdown",
+  verjson: '1.0.0',
+  type: 'markdown',
   info: {
-    version: "1.0.0",
-    title: "New Markdown Document",
-    description: "A markdown document with hierarchical line indexing",
+    version: '1.0.0',
+    title: 'Untitled Document',
+    description: '',
     created: new Date().toISOString(),
-    modified: new Date().toISOString()
+    modified: new Date().toISOString(),
   },
+  selectedTheme: 'light',
+  styles: defaultMarkdownStyles,
   data: {
     pages: [
       {
-        id: "page-1",
-        title: "Page 1",
+        id: 'page-1',
+        title: 'Introduction',
         lines: {
-          "1": "# Welcome to VerjSON Markdown",
+          "1": "# Welcome to Your Document",
           "2": "",
-          "3": "This document uses hierarchical line indexing for version-friendly editing.",
+          "3": "Start writing your content here. This editor supports **Markdown** formatting.",
           "4": "",
-          "5": "## How It Works",
+          "5": "## Features",
           "6": "",
-          "7": "Each line has a numeric key like `1`, `2`, `3`. When you insert content between lines, it gets a sub-index like `1.1` (inserted after line 1).",
-          "8": "",
-          "9": "### Benefits",
+          "7": "- Easy-to-use WYSIWYG editor",
+          "8": "- Split view with live preview",
+          "9": "- Version-friendly hierarchical storage",
           "10": "",
-          "11": "- **Clean diffs**: Inserting content doesn't renumber existing lines",
-          "12": "- **Easy merging**: Parallel edits are less likely to conflict",
-          "13": "- **Version tracking**: Changes are isolated to specific indices"
+          "11": "## Getting Started",
+          "12": "",
+          "13": "Use the toolbar above to format your text, or write Markdown directly.",
         }
       }
     ],
     embeds: []
-  },
-  selectedTheme: "light"
+  }
 };
 
 /**
@@ -66,6 +73,7 @@ export function createMarkdownDocument(title: string, description?: string): Mar
       ],
       embeds: []
     },
+    styles: defaultMarkdownStyles,
     selectedTheme: "light"
   };
 }

@@ -4,6 +4,7 @@ import { SplitPane } from '@/components/SplitPane';
 import { JsonEditorWrapper } from '@/components/JsonEditorWrapper';
 import { SchemaDiagram } from '@/components/diagram/SchemaDiagram';
 import { MarkdownEditor } from '@/components/markdown/MarkdownEditor';
+import { MarkdownStylesDialog } from '@/components/markdown/MarkdownStylesDialog';
 import { VersionControls } from '@/components/VersionControls';
 import { CollapsedState } from '@/lib/diagram/types';
 import { DocumentVersionComparison } from '@/lib/importVersionUtils';
@@ -11,6 +12,7 @@ import { Version, VersionTier } from '@/lib/versionUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MarkdownDocument } from '@/types/markdown';
+import { MarkdownStyles, defaultMarkdownStyles } from '@/types/markdownStyles';
 
 interface EditorContentProps {
   schema: string;
@@ -167,13 +169,32 @@ export const EditorContent: React.FC<EditorContentProps> = ({
     />
   );
 
+  // Handle markdown styles change
+  const handleMarkdownStylesChange = useCallback((newStyles: MarkdownStyles) => {
+    if (parsedSchema && currentFileType === 'markdown') {
+      const updatedDoc = {
+        ...parsedSchema,
+        styles: newStyles,
+      };
+      handleDiagramSchemaChange(updatedDoc);
+    }
+  }, [parsedSchema, currentFileType, handleDiagramSchemaChange]);
+
   // Markdown editor pane for markdown documents
   const markdownPane = parsedSchema && currentFileType === 'markdown' ? (
-    <MarkdownEditor
-      document={parsedSchema as MarkdownDocument}
-      onDocumentChange={handleDiagramSchemaChange}
-      readOnly={userRole === 'viewer'}
-    />
+    <>
+      <MarkdownEditor
+        document={parsedSchema as MarkdownDocument}
+        onDocumentChange={handleDiagramSchemaChange}
+        readOnly={userRole === 'viewer'}
+      />
+      <MarkdownStylesDialog
+        isOpen={isStylesDialogOpen || false}
+        onClose={onStylesDialogClose || (() => {})}
+        styles={(parsedSchema as MarkdownDocument).styles || defaultMarkdownStyles}
+        onStylesChange={handleMarkdownStylesChange}
+      />
+    </>
   ) : null;
 
   // Determine which right pane to show
