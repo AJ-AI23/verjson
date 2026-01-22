@@ -1,9 +1,9 @@
 import React, { memo } from 'react';
-import { Handle, Position } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { NodeNotations } from './NodeNotations';
 import { NodeExpandCollapseButton } from './NodeExpandCollapseButton';
 import { NotationComment } from '@/types/notations';
+import { BaseNodeContainer } from './BaseNodeContainer';
 
 interface InfoProperty {
   name: string;
@@ -41,20 +41,17 @@ export const InfoNode = memo(({ data, isConnectable, id, onAddNotation, onToggle
   const nodePath = path || id;
 
   return (
-    <div className={cn(
-      'px-3 py-2 rounded-md shadow-sm border min-w-[200px] max-w-[280px]',
-      'bg-blue-50 border-blue-200',
-      hasMoreLevels && 'border-2 border-dashed',
-      isCollapsed && 'border-dashed bg-blue-50/50',
-      hasNotations && 'border-l-2 border-l-amber-400'
-    )}>
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="custom-handle"
-        isConnectable={isConnectable}
-      />
-      
+    <BaseNodeContainer
+      id={id}
+      isConnectable={isConnectable}
+      className={cn(
+        'px-3 py-2 rounded-md shadow-sm border min-w-[200px] max-w-[280px]',
+        'bg-blue-50 border-blue-200',
+        hasMoreLevels && 'border-2 border-dashed',
+        isCollapsed && 'border-dashed bg-blue-50/50',
+        hasNotations && 'border-l-2 border-l-amber-400'
+      )}
+    >
       <div className="flex flex-col gap-2">
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-2">
@@ -110,14 +107,7 @@ export const InfoNode = memo(({ data, isConnectable, id, onAddNotation, onToggle
           </div>
         )}
       </div>
-
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="custom-handle"
-        isConnectable={isConnectable}
-      />
-    </div>
+    </BaseNodeContainer>
   );
 });
 
