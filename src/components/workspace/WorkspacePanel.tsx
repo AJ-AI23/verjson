@@ -47,6 +47,7 @@ import JSZip from 'jszip';
 import { defaultSchema } from '@/lib/defaultSchema';
 import { defaultOasSchema } from '@/lib/defaultOasSchema';
 import { defaultDiagramSchema } from '@/lib/defaultDiagramSchema';
+import { defaultMarkdownSchema } from '@/lib/defaultMarkdownSchema';
 
 interface WorkspacePanelProps {
   onDocumentSelect: (document: any) => void;
@@ -101,7 +102,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   const [workspaceDeleteDialogOpen, setWorkspaceDeleteDialogOpen] = useState(false);
   const [workspaceToDelete, setWorkspaceToDelete] = useState<any>(null);
   const [newDocumentName, setNewDocumentName] = useState('');
-  const [newDocumentType, setNewDocumentType] = useState<'json-schema' | 'openapi' | 'diagram'>('json-schema');
+  const [newDocumentType, setNewDocumentType] = useState<'json-schema' | 'openapi' | 'diagram' | 'markdown'>('json-schema');
   const [showWorkspaceDialog, setShowWorkspaceDialog] = useState(false);
   const [showDocumentDialog, setShowDocumentDialog] = useState(false);
   const [showCreateDocumentDialog, setShowCreateDocumentDialog] = useState(false);
@@ -168,6 +169,8 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
       defaultContent = JSON.parse(defaultOasSchema);
     } else if (newDocumentType === 'diagram') {
       defaultContent = defaultDiagramSchema;
+    } else if (newDocumentType === 'markdown') {
+      defaultContent = { ...defaultMarkdownSchema, info: { ...defaultMarkdownSchema.info, title: newDocumentName, created: new Date().toISOString(), modified: new Date().toISOString() } };
     } else {
       defaultContent = JSON.parse(defaultSchema);
     }
@@ -900,7 +903,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
             </div>
             <div>
               <Label htmlFor="document-type">Type</Label>
-              <Select value={newDocumentType} onValueChange={(value: 'json-schema' | 'openapi' | 'diagram') => setNewDocumentType(value)}>
+              <Select value={newDocumentType} onValueChange={(value: 'json-schema' | 'openapi' | 'diagram' | 'markdown') => setNewDocumentType(value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -908,6 +911,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                   <SelectItem value="json-schema">JSON Schema</SelectItem>
                   <SelectItem value="openapi">OpenAPI</SelectItem>
                   <SelectItem value="diagram">Diagram</SelectItem>
+                  <SelectItem value="markdown">Markdown</SelectItem>
                 </SelectContent>
               </Select>
             </div>

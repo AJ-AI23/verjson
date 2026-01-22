@@ -39,7 +39,7 @@ try {
   console.warn('Could not pre-load draft 2020-12 meta-schema:', e);
 }
 
-export type SchemaType = 'json-schema' | 'openapi' | 'diagram';
+export type SchemaType = 'json-schema' | 'openapi' | 'diagram' | 'markdown';
 
 export const validateJsonSchema = (jsonString: string, schemaType: SchemaType = 'json-schema'): any => {
   // Handle empty or whitespace-only strings
@@ -54,10 +54,20 @@ export const validateJsonSchema = (jsonString: string, schemaType: SchemaType = 
     // Auto-detect schema type (prefer OpenAPI/Diagram when confidently detected)
     const detectedType = detectSchemaType(parsedSchema);
     const typeToUse: SchemaType =
-      detectedType === 'openapi' || detectedType === 'diagram' ? detectedType : schemaType;
+      detectedType === 'openapi' || detectedType === 'diagram' || detectedType === 'markdown' ? detectedType : schemaType;
     
     // Validate based on the detected or provided schema type
-    if (typeToUse === 'diagram') {
+    if (typeToUse === 'markdown') {
+      // Check for VerjSON markdown structure
+      if (parsedSchema?.verjson === undefined || parsedSchema?.type !== 'markdown') {
+        console.warn('Schema is missing VerjSON markdown structure properties');
+        throw new Error('Schema is missing VerjSON markdown structure properties');
+      }
+      if (!parsedSchema?.data?.pages || !Array.isArray(parsedSchema.data.pages)) {
+        console.warn('Markdown schema is missing data.pages array');
+        throw new Error('Markdown schema is missing data.pages array');
+      }
+    } else if (typeToUse === 'diagram') {
       const isVerjson =
         parsedSchema?.verjson !== undefined &&
         (parsedSchema?.type === 'sequence' || parsedSchema?.type === 'flowchart');
@@ -181,6 +191,11 @@ export const formatJsonSchema = (schema: any): string => {
 export const detectSchemaType = (schema: any): SchemaType => {
   if (!schema || typeof schema !== 'object') {
     return 'json-schema'; // Default fallback
+  }
+
+  // Check for VerjSON markdown type
+  if (schema.verjson !== undefined && schema.type === 'markdown') {
+    return 'markdown';
   }
 
   // Check for VerjSON diagram indicators (new + legacy)
