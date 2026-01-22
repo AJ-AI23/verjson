@@ -409,13 +409,31 @@ export const MarkdownRenderDialog: React.FC<MarkdownRenderDialogProps> = ({
     if (!themeData) return md;
     
     const scaleFactor = 150 / 96; // DPI scaling
+    const baseFontSizePx = 16; // Base font size for rem calculations
     
-    // Helper to scale font size
+    // Helper to convert any font size to scaled pixels
     const scaleSize = (size: string | undefined): string => {
-      if (!size) return '16px';
+      if (!size) return `${baseFontSizePx * scaleFactor}px`;
+      
       const numericValue = parseFloat(size);
       if (isNaN(numericValue)) return size;
-      return `${numericValue * scaleFactor}px`;
+      
+      // Determine the unit and convert to pixels
+      let pxValue: number;
+      if (size.includes('rem')) {
+        pxValue = numericValue * baseFontSizePx; // rem to px
+      } else if (size.includes('em')) {
+        pxValue = numericValue * baseFontSizePx; // em to px (approximation)
+      } else if (size.includes('%')) {
+        pxValue = (numericValue / 100) * baseFontSizePx; // % to px
+      } else if (size.includes('pt')) {
+        pxValue = numericValue * (96 / 72); // pt to px
+      } else {
+        pxValue = numericValue; // assume px
+      }
+      
+      // Apply DPI scaling
+      return `${pxValue * scaleFactor}px`;
     };
     
     // Build inline styles for each element
