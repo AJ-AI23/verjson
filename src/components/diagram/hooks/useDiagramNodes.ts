@@ -5,6 +5,21 @@ import { generateNodesAndEdges } from '@/lib/diagram';
 import { useNodePositions } from './useNodePositions';
 import { CollapsedState } from '@/lib/diagram/types';
 
+const isDiagramDebugEnabled = () => {
+  try {
+    return typeof window !== 'undefined' && localStorage.getItem('diagram-debug-mode') === 'true';
+  } catch {
+    return false;
+  }
+};
+
+const dbg = (...args: any[]) => {
+  if (isDiagramDebugEnabled()) {
+    // eslint-disable-next-line no-console
+    console.info('[DiagramDebug][useDiagramNodes]', ...args);
+  }
+};
+
 export const useDiagramNodes = (
   schema: any, 
   error: boolean, 
@@ -56,6 +71,9 @@ export const useDiagramNodes = (
   useEffect(() => {
     // Force schemaKey increment to trigger redraw when collapsedPaths changes
     if (!initialRenderRef.current) {
+      dbg('collapsedPathsString changed -> bump schemaKey (pre-layout bump)', {
+        collapsedKeys: Object.keys(collapsedPaths || {}).length,
+      });
       setSchemaKey(prev => prev + 1);
     }
   }, [collapsedPathsString]);
@@ -113,6 +131,18 @@ export const useDiagramNodes = (
     const forceUpdate = isInitialRender;
     
     if (schemaChanged || groupSettingChanged || collapsedPathsChanged || maxIndividualPropertiesChanged || maxIndividualArrayItemsChanged || truncateAncestralChanged || forceUpdate) {
+      dbg('regenerating nodes/edges', {
+        reason: {
+          schemaChanged,
+          groupSettingChanged,
+          collapsedPathsChanged,
+          maxIndividualPropertiesChanged,
+          maxIndividualArrayItemsChanged,
+          truncateAncestralChanged,
+          forceUpdate,
+        },
+        prevNodeCount: nodes.length,
+      });
       // Update refs with current values
       schemaStringRef.current = schemaString;
       collapsedPathsRef.current = {...collapsedPaths};
@@ -127,6 +157,7 @@ export const useDiagramNodes = (
       }
       
       // Use simple counter for schema key
+      dbg('bump schemaKey (layout bump)');
       setSchemaKey(prev => prev + 1);
       
       // Generate diagram elements with unlimited depth - let collapsed paths control visibility
@@ -149,6 +180,12 @@ export const useDiagramNodes = (
       // Set the new nodes and edges
       setNodes(positionedNodes);
       setEdges(newEdges);
+
+      dbg('setNodes/setEdges completed (sync)', {
+        newNodeCount: positionedNodes.length,
+        newEdgeCount: newEdges.length,
+        measuredNow: positionedNodes.filter((n: any) => n.measured?.width && n.measured?.height).length,
+      });
       
       // Reset the processing flag
       updateTimeoutRef.current = null;
