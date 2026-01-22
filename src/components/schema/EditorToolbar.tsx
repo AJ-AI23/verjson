@@ -122,6 +122,39 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     }
   };
 
+  const handleCopyPdfUrl = async () => {
+    if (!selectedDocument?.id) return;
+    
+    try {
+      // Get the latest PDF render for this document
+      const { data: render, error } = await supabase
+        .from('markdown_renders')
+        .select('storage_path')
+        .eq('document_id', selectedDocument.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (error) throw error;
+      
+      if (!render?.storage_path) {
+        toast.error('No PDF render found. Please render the document first.');
+        return;
+      }
+      
+      // Get public URL from storage
+      const { data: urlData } = supabase.storage
+        .from('markdown-renders')
+        .getPublicUrl(render.storage_path);
+      
+      await navigator.clipboard.writeText(urlData.publicUrl);
+      toast.success('PDF URL copied to clipboard');
+    } catch (error) {
+      console.error('Failed to get PDF URL:', error);
+      toast.error('Failed to copy PDF URL');
+    }
+  };
+
   const handleReloadFromUrl = async () => {
     if (!selectedDocument?.import_url) return;
     
@@ -324,6 +357,25 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>Copy public PNG URL</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      
+                      {isMarkdown && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-5 px-1 gap-1 text-xs text-muted-foreground hover:text-foreground"
+                              onClick={handleCopyPdfUrl}
+                            >
+                              <FileText className="h-3 w-3" />
+                              <span className="hidden md:inline">PDF</span>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Copy public PDF URL</p>
                           </TooltipContent>
                         </Tooltip>
                       )}
