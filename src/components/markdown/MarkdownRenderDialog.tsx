@@ -383,13 +383,24 @@ export const MarkdownRenderDialog: React.FC<MarkdownRenderDialogProps> = ({
         </div>
         <div className="flex-1 min-h-0 flex items-center justify-center p-4 bg-muted/30 overflow-hidden">
           <div 
-            ref={previewContainerRef}
+            className="flex items-center justify-center"
             style={{ 
-              transform: `scale(${scale})`,
-              transformOrigin: 'center center',
+              width: `${pageWidthPx * scale}px`,
+              height: `${pageHeightPx * scale}px`,
+              maxWidth: '100%',
+              maxHeight: '100%',
             }}
           >
-            {renderPageContent(previewPageIndex)}
+            <div 
+              ref={previewContainerRef}
+              style={{ 
+                transform: `scale(${scale})`,
+                transformOrigin: 'center center',
+                flexShrink: 0,
+              }}
+            >
+              {renderPageContent(previewPageIndex)}
+            </div>
           </div>
         </div>
         <div className="px-3 py-2 border-t text-xs text-muted-foreground text-center">
