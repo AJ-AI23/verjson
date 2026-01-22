@@ -1,5 +1,6 @@
 
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { Node } from '@xyflow/react';
 import { DiagramEmpty } from './DiagramEmpty';
 import { DiagramHeader } from './DiagramHeader';
 import { DiagramFlow } from './DiagramFlow';
@@ -35,6 +36,8 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const { enabled: smartSpacing, toggle: toggleSmartSpacing, resolveAnimatedIfEnabled } = useCollisionAvoidance();
   const collisionTimeoutRef = useRef<number | null>(null);
+  const prevCollapsedPathsRef = useRef<string>('');
+  
   // Update local maxDepth when prop changes
   useEffect(() => {
     if (maxDepth !== undefined) {
@@ -70,6 +73,7 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   // Deep memoize the schema and collapsedPaths to prevent unnecessary re-renders
   const memoizedSchema = useMemo(() => schema, [JSON.stringify(schema)]);
   const memoizedCollapsedPaths = useMemo(() => collapsedPaths, [JSON.stringify(collapsedPaths)]);
+  const collapsedPathsString = useMemo(() => JSON.stringify(collapsedPaths), [collapsedPaths]);
 
   const {
     nodes,
@@ -91,9 +95,8 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     settings.truncateAncestralBoxes
   );
 
-  // Auto-apply collision resolution after nodes are rendered and measured
-  // We wait a short time for React Flow to measure the nodes
-  useEffect(() => {
+  // Helper function to trigger smart spacing with delay
+  const triggerSmartSpacing = useCallback((delay: number = 250) => {
     if (!smartSpacing || !nodes || nodes.length < 2) return;
     
     // Clear any pending timeout
@@ -101,21 +104,49 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
       clearTimeout(collisionTimeoutRef.current);
     }
     
-    // Wait for nodes to be measured by React Flow (typically ~100-200ms after render)
+    // Wait for nodes to be measured by React Flow
     collisionTimeoutRef.current = window.setTimeout(() => {
       // Check if nodes have been measured
       const hasMeasuredNodes = nodes.some((node: any) => node.measured?.width && node.measured?.height);
       if (hasMeasuredNodes) {
         resolveAnimatedIfEnabled(nodes, setNodes, true);
       }
-    }, 250);
+    }, delay);
+  }, [smartSpacing, nodes, setNodes, resolveAnimatedIfEnabled]);
+
+  // Auto-apply collision resolution after nodes are rendered and measured
+  // Triggered when schema changes
+  useEffect(() => {
+    triggerSmartSpacing(250);
     
     return () => {
       if (collisionTimeoutRef.current) {
         clearTimeout(collisionTimeoutRef.current);
       }
     };
-  }, [schemaKey]); // Only run when schema changes, not on every node update
+  }, [schemaKey]); // Only run when schema changes
+
+  // Auto-apply collision resolution when collapsedPaths changes
+  useEffect(() => {
+    // Skip initial render
+    if (prevCollapsedPathsRef.current === '') {
+      prevCollapsedPathsRef.current = collapsedPathsString;
+      return;
+    }
+    
+    // Only trigger if collapsedPaths actually changed
+    if (prevCollapsedPathsRef.current !== collapsedPathsString) {
+      prevCollapsedPathsRef.current = collapsedPathsString;
+      // Use a longer delay for collapse changes to allow for node recalculation
+      triggerSmartSpacing(350);
+    }
+  }, [collapsedPathsString, triggerSmartSpacing]);
+
+  // Handle node drag stop - trigger smart spacing after dropping a node
+  const handleNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
+    // Trigger smart spacing with a short delay after drag ends
+    triggerSmartSpacing(100);
+  }, [triggerSmartSpacing]);
 
   // Check if there are any stored node positions
   const hasStoredPositions = Object.keys(nodePositionsRef.current).length > 0;
@@ -171,6 +202,7 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
         onAddNotation={onAddNotation}
         expandedNotationPaths={expandedNotationPaths}
         onToggleCollapse={onToggleCollapse}
+        onNodeDragStop={handleNodeDragStop}
       />
     </div>
   );
