@@ -63,9 +63,35 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     return linesToMarkdown(activePage.lines);
   }, [activePage?.lines]);
   
+  // Track if we're in the middle of a user edit to prevent cursor jump
+  const isUserEditingRef = useRef(false);
+  const pendingCursorPosRef = useRef<number | null>(null);
+  
+  // Sync textarea value with markdownContent only when not actively editing
+  useEffect(() => {
+    if (textareaRef.current && !isUserEditingRef.current) {
+      textareaRef.current.value = markdownContent;
+    }
+  }, [markdownContent]);
+  
+  // Restore cursor position after React re-render
+  useEffect(() => {
+    if (pendingCursorPosRef.current !== null && textareaRef.current) {
+      const pos = pendingCursorPosRef.current;
+      textareaRef.current.setSelectionRange(pos, pos);
+      pendingCursorPosRef.current = null;
+    }
+  });
+  
   // Handle markdown text changes
-  const handleTextChange = useCallback((newText: string) => {
+  const handleTextChange = useCallback((newText: string, cursorPos?: number) => {
     if (readOnly) return;
+    
+    // Mark that we're in a user edit to prevent external sync from resetting value
+    isUserEditingRef.current = true;
+    if (cursorPos !== undefined) {
+      pendingCursorPosRef.current = cursorPos;
+    }
     
     const newLines = markdownToLines(newText);
     const updatedPages = [...document.data.pages];
@@ -84,6 +110,11 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         ...document.data,
         pages: updatedPages
       }
+    });
+    
+    // Reset editing flag after a short delay to allow React to finish rendering
+    requestAnimationFrame(() => {
+      isUserEditingRef.current = false;
     });
   }, [document, activePageIndex, onDocumentChange, readOnly]);
   
@@ -180,8 +211,11 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       )}
       <textarea
         ref={textareaRef}
-        value={markdownContent}
-        onChange={(e) => handleTextChange(e.target.value)}
+        defaultValue={markdownContent}
+        onChange={(e) => {
+          const cursorPos = e.target.selectionStart;
+          handleTextChange(e.target.value, cursorPos);
+        }}
         readOnly={readOnly}
         className={cn(
           "flex-1 w-full p-4 font-mono text-sm resize-none",
