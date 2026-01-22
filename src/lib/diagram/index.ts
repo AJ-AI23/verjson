@@ -6,6 +6,7 @@ import { generateGroupedLayout } from './layout/groupedPropertiesLayout';
 import { generateExpandedLayout } from './layout/expandedPropertiesLayout';
 import { generateOpenApiLayout } from './layout/openApiLayout';
 import { truncateAncestralBoxes } from './truncateAncestralBoxes';
+import { applyTreeLayout } from './layout/treeLayoutEngine';
 
 export const generateNodesAndEdges = (
   schema: any, 
@@ -69,8 +70,23 @@ export const generateNodesAndEdges = (
     // Apply ancestral box truncation if enabled
     if (truncateAncestral) {
       const truncatedResult = truncateAncestralBoxes(result);
+      // Apply tree layout for deterministic positioning
+      truncatedResult.nodes = applyTreeLayout(truncatedResult.nodes, truncatedResult.edges, {
+        horizontalGap: 50,
+        verticalGap: 120,
+        rootX: 0,
+        rootY: 0,
+      });
       return truncatedResult;
     }
+    
+    // Apply tree layout for deterministic positioning
+    result.nodes = applyTreeLayout(result.nodes, result.edges, {
+      horizontalGap: 50,
+      verticalGap: 120,
+      rootX: 0,
+      rootY: 0,
+    });
     
     return result;
   } catch (error) {
