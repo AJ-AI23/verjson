@@ -1194,10 +1194,34 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
   schema,
   onSchemaChange,
   consistencyIssues = [],
-  collapsedPaths: externalCollapsedPaths,
-  onToggleCollapse: externalOnToggleCollapse
+  collapsedPaths: rawExternalCollapsedPaths,
+  onToggleCollapse: rawExternalOnToggleCollapse
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Normalize collapsed paths: the diagram uses 'root.X' paths, but structure editor uses 'X'
+  // Transform external state so structure editor can read it correctly
+  const normalizedCollapsedPaths = useMemo((): CollapsedState => {
+    if (!rawExternalCollapsedPaths) return {};
+    const normalized: CollapsedState = {};
+    for (const [key, value] of Object.entries(rawExternalCollapsedPaths)) {
+      // Strip 'root.' prefix for structure editor paths
+      if (key.startsWith('root.')) {
+        normalized[key.slice(5)] = value;
+      }
+      // Also keep original key for direct matches
+      normalized[key] = value;
+    }
+    return normalized;
+  }, [rawExternalCollapsedPaths]);
+
+  // Wrapper to add 'root.' prefix when toggling collapse state
+  const handleExternalToggleCollapse = useCallback((path: string, isCollapsed: boolean) => {
+    if (!rawExternalOnToggleCollapse) return;
+    // Add 'root.' prefix to match diagram paths
+    const normalizedPath = path.startsWith('root.') ? path : `root.${path}`;
+    rawExternalOnToggleCollapse(normalizedPath, isCollapsed);
+  }, [rawExternalOnToggleCollapse]);
   const [activeTab, setActiveTab] = useState<'structure' | 'components'>('structure');
 
   // Search functionality (scoped to the active tab)
@@ -1749,8 +1773,8 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
                   hasClipboard={hasClipboard}
                   consistencyIssues={consistencyIssues}
                   forceExpandedPaths={searchExpandedPaths}
-                  externalCollapsedPaths={externalCollapsedPaths}
-                  onExternalToggleCollapse={externalOnToggleCollapse}
+                  externalCollapsedPaths={normalizedCollapsedPaths}
+                  onExternalToggleCollapse={handleExternalToggleCollapse}
                 />
               ))}
               {rootSections.length === 0 && documentFields.length === 0 && (
