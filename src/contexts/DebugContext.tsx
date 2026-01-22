@@ -6,6 +6,8 @@ interface DebugContextType {
   toggleDebugMode: () => void;
   debugToast: (message: string, data?: any) => void;
   errorToast: (message: string, error?: any) => void;
+  showDiagramDebug: boolean;
+  toggleDiagramDebug: () => void;
 }
 
 // Throttle function to limit toast frequency
@@ -35,6 +37,9 @@ const DebugContext = createContext<DebugContextType | undefined>(undefined);
 
 export const DebugProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isDebugMode, setIsDebugMode] = useState(false);
+  const [showDiagramDebug, setShowDiagramDebug] = useState(() => {
+    return localStorage.getItem('diagram-debug-mode') === 'true';
+  });
 
   // Create throttled toast functions
   const throttledInfoToast = React.useMemo(
@@ -52,6 +57,18 @@ export const DebugProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const newMode = !prev;
       toast.info(`Debug mode ${newMode ? 'enabled' : 'disabled'}`, {
         description: newMode ? 'Debug toasts will now appear' : 'Debug toasts disabled',
+        duration: 2000
+      });
+      return newMode;
+    });
+  };
+
+  const toggleDiagramDebug = () => {
+    setShowDiagramDebug(prev => {
+      const newMode = !prev;
+      localStorage.setItem('diagram-debug-mode', String(newMode));
+      toast.info(`Diagram debug ${newMode ? 'enabled' : 'disabled'}`, {
+        description: newMode ? 'Node dimensions will be shown' : 'Node dimensions hidden',
         duration: 2000
       });
       return newMode;
@@ -82,7 +99,7 @@ export const DebugProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   return (
-    <DebugContext.Provider value={{ isDebugMode, toggleDebugMode, debugToast, errorToast }}>
+    <DebugContext.Provider value={{ isDebugMode, toggleDebugMode, debugToast, errorToast, showDiagramDebug, toggleDiagramDebug }}>
       {children}
     </DebugContext.Provider>
   );
