@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { DiagramEmpty } from './DiagramEmpty';
 import { DiagramHeader } from './DiagramHeader';
 import { DiagramFlow } from './DiagramFlow';
@@ -34,6 +34,7 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   const [localMaxDepth, setLocalMaxDepth] = useState(maxDepth);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const { enabled: smartSpacing, toggle: toggleSmartSpacing, resolveAnimatedIfEnabled } = useCollisionAvoidance();
+  const collisionTimeoutRef = useRef<number | null>(null);
   // Update local maxDepth when prop changes
   useEffect(() => {
     if (maxDepth !== undefined) {
@@ -87,16 +88,34 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     localMaxDepth,
     settings.maxIndividualProperties,
     settings.maxIndividualArrayItems,
-    settings.truncateAncestralBoxes,
-    smartSpacing
+    settings.truncateAncestralBoxes
   );
 
-  // Show diagram based on nodes count and error state
+  // Auto-apply collision resolution after nodes are rendered and measured
+  // We wait a short time for React Flow to measure the nodes
   useEffect(() => {
-    if (nodes && edges) {
-      // Always show diagram even if only root node exists
+    if (!smartSpacing || !nodes || nodes.length < 2) return;
+    
+    // Clear any pending timeout
+    if (collisionTimeoutRef.current) {
+      clearTimeout(collisionTimeoutRef.current);
     }
-  }, [nodes, edges]);
+    
+    // Wait for nodes to be measured by React Flow (typically ~100-200ms after render)
+    collisionTimeoutRef.current = window.setTimeout(() => {
+      // Check if nodes have been measured
+      const hasMeasuredNodes = nodes.some((node: any) => node.measured?.width && node.measured?.height);
+      if (hasMeasuredNodes) {
+        resolveAnimatedIfEnabled(nodes, setNodes, true);
+      }
+    }, 250);
+    
+    return () => {
+      if (collisionTimeoutRef.current) {
+        clearTimeout(collisionTimeoutRef.current);
+      }
+    };
+  }, [schemaKey]); // Only run when schema changes, not on every node update
 
   // Check if there are any stored node positions
   const hasStoredPositions = Object.keys(nodePositionsRef.current).length > 0;

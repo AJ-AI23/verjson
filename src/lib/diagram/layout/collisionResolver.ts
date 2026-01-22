@@ -39,17 +39,25 @@ export const DEFAULT_COLLISION_CONFIG: CollisionConfig = {
 };
 
 /**
- * Get bounding boxes for all nodes
+ * Get bounding boxes for all nodes.
+ * Uses React Flow's measured dimensions when available (actual rendered size),
+ * otherwise falls back to estimated size.
  */
 export function getNodeBounds(nodes: Node[]): NodeBounds[] {
   return nodes.map(node => {
-    const size = estimateNodeSize(node.data, node.id);
+    // Prefer React Flow's measured dimensions (actual DOM size) when available
+    const measuredWidth = (node as any).measured?.width;
+    const measuredHeight = (node as any).measured?.height;
+    
+    // Fall back to estimated size if measured dimensions not available
+    const estimatedSize = estimateNodeSize(node.data, node.id);
+    
     return {
       id: node.id,
       x: node.position.x,
       y: node.position.y,
-      width: size.width,
-      height: size.height
+      width: measuredWidth ?? estimatedSize.width,
+      height: measuredHeight ?? estimatedSize.height
     };
   });
 }

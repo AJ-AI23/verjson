@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Maximize, Minimize, Settings, RotateCcw, Magnet } from 'lucide-react';
+import { Maximize, Minimize, Settings, RotateCcw, Magnet, Bug } from 'lucide-react';
 import { DiagramSettingsDialog } from './DiagramSettingsDialog';
 import { DiagramStyles } from '@/types/diagramStyles';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { useDebug } from '@/contexts/DebugContext';
 
 interface DiagramHeaderProps {
   isFullscreen?: boolean;
@@ -34,6 +35,7 @@ export const DiagramHeader: React.FC<DiagramHeaderProps> = ({
   onApplySmartSpacing
 }) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const { showDiagramDebug, toggleDiagramDebug } = useDebug();
 
   return (
     <div className="p-2 border-b bg-card shadow-sm">
@@ -100,6 +102,25 @@ export const DiagramHeader: React.FC<DiagramHeaderProps> = ({
               </Tooltip>
             </TooltipProvider>
           )}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={showDiagramDebug ? "default" : "outline"}
+                  size="sm"
+                  onClick={toggleDiagramDebug}
+                  className="gap-2"
+                >
+                  <Bug className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {showDiagramDebug 
+                  ? "Hide node debug info" 
+                  : "Show node dimensions and positions"}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <Button
             variant="outline"
             size="sm"
