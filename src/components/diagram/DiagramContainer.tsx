@@ -40,6 +40,8 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   const { enabled: smartSpacing, toggle: toggleSmartSpacing, resolveAnimatedIfEnabled } = useCollisionAvoidance();
   const collisionTimeoutRef = useRef<number | null>(null);
   const prevSchemaKeyRef = useRef<number>(-1);
+  // Ref to always hold the latest nodes – used inside timeouts to avoid stale closures
+  const nodesRef = useRef<Node[]>([]);
 
   // Debug: confirm the container is mounted (and whether Smart Spacing is enabled)
   useEffect(() => {
@@ -107,6 +109,11 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
     settings.truncateAncestralBoxes
   );
 
+  // Keep nodesRef in sync with latest nodes
+  useEffect(() => {
+    nodesRef.current = nodes || [];
+  }, [nodes]);
+
   // Debug: observe node regeneration + measurement state
   useEffect(() => {
     const measuredCount = (nodes || []).filter((n: any) => n.measured?.width && n.measured?.height).length;
@@ -157,7 +164,7 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
 
   // Auto-apply collision resolution after nodes are rendered and measured
   // schemaKey changes when: schema changes OR collapsedPaths changes
-  // This ensures we trigger smart spacing for both scenarios
+  // We do NOT include `nodes` in deps to prevent clearing the timer when nodes update (measurement pass)
   useEffect(() => {
     // Skip initial render
     if (prevSchemaKeyRef.current === -1) {
@@ -170,7 +177,6 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
       dbg('schemaKey changed -> scheduling auto smart spacing', {
         prevSchemaKey: prevSchemaKeyRef.current,
         nextSchemaKey: schemaKey,
-        nodeCount: nodes?.length ?? 0,
         smartSpacing,
       });
       prevSchemaKeyRef.current = schemaKey;
@@ -182,9 +188,10 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
       
       // Wait for nodes to be measured by React Flow (longer delay for collapse changes)
       collisionTimeoutRef.current = window.setTimeout(() => {
-        const currentNodes = nodes;
-        const nodeCount = currentNodes?.length ?? 0;
-        const measuredCount = (currentNodes || []).filter((n: any) => n.measured?.width && n.measured?.height).length;
+        // Read fresh nodes from ref
+        const currentNodes = nodesRef.current;
+        const nodeCount = currentNodes.length;
+        const measuredCount = currentNodes.filter((n: any) => n.measured?.width && n.measured?.height).length;
         const hasMeasuredNodes = measuredCount > 0;
 
         dbg('auto smart spacing timeout (schemaKey effect)', {
@@ -196,7 +203,7 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
         });
 
         if (!smartSpacing) return;
-        if (!currentNodes || nodeCount < 2) return;
+        if (nodeCount < 2) return;
         if (!hasMeasuredNodes) return;
 
         dbg('calling resolveAnimatedIfEnabled (schemaKey effect)', { schemaKey });
@@ -209,7 +216,9 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
         clearTimeout(collisionTimeoutRef.current);
       }
     };
-  }, [schemaKey, smartSpacing, nodes, setNodes, resolveAnimatedIfEnabled]);
+    // Deliberately omit `nodes` – use nodesRef inside the timeout
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schemaKey, smartSpacing, setNodes, resolveAnimatedIfEnabled]);
 
   // Handle node drag stop - trigger smart spacing after dropping a node
   const handleNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
