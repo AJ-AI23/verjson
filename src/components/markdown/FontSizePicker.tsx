@@ -122,7 +122,12 @@ export const FontSizePicker: React.FC<FontSizePickerProps> = ({
               </span>
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-64 p-4" align="start">
+          <PopoverContent 
+            className="w-64 p-4 pointer-events-auto" 
+            align="start"
+            onPointerDownOutside={(e) => e.preventDefault()}
+            onInteractOutside={(e) => e.preventDefault()}
+          >
             <div className="space-y-4">
               <div className="flex items-center justify-center h-20 bg-muted rounded-md">
                 <span 
@@ -152,6 +157,14 @@ export const FontSizePicker: React.FC<FontSizePickerProps> = ({
                   className="w-full"
                 />
               </div>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="w-full" 
+                onClick={() => setIsOpen(false)}
+              >
+                Done
+              </Button>
             </div>
           </PopoverContent>
         </Popover>
