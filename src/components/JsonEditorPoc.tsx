@@ -215,10 +215,16 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
       didInitialExternalSyncRef.current = { documentId, done: false };
     }
 
-    // Echo suppression: if React value is exactly what we just emitted from Yjs,
-    // do nothing (otherwise we create redundant undo items).
+    // Echo suppression: if React value is exactly what we just emitted from Yjs
+    // AND Yjs already holds that value, do nothing (otherwise we create redundant undo items).
+    //
+    // IMPORTANT: We must also handle race conditions where `lastYjsEmittedValueRef` matches
+    // but Yjs content has already moved on (or didn't apply), otherwise some external edits
+    // (notably deletions from the Markdown editor) won't be recorded in history.
     if (lastYjsEmittedValueRef.current === value) {
-      return;
+      const current = getTextContent();
+      if (current === value) return;
+      // fall through and sync to Yjs if the current Yjs content differs
     }
 
     // Only push valid JSON into Yjs (consistent with useYjsDocument observer behavior)
