@@ -88,11 +88,18 @@ export const FontSizePicker: React.FC<FontSizePickerProps> = ({
     }
   }, [localValue, value, onChange]);
   
+  // Update local state during drag (no parent update)
   const handleSliderChange = useCallback((values: number[]) => {
     const pixels = values[0];
     setSliderValue(pixels);
     const formatted = formatFontSize(pixels, localValue || 'rem');
     setLocalValue(formatted);
+  }, [localValue]);
+  
+  // Only update parent when drag ends
+  const handleSliderCommit = useCallback((values: number[]) => {
+    const pixels = values[0];
+    const formatted = formatFontSize(pixels, localValue || 'rem');
     onChange(formatted);
   }, [localValue, onChange]);
   
@@ -151,6 +158,7 @@ export const FontSizePicker: React.FC<FontSizePickerProps> = ({
                 <Slider
                   value={[sliderValue]}
                   onValueChange={handleSliderChange}
+                  onValueCommit={handleSliderCommit}
                   min={min}
                   max={max}
                   step={1}
