@@ -17,6 +17,7 @@ import { OpenAPISplitDialog } from '@/components/OpenAPISplitDialog';
 import { DocumentConfigDialog } from '@/components/DocumentConfigDialog';
 import { UrlAuthDialog } from '@/components/workspace/UrlAuthDialog';
 import { DiagramRenderDialog } from '@/components/diagram/DiagramRenderDialog';
+import { MarkdownRenderDialog } from '@/components/markdown/MarkdownRenderDialog';
 import { supabase } from '@/integrations/supabase/client';
 
 import { SchemaType } from '@/lib/schemaUtils';
@@ -456,6 +457,21 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                   </>
                 )}
 
+                {/* Markdown-specific buttons */}
+                {isMarkdown && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setIsRenderDialogOpen(true)}
+                    className="gap-1 md:gap-2 h-8 text-xs md:text-sm"
+                    disabled={!selectedDocument}
+                    title="Render document as PDF"
+                  >
+                    <FileText className="h-4 w-4" />
+                    <span className="hidden sm:inline">Render PDF</span>
+                  </Button>
+                )}
+
                 {/* OpenAPI-specific buttons */}
                 {schemaType === 'openapi' && (
                   <>
@@ -546,6 +562,23 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             );
           } catch (e) {
             console.error('Failed to parse diagram schema:', e);
+            return null;
+          }
+        })()}
+
+        {selectedDocument?.file_type === 'markdown' && (() => {
+          try {
+            const parsedSchema = JSON.parse(schema);
+            return (
+              <MarkdownRenderDialog
+                open={isRenderDialogOpen}
+                onOpenChange={setIsRenderDialogOpen}
+                documentId={selectedDocument.id}
+                document={parsedSchema}
+              />
+            );
+          } catch (e) {
+            console.error('Failed to parse markdown schema:', e);
             return null;
           }
         })()}

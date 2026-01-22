@@ -51,6 +51,9 @@ verify_jwt = true
 [functions.diagram-render]
 verify_jwt = true
 
+[functions.markdown-render]
+verify_jwt = true
+
 [functions.plugin-config]
 verify_jwt = true
 
