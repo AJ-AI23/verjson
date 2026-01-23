@@ -36,20 +36,60 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     isRenderMode = false
   } = options;
 
-  // Validate and extract anchors from nodes
-  
-  // Extract all anchors from nodes
-  const anchors: AnchorNode[] = nodes.flatMap(node => 
+  // Validate lifelines - filter out incomplete ones (missing id, name, or order)
+  const validLifelines = lifelines.filter(lifeline => 
+    lifeline && 
+    typeof lifeline.id === 'string' && 
+    lifeline.id.length > 0 &&
+    typeof lifeline.name === 'string' && 
+    lifeline.name.length > 0 &&
+    typeof lifeline.order === 'number'
+  );
+
+  // Validate nodes - filter out incomplete ones (missing id, type, label, or valid anchors)
+  const validNodes = nodes.filter(node => 
+    node &&
+    typeof node.id === 'string' && 
+    node.id.length > 0 &&
+    typeof node.type === 'string' && 
+    node.type.length > 0 &&
+    typeof node.label === 'string' && 
+    node.label.length > 0 &&
+    Array.isArray(node.anchors) && 
+    node.anchors.length === 2 &&
+    node.anchors.every(anchor => 
+      anchor &&
+      typeof anchor.id === 'string' && 
+      anchor.id.length > 0 &&
+      typeof anchor.lifelineId === 'string' && 
+      anchor.lifelineId.length > 0 &&
+      typeof anchor.anchorType === 'string'
+    )
+  );
+
+  // Validate processes - filter out incomplete ones (missing id, type, or valid anchorIds)
+  const validProcesses = (options.processes || []).filter(process =>
+    process &&
+    typeof process.id === 'string' && 
+    process.id.length > 0 &&
+    process.type === 'lifelineProcess' &&
+    Array.isArray(process.anchorIds) && 
+    process.anchorIds.length > 0 &&
+    typeof process.description === 'string'
+  );
+
+  // Extract all anchors from valid nodes
+  const anchors: AnchorNode[] = validNodes.flatMap(node => 
     node.anchors?.map(anchor => ({ ...anchor })) || []
   );
 
   // Guard against undefined lifelines
-  if (!lifelines || lifelines.length === 0) {
+  if (!validLifelines || validLifelines.length === 0) {
     return { nodes: [], edges: [] };
   }
 
   // Sort lifelines by order
-  const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
+  const sortedLifelines = [...validLifelines].sort((a, b) => a.order - b.order);
 
   // Calculate max parallel processes per lifeline for spacing
   const PROCESS_BOX_WIDTH = 50;
@@ -58,9 +98,9 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   
   // Track which lifelines have processes
   const lifelineProcessCounts = new Map<string, number>();
-  if (options.processes && options.processes.length > 0) {
+  if (validProcesses.length > 0) {
     sortedLifelines.forEach(lifeline => {
-      const processesOnLifeline = options.processes!.filter(process => {
+      const processesOnLifeline = validProcesses.filter(process => {
         return process.anchorIds.some(id => {
           const anchor = anchors.find(a => a.id === id);
           return anchor?.lifelineId === lifeline.id;
@@ -105,7 +145,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     nodeY: number, 
     nodeHeight: number
   ): number => {
-    if (!options.processes || options.processes.length === 0) return 0;
+    if (validProcesses.length === 0) return 0;
     
     const PROCESS_BOX_WIDTH = 50;
     const MARGIN_GAP = 10;
@@ -120,7 +160,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     // Use a Set to track unique process IDs
     const overlappingProcessIds = new Set<string>();
     
-    options.processes.forEach(process => {
+    validProcesses.forEach(process => {
       const processAnchorsOnLifeline = process.anchorIds.filter(id => {
         const anchor = anchors.find(a => a.id === id);
         return anchor?.lifelineId === lifelineId;
@@ -187,11 +227,11 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
 
   // Ensure all nodes have yPositions before layout calculation
   // Assign default positions to new nodes or dragged nodes that don't have yPosition yet
-  const nodesWithPositions = nodes.map((node, index) => {
+  const nodesWithPositions = validNodes.map((node, index) => {
     if (node.yPosition === undefined) {
       // Assign a default yPosition based on array order
       // This ensures new nodes get positioned at the end in order
-      const maxYPosition = nodes.reduce((max, n) => 
+      const maxYPosition = validNodes.reduce((max, n) => 
         n.yPosition !== undefined ? Math.max(max, n.yPosition) : max, 
         LIFELINE_HEADER_HEIGHT + 40
       );
@@ -205,7 +245,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
 
   // Auto-align all nodes with even vertical spacing based on actual heights
   // Allow nodes to share Y positions when they connect to non-overlapping lifelines
-  const alignedNodePositions = calculateEvenSpacing(nodesWithPositions, nodeHeights, lifelines);
+  const alignedNodePositions = calculateEvenSpacing(nodesWithPositions, nodeHeights, validLifelines);
   
   // Create a map to store calculated yPosition values (center Y)
   const calculatedYPositions = new Map<string, number>();
@@ -213,9 +253,9 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   // Helper function to find process and parallel index for an anchor on its specific lifeline
   // Uses actual Y range overlap detection to match the process box positioning
   const getAnchorProcessInfo = (anchorId: string, anchorLifelineId: string): { processId: string; parallelIndex: number; parallelCount: number } | null => {
-    if (!options.processes) return null;
+    if (validProcesses.length === 0) return null;
     
-    const process = options.processes.find(p => p.anchorIds.includes(anchorId));
+    const process = validProcesses.find(p => p.anchorIds.includes(anchorId));
     if (!process) return null;
     
     // Get the anchor to determine its type
@@ -260,7 +300,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     };
     
     // Find all processes that have anchors on this lifeline and overlap Y range
-    const overlappingProcesses = options.processes.filter(p => {
+    const overlappingProcesses = validProcesses.filter(p => {
       // Check if this process has any anchor on the target lifeline
       const pLifelineAnchorIds = p.anchorIds.filter(id => {
         const anchor = anchors.find(a => a.id === id);
@@ -503,10 +543,10 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
   
   // Calculate process nodes if processes exist
   const processNodes: Node[] = [];
-  if (options.processes && options.processes.length > 0) {
+  if (validProcesses.length > 0) {
     try {
       const processLayout = calculateProcessLayout(
-        options.processes,
+        validProcesses,
         anchors,
         nodesWithPositions,
         lifelineXPositions,
