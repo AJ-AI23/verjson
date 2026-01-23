@@ -1070,6 +1070,7 @@ interface SectionTreeProps {
   definitions: Record<string, any>;
   diagramArrayPath?: string; // For diagram sections: 'data.lifelines', 'data.nodes', etc.
   parentSchema?: any; // Schema definition for this section (to detect items.$ref)
+  isEmptyDiagramArray?: boolean; // Flag for empty diagram arrays that should still show +Add
   onPropertyChange: (path: string[], updates: { name?: string; schema?: any }) => void;
   onPropertyRename: (path: string[], oldName: string, newName: string) => void;
   onAddProperty: (path: string[], name: string, schema: any) => void;
@@ -1099,6 +1100,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
   definitions,
   diagramArrayPath,
   parentSchema,
+  isEmptyDiagramArray,
   onPropertyChange,
   onPropertyRename,
   onAddProperty,
@@ -1149,7 +1151,8 @@ const SectionTree: React.FC<SectionTreeProps> = ({
     return getFixedItemTypeFromSchema(parentSchema);
   }, [parentSchema]);
   
-  if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
+  // Allow empty diagram arrays to still render (for +Add button)
+  if (!isEmptyDiagramArray && (!data || (typeof data === 'object' && Object.keys(data).length === 0))) {
     return null;
   }
 
@@ -1605,8 +1608,14 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
   const handleAddArrayItem = useCallback((path: string[], item: any) => {
     const newSchema = JSON.parse(JSON.stringify(schema));
     
+    // Navigate to the target, creating arrays along the way if needed
     let current = newSchema;
-    for (const key of path) {
+    for (let i = 0; i < path.length; i++) {
+      const key = path[i];
+      if (current[key] === undefined) {
+        // Create array at the target path, object for intermediate paths
+        current[key] = (i === path.length - 1) ? [] : {};
+      }
       current = current[key];
     }
     
@@ -1757,7 +1766,7 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
 
   // Build sections based on schema type
   const rootSections = useMemo(() => {
-    const sections: { key: string; title: string; icon: React.ReactNode; data: any; diagramArrayPath?: string }[] = [];
+    const sections: { key: string; title: string; icon: React.ReactNode; data: any; diagramArrayPath?: string; isEmptyDiagramArray?: boolean }[] = [];
     
     if (schemaType === 'json-schema') {
       // JSON Schema sections
@@ -1785,30 +1794,27 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
       
       if (isVerjsonFormat) {
         // New verjson format: data contains lifelines, nodes, etc.
-        const diagramData = schema.data;
-        if (diagramData?.lifelines) {
-          sections.push({ key: 'data.lifelines', title: 'Lifelines', icon: <List className="h-4 w-4 text-green-500" />, data: diagramData.lifelines, diagramArrayPath: 'data.lifelines' });
-        }
-        if (diagramData?.nodes) {
-          sections.push({ key: 'data.nodes', title: 'Nodes', icon: <Box className="h-4 w-4 text-primary" />, data: diagramData.nodes, diagramArrayPath: 'data.nodes' });
-        }
-        if (diagramData?.processes) {
-          sections.push({ key: 'data.processes', title: 'Processes', icon: <Box className="h-4 w-4 text-purple-500" />, data: diagramData.processes, diagramArrayPath: 'data.processes' });
-        }
-        if (diagramData?.edges) {
-          sections.push({ key: 'data.edges', title: 'Edges', icon: <Link2 className="h-4 w-4 text-blue-500" />, data: diagramData.edges, diagramArrayPath: 'data.edges' });
+        // Always show Lifelines, Nodes, Processes sections even if empty/missing
+        const diagramData = schema.data || {};
+        const diagramType = schema.type;
+        
+        // For sequence diagrams, always show Lifelines, Nodes, Processes
+        if (diagramType === 'sequence') {
+          sections.push({ key: 'data.lifelines', title: 'Lifelines', icon: <List className="h-4 w-4 text-green-500" />, data: diagramData.lifelines || [], diagramArrayPath: 'data.lifelines', isEmptyDiagramArray: !diagramData.lifelines || diagramData.lifelines.length === 0 });
+          sections.push({ key: 'data.nodes', title: 'Nodes', icon: <Box className="h-4 w-4 text-primary" />, data: diagramData.nodes || [], diagramArrayPath: 'data.nodes', isEmptyDiagramArray: !diagramData.nodes || diagramData.nodes.length === 0 });
+          sections.push({ key: 'data.processes', title: 'Processes', icon: <Box className="h-4 w-4 text-purple-500" />, data: diagramData.processes || [], diagramArrayPath: 'data.processes', isEmptyDiagramArray: !diagramData.processes || diagramData.processes.length === 0 });
+        } else {
+          // For flowcharts, show Nodes and Edges
+          sections.push({ key: 'data.nodes', title: 'Nodes', icon: <Box className="h-4 w-4 text-primary" />, data: diagramData.nodes || [], diagramArrayPath: 'data.nodes', isEmptyDiagramArray: !diagramData.nodes || diagramData.nodes.length === 0 });
+          if (diagramData?.edges || diagramType === 'flowchart') {
+            sections.push({ key: 'data.edges', title: 'Edges', icon: <Link2 className="h-4 w-4 text-blue-500" />, data: diagramData.edges || [], diagramArrayPath: 'data.edges', isEmptyDiagramArray: !diagramData.edges || diagramData.edges.length === 0 });
+          }
         }
       } else {
-        // Legacy flat diagram format
-        if (schema?.lifelines) {
-          sections.push({ key: 'lifelines', title: 'Lifelines', icon: <List className="h-4 w-4 text-green-500" />, data: schema.lifelines });
-        }
-        if (schema?.nodes) {
-          sections.push({ key: 'nodes', title: 'Nodes', icon: <Box className="h-4 w-4 text-primary" />, data: schema.nodes });
-        }
-        if (schema?.processes) {
-          sections.push({ key: 'processes', title: 'Processes', icon: <Box className="h-4 w-4 text-purple-500" />, data: schema.processes });
-        }
+        // Legacy flat diagram format - always show sections
+        sections.push({ key: 'lifelines', title: 'Lifelines', icon: <List className="h-4 w-4 text-green-500" />, data: schema?.lifelines || [], isEmptyDiagramArray: !schema?.lifelines || schema.lifelines.length === 0 });
+        sections.push({ key: 'nodes', title: 'Nodes', icon: <Box className="h-4 w-4 text-primary" />, data: schema?.nodes || [], isEmptyDiagramArray: !schema?.nodes || schema.nodes.length === 0 });
+        sections.push({ key: 'processes', title: 'Processes', icon: <Box className="h-4 w-4 text-purple-500" />, data: schema?.processes || [], isEmptyDiagramArray: !schema?.processes || schema.processes.length === 0 });
         if (schema?.edges) {
           sections.push({ key: 'edges', title: 'Edges', icon: <Link2 className="h-4 w-4 text-blue-500" />, data: schema.edges });
         }
@@ -2037,6 +2043,7 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
               path={section.key.includes('.') ? section.key.split('.') : [section.key]}
               definitions={definitions}
               diagramArrayPath={section.diagramArrayPath}
+              isEmptyDiagramArray={section.isEmptyDiagramArray}
               onPropertyChange={handlePropertyChange}
               onPropertyRename={handlePropertyRename}
               onAddProperty={handleAddProperty}
