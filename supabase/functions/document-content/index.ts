@@ -7,9 +7,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper function to decode JSON Pointer segment (RFC 6901)
+function decodeJsonPointerSegment(segment: string): string {
+  return segment.replace(/~1/g, '/').replace(/~0/g, '~');
+}
+
 // Helper function to set a value at a JSON path
 function setValueAtPath(obj: any, path: string, value: any): void {
-  const parts = path.split('/').filter(p => p !== '');
+  const parts = path.split('/').filter(p => p !== '').map(decodeJsonPointerSegment);
   let current = obj;
   
   for (let i = 0; i < parts.length - 1; i++) {
@@ -43,7 +48,7 @@ function setValueAtPath(obj: any, path: string, value: any): void {
 
 // Helper function to remove a value at a JSON path
 function removeValueAtPath(obj: any, path: string): void {
-  const parts = path.split('/').filter(p => p !== '');
+  const parts = path.split('/').filter(p => p !== '').map(decodeJsonPointerSegment);
   let current = obj;
   
   for (let i = 0; i < parts.length - 1; i++) {
