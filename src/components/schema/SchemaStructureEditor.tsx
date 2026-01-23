@@ -1171,6 +1171,41 @@ const SectionTree: React.FC<SectionTreeProps> = ({
 
     if (Array.isArray(data)) {
       const arrayItemIds = data.map((_, index) => String(index));
+      
+      // Create proper template for diagram array items
+      const getNewItemTemplate = (): any => {
+        if (diagramArrayPath === 'data.lifelines') {
+          return {
+            id: `lifeline-${data.length + 1}`,
+            name: `Lifeline ${data.length + 1}`,
+            order: data.length
+          };
+        } else if (diagramArrayPath === 'data.nodes') {
+          return {
+            id: `node-${data.length + 1}`,
+            type: 'endpoint',
+            label: `Node ${data.length + 1}`,
+            anchors: []
+          };
+        } else if (diagramArrayPath === 'data.processes') {
+          return {
+            id: `process-${data.length + 1}`,
+            type: 'lifelineProcess',
+            lifelineId: '',
+            anchorIds: [],
+            description: `Process ${data.length + 1}`
+          };
+        } else if (diagramArrayPath === 'data.edges') {
+          return {
+            id: `edge-${data.length + 1}`,
+            source: '',
+            target: ''
+          };
+        }
+        // Default: use first item type or empty object
+        return (data.length > 0 && typeof data[0] === 'object') ? {} : '';
+      };
+      
       return (
         <div className="space-y-0.5">
           <SortablePropertyList
@@ -1217,7 +1252,7 @@ const SectionTree: React.FC<SectionTreeProps> = ({
               variant="ghost" 
               size="sm" 
               className="h-6 px-2 text-xs gap-1"
-              onClick={() => onAddArrayItem(path, typeof data[0] === 'object' ? {} : '')}
+              onClick={() => onAddArrayItem(path, getNewItemTemplate())}
             >
               <Plus className="h-3 w-3" />
               Add Item
