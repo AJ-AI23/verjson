@@ -1708,11 +1708,28 @@ const FitViewHelper: React.FC<{
     if (!selectedLifelineId || !onDataChange) return;
     
     const updatedLifelines = lifelines.filter(l => l.id !== selectedLifelineId);
+    
+    // Collect anchor IDs from nodes connected to the deleted lifeline
+    const deletedAnchorIds = new Set<string>();
+    diagramNodes.forEach(node => {
+      if (node.anchors?.some(anchor => anchor.lifelineId === selectedLifelineId)) {
+        node.anchors.forEach(anchor => deletedAnchorIds.add(anchor.id));
+      }
+    });
+    
     const updatedNodes = diagramNodes.filter(node => 
       !node.anchors?.some(anchor => anchor.lifelineId === selectedLifelineId)
     );
     
-    onDataChange({ ...data, lifelines: updatedLifelines, nodes: updatedNodes });
+    // Remove deleted anchors from processes and filter out empty processes
+    const updatedProcesses = (data.processes || [])
+      .map(process => ({
+        ...process,
+        anchorIds: process.anchorIds.filter(anchorId => !deletedAnchorIds.has(anchorId))
+      }))
+      .filter(process => process.anchorIds.length > 0);
+    
+    onDataChange({ ...data, lifelines: updatedLifelines, nodes: updatedNodes, processes: updatedProcesses });
     setSelectedLifelineId(null);
     setLifelineToolbarPosition(null);
   }, [selectedLifelineId, lifelines, diagramNodes, data, onDataChange]);
