@@ -138,12 +138,25 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
         });
         
         // When collapsing a component under root.components.X.*, also collapse
-        // the segment (root.components.X) to keep the diagram clean
+        // the segment (root.components.X) but only if no other components in 
+        // that segment are still expanded
         const componentsMatch = path.match(/^(root\.components\.[^.]+)\./);
         if (componentsMatch) {
           const segmentPath = componentsMatch[1];
-          debugToast(`Collapsing component segment: ${segmentPath}`);
-          updated[segmentPath] = true;
+          const segmentPrefix = segmentPath + '.';
+          
+          // Check if any sibling component is still expanded (false = expanded)
+          const hasExpandedSibling = Object.entries(updated).some(([p, collapsed]) => {
+            // Must be a direct child of the segment, not the path we just collapsed
+            return p !== path && 
+                   p.startsWith(segmentPrefix) && 
+                   collapsed === false;
+          });
+          
+          if (!hasExpandedSibling) {
+            debugToast(`Collapsing component segment: ${segmentPath}`);
+            updated[segmentPath] = true;
+          }
         }
       }
       
