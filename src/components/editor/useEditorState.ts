@@ -111,6 +111,21 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
       // Set the current path's state
       updated[path] = isCollapsed;
       
+      // If expanding, also expand all parent paths in the chain
+      // e.g., expanding "root.components.schemas.Code" should also expand
+      // "root", "root.components", and "root.components.schemas"
+      if (!isCollapsed) {
+        const segments = path.split('.');
+        let parentPath = '';
+        for (let i = 0; i < segments.length - 1; i++) {
+          parentPath = parentPath ? `${parentPath}.${segments[i]}` : segments[i];
+          if (updated[parentPath] !== false) {
+            debugToast(`Expanding parent path: ${parentPath}`);
+            updated[parentPath] = false;
+          }
+        }
+      }
+      
       // If collapsing an ancestor, clear all descendant collapsed states
       // since they should inherit the collapsed state from their ancestor
       if (isCollapsed) {
