@@ -33,6 +33,7 @@ import { OpenApiImportDialog } from './OpenApiImportDialog';
 import { DiagramHeader } from '../DiagramHeader';
 import { useEditorSettings } from '@/contexts/EditorSettingsContext';
 import { useProcessManagement } from '@/hooks/useProcessManagement';
+import { useDiagramClipboard } from '@/hooks/useDiagramClipboard';
 import { ProcessEditor } from './ProcessEditor';
 import { LifelineEditor } from './LifelineEditor';
 import '@xyflow/react/dist/style.css';
@@ -187,12 +188,101 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
     }
   });
 
-  // Keyboard shortcuts for process creation, deletion, and navigation
+  // Clipboard management for copy/paste
+  const diagramClipboard = useDiagramClipboard();
+
+  // Duplicate selected node handler
+  const handleDuplicateNode = useCallback(() => {
+    if (selectedNodeIds.length !== 1 || !onDataChange) return;
+    
+    const nodeId = selectedNodeIds[0];
+    const node = diagramNodes.find(n => n.id === nodeId);
+    if (!node) return;
+    
+    // Copy and immediately paste
+    diagramClipboard.copyNode(node);
+    const newNode = diagramClipboard.pasteNode(diagramNodes, lifelines);
+    if (newNode) {
+      onDataChange({ ...data, nodes: [...diagramNodes, newNode] });
+      // Select the new node
+      setSelectedNodeIds([newNode.id]);
+    }
+  }, [selectedNodeIds, diagramNodes, lifelines, data, onDataChange, diagramClipboard]);
+
+  // Duplicate selected lifeline handler
+  const handleDuplicateLifeline = useCallback(() => {
+    if (!selectedLifelineId || !onDataChange) return;
+    
+    const lifeline = lifelines.find(l => l.id === selectedLifelineId);
+    if (!lifeline) return;
+    
+    diagramClipboard.copyLifeline(lifeline);
+    const newLifeline = diagramClipboard.pasteLifeline(lifelines);
+    if (newLifeline) {
+      onDataChange({ ...data, lifelines: [...lifelines, newLifeline] });
+      setSelectedLifelineId(newLifeline.id);
+    }
+  }, [selectedLifelineId, lifelines, data, onDataChange, diagramClipboard]);
+
+  // Keyboard shortcuts for process creation, deletion, navigation, and copy/paste
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Ignore keyboard events when typing in inputs or textareas
       const target = event.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+      
+      // Copy (Ctrl+C / Cmd+C)
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c' && !readOnly) {
+        event.preventDefault();
+        
+        if (selectedNodeIds.length === 1) {
+          const node = diagramNodes.find(n => n.id === selectedNodeIds[0]);
+          if (node) {
+            diagramClipboard.copyNode(node);
+          }
+        } else if (selectedLifelineId) {
+          const lifeline = lifelines.find(l => l.id === selectedLifelineId);
+          if (lifeline) {
+            diagramClipboard.copyLifeline(lifeline);
+          }
+        } else if (selectedProcessId) {
+          const process = (data.processes || []).find(p => p.id === selectedProcessId);
+          if (process) {
+            diagramClipboard.copyProcess(process);
+          }
+        }
+        return;
+      }
+      
+      // Paste (Ctrl+V / Cmd+V)
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v' && !readOnly && onDataChange) {
+        event.preventDefault();
+        
+        if (diagramClipboard.clipboardType === 'node') {
+          const newNode = diagramClipboard.pasteNode(diagramNodes, lifelines);
+          if (newNode) {
+            onDataChange({ ...data, nodes: [...diagramNodes, newNode] });
+            setSelectedNodeIds([newNode.id]);
+          }
+        } else if (diagramClipboard.clipboardType === 'lifeline') {
+          const newLifeline = diagramClipboard.pasteLifeline(lifelines);
+          if (newLifeline) {
+            onDataChange({ ...data, lifelines: [...lifelines, newLifeline] });
+            setSelectedLifelineId(newLifeline.id);
+          }
+        } else if (diagramClipboard.clipboardType === 'process') {
+          const result = diagramClipboard.pasteProcess(data.processes || [], diagramNodes);
+          if (result) {
+            onDataChange({ 
+              ...data, 
+              processes: [...(data.processes || []), result.process],
+              nodes: result.updatedNodes
+            });
+            setSelectedProcessId(result.process.id);
+          }
+        }
         return;
       }
       
@@ -387,7 +477,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedAnchorId, processCreationMode, selectedNodeIds, selectedLifelineId, selectedProcessId, diagramNodes, lifelines, data, readOnly, onDataChange]);
+  }, [selectedAnchorId, processCreationMode, selectedNodeIds, selectedLifelineId, selectedProcessId, diagramNodes, lifelines, data, readOnly, onDataChange, diagramClipboard]);
 
   const activeTheme = useMemo(
     () => styles?.themes?.[currentTheme] || styles?.themes?.light || defaultLightTheme,
@@ -2194,6 +2284,7 @@ const FitViewHelper: React.FC<{
                   selectedCount={selectedNodeIds.length}
                   onEdit={handleEditNode}
                   onDelete={handleDeleteNode}
+                  onDuplicate={selectedNodeIds.length === 1 ? handleDuplicateNode : undefined}
                 />
               )}
               
@@ -2212,6 +2303,7 @@ const FitViewHelper: React.FC<{
                   selectedCount={1}
                   onEdit={handleEditLifeline}
                   onDelete={handleDeleteLifeline}
+                  onDuplicate={handleDuplicateLifeline}
                 />
               )}
               
