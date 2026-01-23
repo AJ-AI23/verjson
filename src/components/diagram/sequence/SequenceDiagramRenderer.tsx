@@ -1571,11 +1571,31 @@ const FitViewHelper: React.FC<{
   
   const handleDeleteNode = useCallback(() => {
     if (selectedNodeIds.length > 0 && onDataChange) {
+      // Collect all anchor IDs from nodes being deleted
+      const deletedAnchorIds = new Set<string>();
+      for (const nodeId of selectedNodeIds) {
+        const node = diagramNodes.find(n => n.id === nodeId);
+        if (node?.anchors) {
+          for (const anchor of node.anchors) {
+            deletedAnchorIds.add(anchor.id);
+          }
+        }
+      }
+
       const updatedNodes = diagramNodes.filter(n => !selectedNodeIds.includes(n.id));
+      
+      // Remove deleted anchors from processes and filter out empty processes
+      const updatedProcesses = (data.processes || [])
+        .map(process => ({
+          ...process,
+          anchorIds: process.anchorIds.filter(anchorId => !deletedAnchorIds.has(anchorId))
+        }))
+        .filter(process => process.anchorIds.length > 0);
       
       onDataChange({
         ...data,
-        nodes: updatedNodes
+        nodes: updatedNodes,
+        processes: updatedProcesses
       });
 
       setSelectedNodeIds([]);
