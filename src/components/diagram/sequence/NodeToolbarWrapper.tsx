@@ -7,13 +7,15 @@ interface NodeToolbarWrapperProps {
   selectedCount: number;
   onEdit: () => void;
   onDelete: () => void;
+  onDuplicate?: () => void;
 }
 
 export const NodeToolbarWrapper: React.FC<NodeToolbarWrapperProps> = ({
   diagramPosition,
   selectedCount,
   onEdit,
-  onDelete
+  onDelete,
+  onDuplicate
 }) => {
   const { getViewport } = useReactFlow();
   const [screenPosition, setScreenPosition] = useState<{ x: number; y: number } | null>(null);
@@ -38,6 +40,7 @@ export const NodeToolbarWrapper: React.FC<NodeToolbarWrapperProps> = ({
       selectedCount={selectedCount}
       onEdit={onEdit}
       onDelete={onDelete}
+      onDuplicate={onDuplicate}
     />
   );
 };
