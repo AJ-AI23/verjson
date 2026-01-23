@@ -1225,11 +1225,17 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
   const [activeTab, setActiveTab] = useState<'structure' | 'components'>('structure');
 
   // When switching to Components tab, expand root.components in the diagram
+  // When switching away, collapse it
   const prevActiveTabRef = useRef<string | null>(null);
   useEffect(() => {
-    if (activeTab === 'components' && prevActiveTabRef.current !== 'components' && rawExternalOnToggleCollapse) {
-      // Expand root.components so the components section is visible in the diagram
-      rawExternalOnToggleCollapse('root.components', false);
+    if (rawExternalOnToggleCollapse) {
+      if (activeTab === 'components' && prevActiveTabRef.current !== 'components') {
+        // Expand root.components so the components section is visible in the diagram
+        rawExternalOnToggleCollapse('root.components', false);
+      } else if (activeTab !== 'components' && prevActiveTabRef.current === 'components') {
+        // Collapse root.components when switching away from Components tab
+        rawExternalOnToggleCollapse('root.components', true);
+      }
     }
     prevActiveTabRef.current = activeTab;
   }, [activeTab, rawExternalOnToggleCollapse]);
