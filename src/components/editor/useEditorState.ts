@@ -136,6 +136,15 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
             delete updated[existingPath];
           }
         });
+        
+        // When collapsing a component under root.components.X.*, also collapse
+        // the segment (root.components.X) to keep the diagram clean
+        const componentsMatch = path.match(/^(root\.components\.[^.]+)\./);
+        if (componentsMatch) {
+          const segmentPath = componentsMatch[1];
+          debugToast(`Collapsing component segment: ${segmentPath}`);
+          updated[segmentPath] = true;
+        }
       }
       
       debugToast('Updated collapsedPaths', updated);
