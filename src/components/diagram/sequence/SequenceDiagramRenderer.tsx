@@ -187,21 +187,207 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
     }
   });
 
-  // Keyboard shortcuts for process creation
+  // Keyboard shortcuts for process creation, deletion, and navigation
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Ignore keyboard events when typing in inputs or textareas
+      const target = event.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+      
+      // Escape key handling
       if (event.key === 'Escape') {
         if (selectedAnchorId || processCreationMode === 'selecting-process') {
           setSelectedAnchorId(null);
           setAnchorTooltipPosition(null);
           setProcessCreationMode('none');
         }
+        // Clear all selections
+        setSelectedNodeIds([]);
+        setToolbarPosition(null);
+        setSelectedProcessId(null);
+        setProcessToolbarPosition(null);
+        setSelectedLifelineId(null);
+        setLifelineToolbarPosition(null);
+        return;
+      }
+      
+      // Delete/Backspace key handling
+      if ((event.key === 'Delete' || event.key === 'Backspace') && !readOnly && onDataChange) {
+        event.preventDefault();
+        
+        // Delete selected nodes
+        if (selectedNodeIds.length > 0) {
+          // Collect all anchor IDs from nodes being deleted
+          const deletedAnchorIds = new Set<string>();
+          for (const nodeId of selectedNodeIds) {
+            const node = diagramNodes.find(n => n.id === nodeId);
+            if (node?.anchors) {
+              for (const anchor of node.anchors) {
+                deletedAnchorIds.add(anchor.id);
+              }
+            }
+          }
+          const updatedNodes = diagramNodes.filter(n => !selectedNodeIds.includes(n.id));
+          const updatedProcesses = (data.processes || [])
+            .map(process => ({
+              ...process,
+              anchorIds: process.anchorIds.filter(anchorId => !deletedAnchorIds.has(anchorId))
+            }))
+            .filter(process => process.anchorIds.length > 0);
+          
+          onDataChange({
+            ...data,
+            nodes: updatedNodes,
+            processes: updatedProcesses
+          });
+          setSelectedNodeIds([]);
+          setToolbarPosition(null);
+          return;
+        }
+        
+        // Delete selected lifeline
+        if (selectedLifelineId) {
+          const updatedLifelines = lifelines.filter(l => l.id !== selectedLifelineId);
+          const deletedAnchorIds = new Set<string>();
+          diagramNodes.forEach(node => {
+            if (node.anchors?.some(anchor => anchor.lifelineId === selectedLifelineId)) {
+              node.anchors.forEach(anchor => deletedAnchorIds.add(anchor.id));
+            }
+          });
+          const updatedNodes = diagramNodes.filter(node => 
+            !node.anchors?.some(anchor => anchor.lifelineId === selectedLifelineId)
+          );
+          const updatedProcesses = (data.processes || [])
+            .map(process => ({
+              ...process,
+              anchorIds: process.anchorIds.filter(anchorId => !deletedAnchorIds.has(anchorId))
+            }))
+            .filter(process => process.anchorIds.length > 0);
+          
+          onDataChange({ ...data, lifelines: updatedLifelines, nodes: updatedNodes, processes: updatedProcesses });
+          setSelectedLifelineId(null);
+          setLifelineToolbarPosition(null);
+          return;
+        }
+        
+        // Delete selected process
+        if (selectedProcessId) {
+          const updatedProcesses = (data.processes || []).filter(p => p.id !== selectedProcessId);
+          onDataChange({ ...data, processes: updatedProcesses });
+          setSelectedProcessId(null);
+          setProcessToolbarPosition(null);
+          return;
+        }
+      }
+      
+      // Arrow key navigation for nodes
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+        // Navigate between lifelines
+        if (selectedLifelineId && lifelines.length > 1) {
+          event.preventDefault();
+          const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
+          const currentIdx = sortedLifelines.findIndex(l => l.id === selectedLifelineId);
+          
+          if (event.key === 'ArrowLeft' && currentIdx > 0) {
+            const newLifeline = sortedLifelines[currentIdx - 1];
+            setSelectedLifelineId(newLifeline.id);
+          } else if (event.key === 'ArrowRight' && currentIdx < sortedLifelines.length - 1) {
+            const newLifeline = sortedLifelines[currentIdx + 1];
+            setSelectedLifelineId(newLifeline.id);
+          } else if ((event.key === 'ArrowDown') && diagramNodes.length > 0) {
+            // Move from lifeline to first node on that lifeline
+            const lifelineNodes = diagramNodes
+              .filter(n => n.anchors?.some(a => a.lifelineId === selectedLifelineId))
+              .sort((a, b) => (a.yPosition || 0) - (b.yPosition || 0));
+            if (lifelineNodes.length > 0) {
+              setSelectedLifelineId(null);
+              setLifelineToolbarPosition(null);
+              setSelectedNodeIds([lifelineNodes[0].id]);
+            }
+          }
+          return;
+        }
+        
+        // Navigate between nodes
+        if (selectedNodeIds.length === 1 && diagramNodes.length > 1) {
+          event.preventDefault();
+          const currentNodeId = selectedNodeIds[0];
+          const currentNode = diagramNodes.find(n => n.id === currentNodeId);
+          if (!currentNode) return;
+          
+          const currentLifelineId = currentNode.anchors?.[0]?.lifelineId;
+          const currentY = currentNode.yPosition || 0;
+          
+          let nextNode: DiagramNode | undefined;
+          
+          if (event.key === 'ArrowUp') {
+            // Find node above on same lifeline, or go to lifeline header
+            const sameLifelineNodes = diagramNodes
+              .filter(n => n.anchors?.some(a => a.lifelineId === currentLifelineId) && (n.yPosition || 0) < currentY)
+              .sort((a, b) => (b.yPosition || 0) - (a.yPosition || 0));
+            
+            if (sameLifelineNodes.length > 0) {
+              nextNode = sameLifelineNodes[0];
+            } else if (currentLifelineId) {
+              // Move to the lifeline header
+              setSelectedNodeIds([]);
+              setToolbarPosition(null);
+              setSelectedLifelineId(currentLifelineId);
+              return;
+            }
+          } else if (event.key === 'ArrowDown') {
+            // Find node below on same lifeline
+            const sameLifelineNodes = diagramNodes
+              .filter(n => n.anchors?.some(a => a.lifelineId === currentLifelineId) && (n.yPosition || 0) > currentY)
+              .sort((a, b) => (a.yPosition || 0) - (b.yPosition || 0));
+            nextNode = sameLifelineNodes[0];
+          } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+            // Find node on adjacent lifeline at similar Y position
+            const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
+            const currentLifelineIdx = sortedLifelines.findIndex(l => l.id === currentLifelineId);
+            const targetLifelineIdx = event.key === 'ArrowLeft' ? currentLifelineIdx - 1 : currentLifelineIdx + 1;
+            
+            if (targetLifelineIdx >= 0 && targetLifelineIdx < sortedLifelines.length) {
+              const targetLifelineId = sortedLifelines[targetLifelineIdx].id;
+              const targetLifelineNodes = diagramNodes
+                .filter(n => n.anchors?.some(a => a.lifelineId === targetLifelineId));
+              
+              if (targetLifelineNodes.length > 0) {
+                // Find closest node by Y position
+                nextNode = targetLifelineNodes.reduce((closest, node) => {
+                  const closestDist = Math.abs((closest.yPosition || 0) - currentY);
+                  const nodeDist = Math.abs((node.yPosition || 0) - currentY);
+                  return nodeDist < closestDist ? node : closest;
+                });
+              }
+            }
+          }
+          
+          if (nextNode) {
+            setSelectedNodeIds([nextNode.id]);
+          }
+          return;
+        }
+        
+        // If no selection, select first node or lifeline
+        if (selectedNodeIds.length === 0 && !selectedLifelineId && !selectedProcessId) {
+          event.preventDefault();
+          if (diagramNodes.length > 0) {
+            const sortedNodes = [...diagramNodes].sort((a, b) => (a.yPosition || 0) - (b.yPosition || 0));
+            setSelectedNodeIds([sortedNodes[0].id]);
+          } else if (lifelines.length > 0) {
+            const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
+            setSelectedLifelineId(sortedLifelines[0].id);
+          }
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedAnchorId, processCreationMode]);
+  }, [selectedAnchorId, processCreationMode, selectedNodeIds, selectedLifelineId, selectedProcessId, diagramNodes, lifelines, data, readOnly, onDataChange]);
 
   const activeTheme = useMemo(
     () => styles?.themes?.[currentTheme] || styles?.themes?.light || defaultLightTheme,
