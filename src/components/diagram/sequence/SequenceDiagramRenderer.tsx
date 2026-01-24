@@ -1098,17 +1098,22 @@ const FitViewHelper: React.FC<{
 
   // Update nodes when layout changes and apply handlers - with deduplication
   useEffect(() => {
-    // Skip if nodes haven't actually changed (deep comparison of IDs, positions, and data)
-    const nodesChanged = nodesWithHandlers.length !== prevNodesRef.current.length ||
-      nodesWithHandlers.some((node, i) => {
-        const prev = prevNodesRef.current[i];
-        if (!prev) return true;
-        
+    // Build a map of previous nodes by ID for O(1) lookup (index-based comparison fails when order changes)
+    const prevNodesById = new Map(prevNodesRef.current.map((n) => [n.id, n]));
+
+    // Skip if nodes haven't actually changed (deep comparison of IDs, positions, data, and selection)
+    const nodesChanged =
+      nodesWithHandlers.length !== prevNodesRef.current.length ||
+      nodesWithHandlers.some((node) => {
+        const prev = prevNodesById.get(node.id);
+        if (!prev) return true; // New node added
+
         // Check basic properties
-        if (node.id !== prev.id || 
-            node.type !== prev.type ||
-            node.position.x !== prev.position.x ||
-            node.position.y !== prev.position.y) {
+        if (
+          node.type !== prev.type ||
+          node.position.x !== prev.position.x ||
+          node.position.y !== prev.position.y
+        ) {
           return true;
         }
 
@@ -1117,9 +1122,14 @@ const FitViewHelper: React.FC<{
         if (!!node.selected !== !!prev.selected) {
           return true;
         }
-        
+
         // Check data changes (especially for process, lifeline, anchor, and sequence nodes)
-        if (node.type === 'processNode' || node.type === 'columnLifeline' || node.type === 'anchorNode' || node.type === 'sequenceNode') {
+        if (
+          node.type === 'processNode' ||
+          node.type === 'columnLifeline' ||
+          node.type === 'anchorNode' ||
+          node.type === 'sequenceNode'
+        ) {
           const nodeData = node.data as any;
           const prevData = prev.data as any;
           // Compare dataVersion which changes when properties or theme changes
@@ -1127,7 +1137,7 @@ const FitViewHelper: React.FC<{
             return true;
           }
         }
-        
+
         return false;
       });
 
