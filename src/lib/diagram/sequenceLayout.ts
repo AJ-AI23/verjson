@@ -494,6 +494,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
     }
     
     const edgeStrokeColor = styles?.colors.edgeStroke || '#64748b';
+    const edgeArrowColor = styles?.colors.edgeArrow || edgeStrokeColor || '#3b82f6';
     const edgeStyles = getEdgeStyle('default', edgeStrokeColor);
     
     // Determine anchor position relative to node by comparing lifeline X positions
@@ -519,7 +520,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         animated: false,
         style: edgeStyles,
         zIndex: 5,
-        markerEnd: { type: MarkerType.ArrowClosed, width: 28, height: 28, color: edgeStrokeColor },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 28, height: 28, color: edgeArrowColor },
         data: { edgeType: 'default', styles, isRenderMode }
       };
       layoutEdges.push(edge);
@@ -535,7 +536,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         animated: false,
         style: edgeStyles,
         zIndex: 5,
-        markerEnd: { type: MarkerType.ArrowClosed, width: 28, height: 28, color: edgeStrokeColor },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 28, height: 28, color: edgeArrowColor },
         data: { edgeType: 'default', styles, isRenderMode }
       };
       layoutEdges.push(edge);

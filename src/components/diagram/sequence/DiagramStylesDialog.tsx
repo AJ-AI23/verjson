@@ -287,6 +287,11 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
                         onChange={(v) => handleColorChange('edgeStroke', v)}
                       />
                       <ColorInput
+                        label="Edge Arrow"
+                        value={currentTheme.colors.edgeArrow || currentTheme.colors.edgeStroke || '#3b82f6'}
+                        onChange={(v) => handleColorChange('edgeArrow', v)}
+                      />
+                      <ColorInput
                         label="Lifeline Axis"
                         value={currentTheme.colors.lifelineAxis || currentTheme.colors.nodeBorder || '#cbd5e1'}
                         onChange={(v) => handleColorChange('lifelineAxis', v)}
