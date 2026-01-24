@@ -23,7 +23,14 @@ import {
   Sun,
   Moon,
   Maximize,
-  Minimize
+  Minimize,
+  Strikethrough,
+  Highlighter,
+  Subscript,
+  Superscript,
+  Table,
+  CheckSquare,
+  Smile
 } from 'lucide-react';
 import { MarkdownDocument, MarkdownPage } from '@/types/markdown';
 import { MarkdownStyleTheme, defaultMarkdownLightTheme, defaultMarkdownDarkTheme } from '@/types/markdownStyles';
@@ -166,8 +173,11 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     textarea.focus();
   }, [handleTextChange, readOnly]);
   
-  // Toolbar actions
-  const toolbarActions = useMemo(() => [
+  // Check if extended markdown
+  const isExtendedMarkdown = document.type === 'extended-markdown';
+  
+  // Basic toolbar actions (available in both modes)
+  const basicToolbarActions = useMemo(() => [
     { icon: Bold, label: 'Bold', action: () => insertFormatting('**', '**') },
     { icon: Italic, label: 'Italic', action: () => insertFormatting('*', '*') },
     { icon: Heading1, label: 'Heading 1', action: () => insertFormatting('# ') },
@@ -180,6 +190,24 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     { icon: Link, label: 'Link', action: () => insertFormatting('[', '](url)') },
     { icon: Image, label: 'Image', action: () => insertFormatting('![alt](', ')') },
   ], [insertFormatting]);
+  
+  // Extended toolbar actions (only for extended-markdown)
+  const extendedToolbarActions = useMemo(() => [
+    { icon: Strikethrough, label: 'Strikethrough', action: () => insertFormatting('~~', '~~') },
+    { icon: Highlighter, label: 'Highlight', action: () => insertFormatting('==', '==') },
+    { icon: Subscript, label: 'Subscript', action: () => insertFormatting('~', '~') },
+    { icon: Superscript, label: 'Superscript', action: () => insertFormatting('^', '^') },
+    { icon: CheckSquare, label: 'Task List', action: () => insertFormatting('- [ ] ') },
+    { icon: Table, label: 'Table', action: () => insertFormatting('| Column 1 | Column 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |') },
+    { icon: Smile, label: 'Emoji', action: () => insertFormatting(':smile:') },
+  ], [insertFormatting]);
+  
+  // Combine actions based on document type
+  const toolbarActions = useMemo(() => {
+    return isExtendedMarkdown 
+      ? [...basicToolbarActions, ...extendedToolbarActions]
+      : basicToolbarActions;
+  }, [isExtendedMarkdown, basicToolbarActions, extendedToolbarActions]);
   
   // Add new page
   const addPage = useCallback(() => {
