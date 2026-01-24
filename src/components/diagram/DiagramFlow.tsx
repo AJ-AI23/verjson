@@ -109,31 +109,33 @@ export const DiagramFlow = memo(({
     console.log('[DiagramFlow] onNodeClick fired', {
       nodeId: node.id,
       nodeType: node.type,
-      nodePath: node.data?.path,
-      nodePathAlt: node.data?.nodePath,
+      path: node.data?.path,
+      nodePath: node.data?.nodePath,
       hasOnNodeSelect: !!onNodeSelect
     });
     
     dbg('onNodeClick fired', {
       nodeId: node.id,
       nodeType: node.type,
-      nodePath: node.data?.path,
-      nodePathAlt: node.data?.nodePath,
+      path: node.data?.path,
+      nodePath: node.data?.nodePath,
       hasOnNodeSelect: !!onNodeSelect,
       nodeData: node.data
     });
     
-    // Check for path (JSON Schema) or nodePath (OpenAPI)
-    const nodePath = node.data?.path || node.data?.nodePath;
-    if (onNodeSelect && typeof nodePath === 'string') {
-      console.log('[DiagramFlow] calling onNodeSelect', { nodePath });
-      dbg('calling onNodeSelect', { nodePath });
-      onNodeSelect(nodePath);
+    // Prefer nodePath (used by OpenAPI for structure path) over path (which may be API path like /v1/users)
+    // For JSON Schema, path is the structure path (root.properties.x)
+    // For OpenAPI, nodePath is the structure path (root.paths.-v1-users)
+    const structurePath = node.data?.nodePath || node.data?.path;
+    if (onNodeSelect && typeof structurePath === 'string') {
+      console.log('[DiagramFlow] calling onNodeSelect', { structurePath });
+      dbg('calling onNodeSelect', { structurePath });
+      onNodeSelect(structurePath);
     } else {
       console.log('[DiagramFlow] onNodeSelect not called', { 
         onNodeSelect: !!onNodeSelect, 
-        nodePath, 
-        pathType: typeof nodePath 
+        structurePath, 
+        pathType: typeof structurePath 
       });
     }
   }, [onNodeSelect]);
@@ -149,19 +151,21 @@ export const DiagramFlow = memo(({
     console.log('[DiagramFlow] onSelectionChange fired', {
       selectedNodesCount: selectedNodes.length,
       selectedNodeIds: selectedNodes.map(n => n.id),
-      selectedNodePaths: selectedNodes.map(n => n.data?.path || n.data?.nodePath)
+      selectedNodePaths: selectedNodes.map(n => n.data?.nodePath || n.data?.path)
     });
     
     // Trigger selection when a single node is selected
     if (selectedNodes.length === 1 && onNodeSelect) {
       const node = selectedNodes[0];
-      const nodePath = node.data?.path || node.data?.nodePath;
-      if (typeof nodePath === 'string') {
-        console.log('[DiagramFlow] onSelectionChange -> calling onNodeSelect', { nodePath });
-        onNodeSelect(nodePath);
+      // Prefer nodePath for structure navigation
+      const structurePath = node.data?.nodePath || node.data?.path;
+      if (typeof structurePath === 'string') {
+        console.log('[DiagramFlow] onSelectionChange -> calling onNodeSelect', { structurePath });
+        onNodeSelect(structurePath);
       }
     }
   }, [onNodeSelect]);
+
 
   // Add onAddNotation, expandedNotationPaths, onToggleCollapse to all nodes
   // Also ensure nodes are selectable
