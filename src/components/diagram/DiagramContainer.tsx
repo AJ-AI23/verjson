@@ -22,6 +22,7 @@ interface DiagramContainerProps {
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
   expandedNotationPaths?: Set<string>;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
+  onNodeSelect?: (path: string) => void;
 }
 
 export const DiagramContainer: React.FC<DiagramContainerProps> = ({ 
@@ -32,7 +33,8 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
   maxDepth,
   onAddNotation,
   expandedNotationPaths,
-  onToggleCollapse
+  onToggleCollapse,
+  onNodeSelect
 }) => {
   const { settings } = useEditorSettings();
   const [localMaxDepth, setLocalMaxDepth] = useState(maxDepth);
@@ -285,6 +287,7 @@ export const DiagramContainer: React.FC<DiagramContainerProps> = ({
         expandedNotationPaths={expandedNotationPaths}
         onToggleCollapse={onToggleCollapse}
         onNodeDragStop={handleNodeDragStop}
+        onNodeSelect={onNodeSelect}
       />
     </div>
   );

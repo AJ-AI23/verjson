@@ -53,6 +53,8 @@ interface EditorContentProps {
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
   diagramRef?: React.RefObject<HTMLDivElement>;
+  selectedNodePath?: string | null;
+  onNodeSelect?: (path: string) => void;
 }
 
 export const EditorContent: React.FC<EditorContentProps> = ({
@@ -83,6 +85,8 @@ export const EditorContent: React.FC<EditorContentProps> = ({
   isFullscreen,
   onToggleFullscreen,
   diagramRef,
+  selectedNodePath,
+  onNodeSelect,
 }) => {
   const isMobile = useIsMobile();
   const [showDiagram, setShowDiagram] = React.useState(true);
@@ -168,6 +172,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
         documentId={documentId}
         showDiagram={showDiagram}
         onToggleDiagram={() => setShowDiagram(!showDiagram)}
+        selectedNodePath={selectedNodePath}
       />
       <VersionControls 
         version={currentVersion} 
@@ -204,6 +209,7 @@ export const EditorContent: React.FC<EditorContentProps> = ({
       diagramRef={diagramRef}
       onToggleCollapse={onToggleCollapse}
       onSchemaChange={handleDiagramSchemaChange}
+      onNodeSelect={onNodeSelect}
     />
   );
 

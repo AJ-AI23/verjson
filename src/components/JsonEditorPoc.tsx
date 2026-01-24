@@ -39,6 +39,7 @@ interface JsonEditorPocProps {
   documentId?: string;
   showDiagram?: boolean;
   onToggleDiagram?: () => void;
+  selectedNodePath?: string | null;
 }
 
 export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
@@ -50,7 +51,8 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
   maxDepth,
   documentId,
   showDiagram = true,
-  onToggleDiagram
+  onToggleDiagram,
+  selectedNodePath
 }) => {
   // Create a ref to the editor container DOM element
   const containerRef = useRef<HTMLDivElement>(null);
@@ -653,6 +655,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
               consistencyIssues={showConsistencyIndicators ? consistencyIssues : []}
               collapsedPaths={collapsedPaths}
               onToggleCollapse={handleToggleCollapse}
+              selectedNodePath={selectedNodePath}
             />
           ) : (
             <SchemaStructureEditor
@@ -664,6 +667,7 @@ export const JsonEditorPoc: React.FC<JsonEditorPocProps> = ({
               consistencyIssues={showConsistencyIndicators ? consistencyIssues : []}
               collapsedPaths={collapsedPaths}
               onToggleCollapse={handleToggleCollapse}
+              selectedNodePath={selectedNodePath}
             />
           )}
         </div>

@@ -26,6 +26,7 @@ interface SchemaDiagramProps {
   onToggleFullscreen?: () => void;
   diagramRef?: React.RefObject<HTMLDivElement>;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
+  onNodeSelect?: (path: string) => void;
 }
 
 export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
@@ -46,7 +47,8 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
   isFullscreen,
   onToggleFullscreen,
   diagramRef,
-  onToggleCollapse
+  onToggleCollapse,
+  onNodeSelect
 }) => {
   const diagramInstanceId = useRef(Math.random().toString(36).slice(2, 8)).current;
 
@@ -216,6 +218,7 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
         onAddNotation={onAddNotation}
         expandedNotationPaths={expandedNotationPaths}
         onToggleCollapse={onToggleCollapse}
+        onNodeSelect={onNodeSelect}
       />
     </div>
   );
@@ -232,7 +235,8 @@ export const SchemaDiagram: React.FC<SchemaDiagramProps> = memo(({
       prevProps.maxDepth === nextProps.maxDepth &&
       prevProps.isStylesDialogOpen === nextProps.isStylesDialogOpen &&
       prevProps.isOpenApiImportOpen === nextProps.isOpenApiImportOpen &&
-      prevProps.isFullscreen === nextProps.isFullscreen
+      prevProps.isFullscreen === nextProps.isFullscreen &&
+      prevProps.onNodeSelect === nextProps.onNodeSelect
     );
     
     return result;

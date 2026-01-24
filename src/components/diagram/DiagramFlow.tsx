@@ -14,6 +14,7 @@ interface DiagramFlowProps {
   expandedNotationPaths?: Set<string>;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
   onNodeDragStop?: (event: React.MouseEvent, node: Node, nodes: Node[]) => void;
+  onNodeSelect?: (path: string) => void;
 }
 
 const nodeTypes = {
@@ -36,7 +37,8 @@ export const DiagramFlow = memo(({
   onAddNotation,
   expandedNotationPaths,
   onToggleCollapse,
-  onNodeDragStop
+  onNodeDragStop,
+  onNodeSelect
 }: DiagramFlowProps) => {
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const viewportRef = useRef<{ x: number; y: number; zoom: number }>({ x: 0, y: 0, zoom: 1 });
@@ -97,6 +99,14 @@ export const DiagramFlow = memo(({
     }
   }, [nodes]);
 
+  // Handle node click for selection
+  const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+    const nodePath = node.data?.path;
+    if (onNodeSelect && typeof nodePath === 'string') {
+      onNodeSelect(nodePath);
+    }
+  }, [onNodeSelect]);
+
   // Add onAddNotation, expandedNotationPaths, and onToggleCollapse to all nodes
   const nodesWithCallbacks = nodes.map(node => ({
     ...node,
@@ -126,6 +136,7 @@ export const DiagramFlow = memo(({
         onMove={onMove}
         onMoveEnd={onMove}
         onNodeDragStop={onNodeDragStop}
+        onNodeClick={handleNodeClick}
         defaultViewport={viewportRef.current} // Use stored viewport as default
       >
         <Controls />
