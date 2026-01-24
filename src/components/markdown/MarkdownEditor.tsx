@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   Bold, 
   Italic, 
@@ -27,10 +28,9 @@ import {
   Highlighter,
   Subscript,
   Superscript,
-  Table,
   CheckSquare,
-  Smile
 } from 'lucide-react';
+import { CodeBlockPopover, EmojiPickerPopover, TableConfigPopover } from './ToolbarPopovers';
 import { MarkdownDocument, MarkdownPage } from '@/types/markdown';
 import { MarkdownStyleTheme, defaultMarkdownLightTheme, defaultMarkdownDarkTheme } from '@/types/markdownStyles';
 import { 
@@ -191,15 +191,13 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     { icon: Image, label: 'Image', action: () => insertFormatting('![alt](', ')') },
   ], [insertFormatting]);
   
-  // Extended toolbar actions (only for extended-markdown)
+  // Extended toolbar actions (only for extended-markdown) - excluding popover-based ones
   const extendedToolbarActions = useMemo(() => [
     { icon: Strikethrough, label: 'Strikethrough', action: () => insertFormatting('~~', '~~') },
     { icon: Highlighter, label: 'Highlight', action: () => insertFormatting('==', '==') },
     { icon: Subscript, label: 'Subscript', action: () => insertFormatting('~', '~') },
     { icon: Superscript, label: 'Superscript', action: () => insertFormatting('^', '^') },
     { icon: CheckSquare, label: 'Task List', action: () => insertFormatting('- [ ] ') },
-    { icon: Table, label: 'Table', action: () => insertFormatting('| Column 1 | Column 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |') },
-    { icon: Smile, label: 'Emoji', action: () => insertFormatting(':smile:') },
   ], [insertFormatting]);
   
   // Combine actions based on document type
@@ -208,6 +206,29 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       ? [...basicToolbarActions, ...extendedToolbarActions]
       : basicToolbarActions;
   }, [isExtendedMarkdown, basicToolbarActions, extendedToolbarActions]);
+
+  // Insert raw text at cursor (for popover-based insertions)
+  const insertRawText = useCallback((text: string) => {
+    if (!textareaRef.current || readOnly) return;
+    
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentValue = textarea.value;
+    
+    const newText = 
+      currentValue.substring(0, start) + 
+      text + 
+      currentValue.substring(end);
+    
+    textarea.value = newText;
+    handleTextChange(newText);
+    
+    // Position cursor after inserted text
+    const newCursorPos = start + text.length;
+    textarea.setSelectionRange(newCursorPos, newCursorPos);
+    textarea.focus();
+  }, [handleTextChange, readOnly]);
   
   // Add new page
   const addPage = useCallback(() => {
@@ -246,20 +267,37 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const EditorPane = (
     <div className="h-full flex flex-col">
       {!readOnly && (
-        <div className="flex flex-wrap gap-1 p-2 border-b bg-muted/30">
-          {toolbarActions.map((action) => (
-            <Button
-              key={action.label}
-              variant="ghost"
-              size="sm"
-              onClick={action.action}
-              title={action.label}
-              className="h-8 w-8 p-0"
-            >
-              <action.icon className="h-4 w-4" />
-            </Button>
-          ))}
-        </div>
+        <TooltipProvider delayDuration={300}>
+          <div className="flex flex-wrap items-center gap-1 p-2 border-b bg-muted/30">
+            {toolbarActions.map((action) => (
+              <Tooltip key={action.label}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={action.action}
+                    className="h-8 w-8 p-0"
+                  >
+                    <action.icon className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  {action.label}
+                </TooltipContent>
+              </Tooltip>
+            ))}
+            
+            {/* Extended markdown popovers */}
+            {isExtendedMarkdown && (
+              <>
+                <div className="w-px h-5 bg-border mx-1" />
+                <CodeBlockPopover onInsert={insertRawText} disabled={readOnly} />
+                <TableConfigPopover onInsert={insertRawText} disabled={readOnly} />
+                <EmojiPickerPopover onInsert={insertRawText} disabled={readOnly} />
+              </>
+            )}
+          </div>
+        </TooltipProvider>
       )}
       <textarea
         ref={textareaRef}
