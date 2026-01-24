@@ -1,4 +1,5 @@
 import { FunctionsHttpError, FunctionsRelayError, FunctionsFetchError } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface DemoSessionExpiredError {
   isDemoExpired: boolean;
@@ -12,7 +13,6 @@ const SESSION_INVALID_PATTERNS = [
   'JWT expired',
   'Invalid JWT',
   'session_not_found',
-  'Unauthorized',
 ];
 
 /**
@@ -50,20 +50,26 @@ export function checkDemoSessionExpired(error: any): DemoSessionExpiredError {
     if (errorStr.includes(pattern)) {
       console.log('[SessionCheck] Detected invalid session:', pattern);
       
-      // Trigger redirect to login page for session invalidation
+      // Trigger sign out and redirect to login page
       handleSessionInvalidRedirect();
       
       return { isDemoExpired: false, isSessionInvalid: true, originalError: error };
     }
   }
 
-  // Check if it's a FunctionsHttpError with 401 status
+  // Check if it's a FunctionsHttpError with 401 status and contains session-related error
   if (error instanceof Error && 'context' in error) {
     const httpError = error as FunctionsHttpError;
     if (httpError.context?.status === 401) {
-      console.log('[SessionCheck] Detected 401 from FunctionsHttpError');
-      handleSessionInvalidRedirect();
-      return { isDemoExpired: false, isSessionInvalid: true, originalError: error };
+      // Only auto-redirect for session invalidation, not for general auth errors
+      // Check if any session pattern matches
+      for (const pattern of SESSION_INVALID_PATTERNS) {
+        if (errorStr.includes(pattern)) {
+          console.log('[SessionCheck] Detected 401 with session pattern:', pattern);
+          handleSessionInvalidRedirect();
+          return { isDemoExpired: false, isSessionInvalid: true, originalError: error };
+        }
+      }
     }
   }
   
@@ -71,21 +77,31 @@ export function checkDemoSessionExpired(error: any): DemoSessionExpiredError {
 }
 
 /**
- * Redirect to login page when session is invalid.
- * Uses a debounce to prevent multiple redirects.
+ * Sign out and redirect to login page when session is invalid.
+ * Uses a flag to prevent multiple simultaneous redirects.
  */
-let redirectTimeout: ReturnType<typeof setTimeout> | null = null;
+let isRedirecting = false;
 
-function handleSessionInvalidRedirect() {
-  // Debounce to prevent multiple simultaneous redirects
-  if (redirectTimeout) return;
+async function handleSessionInvalidRedirect() {
+  // Prevent multiple simultaneous redirects
+  if (isRedirecting) return;
   
   // Check if we're already on the auth page
   if (window.location.pathname === '/auth') return;
   
-  redirectTimeout = setTimeout(() => {
-    redirectTimeout = null;
-    console.log('[SessionCheck] Redirecting to login due to invalid session');
-    window.location.href = '/auth?expired=true';
-  }, 100);
+  isRedirecting = true;
+  console.log('[SessionCheck] Signing out and redirecting to login due to invalid session');
+  
+  // Set flag to prevent Auth page from auto-redirecting
+  sessionStorage.setItem('logout-in-progress', 'true');
+  
+  try {
+    // Sign out to clear the local session state
+    await supabase.auth.signOut();
+  } catch (e) {
+    console.error('[SessionCheck] Error signing out:', e);
+  }
+  
+  // Redirect to login page
+  window.location.href = '/auth?expired=true';
 }
