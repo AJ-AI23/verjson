@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Code2, Smile, Table, Search } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Code2, Smile, Table, Search, Image, Upload, Link, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { MarkdownEmbed } from '@/types/markdown';
 
 // Common programming languages for syntax highlighting
 const LANGUAGES = [
@@ -363,6 +365,203 @@ export const TableConfigPopover: React.FC<TableConfigPopoverProps> = ({ onInsert
             Insert {rows} × {cols} Table
           </Button>
         </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+// ============================================
+// Image Popover - URL or File Upload
+// ============================================
+
+interface ImagePopoverProps {
+  onInsert: (markdown: string) => void;
+  onAddEmbed: (embed: MarkdownEmbed) => void;
+  disabled?: boolean;
+}
+
+export const ImagePopover: React.FC<ImagePopoverProps> = ({ onInsert, onAddEmbed, disabled }) => {
+  const [open, setOpen] = useState(false);
+  const [url, setUrl] = useState('');
+  const [alt, setAlt] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUrlInsert = () => {
+    if (!url.trim()) return;
+    const markdown = `![${alt || 'image'}](${url})`;
+    onInsert(markdown);
+    setOpen(false);
+    setUrl('');
+    setAlt('');
+  };
+
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      return;
+    }
+
+    // Validate file size (max 5MB for base64 storage)
+    if (file.size > 5 * 1024 * 1024) {
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      // Read file as base64
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64Data = reader.result as string;
+        // Extract just the base64 part (remove data:image/xxx;base64, prefix)
+        const base64Content = base64Data.split(',')[1];
+        
+        // Generate unique ID for embed
+        const embedId = `img-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        
+        // Create embed object
+        const embed: MarkdownEmbed = {
+          id: embedId,
+          type: 'image',
+          ref: `embed://${embedId}`,
+          alt: alt || file.name.replace(/\.[^/.]+$/, ''),
+          mimeType: file.type,
+          data: base64Content,
+        };
+
+        // Add embed to document
+        onAddEmbed(embed);
+
+        // Insert markdown reference
+        const markdown = `![${embed.alt}](embed://${embedId})`;
+        onInsert(markdown);
+
+        setOpen(false);
+        setUrl('');
+        setAlt('');
+        setIsUploading(false);
+      };
+      reader.onerror = () => {
+        setIsUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      setIsUploading(false);
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, [alt, onAddEmbed, onInsert]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={disabled}
+          title="Image"
+          className="h-8 w-8 p-0"
+        >
+          <Image className="h-4 w-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 p-0" align="start">
+        <Tabs defaultValue="url" className="w-full">
+          <TabsList className="w-full grid grid-cols-2">
+            <TabsTrigger value="url" className="text-xs">
+              <Link className="h-3.5 w-3.5 mr-1.5" />
+              URL
+            </TabsTrigger>
+            <TabsTrigger value="upload" className="text-xs">
+              <Upload className="h-3.5 w-3.5 mr-1.5" />
+              Upload
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="url" className="p-3 space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="image-url" className="text-xs">Image URL</Label>
+              <Input
+                id="image-url"
+                placeholder="https://example.com/image.png"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="image-alt-url" className="text-xs">Alt text (optional)</Label>
+              <Input
+                id="image-alt-url"
+                placeholder="Description of image"
+                value={alt}
+                onChange={(e) => setAlt(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </div>
+            <Button 
+              size="sm" 
+              className="w-full"
+              onClick={handleUrlInsert}
+              disabled={!url.trim()}
+            >
+              Insert Image
+            </Button>
+          </TabsContent>
+
+          <TabsContent value="upload" className="p-3 space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="image-alt-upload" className="text-xs">Alt text (optional)</Label>
+              <Input
+                id="image-alt-upload"
+                placeholder="Description of image"
+                value={alt}
+                onChange={(e) => setAlt(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </div>
+            
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+              id="image-upload-input"
+            />
+            
+            <Button 
+              size="sm" 
+              variant="outline"
+              className="w-full"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Choose File
+                </>
+              )}
+            </Button>
+            
+            <p className="text-xs text-muted-foreground">
+              Max file size: 5MB. Supported formats: PNG, JPG, GIF, WebP
+            </p>
+          </TabsContent>
+        </Tabs>
       </PopoverContent>
     </Popover>
   );

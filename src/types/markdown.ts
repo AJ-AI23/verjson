@@ -54,9 +54,11 @@ export interface MarkdownPage {
 export interface MarkdownEmbed {
   id: string;
   type: 'image' | 'diagram';
-  ref: string; // "storage://path" for images, "document://id" for diagrams
+  ref: string; // "storage://path" for images, "document://id" for diagrams, or "embed://id" for inline base64
   alt?: string;
   caption?: string;
+  data?: string; // Base64 encoded data for inline embeds
+  mimeType?: string; // MIME type for base64 data (e.g., "image/png")
 }
 
 export type MarkdownEmbedType = 'image' | 'diagram';

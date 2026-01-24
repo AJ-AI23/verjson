@@ -14,7 +14,6 @@ import {
   Quote, 
   Code, 
   Link, 
-  Image,
   Eye,
   Edit3,
   ChevronLeft,
@@ -30,8 +29,8 @@ import {
   Superscript,
   CheckSquare,
 } from 'lucide-react';
-import { CodeBlockPopover, EmojiPickerPopover, TableConfigPopover } from './ToolbarPopovers';
-import { MarkdownDocument, MarkdownPage } from '@/types/markdown';
+import { CodeBlockPopover, EmojiPickerPopover, TableConfigPopover, ImagePopover } from './ToolbarPopovers';
+import { MarkdownDocument, MarkdownPage, MarkdownEmbed } from '@/types/markdown';
 import { MarkdownStyleTheme, defaultMarkdownLightTheme, defaultMarkdownDarkTheme } from '@/types/markdownStyles';
 import { 
   linesToMarkdown, 
@@ -176,7 +175,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   // Check if extended markdown
   const isExtendedMarkdown = document.type === 'extended-markdown';
   
-  // Basic toolbar actions (available in both modes)
+  // Basic toolbar actions (available in both modes) - Image handled separately via popover
   const basicToolbarActions = useMemo(() => [
     { icon: Bold, label: 'Bold', action: () => insertFormatting('**', '**') },
     { icon: Italic, label: 'Italic', action: () => insertFormatting('*', '*') },
@@ -188,7 +187,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     { icon: Quote, label: 'Quote', action: () => insertFormatting('> ') },
     { icon: Code, label: 'Code', action: () => insertFormatting('`', '`') },
     { icon: Link, label: 'Link', action: () => insertFormatting('[', '](url)') },
-    { icon: Image, label: 'Image', action: () => insertFormatting('![alt](', ')') },
   ], [insertFormatting]);
   
   // Extended toolbar actions (only for extended-markdown) - excluding popover-based ones
@@ -229,6 +227,36 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     textarea.setSelectionRange(newCursorPos, newCursorPos);
     textarea.focus();
   }, [handleTextChange, readOnly]);
+
+  // Add embed to document
+  const addEmbed = useCallback((embed: MarkdownEmbed) => {
+    const currentEmbeds = document.data.embeds || [];
+    onDocumentChange({
+      ...document,
+      info: {
+        ...document.info,
+        modified: new Date().toISOString()
+      },
+      data: {
+        ...document.data,
+        embeds: [...currentEmbeds, embed]
+      }
+    });
+  }, [document, onDocumentChange]);
+
+  // Resolve embed references to data URIs
+  const resolveEmbedSrc = useCallback((src: string): string => {
+    if (!src?.startsWith('embed://')) return src;
+    
+    const embedId = src.replace('embed://', '');
+    const embed = document.data.embeds?.find(e => e.id === embedId);
+    
+    if (embed?.data && embed.mimeType) {
+      return `data:${embed.mimeType};base64,${embed.data}`;
+    }
+    
+    return src;
+  }, [document.data.embeds]);
   
   // Add new page
   const addPage = useCallback(() => {
@@ -286,6 +314,13 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                 </TooltipContent>
               </Tooltip>
             ))}
+            
+            {/* Image popover - available for all markdown types */}
+            <ImagePopover 
+              onInsert={insertRawText} 
+              onAddEmbed={addEmbed}
+              disabled={readOnly} 
+            />
             
             {/* Extended markdown popovers */}
             {isExtendedMarkdown && (
@@ -543,17 +578,21 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                 padding: currentTheme.elements.tableCell.padding,
               }}>{children}</td>
             ),
-            img: ({ src, alt }) => (
-              <img 
-                src={src} 
-                alt={alt} 
-                style={{ 
-                  maxWidth: '100%', 
-                  height: 'auto',
-                  margin: currentTheme.elements.image.margin,
-                }} 
-              />
-            ),
+            img: ({ src, alt }) => {
+              // Resolve embed:// references to base64 data URIs
+              const resolvedSrc = resolveEmbedSrc(src || '');
+              return (
+                <img 
+                  src={resolvedSrc} 
+                  alt={alt} 
+                  style={{ 
+                    maxWidth: '100%', 
+                    height: 'auto',
+                    margin: currentTheme.elements.image.margin,
+                  }} 
+                />
+              );
+            },
             // Extended markdown: task list items
             input: ({ type, checked, disabled }) => {
               if (type === 'checkbox') {
