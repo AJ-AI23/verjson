@@ -145,6 +145,14 @@
 /* React Flow Customizations */
 .react-flow__node {
   @apply font-sans text-sm;
+  /* Ensure nodes receive pointer events for selection */
+  pointer-events: all !important;
+  cursor: pointer;
+}
+
+/* Ensure the node content is clickable */
+.react-flow__node > div {
+  pointer-events: all;
 }
 
 .react-flow__edge-path {
