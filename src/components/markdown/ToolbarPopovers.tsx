@@ -375,12 +375,12 @@ export const TableConfigPopover: React.FC<TableConfigPopoverProps> = ({ onInsert
 // ============================================
 
 interface ImagePopoverProps {
-  onInsert: (markdown: string) => void;
-  onAddEmbed: (embed: MarkdownEmbed) => void;
+  onInsertUrl: (markdown: string) => void;
+  onInsertEmbed: (embed: MarkdownEmbed, markdown: string) => void;
   disabled?: boolean;
 }
 
-export const ImagePopover: React.FC<ImagePopoverProps> = ({ onInsert, onAddEmbed, disabled }) => {
+export const ImagePopover: React.FC<ImagePopoverProps> = ({ onInsertUrl, onInsertEmbed, disabled }) => {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState('');
   const [alt, setAlt] = useState('');
@@ -390,7 +390,7 @@ export const ImagePopover: React.FC<ImagePopoverProps> = ({ onInsert, onAddEmbed
   const handleUrlInsert = () => {
     if (!url.trim()) return;
     const markdown = `![${alt || 'image'}](${url})`;
-    onInsert(markdown);
+    onInsertUrl(markdown);
     setOpen(false);
     setUrl('');
     setAlt('');
@@ -433,12 +433,9 @@ export const ImagePopover: React.FC<ImagePopoverProps> = ({ onInsert, onAddEmbed
           data: base64Content,
         };
 
-        // Add embed to document
-        onAddEmbed(embed);
-
-        // Insert markdown reference
+        // Insert markdown reference with embed atomically
         const markdown = `![${embed.alt}](embed://${embedId})`;
-        onInsert(markdown);
+        onInsertEmbed(embed, markdown);
 
         setOpen(false);
         setUrl('');
@@ -457,7 +454,7 @@ export const ImagePopover: React.FC<ImagePopoverProps> = ({ onInsert, onAddEmbed
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }, [alt, onAddEmbed, onInsert]);
+  }, [alt, onInsertEmbed]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
