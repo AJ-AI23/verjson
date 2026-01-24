@@ -2241,6 +2241,9 @@ const FitViewHelper: React.FC<{
           nodesConnectable={!readOnly && !isRenderMode && isInteractive}
           edgesReconnectable={!readOnly && !isRenderMode && isInteractive}
           elementsSelectable={!readOnly && !isRenderMode && isInteractive}
+          deleteKeyCode={null}
+          selectionKeyCode={null}
+          multiSelectionKeyCode={null}
           defaultEdgeOptions={{
             type: 'smoothstep',
           }}
