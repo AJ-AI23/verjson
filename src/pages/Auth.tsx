@@ -20,13 +20,18 @@ const Auth = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
 
-  // Handle URL parameters for password reset
+  // Handle URL parameters for password reset and session expiration
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const error = urlParams.get('error');
     const errorDescription = urlParams.get('error_description');
+    const expired = urlParams.get('expired');
     
-    if (error) {
+    if (expired === 'true') {
+      setError('Your session has expired. Please sign in again.');
+      // Clean up the URL
+      window.history.replaceState({}, '', '/auth');
+    } else if (error) {
       console.error('Auth URL error:', error, errorDescription);
       setError(errorDescription || 'Authentication error occurred');
     }

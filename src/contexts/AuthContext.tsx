@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -29,9 +29,28 @@ interface AuthContextType {
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
   updateEmail: (newEmail: string) => Promise<{ error: Error | null }>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
+  handleSessionExpired: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Check if an error indicates an expired/invalid session
+export function isSessionExpiredError(error: unknown): boolean {
+  if (!error) return false;
+  
+  const errorMessage = error instanceof Error 
+    ? error.message 
+    : typeof error === 'object' && error !== null && 'message' in error
+      ? String((error as { message: unknown }).message)
+      : String(error);
+  
+  return (
+    errorMessage.includes('User from sub claim in JWT does not exist') ||
+    errorMessage.includes('JWT expired') ||
+    errorMessage.includes('Invalid JWT') ||
+    errorMessage.includes('session_not_found')
+  );
+}
 
 export function useAuth() {
   const context = useContext(AuthContext);
@@ -235,7 +254,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     console.log('Signing out user');
     // Set flag to prevent auto-redirect during logout
     sessionStorage.setItem('logout-in-progress', 'true');
@@ -251,7 +270,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => {
       window.location.href = '/auth';
     }, 100);
-  };
+  }, []);
+
+  // Handle expired/invalid session - call this when edge functions return 401 with user not found
+  const handleSessionExpired = useCallback(() => {
+    console.log('Session expired or user no longer exists, redirecting to login');
+    // Clear local state
+    setUser(null);
+    setSession(null);
+    setProfile(null);
+    
+    // Sign out to clear any stale tokens
+    supabase.auth.signOut().finally(() => {
+      window.location.href = '/auth?expired=true';
+    });
+  }, []);
 
   const updatePassword = async (newPassword: string) => {
     const { error } = await supabase.auth.updateUser({
@@ -346,6 +379,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         updatePassword,
         updateEmail,
         resetPassword,
+        handleSessionExpired,
       }}
     >
       {children}

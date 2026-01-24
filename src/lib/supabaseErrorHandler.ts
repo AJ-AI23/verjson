@@ -2,53 +2,90 @@ import { FunctionsHttpError, FunctionsRelayError, FunctionsFetchError } from '@s
 
 export interface DemoSessionExpiredError {
   isDemoExpired: boolean;
+  isSessionInvalid: boolean;
   originalError: any;
 }
 
+// Patterns that indicate the session/user is no longer valid
+const SESSION_INVALID_PATTERNS = [
+  'User from sub claim in JWT does not exist',
+  'JWT expired',
+  'Invalid JWT',
+  'session_not_found',
+  'Unauthorized',
+];
+
+/**
+ * Check if an error indicates the user's session is no longer valid.
+ * This handles both demo session expiration and general session invalidation
+ * (e.g., when the user no longer exists in the database).
+ */
 export function checkDemoSessionExpired(error: any): DemoSessionExpiredError {
   if (!error) {
-    return { isDemoExpired: false, originalError: error };
+    return { isDemoExpired: false, isSessionInvalid: false, originalError: error };
+  }
+
+  // Convert error to string for pattern matching
+  let errorStr = '';
+  try {
+    if (error.message && typeof error.message === 'string') {
+      errorStr += error.message + ' ';
+    }
+    if (error.error && typeof error.error === 'string') {
+      errorStr += error.error + ' ';
+    }
+    errorStr += JSON.stringify(error);
+  } catch (e) {
+    // JSON.stringify failed, use what we have
+  }
+
+  // Check for demo session expiration
+  if (errorStr.includes('Demo session expired')) {
+    console.log('[SessionCheck] Detected expired demo session');
+    return { isDemoExpired: true, isSessionInvalid: true, originalError: error };
+  }
+
+  // Check for session invalidation patterns (user deleted, JWT issues, etc.)
+  for (const pattern of SESSION_INVALID_PATTERNS) {
+    if (errorStr.includes(pattern)) {
+      console.log('[SessionCheck] Detected invalid session:', pattern);
+      
+      // Trigger redirect to login page for session invalidation
+      handleSessionInvalidRedirect();
+      
+      return { isDemoExpired: false, isSessionInvalid: true, originalError: error };
+    }
   }
 
   // Check if it's a FunctionsHttpError with 401 status
   if (error instanceof Error && 'context' in error) {
     const httpError = error as FunctionsHttpError;
     if (httpError.context?.status === 401) {
-      const errorStr = JSON.stringify(error);
-      if (errorStr.includes('Demo session expired')) {
-        console.log('[DemoSession] Detected expired session from FunctionsHttpError');
-        return { isDemoExpired: true, originalError: error };
-      }
+      console.log('[SessionCheck] Detected 401 from FunctionsHttpError');
+      handleSessionInvalidRedirect();
+      return { isDemoExpired: false, isSessionInvalid: true, originalError: error };
     }
   }
   
-  // Check error.message for "Demo session expired"
-  if (error.message && typeof error.message === 'string') {
-    if (error.message.includes('Demo session expired')) {
-      console.log('[DemoSession] Detected expired session from error.message');
-      return { isDemoExpired: true, originalError: error };
-    }
-  }
-  
-  // Check error.error for "Demo session expired"
-  if (error.error) {
-    const errorValue = typeof error.error === 'string' ? error.error : JSON.stringify(error.error);
-    if (errorValue.includes('Demo session expired')) {
-      console.log('[DemoSession] Detected expired session from error.error');
-      return { isDemoExpired: true, originalError: error };
-    }
-  }
+  return { isDemoExpired: false, isSessionInvalid: false, originalError: error };
+}
 
-  // Check entire error object as string
-  try {
-    const errorStr = JSON.stringify(error);
-    if (errorStr.includes('Demo session expired')) {
-      console.log('[DemoSession] Detected expired session from JSON.stringify');
-      return { isDemoExpired: true, originalError: error };
-    }
-  } catch (e) {
-    // JSON.stringify failed, skip this check
-  }
+/**
+ * Redirect to login page when session is invalid.
+ * Uses a debounce to prevent multiple redirects.
+ */
+let redirectTimeout: ReturnType<typeof setTimeout> | null = null;
+
+function handleSessionInvalidRedirect() {
+  // Debounce to prevent multiple simultaneous redirects
+  if (redirectTimeout) return;
   
-  return { isDemoExpired: false, originalError: error };
+  // Check if we're already on the auth page
+  if (window.location.pathname === '/auth') return;
+  
+  redirectTimeout = setTimeout(() => {
+    redirectTimeout = null;
+    console.log('[SessionCheck] Redirecting to login due to invalid session');
+    window.location.href = '/auth?expired=true';
+  }, 100);
 }
