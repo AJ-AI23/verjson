@@ -228,8 +228,36 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     textarea.focus();
   }, [handleTextChange, readOnly]);
 
-  // Add embed to document
-  const addEmbed = useCallback((embed: MarkdownEmbed) => {
+  // Add embed to document and insert markdown reference atomically
+  const addEmbedWithMarkdown = useCallback((embed: MarkdownEmbed, markdownText: string) => {
+    if (!textareaRef.current || readOnly) return;
+    
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentValue = textarea.value;
+    
+    const newText = 
+      currentValue.substring(0, start) + 
+      markdownText + 
+      currentValue.substring(end);
+    
+    // Update textarea value directly
+    textarea.value = newText;
+    
+    // Update tracking refs
+    lastSetValueRef.current = newText;
+    textareaValueRef.current = newText;
+    
+    // Convert to hierarchical lines
+    const newLines = markdownToLines(newText);
+    const updatedPages = [...document.data.pages];
+    updatedPages[activePageIndex] = {
+      ...updatedPages[activePageIndex],
+      lines: newLines
+    };
+    
+    // Update document with both embed and new text atomically
     const currentEmbeds = document.data.embeds || [];
     onDocumentChange({
       ...document,
@@ -239,10 +267,16 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       },
       data: {
         ...document.data,
+        pages: updatedPages,
         embeds: [...currentEmbeds, embed]
       }
     });
-  }, [document, onDocumentChange]);
+    
+    // Position cursor after inserted text
+    const newCursorPos = start + markdownText.length;
+    textarea.setSelectionRange(newCursorPos, newCursorPos);
+    textarea.focus();
+  }, [document, activePageIndex, onDocumentChange, readOnly]);
 
   // Resolve embed references to data URIs
   const resolveEmbedSrc = useCallback((src: string): string => {
@@ -317,8 +351,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             
             {/* Image popover - available for all markdown types */}
             <ImagePopover 
-              onInsert={insertRawText} 
-              onAddEmbed={addEmbed}
+              onInsertUrl={insertRawText} 
+              onInsertEmbed={addEmbedWithMarkdown}
               disabled={readOnly} 
             />
             
