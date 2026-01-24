@@ -36,6 +36,7 @@ import { useProcessManagement } from '@/hooks/useProcessManagement';
 import { useDiagramClipboard } from '@/hooks/useDiagramClipboard';
 import { ProcessEditor } from './ProcessEditor';
 import { LifelineEditor } from './LifelineEditor';
+import { diagramDbg } from '@/lib/diagram/diagramDebug';
 import '@xyflow/react/dist/style.css';
 
 interface SequenceDiagramRendererProps {
@@ -227,23 +228,53 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   // Keyboard shortcuts for process creation, deletion, navigation, and copy/paste
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Debug: verify key events are reaching the sequence diagram handler at all.
+      // Enable via the existing "Diagram debug" toggle (sets localStorage: diagram-debug-mode=true).
+      const debugKeys = new Set([
+        'Tab',
+        'ArrowUp',
+        'ArrowDown',
+        'ArrowLeft',
+        'ArrowRight',
+        'Delete',
+        'Backspace',
+      ]);
+
       // Only handle shortcuts when the diagram has focus.
       // This prevents stealing Arrow/Tab from the JSON editor or other inputs.
       const wrapper = reactFlowWrapper.current;
       const activeEl = document.activeElement as HTMLElement | null;
       const isDiagramActive = !!wrapper && !!activeEl && (activeEl === wrapper || wrapper.contains(activeEl));
+
+      const target = event.target as HTMLElement | null;
+      if (debugKeys.has(event.key)) {
+        diagramDbg('seq:kbd', 'keydown', {
+          key: event.key,
+          code: event.code,
+          ctrl: event.ctrlKey,
+          meta: event.metaKey,
+          shift: event.shiftKey,
+          alt: event.altKey,
+          isDiagramActive,
+          activeEl: activeEl ? { tag: activeEl.tagName, id: activeEl.id, className: activeEl.className } : null,
+          targetEl: target ? { tag: target.tagName, id: target.id, className: target.className } : null,
+        });
+      }
+
       if (!isDiagramActive) {
+        if (debugKeys.has(event.key)) diagramDbg('seq:kbd', 'ignored:not_active');
         return;
       }
 
       // Ignore keyboard events when typing in inputs or textareas
-      const target = event.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        if (debugKeys.has(event.key)) diagramDbg('seq:kbd', 'ignored:input');
         return;
       }
 
       // Tab cycles between selectable entity types (lifeline -> node -> process)
       if (event.key === 'Tab') {
+        diagramDbg('seq:kbd', 'handle:Tab');
         event.preventDefault();
         event.stopPropagation();
 
@@ -430,6 +461,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
       
       // Arrow key navigation for nodes
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+        diagramDbg('seq:kbd', 'handle:Arrow', { key: event.key });
         // We always prevent/stop propagation to avoid ReactFlow's arrow-key nudging.
         event.preventDefault();
         event.stopPropagation();
