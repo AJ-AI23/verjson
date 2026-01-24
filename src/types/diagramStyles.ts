@@ -7,6 +7,7 @@ export interface DiagramStyleTheme {
     nodeBorder: string;
     nodeText: string;
     edgeStroke: string;
+    edgeArrow?: string; // Color for edge arrowheads
     edgeLabel: string;
     lifelineAxis?: string; // Color for the dashed lifeline vertical line
     nodeTypes: {
@@ -52,6 +53,7 @@ export const defaultLightTheme: DiagramStyleTheme = {
     nodeBorder: '#94a3b8',
     nodeText: '#0f172a',
     edgeStroke: '#64748b',
+    edgeArrow: '#3b82f6',
     edgeLabel: '#475569',
     lifelineAxis: '#cbd5e1',
     nodeTypes: {
@@ -79,6 +81,7 @@ export const defaultDarkTheme: DiagramStyleTheme = {
     nodeBorder: '#64748b',
     nodeText: '#f1f5f9',
     edgeStroke: '#94a3b8',
+    edgeArrow: '#60a5fa',
     edgeLabel: '#cbd5e1',
     lifelineAxis: '#475569',
     nodeTypes: {
