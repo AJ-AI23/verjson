@@ -156,8 +156,8 @@ export const ColumnLifelineNode: React.FC<ColumnLifelineNodeProps> = ({ data, se
             height: '100%',
             background: `repeating-linear-gradient(
               to bottom,
-              ${styles?.colors.nodeBorder || '#cbd5e1'} 0px,
-              ${styles?.colors.nodeBorder || '#cbd5e1'} 10px,
+              ${styles?.colors.lifelineAxis || styles?.colors.nodeBorder || '#cbd5e1'} 0px,
+              ${styles?.colors.lifelineAxis || styles?.colors.nodeBorder || '#cbd5e1'} 10px,
               transparent 10px,
               transparent 20px
             )`,

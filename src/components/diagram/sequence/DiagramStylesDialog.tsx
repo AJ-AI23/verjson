@@ -286,6 +286,11 @@ export const DiagramStylesDialog: React.FC<DiagramStylesDialogProps> = ({
                         value={currentTheme.colors.edgeStroke}
                         onChange={(v) => handleColorChange('edgeStroke', v)}
                       />
+                      <ColorInput
+                        label="Lifeline Axis"
+                        value={currentTheme.colors.lifelineAxis || currentTheme.colors.nodeBorder || '#cbd5e1'}
+                        onChange={(v) => handleColorChange('lifelineAxis', v)}
+                      />
                     </div>
                   </AccordionContent>
                 </AccordionItem>

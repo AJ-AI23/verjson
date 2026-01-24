@@ -8,6 +8,7 @@ export interface DiagramStyleTheme {
     nodeText: string;
     edgeStroke: string;
     edgeLabel: string;
+    lifelineAxis?: string; // Color for the dashed lifeline vertical line
     nodeTypes: {
       endpoint: { background: string; border: string; text: string };
       process: { background: string; border: string; text: string };
@@ -52,6 +53,7 @@ export const defaultLightTheme: DiagramStyleTheme = {
     nodeText: '#0f172a',
     edgeStroke: '#64748b',
     edgeLabel: '#475569',
+    lifelineAxis: '#cbd5e1',
     nodeTypes: {
       endpoint: { background: '#dbeafe', border: '#60a5fa', text: '#1e3a8a' },
       process: { background: '#f1f5f9', border: '#94a3b8', text: '#0f172a' },
@@ -78,6 +80,7 @@ export const defaultDarkTheme: DiagramStyleTheme = {
     nodeText: '#f1f5f9',
     edgeStroke: '#94a3b8',
     edgeLabel: '#cbd5e1',
+    lifelineAxis: '#475569',
     nodeTypes: {
       endpoint: { background: '#0c1e3d', border: '#60a5fa', text: '#dbeafe' },
       process: { background: '#1e293b', border: '#94a3b8', text: '#f1f5f9' },

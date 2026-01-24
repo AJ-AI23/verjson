@@ -493,7 +493,8 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
       return;
     }
     
-    const edgeStyles = getEdgeStyle('default');
+    const edgeStrokeColor = styles?.colors.edgeStroke || '#64748b';
+    const edgeStyles = getEdgeStyle('default', edgeStrokeColor);
     
     // Determine anchor position relative to node by comparing lifeline X positions
     const otherAnchor = node.anchors?.find(a => a.id !== anchor.id);
@@ -518,7 +519,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         animated: false,
         style: edgeStyles,
         zIndex: 5,
-        markerEnd: { type: MarkerType.ArrowClosed, width: 28, height: 28, color: '#3b82f6' },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 28, height: 28, color: edgeStrokeColor },
         data: { edgeType: 'default', styles, isRenderMode }
       };
       layoutEdges.push(edge);
@@ -534,7 +535,7 @@ export const calculateSequenceLayout = (options: LayoutOptions): LayoutResult =>
         animated: false,
         style: edgeStyles,
         zIndex: 5,
-        markerEnd: { type: MarkerType.ArrowClosed, width: 28, height: 28, color: '#3b82f6' },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 28, height: 28, color: edgeStrokeColor },
         data: { edgeType: 'default', styles, isRenderMode }
       };
       layoutEdges.push(edge);
@@ -781,21 +782,23 @@ function calculateEvenSpacing(nodes: DiagramNode[], nodeHeights?: Map<string, nu
   return positions;
 }
 
-export const getEdgeStyle = (type: string) => {
+export const getEdgeStyle = (type: string, themeEdgeStroke?: string) => {
+  const defaultStroke = themeEdgeStroke || '#64748b';
   const baseStyle = {
-    strokeWidth: 2
+    strokeWidth: 2,
+    stroke: defaultStroke
   };
 
   switch (type) {
     case 'sync':
       return {
         ...baseStyle,
-        stroke: '#3b82f6'
+        stroke: themeEdgeStroke || '#3b82f6'
       };
     case 'async':
       return {
         ...baseStyle,
-        stroke: '#10b981',
+        stroke: themeEdgeStroke || '#10b981',
         strokeDasharray: '5,5'
       };
     case 'return':
