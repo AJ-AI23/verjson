@@ -804,14 +804,11 @@ export const getEdgeStyle = (type: string, themeEdgeStroke?: string) => {
     case 'return':
       return {
         ...baseStyle,
-        stroke: '#8b5cf6',
+        stroke: themeEdgeStroke || '#8b5cf6',
         strokeDasharray: '3,3'
       };
     default:
-      return {
-        ...baseStyle,
-        stroke: '#64748b'
-      };
+      return baseStyle;
   }
 };
 
