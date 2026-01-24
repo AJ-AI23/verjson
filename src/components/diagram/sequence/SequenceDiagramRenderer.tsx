@@ -300,6 +300,21 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         const nextType = ordered.find((t) => hasAny[t]);
         if (!nextType) return;
 
+        diagramDbg('seq:sel', 'tab:cycle', {
+          from: currentType,
+          to: nextType,
+          prev: {
+            selectedNodeIds,
+            selectedLifelineId,
+            selectedProcessId,
+          },
+          sizes: {
+            lifelines: lifelines.length,
+            nodes: diagramNodes.length,
+            processes: (data.processes || []).length,
+          },
+        });
+
         // Clear all selections before switching type
         setSelectedNodeIds([]);
         setToolbarPosition(null);
@@ -309,11 +324,14 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         setLifelineToolbarPosition(null);
 
         if (nextType === 'lifeline') {
+          diagramDbg('seq:sel', 'tab:select', { type: 'lifeline', id: lifelines[0]?.id });
           setSelectedLifelineId(lifelines[0].id);
         } else if (nextType === 'node') {
+          diagramDbg('seq:sel', 'tab:select', { type: 'node', id: diagramNodes[0]?.id });
           setSelectedNodeIds([diagramNodes[0].id]);
         } else {
           const firstProcess = (data.processes || [])[0];
+          diagramDbg('seq:sel', 'tab:select', { type: 'process', id: firstProcess?.id });
           if (firstProcess) setSelectedProcessId(firstProcess.id);
         }
         return;
@@ -473,8 +491,10 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
           if (currentIdx === -1) return;
 
           if (event.key === 'ArrowLeft' && currentIdx > 0) {
+            diagramDbg('seq:sel', 'arrow:lifeline', { from: selectedLifelineId, to: sortedLifelines[currentIdx - 1].id, key: event.key });
             setSelectedLifelineId(sortedLifelines[currentIdx - 1].id);
           } else if (event.key === 'ArrowRight' && currentIdx < sortedLifelines.length - 1) {
+            diagramDbg('seq:sel', 'arrow:lifeline', { from: selectedLifelineId, to: sortedLifelines[currentIdx + 1].id, key: event.key });
             setSelectedLifelineId(sortedLifelines[currentIdx + 1].id);
           }
           return;
@@ -493,6 +513,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
           if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
             const nextIdx = event.key === 'ArrowUp' ? currentIdx - 1 : currentIdx + 1;
             if (nextIdx >= 0 && nextIdx < processes.length) {
+              diagramDbg('seq:sel', 'arrow:process', { from: selectedProcessId, to: processes[nextIdx].id, key: event.key });
               setSelectedProcessId(processes[nextIdx].id);
             }
             return;
@@ -507,6 +528,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
             const targetLifelineId = sortedLifelines[targetLifelineIdx].id;
             const candidate = processes.find(p => p.lifelineId === targetLifelineId);
             if (candidate) {
+              diagramDbg('seq:sel', 'arrow:process', { from: selectedProcessId, to: candidate.id, key: event.key, via: 'lifeline' });
               setSelectedProcessId(candidate.id);
             }
             return;
@@ -557,6 +579,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
           }
 
           if (nextNode) {
+            diagramDbg('seq:sel', 'arrow:node', { from: currentNodeId, to: nextNode.id, key: event.key });
             setSelectedNodeIds([nextNode.id]);
           }
           return;
@@ -565,6 +588,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         // If nothing selected, select the first node (fallback)
         if (selectedNodeIds.length === 0 && !selectedLifelineId && !selectedProcessId && diagramNodes.length > 0) {
           const sortedNodes = [...diagramNodes].sort((a, b) => (a.yPosition || 0) - (b.yPosition || 0));
+          diagramDbg('seq:sel', 'arrow:fallback_first_node', { to: sortedNodes[0]?.id, key: event.key });
           setSelectedNodeIds([sortedNodes[0].id]);
         }
       }
@@ -575,6 +599,15 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
     document.addEventListener('keydown', handleKeyDown, options);
     return () => document.removeEventListener('keydown', handleKeyDown, options);
   }, [selectedAnchorId, processCreationMode, selectedNodeIds, selectedLifelineId, selectedProcessId, diagramNodes, lifelines, data, readOnly, onDataChange, diagramClipboard]);
+
+  // Debug: trace selection state updates (only when diagram debug mode is enabled).
+  useEffect(() => {
+    diagramDbg('seq:sel', 'state', {
+      selectedNodeIds,
+      selectedLifelineId,
+      selectedProcessId,
+    });
+  }, [selectedNodeIds, selectedLifelineId, selectedProcessId]);
 
   const activeTheme = useMemo(
     () => styles?.themes?.[currentTheme] || styles?.themes?.light || defaultLightTheme,
@@ -1063,6 +1096,17 @@ const FitViewHelper: React.FC<{
         
         return false;
       });
+
+    // Debug: show whether selection changes are being considered a "nodesChanged" update.
+    const appliedSelected = prevNodesRef.current.filter(n => n.selected).map(n => n.id);
+    const nextSelected = nodesWithHandlers.filter(n => n.selected).map(n => n.id);
+    const selectionChanged = appliedSelected.join('|') !== nextSelected.join('|');
+    diagramDbg('seq:nodes', 'sync_check', {
+      nodesChanged,
+      selectionChanged,
+      appliedSelected,
+      nextSelected,
+    });
     
     if (nodesChanged) {
       // Log what we're about to apply
