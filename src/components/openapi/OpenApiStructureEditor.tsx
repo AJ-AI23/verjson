@@ -60,6 +60,7 @@ interface OpenApiStructureEditorProps {
   consistencyIssues?: ConsistencyIssue[];
   collapsedPaths?: CollapsedState;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
+  selectedNodePath?: string | null;
 }
 
 interface EditablePropertyNodeProps {
@@ -1195,7 +1196,8 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
   onSchemaChange,
   consistencyIssues = [],
   collapsedPaths: rawExternalCollapsedPaths,
-  onToggleCollapse: rawExternalOnToggleCollapse
+  onToggleCollapse: rawExternalOnToggleCollapse,
+  selectedNodePath
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -1260,6 +1262,22 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
     if (!match) return;
     scrollToPath(match.path);
   }, [searchQuery, matches, currentMatchIndex, scrollToPath]);
+
+  // Handle external node selection from diagram
+  useEffect(() => {
+    if (!selectedNodePath) return;
+    
+    // Convert diagram path (root.paths./api/users) to structure editor path array
+    // Strip 'root.' prefix and split by '.'
+    const pathWithoutRoot = selectedNodePath.startsWith('root.') 
+      ? selectedNodePath.slice(5) 
+      : selectedNodePath;
+    
+    if (!pathWithoutRoot) return;
+    
+    const pathArray = pathWithoutRoot.split('.');
+    scrollToPath(pathArray);
+  }, [selectedNodePath, scrollToPath]);
 
   // Use the document ref resolver for sideloading referenced documents
   const { getAllResolvedSchemas, resolvedDocuments } = useDocumentRefResolver(schema);

@@ -30,6 +30,7 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const [showVersionMismatch, setShowVersionMismatch] = React.useState(false);
   const [loadedVersionId, setLoadedVersionId] = React.useState<string | null>(null);
+  const [selectedNodePath, setSelectedNodePath] = React.useState<string | null>(null);
   const diagramRef = React.useRef<HTMLDivElement>(null);
   const editorInstanceId = React.useRef(Math.random().toString(36).slice(2, 8)).current;
 
@@ -439,6 +440,8 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         isFullscreen={isFullscreen}
         onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
         diagramRef={diagramRef}
+        selectedNodePath={selectedNodePath}
+        onNodeSelect={setSelectedNodePath}
       />
       
       {/* Version History Dialog */}

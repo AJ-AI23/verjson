@@ -13,6 +13,7 @@ interface JsonEditorWrapperProps {
   documentId?: string;
   showDiagram?: boolean;
   onToggleDiagram?: () => void;
+  selectedNodePath?: string | null;
 }
 
 export const JsonEditorWrapper: React.FC<JsonEditorWrapperProps> = ({
@@ -24,7 +25,8 @@ export const JsonEditorWrapper: React.FC<JsonEditorWrapperProps> = ({
   maxDepth,
   documentId,
   showDiagram,
-  onToggleDiagram
+  onToggleDiagram,
+  selectedNodePath
 }) => {
   return (
     <JsonEditorPoc
@@ -37,6 +39,7 @@ export const JsonEditorWrapper: React.FC<JsonEditorWrapperProps> = ({
       documentId={documentId}
       showDiagram={showDiagram}
       onToggleDiagram={onToggleDiagram}
+      selectedNodePath={selectedNodePath}
     />
   );
 };
