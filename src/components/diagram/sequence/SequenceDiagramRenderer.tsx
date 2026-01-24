@@ -2241,6 +2241,8 @@ const FitViewHelper: React.FC<{
           nodesConnectable={!readOnly && !isRenderMode && isInteractive}
           edgesReconnectable={!readOnly && !isRenderMode && isInteractive}
           elementsSelectable={!readOnly && !isRenderMode && isInteractive}
+          nodesFocusable={false}
+          edgesFocusable={false}
           deleteKeyCode={null}
           selectionKeyCode={null}
           multiSelectionKeyCode={null}
