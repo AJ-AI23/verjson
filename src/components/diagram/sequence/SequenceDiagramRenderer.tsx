@@ -943,7 +943,8 @@ const FitViewHelper: React.FC<{
           ...node,
           draggable: !readOnly && !isRenderMode && isInteractive,
           selectable: !readOnly && !isRenderMode && isInteractive,
-          selected: node.selected && isInteractive,
+          // Selection is managed by our local state (used by keyboard navigation + Delete).
+          selected: selectedNodeIds.includes(node.id) && !isRenderMode && isInteractive,
           data: {
             ...node.data,
             onHeightChange: handleNodeHeightChange,
@@ -1016,7 +1017,7 @@ const FitViewHelper: React.FC<{
         selected: node.selected && isInteractive
       };
     });
-  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, customLifelineColors, lifelineHeight, selectedAnchorId, processManagement, processCreationMode, activeTheme, selectedProcessId, handleProcessSelect, selectedLifelineId, lifelines, currentTheme, diagramNodes, isInteractive]);
+  }, [layoutNodes, handleAddNodeOnLifeline, handleNodeHeightChange, readOnly, customLifelineColors, lifelineHeight, selectedAnchorId, processManagement, processCreationMode, activeTheme, selectedProcessId, handleProcessSelect, selectedLifelineId, lifelines, currentTheme, diagramNodes, selectedNodeIds, isInteractive]);
 
   // Process edges to add render mode properties
   const edgesWithRenderMode = useMemo(() => {
