@@ -121,7 +121,8 @@ export const createPropertyNode = (
   requiredProps: string[],
   xPos: number,
   yOffset: number,
-  isCollapsed?: boolean
+  isCollapsed?: boolean,
+  path?: string
 ): Node => {
   const nodeId = `prop-${propName}`;
   
@@ -144,7 +145,8 @@ export const createPropertyNode = (
     notations,
     notationCount,
     hasNotations: notationCount > 0,
-    isCollapsed
+    isCollapsed,
+    path
   });
 
   return {
@@ -164,7 +166,8 @@ export const createPropertyNode = (
       hasNotations: notationCount > 0,
       isCollapsed: isCollapsed,
       hasCollapsibleContent: (propSchema.type === 'object' && propSchema.properties) || 
-                            (propSchema.type === 'array' && propSchema.items)
+                            (propSchema.type === 'array' && propSchema.items),
+      path: path || `root.properties.${propName}`
     }
   };
 };
@@ -463,7 +466,8 @@ export const createNestedPropertyNode = (
   nestedSchema: any,
   nestedRequired: string[],
   nestedXPos: number,
-  nestedYOffset: number
+  nestedYOffset: number,
+  path?: string
 ): Node => {
   const nestedNodeId = `${parentNodeId}-${nestedName}`;
   
@@ -476,7 +480,8 @@ export const createNestedPropertyNode = (
       type: nestedSchema.type || 'unknown',
       description: nestedSchema.description,
       required: nestedRequired.includes(nestedName),
-      format: nestedSchema.format
+      format: nestedSchema.format,
+      path: path || nestedNodeId
     }
   };
 };
@@ -485,7 +490,8 @@ export const createArrayItemNode = (
   parentNodeId: string,
   itemSchema: any,
   xPos: number,
-  yOffset: number
+  yOffset: number,
+  path?: string
 ): Node => {
   const itemNodeId = `${parentNodeId}-items`;
   
@@ -498,7 +504,8 @@ export const createArrayItemNode = (
       type: itemSchema.type || (itemSchema.$ref ? 'reference' : 'unknown'),
       description: itemSchema.description,
       format: itemSchema.format,
-      reference: itemSchema.$ref
+      reference: itemSchema.$ref,
+      path: path || itemNodeId
     }
   };
 };

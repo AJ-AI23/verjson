@@ -101,7 +101,8 @@ export const DiagramFlow = memo(({
 
   // Handle node click for selection
   const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    const nodePath = node.data?.path;
+    // Check for path (JSON Schema) or nodePath (OpenAPI)
+    const nodePath = node.data?.path || node.data?.nodePath;
     if (onNodeSelect && typeof nodePath === 'string') {
       onNodeSelect(nodePath);
     }
