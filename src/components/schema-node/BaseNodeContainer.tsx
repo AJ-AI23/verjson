@@ -17,6 +17,10 @@ export interface BaseNodeContainerProps {
 /**
  * Base container component for all diagram nodes.
  * Provides consistent layout, handles, and debug info display.
+ * 
+ * Note: Click events are handled by React Flow's onNodeClick.
+ * This container should NOT have onClick handlers that stopPropagation,
+ * as that would prevent node selection.
  */
 export const BaseNodeContainer = memo(({ 
   id,
@@ -36,7 +40,11 @@ export const BaseNodeContainer = memo(({
   const nodeY = node?.position?.y ?? 0;
 
   return (
-    <div className={cn('relative', className)}>
+    <div 
+      className={cn('relative', className)}
+      // Do NOT add onClick here - let React Flow handle node clicks
+      // Adding onClick with stopPropagation would break node selection
+    >
       {showTargetHandle && (
         <Handle
           type="target"

@@ -2,6 +2,9 @@
 import React, { useCallback, useEffect, useRef, memo } from 'react';
 import { ReactFlow, Background, Controls, Node, Edge, ReactFlowInstance, OnNodesChange, OnEdgesChange } from '@xyflow/react';
 import { NodeRenderer } from '@/components/schema-node/NodeRenderer';
+import { diagramDbg } from '@/lib/diagram/diagramDebug';
+
+const dbg = (message: string, data?: any) => diagramDbg('DiagramFlow', message, data);
 
 interface DiagramFlowProps {
   nodes: Node[];
@@ -101,16 +104,69 @@ export const DiagramFlow = memo(({
 
   // Handle node click for selection
   const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+    // Always log for debugging (temporary)
+    console.log('[DiagramFlow] onNodeClick fired', {
+      nodeId: node.id,
+      nodeType: node.type,
+      nodePath: node.data?.path,
+      nodePathAlt: node.data?.nodePath,
+      hasOnNodeSelect: !!onNodeSelect
+    });
+    
+    dbg('onNodeClick fired', {
+      nodeId: node.id,
+      nodeType: node.type,
+      nodePath: node.data?.path,
+      nodePathAlt: node.data?.nodePath,
+      hasOnNodeSelect: !!onNodeSelect,
+      nodeData: node.data
+    });
+    
     // Check for path (JSON Schema) or nodePath (OpenAPI)
     const nodePath = node.data?.path || node.data?.nodePath;
     if (onNodeSelect && typeof nodePath === 'string') {
+      console.log('[DiagramFlow] calling onNodeSelect', { nodePath });
+      dbg('calling onNodeSelect', { nodePath });
       onNodeSelect(nodePath);
+    } else {
+      console.log('[DiagramFlow] onNodeSelect not called', { 
+        onNodeSelect: !!onNodeSelect, 
+        nodePath, 
+        pathType: typeof nodePath 
+      });
     }
   }, [onNodeSelect]);
 
-  // Add onAddNotation, expandedNotationPaths, and onToggleCollapse to all nodes
+  // Handle pane click for debugging
+  const handlePaneClick = useCallback((event: React.MouseEvent) => {
+    console.log('[DiagramFlow] onPaneClick fired (clicked empty space)');
+    dbg('onPaneClick fired (clicked empty space)', { x: event.clientX, y: event.clientY });
+  }, []);
+
+  // Handle selection change for debugging
+  const handleSelectionChange = useCallback(({ nodes: selectedNodes, edges: selectedEdges }: { nodes: Node[], edges: Edge[] }) => {
+    console.log('[DiagramFlow] onSelectionChange fired', {
+      selectedNodesCount: selectedNodes.length,
+      selectedNodeIds: selectedNodes.map(n => n.id),
+      selectedNodePaths: selectedNodes.map(n => n.data?.path || n.data?.nodePath)
+    });
+    
+    // Trigger selection when a single node is selected
+    if (selectedNodes.length === 1 && onNodeSelect) {
+      const node = selectedNodes[0];
+      const nodePath = node.data?.path || node.data?.nodePath;
+      if (typeof nodePath === 'string') {
+        console.log('[DiagramFlow] onSelectionChange -> calling onNodeSelect', { nodePath });
+        onNodeSelect(nodePath);
+      }
+    }
+  }, [onNodeSelect]);
+
+  // Add onAddNotation, expandedNotationPaths, onToggleCollapse to all nodes
+  // Also ensure nodes are selectable
   const nodesWithCallbacks = nodes.map(node => ({
     ...node,
+    selectable: true, // Explicitly enable selection
     data: {
       ...node.data,
       onAddNotation,
@@ -118,6 +174,30 @@ export const DiagramFlow = memo(({
       onToggleCollapse
     }
   }));
+
+  // Debug: log when nodes change
+  useEffect(() => {
+    if (nodes.length > 0) {
+      console.log('[DiagramFlow] nodes available', {
+        count: nodes.length,
+        samplePaths: nodes.slice(0, 3).map(n => ({ 
+          id: n.id, 
+          path: n.data?.path, 
+          nodePath: n.data?.nodePath,
+        })),
+        hasOnNodeSelect: !!onNodeSelect
+      });
+      dbg('nodes available for selection', {
+        count: nodes.length,
+        samplePaths: nodes.slice(0, 3).map(n => ({ 
+          id: n.id, 
+          path: n.data?.path, 
+          nodePath: n.data?.nodePath,
+          selectable: n.selectable 
+        }))
+      });
+    }
+  }, [nodes, onNodeSelect]);
 
   return (
     <div className="flex-1 min-h-0 diagram-container" data-testid="diagram-flow">
@@ -138,6 +218,12 @@ export const DiagramFlow = memo(({
         onMoveEnd={onMove}
         onNodeDragStop={onNodeDragStop}
         onNodeClick={handleNodeClick}
+        onPaneClick={handlePaneClick}
+        onSelectionChange={handleSelectionChange}
+        nodesDraggable={true}
+        nodesConnectable={false}
+        elementsSelectable={true}
+        selectNodesOnDrag={false}
         defaultViewport={viewportRef.current} // Use stored viewport as default
       >
         <Controls />
