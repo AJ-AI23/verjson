@@ -63,12 +63,13 @@ interface SchemaTypeNodeProps {
   };
   id: string;
   isConnectable: boolean;
+  selected?: boolean;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
   expandedNotationPaths?: Set<string>;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, expandedNotationPaths, onToggleCollapse }: SchemaTypeNodeProps) => {
+export const SchemaTypeNode = memo(({ data, isConnectable, id, selected, onAddNotation, expandedNotationPaths, onToggleCollapse }: SchemaTypeNodeProps) => {
   const {
     label,
     type,
@@ -158,6 +159,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, onAddNotation, ex
       className={nodeContainerClasses}
       showTargetHandle={!isRoot}
       showSourceHandle={showSourceHandle}
+      selected={selected}
     >
       <div className="flex flex-col gap-1 min-w-0">
         <div className="flex items-start justify-between gap-2 min-w-0">

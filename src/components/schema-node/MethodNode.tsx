@@ -24,11 +24,12 @@ export interface MethodNodeProps {
   };
   id: string;
   isConnectable: boolean;
+  selected?: boolean;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const MethodNode = memo(({ data, isConnectable, id, onAddNotation, onToggleCollapse }: MethodNodeProps) => {
+export const MethodNode = memo(({ data, isConnectable, id, selected, onAddNotation, onToggleCollapse }: MethodNodeProps) => {
   const { path, method, summary, description, label, notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, nodePath } = data;
 
   // Determine if node has children (responses, request body, etc.)
@@ -52,6 +53,7 @@ export const MethodNode = memo(({ data, isConnectable, id, onAddNotation, onTogg
     <BaseNodeContainer
       id={id}
       isConnectable={isConnectable}
+      selected={selected}
       className={cn(
         'px-3 py-2 rounded-md shadow-sm border min-w-[160px] max-w-[240px]',
         'bg-slate-50 border-slate-200',

@@ -24,11 +24,12 @@ export interface ResponseNodeProps {
   };
   id: string;
   isConnectable: boolean;
+  selected?: boolean;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const ResponseNode = memo(({ data, isConnectable, id, onAddNotation, onToggleCollapse }: ResponseNodeProps) => {
+export const ResponseNode = memo(({ data, isConnectable, id, selected, onAddNotation, onToggleCollapse }: ResponseNodeProps) => {
   const { statusCode, statusCodes, responses, isConsolidated, description, notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, path } = data;
 
   // Determine if node has children
@@ -53,6 +54,7 @@ export const ResponseNode = memo(({ data, isConnectable, id, onAddNotation, onTo
     <BaseNodeContainer
       id={id}
       isConnectable={isConnectable}
+      selected={selected}
       className={cn(
         'px-3 py-2 rounded-md shadow-sm min-w-[120px] max-w-[200px]',
         'bg-slate-50 border-slate-200',

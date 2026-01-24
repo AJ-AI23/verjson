@@ -25,11 +25,12 @@ export interface ParametersNodeProps {
   };
   id: string;
   isConnectable: boolean;
+  selected?: boolean;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const ParametersNode = memo(({ data, isConnectable, id, onAddNotation, onToggleCollapse }: ParametersNodeProps) => {
+export const ParametersNode = memo(({ data, isConnectable, id, selected, onAddNotation, onToggleCollapse }: ParametersNodeProps) => {
   const { label, paramDetails = [], notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, path } = data;
 
   // Determine if node has children
@@ -40,6 +41,7 @@ export const ParametersNode = memo(({ data, isConnectable, id, onAddNotation, on
     <BaseNodeContainer
       id={id}
       isConnectable={isConnectable}
+      selected={selected}
       className={cn(
         'px-3 py-2 rounded-md shadow-sm border min-w-[200px] max-w-[280px]',
         'bg-purple-50 border-purple-200',
