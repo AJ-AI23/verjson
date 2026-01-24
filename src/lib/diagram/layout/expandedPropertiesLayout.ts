@@ -442,8 +442,8 @@ function processProperties(
     
     let propNode: Node;
     try {
-      // Create node for property
-      propNode = createPropertyNode(propName, propSchema, requiredProps, xPos, yOffset, isPathExplicitlyCollapsed);
+      // Create node for property with path for selection sync
+      propNode = createPropertyNode(propName, propSchema, requiredProps, xPos, yOffset, isPathExplicitlyCollapsed, jsonEditorPath);
       
       // Add edge from parent to property
       const edge = createEdge(parentId, propNode.id);
