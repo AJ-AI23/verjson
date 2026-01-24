@@ -232,6 +232,52 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
         return;
       }
+
+      // Tab cycles between selectable entity types (lifeline -> node -> process)
+      if (event.key === 'Tab') {
+        event.preventDefault();
+        event.stopPropagation();
+
+        type NavType = 'lifeline' | 'node' | 'process';
+        const types: NavType[] = ['lifeline', 'node', 'process'];
+
+        const currentType: NavType = selectedLifelineId
+          ? 'lifeline'
+          : selectedNodeIds.length > 0
+            ? 'node'
+            : selectedProcessId
+              ? 'process'
+              : 'node';
+
+        const hasAny = {
+          lifeline: lifelines.length > 0,
+          node: diagramNodes.length > 0,
+          process: (data.processes || []).length > 0,
+        } satisfies Record<NavType, boolean>;
+
+        const currentIdx = types.indexOf(currentType);
+        const ordered = [...types.slice(currentIdx + 1), ...types.slice(0, currentIdx + 1)];
+        const nextType = ordered.find((t) => hasAny[t]);
+        if (!nextType) return;
+
+        // Clear all selections before switching type
+        setSelectedNodeIds([]);
+        setToolbarPosition(null);
+        setSelectedProcessId(null);
+        setProcessToolbarPosition(null);
+        setSelectedLifelineId(null);
+        setLifelineToolbarPosition(null);
+
+        if (nextType === 'lifeline') {
+          setSelectedLifelineId(lifelines[0].id);
+        } else if (nextType === 'node') {
+          setSelectedNodeIds([diagramNodes[0].id]);
+        } else {
+          const firstProcess = (data.processes || [])[0];
+          if (firstProcess) setSelectedProcessId(firstProcess.id);
+        }
+        return;
+      }
       
       // Copy (Ctrl+C / Cmd+C)
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c' && !readOnly) {
@@ -306,6 +352,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
       // Delete/Backspace key handling
       if ((event.key === 'Delete' || event.key === 'Backspace') && !readOnly && onDataChange) {
         event.preventDefault();
+        event.stopPropagation();
         
         // Delete selected nodes
         if (selectedNodeIds.length > 0) {
@@ -374,78 +421,111 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
       
       // Arrow key navigation for nodes
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
-        // Navigate between lifelines
+        // We always prevent/stop propagation to avoid ReactFlow's arrow-key nudging.
+        event.preventDefault();
+        event.stopPropagation();
+
+        // Navigate between lifelines (same type only)
         if (selectedLifelineId && lifelines.length > 1) {
-          event.preventDefault();
           const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
           const currentIdx = sortedLifelines.findIndex(l => l.id === selectedLifelineId);
-          
+          if (currentIdx === -1) return;
+
           if (event.key === 'ArrowLeft' && currentIdx > 0) {
-            const newLifeline = sortedLifelines[currentIdx - 1];
-            setSelectedLifelineId(newLifeline.id);
+            setSelectedLifelineId(sortedLifelines[currentIdx - 1].id);
           } else if (event.key === 'ArrowRight' && currentIdx < sortedLifelines.length - 1) {
-            const newLifeline = sortedLifelines[currentIdx + 1];
-            setSelectedLifelineId(newLifeline.id);
-          } else if ((event.key === 'ArrowDown') && diagramNodes.length > 0) {
-            // Move from lifeline to first node on that lifeline
-            const lifelineNodes = diagramNodes
-              .filter(n => n.anchors?.some(a => a.lifelineId === selectedLifelineId))
-              .sort((a, b) => (a.yPosition || 0) - (b.yPosition || 0));
-            if (lifelineNodes.length > 0) {
-              setSelectedLifelineId(null);
-              setLifelineToolbarPosition(null);
-              setSelectedNodeIds([lifelineNodes[0].id]);
-            }
+            setSelectedLifelineId(sortedLifelines[currentIdx + 1].id);
           }
           return;
         }
-        
-        // Navigate between nodes
+
+        // Navigate between processes (same type only)
+        if (selectedProcessId && (data.processes || []).length > 1) {
+          const processes = data.processes || [];
+          const getProcessIdFromFlowNode = (n: Node): string | null => {
+            // process node stores id either in node.data.processId or node.data.processNode.id
+            const dataAny = (n.data as any) || {};
+            return dataAny.processId || dataAny?.processNode?.id || null;
+          };
+
+          const yByProcessId = new Map<string, number>();
+          for (const n of nodes) {
+            if (n.type !== 'processNode') continue;
+            const pid = getProcessIdFromFlowNode(n);
+            if (pid) yByProcessId.set(pid, n.position.y);
+          }
+
+          const currentProcess = processes.find(p => p.id === selectedProcessId);
+          const currentY = yByProcessId.get(selectedProcessId) ?? 0;
+
+          // Up/Down: previous/next in vertical order
+          if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+            const sortable = processes
+              .map(p => ({ id: p.id, y: yByProcessId.get(p.id) ?? 0 }))
+              .sort((a, b) => a.y - b.y);
+            const idx = sortable.findIndex(p => p.id === selectedProcessId);
+            if (idx === -1) return;
+            const nextIdx = event.key === 'ArrowUp' ? idx - 1 : idx + 1;
+            if (nextIdx >= 0 && nextIdx < sortable.length) {
+              setSelectedProcessId(sortable[nextIdx].id);
+            }
+            return;
+          }
+
+          // Left/Right: nearest process on adjacent lifeline (by y)
+          if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && currentProcess?.lifelineId) {
+            const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
+            const currentLifelineIdx = sortedLifelines.findIndex(l => l.id === currentProcess.lifelineId);
+            const targetLifelineIdx = event.key === 'ArrowLeft' ? currentLifelineIdx - 1 : currentLifelineIdx + 1;
+            if (targetLifelineIdx < 0 || targetLifelineIdx >= sortedLifelines.length) return;
+            const targetLifelineId = sortedLifelines[targetLifelineIdx].id;
+            const candidates = processes.filter(p => p.lifelineId === targetLifelineId);
+            if (candidates.length === 0) return;
+
+            const closest = candidates.reduce((best, p) => {
+              const y = yByProcessId.get(p.id) ?? 0;
+              const bestY = yByProcessId.get(best.id) ?? 0;
+              return Math.abs(y - currentY) < Math.abs(bestY - currentY) ? p : best;
+            }, candidates[0]);
+            setSelectedProcessId(closest.id);
+            return;
+          }
+
+          return;
+        }
+
+        // Navigate between nodes (same type only)
         if (selectedNodeIds.length === 1 && diagramNodes.length > 1) {
-          event.preventDefault();
           const currentNodeId = selectedNodeIds[0];
           const currentNode = diagramNodes.find(n => n.id === currentNodeId);
           if (!currentNode) return;
-          
+
           const currentLifelineId = currentNode.anchors?.[0]?.lifelineId;
           const currentY = currentNode.yPosition || 0;
-          
+
           let nextNode: DiagramNode | undefined;
-          
+
           if (event.key === 'ArrowUp') {
-            // Find node above on same lifeline, or go to lifeline header
             const sameLifelineNodes = diagramNodes
-              .filter(n => n.anchors?.some(a => a.lifelineId === currentLifelineId) && (n.yPosition || 0) < currentY)
+              .filter(n => n.id !== currentNodeId && n.anchors?.some(a => a.lifelineId === currentLifelineId) && (n.yPosition || 0) < currentY)
               .sort((a, b) => (b.yPosition || 0) - (a.yPosition || 0));
-            
-            if (sameLifelineNodes.length > 0) {
-              nextNode = sameLifelineNodes[0];
-            } else if (currentLifelineId) {
-              // Move to the lifeline header
-              setSelectedNodeIds([]);
-              setToolbarPosition(null);
-              setSelectedLifelineId(currentLifelineId);
-              return;
-            }
+            nextNode = sameLifelineNodes[0];
           } else if (event.key === 'ArrowDown') {
-            // Find node below on same lifeline
             const sameLifelineNodes = diagramNodes
-              .filter(n => n.anchors?.some(a => a.lifelineId === currentLifelineId) && (n.yPosition || 0) > currentY)
+              .filter(n => n.id !== currentNodeId && n.anchors?.some(a => a.lifelineId === currentLifelineId) && (n.yPosition || 0) > currentY)
               .sort((a, b) => (a.yPosition || 0) - (b.yPosition || 0));
             nextNode = sameLifelineNodes[0];
           } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-            // Find node on adjacent lifeline at similar Y position
             const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
             const currentLifelineIdx = sortedLifelines.findIndex(l => l.id === currentLifelineId);
             const targetLifelineIdx = event.key === 'ArrowLeft' ? currentLifelineIdx - 1 : currentLifelineIdx + 1;
-            
+
             if (targetLifelineIdx >= 0 && targetLifelineIdx < sortedLifelines.length) {
               const targetLifelineId = sortedLifelines[targetLifelineIdx].id;
               const targetLifelineNodes = diagramNodes
                 .filter(n => n.anchors?.some(a => a.lifelineId === targetLifelineId));
-              
+
               if (targetLifelineNodes.length > 0) {
-                // Find closest node by Y position
                 nextNode = targetLifelineNodes.reduce((closest, node) => {
                   const closestDist = Math.abs((closest.yPosition || 0) - currentY);
                   const nodeDist = Math.abs((node.yPosition || 0) - currentY);
@@ -454,30 +534,26 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
               }
             }
           }
-          
+
           if (nextNode) {
             setSelectedNodeIds([nextNode.id]);
           }
           return;
         }
-        
-        // If no selection, select first node or lifeline
-        if (selectedNodeIds.length === 0 && !selectedLifelineId && !selectedProcessId) {
-          event.preventDefault();
-          if (diagramNodes.length > 0) {
-            const sortedNodes = [...diagramNodes].sort((a, b) => (a.yPosition || 0) - (b.yPosition || 0));
-            setSelectedNodeIds([sortedNodes[0].id]);
-          } else if (lifelines.length > 0) {
-            const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
-            setSelectedLifelineId(sortedLifelines[0].id);
-          }
+
+        // If nothing selected, select the first node (fallback)
+        if (selectedNodeIds.length === 0 && !selectedLifelineId && !selectedProcessId && diagramNodes.length > 0) {
+          const sortedNodes = [...diagramNodes].sort((a, b) => (a.yPosition || 0) - (b.yPosition || 0));
+          setSelectedNodeIds([sortedNodes[0].id]);
         }
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedAnchorId, processCreationMode, selectedNodeIds, selectedLifelineId, selectedProcessId, diagramNodes, lifelines, data, readOnly, onDataChange, diagramClipboard]);
+    // Capture-phase listener so ReactFlow doesn't see arrow keys first.
+    const options = { capture: true } as const;
+    document.addEventListener('keydown', handleKeyDown, options);
+    return () => document.removeEventListener('keydown', handleKeyDown, options);
+  }, [selectedAnchorId, processCreationMode, selectedNodeIds, selectedLifelineId, selectedProcessId, diagramNodes, lifelines, data, nodes, readOnly, onDataChange, diagramClipboard]);
 
   const activeTheme = useMemo(
     () => styles?.themes?.[currentTheme] || styles?.themes?.light || defaultLightTheme,
