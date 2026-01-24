@@ -1267,6 +1267,8 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
   useEffect(() => {
     if (!selectedNodePath) return;
     
+    console.log('[OpenApiStructureEditor] selectedNodePath received:', selectedNodePath);
+    
     // Convert diagram path (root.paths./api/users) to structure editor path array
     // Strip 'root.' prefix and split by '.'
     const pathWithoutRoot = selectedNodePath.startsWith('root.') 
@@ -1276,8 +1278,26 @@ export const OpenApiStructureEditor: React.FC<OpenApiStructureEditorProps> = ({
     if (!pathWithoutRoot) return;
     
     const pathArray = pathWithoutRoot.split('.');
-    scrollToPath(pathArray);
-  }, [selectedNodePath, scrollToPath]);
+    console.log('[OpenApiStructureEditor] Scrolling to path array:', pathArray);
+    
+    // First expand all parent paths to ensure the element is visible
+    if (rawExternalOnToggleCollapse) {
+      // Expand from root down to the target
+      let currentPath = 'root';
+      rawExternalOnToggleCollapse(currentPath, false); // Expand root
+      
+      for (let i = 0; i < pathArray.length; i++) {
+        currentPath = `root.${pathArray.slice(0, i + 1).join('.')}`;
+        console.log('[OpenApiStructureEditor] Expanding path:', currentPath);
+        rawExternalOnToggleCollapse(currentPath, false);
+      }
+    }
+    
+    // Then scroll to the element after a brief delay to let DOM update
+    setTimeout(() => {
+      scrollToPath(pathArray);
+    }, 100);
+  }, [selectedNodePath, scrollToPath, rawExternalOnToggleCollapse]);
 
   // Use the document ref resolver for sideloading referenced documents
   const { getAllResolvedSchemas, resolvedDocuments } = useDocumentRefResolver(schema);

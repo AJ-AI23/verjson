@@ -1430,6 +1430,8 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
   useEffect(() => {
     if (!selectedNodePath) return;
     
+    console.log('[SchemaStructureEditor] selectedNodePath received:', selectedNodePath);
+    
     // Convert diagram path (root.properties.x) to structure editor path array
     // Strip 'root.' prefix and split by '.'
     const pathWithoutRoot = selectedNodePath.startsWith('root.') 
@@ -1439,8 +1441,26 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     if (!pathWithoutRoot) return;
     
     const pathArray = pathWithoutRoot.split('.');
-    scrollToPath(pathArray);
-  }, [selectedNodePath, scrollToPath]);
+    console.log('[SchemaStructureEditor] Scrolling to path array:', pathArray);
+    
+    // First expand all parent paths to ensure the element is visible
+    if (rawExternalOnToggleCollapse) {
+      // Expand from root down to the target
+      let currentPath = 'root';
+      rawExternalOnToggleCollapse(currentPath, false); // Expand root
+      
+      for (let i = 0; i < pathArray.length; i++) {
+        currentPath = `root.${pathArray.slice(0, i + 1).join('.')}`;
+        console.log('[SchemaStructureEditor] Expanding path:', currentPath);
+        rawExternalOnToggleCollapse(currentPath, false);
+      }
+    }
+    
+    // Then scroll to the element after a brief delay to let DOM update
+    setTimeout(() => {
+      scrollToPath(pathArray);
+    }, 100);
+  }, [selectedNodePath, scrollToPath, rawExternalOnToggleCollapse]);
 
 
   // Clipboard for cut/copy/paste
