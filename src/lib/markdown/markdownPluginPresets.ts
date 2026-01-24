@@ -1,6 +1,7 @@
 import remarkGfm from 'remark-gfm';
 import remarkGemoji from 'remark-gemoji';
 import rehypeHighlight from 'rehype-highlight';
+import { remarkExtendedSyntax } from './remarkExtendedSyntax';
 
 export type MarkdownDocType = 'markdown' | 'extended-markdown';
 
@@ -12,13 +13,14 @@ export function getMarkdownPlugins(docType: MarkdownDocType): {
     return { remarkPlugins: [], rehypePlugins: [] };
   }
 
-  // NOTE: We only include plugins that are compatible with react-markdown v10 (micromark-based).
-  // remark-mark-plus and remark-supersub use the legacy Parser API and crash the app.
-  // Extended syntax for highlight (==), subscript (~), and superscript (^) would require
-  // micromark extensions which are not yet implemented.
+  // Extended markdown plugins compatible with react-markdown v10 (micromark-based)
+  // - remarkGfm: tables, strikethrough (~~), task lists, autolinks
+  // - remarkGemoji: emoji shortcodes (:smile:)
+  // - remarkExtendedSyntax: highlight (==), subscript (~), superscript (^)
   const remarkPlugins = [
-    [remarkGfm, { singleTilde: false }],
+    [remarkGfm, { singleTilde: false }], // Disable single-tilde strikethrough to not conflict with subscript
     remarkGemoji,
+    remarkExtendedSyntax,
   ];
 
   const rehypePlugins = [rehypeHighlight];
