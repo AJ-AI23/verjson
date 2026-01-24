@@ -36,7 +36,7 @@ import { useProcessManagement } from '@/hooks/useProcessManagement';
 import { useDiagramClipboard } from '@/hooks/useDiagramClipboard';
 import { ProcessEditor } from './ProcessEditor';
 import { LifelineEditor } from './LifelineEditor';
-import { diagramDbg } from '@/lib/diagram/diagramDebug';
+ import { diagramDbg, isDiagramDebugEnabled } from '@/lib/diagram/diagramDebug';
 import '@xyflow/react/dist/style.css';
 
 interface SequenceDiagramRendererProps {
@@ -1063,6 +1063,34 @@ const FitViewHelper: React.FC<{
 
   const [nodes, setNodes, handleNodesChange] = useNodesState(nodesWithHandlers);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(edgesWithRenderMode);
+
+  // Debug: detect when our *intended* selection (nodesWithHandlers) doesn't match what ReactFlow is
+  // currently rendering (nodes state). This is the most direct signal that "selection logic runs"
+  // but the diagram doesn't visually reflect it.
+  useEffect(() => {
+    if (!isDiagramDebugEnabled()) return;
+
+    const desiredSelected = nodesWithHandlers
+      .filter((n) => n.selected)
+      .map((n) => n.id)
+      .sort();
+
+    const appliedSelected = nodes
+      .filter((n) => n.selected)
+      .map((n) => n.id)
+      .sort();
+
+    const mismatch = desiredSelected.join('|') !== appliedSelected.join('|');
+    if (!mismatch) return;
+
+    diagramDbg('seq:sel', 'rf_selected_mismatch', {
+      desiredSelected,
+      appliedSelected,
+      selectedNodeIds,
+      selectedLifelineId,
+      selectedProcessId,
+    });
+  }, [nodesWithHandlers, nodes, selectedNodeIds, selectedLifelineId, selectedProcessId]);
   
   // Track previous values to prevent unnecessary updates
   const prevNodesRef = useRef<Node[]>([]);
@@ -1107,6 +1135,17 @@ const FitViewHelper: React.FC<{
       appliedSelected,
       nextSelected,
     });
+
+    // Debug: selection-only changes can be skipped by the dedupe logic above.
+    // When this happens, keyboard navigation will update local selection state,
+    // but ReactFlow won't visually update (because setNodes is never called).
+    if (selectionChanged && !nodesChanged) {
+      diagramDbg('seq:nodes', 'skip:setNodes (selection_changed_but_nodesChanged_false)', {
+        note: 'Likely dedupe ignoring node.selected changes. If you see this, the diagram will not highlight the new selection.',
+        appliedSelected,
+        nextSelected,
+      });
+    }
     
     if (nodesChanged) {
       // Log what we're about to apply
