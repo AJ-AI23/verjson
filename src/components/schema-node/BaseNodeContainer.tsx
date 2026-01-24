@@ -12,6 +12,8 @@ export interface BaseNodeContainerProps {
   showTargetHandle?: boolean;
   /** Whether to show the source (bottom) handle. Default true. */
   showSourceHandle?: boolean;
+  /** Whether the node is currently selected in React Flow */
+  selected?: boolean;
 }
 
 /**
@@ -28,7 +30,8 @@ export const BaseNodeContainer = memo(({
   className,
   children,
   showTargetHandle = true,
-  showSourceHandle = true
+  showSourceHandle = true,
+  selected = false
 }: BaseNodeContainerProps) => {
   const { showDiagramDebug } = useDebug();
   
@@ -41,7 +44,12 @@ export const BaseNodeContainer = memo(({
 
   return (
     <div 
-      className={cn('relative', className)}
+      className={cn(
+        'relative',
+        // Selection ring styling
+        selected && 'ring-2 ring-primary ring-offset-1 ring-offset-background',
+        className
+      )}
       // Do NOT add onClick here - let React Flow handle node clicks
       // Adding onClick with stopPropagation would break node selection
     >
@@ -66,6 +74,9 @@ export const BaseNodeContainer = memo(({
           <div className="flex gap-2">
             <span>w: {measuredWidth ?? '?'}</span>
             <span>h: {measuredHeight ?? '?'}</span>
+          </div>
+          <div className="flex gap-2">
+            <span>sel: {selected ? 'Y' : 'N'}</span>
           </div>
         </div>
       )}

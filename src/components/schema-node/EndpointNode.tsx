@@ -28,11 +28,12 @@ export interface EndpointNodeProps {
   };
   id: string;
   isConnectable: boolean;
+  selected?: boolean;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const EndpointNode = memo(({ data, isConnectable, id, onAddNotation, onToggleCollapse }: EndpointNodeProps) => {
+export const EndpointNode = memo(({ data, isConnectable, id, selected, onAddNotation, onToggleCollapse }: EndpointNodeProps) => {
   const { path, methods, label, notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, nodePath } = data;
 
   // Determine if node has children
@@ -56,6 +57,7 @@ export const EndpointNode = memo(({ data, isConnectable, id, onAddNotation, onTo
     <BaseNodeContainer
       id={id}
       isConnectable={isConnectable}
+      selected={selected}
       className={cn(
         'px-3 py-2 rounded-md shadow-sm border min-w-[200px] max-w-[300px]',
         'bg-indigo-50 border-indigo-200',

@@ -21,11 +21,12 @@ export interface RequestBodyNodeProps {
   };
   id: string;
   isConnectable: boolean;
+  selected?: boolean;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const RequestBodyNode = memo(({ data, isConnectable, id, onAddNotation, onToggleCollapse }: RequestBodyNodeProps) => {
+export const RequestBodyNode = memo(({ data, isConnectable, id, selected, onAddNotation, onToggleCollapse }: RequestBodyNodeProps) => {
   const { description, required, label, notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, path } = data;
 
   // Determine if node has children
@@ -36,6 +37,7 @@ export const RequestBodyNode = memo(({ data, isConnectable, id, onAddNotation, o
     <BaseNodeContainer
       id={id}
       isConnectable={isConnectable}
+      selected={selected}
       className={cn(
         'px-3 py-2 rounded-md shadow-sm border min-w-[120px] max-w-[200px]',
         'bg-amber-50 border-amber-200',

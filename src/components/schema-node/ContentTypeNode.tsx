@@ -23,11 +23,12 @@ export interface ContentTypeNodeProps {
   };
   id: string;
   isConnectable: boolean;
+  selected?: boolean;
   onAddNotation?: (nodeId: string, user: string, message: string) => void;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const ContentTypeNode = memo(({ data, isConnectable, id, onAddNotation, onToggleCollapse }: ContentTypeNodeProps) => {
+export const ContentTypeNode = memo(({ data, isConnectable, id, selected, onAddNotation, onToggleCollapse }: ContentTypeNodeProps) => {
   const { contentType, contentTypes, isConsolidated, description, notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, path } = data;
 
   // Determine if node has children
@@ -49,6 +50,7 @@ export const ContentTypeNode = memo(({ data, isConnectable, id, onAddNotation, o
     <BaseNodeContainer
       id={id}
       isConnectable={isConnectable}
+      selected={selected}
       className={cn(
         'px-3 py-2 rounded-md shadow-sm min-w-[120px] max-w-[250px]',
         'bg-slate-50 border-slate-200',

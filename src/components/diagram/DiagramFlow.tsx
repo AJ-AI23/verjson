@@ -20,14 +20,15 @@ interface DiagramFlowProps {
   onNodeSelect?: (path: string) => void;
 }
 
+// React Flow passes 'selected' as a prop to custom node components
 const nodeTypes = {
-  schemaType: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
-  info: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
-  endpoint: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
-  components: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
-  method: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
-  response: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
-  requestBody: (props: any) => <NodeRenderer {...props} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
+  schemaType: (props: any) => <NodeRenderer {...props} selected={props.selected} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
+  info: (props: any) => <NodeRenderer {...props} selected={props.selected} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
+  endpoint: (props: any) => <NodeRenderer {...props} selected={props.selected} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
+  components: (props: any) => <NodeRenderer {...props} selected={props.selected} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
+  method: (props: any) => <NodeRenderer {...props} selected={props.selected} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
+  response: (props: any) => <NodeRenderer {...props} selected={props.selected} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
+  requestBody: (props: any) => <NodeRenderer {...props} selected={props.selected} onAddNotation={props.data.onAddNotation} expandedNotationPaths={props.data.expandedNotationPaths} onToggleCollapse={props.data.onToggleCollapse} />,
 };
 
 export const DiagramFlow = memo(({

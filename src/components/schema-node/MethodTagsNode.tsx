@@ -15,10 +15,11 @@ export interface MethodTagsNodeProps {
   };
   id: string;
   isConnectable: boolean;
+  selected?: boolean;
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
 }
 
-export const MethodTagsNode = memo(({ data, isConnectable, id, onToggleCollapse }: MethodTagsNodeProps) => {
+export const MethodTagsNode = memo(({ data, isConnectable, id, selected, onToggleCollapse }: MethodTagsNodeProps) => {
   const { label, tags = [], tagCount, hasMoreLevels = false, isCollapsed = false, path } = data;
 
   // Determine if node has children
@@ -29,6 +30,7 @@ export const MethodTagsNode = memo(({ data, isConnectable, id, onToggleCollapse 
     <BaseNodeContainer
       id={id}
       isConnectable={isConnectable}
+      selected={selected}
       className={cn(
         'px-3 py-2 rounded-md shadow-sm border min-w-[160px] max-w-[240px]',
         'bg-cyan-50 border-cyan-200',
