@@ -1111,6 +1111,12 @@ const FitViewHelper: React.FC<{
             node.position.y !== prev.position.y) {
           return true;
         }
+
+        // IMPORTANT: selection changes must be applied to ReactFlow, otherwise keyboard navigation
+        // updates local state but the diagram never visually highlights the selected entity.
+        if (!!node.selected !== !!prev.selected) {
+          return true;
+        }
         
         // Check data changes (especially for process, lifeline, anchor, and sequence nodes)
         if (node.type === 'processNode' || node.type === 'columnLifeline' || node.type === 'anchorNode' || node.type === 'sequenceNode') {
