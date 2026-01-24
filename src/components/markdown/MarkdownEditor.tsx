@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
@@ -39,6 +38,7 @@ import {
   markdownToLines, 
 } from '@/lib/markdownUtils';
 import { cn } from '@/lib/utils';
+import { getMarkdownPlugins } from '@/lib/markdown/markdownPluginPresets';
 
 interface MarkdownEditorProps {
   document: MarkdownDocument;
@@ -300,6 +300,11 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     } as React.CSSProperties;
   }, [currentTheme]);
   
+  // Get plugins based on document type
+  const markdownPlugins = useMemo(() => {
+    return getMarkdownPlugins(document.type as 'markdown' | 'extended-markdown');
+  }, [document.type]);
+  
   const PreviewPane = (
     <ScrollArea className="h-full" style={{ backgroundColor: currentTheme.colors.background }}>
       <div 
@@ -307,7 +312,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         style={{ ...previewStyles, backgroundColor: currentTheme.colors.background, color: currentTheme.colors.text, minHeight: '100%' }}
       >
         <ReactMarkdown 
-          remarkPlugins={[remarkGfm]}
+          remarkPlugins={markdownPlugins.remarkPlugins}
+          rehypePlugins={markdownPlugins.rehypePlugins}
           components={{
             h1: ({ children }) => (
               <h1 style={{ 
@@ -377,6 +383,36 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             ),
             em: ({ children }) => (
               <em style={{ fontStyle: currentTheme.elements.italic.fontStyle as any }}>{children}</em>
+            ),
+            // Extended markdown: highlight (==text==)
+            mark: ({ children }) => (
+              <mark style={{ 
+                backgroundColor: '#fef08a',
+                color: 'inherit',
+                padding: '0.125rem 0.25rem',
+                borderRadius: '0.125rem',
+              }}>{children}</mark>
+            ),
+            // Extended markdown: subscript (~text~)
+            sub: ({ children }) => (
+              <sub style={{ 
+                fontSize: '0.75em',
+                verticalAlign: 'sub',
+              }}>{children}</sub>
+            ),
+            // Extended markdown: superscript (^text^)
+            sup: ({ children }) => (
+              <sup style={{ 
+                fontSize: '0.75em',
+                verticalAlign: 'super',
+              }}>{children}</sup>
+            ),
+            // Extended markdown: strikethrough (~~text~~)
+            del: ({ children }) => (
+              <del style={{ 
+                textDecoration: 'line-through',
+                opacity: 0.7,
+              }}>{children}</del>
             ),
             a: ({ href, children }) => (
               <a 
@@ -480,6 +516,23 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                 }} 
               />
             ),
+            // Extended markdown: task list items
+            input: ({ type, checked, disabled }) => {
+              if (type === 'checkbox') {
+                return (
+                  <input 
+                    type="checkbox" 
+                    checked={checked} 
+                    disabled={disabled}
+                    style={{ 
+                      marginRight: '0.5rem',
+                      cursor: 'default',
+                    }} 
+                  />
+                );
+              }
+              return <input type={type} />;
+            },
           }}
         >
           {markdownContentForPreview}
