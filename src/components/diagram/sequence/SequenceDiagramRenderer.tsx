@@ -440,54 +440,34 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         }
 
         // Navigate between processes (same type only)
+        // Use JSON data order (array index) for navigation - no rendered positions needed
         if (selectedProcessId && (data.processes || []).length > 1) {
           const processes = data.processes || [];
-          const getProcessIdFromFlowNode = (n: Node): string | null => {
-            // process node stores id either in node.data.processId or node.data.processNode.id
-            const dataAny = (n.data as any) || {};
-            return dataAny.processId || dataAny?.processNode?.id || null;
-          };
+          const currentIdx = processes.findIndex(p => p.id === selectedProcessId);
+          if (currentIdx === -1) return;
 
-          const yByProcessId = new Map<string, number>();
-          for (const n of nodes) {
-            if (n.type !== 'processNode') continue;
-            const pid = getProcessIdFromFlowNode(n);
-            if (pid) yByProcessId.set(pid, n.position.y);
-          }
+          const currentProcess = processes[currentIdx];
 
-          const currentProcess = processes.find(p => p.id === selectedProcessId);
-          const currentY = yByProcessId.get(selectedProcessId) ?? 0;
-
-          // Up/Down: previous/next in vertical order
+          // Up/Down: previous/next in array order
           if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-            const sortable = processes
-              .map(p => ({ id: p.id, y: yByProcessId.get(p.id) ?? 0 }))
-              .sort((a, b) => a.y - b.y);
-            const idx = sortable.findIndex(p => p.id === selectedProcessId);
-            if (idx === -1) return;
-            const nextIdx = event.key === 'ArrowUp' ? idx - 1 : idx + 1;
-            if (nextIdx >= 0 && nextIdx < sortable.length) {
-              setSelectedProcessId(sortable[nextIdx].id);
+            const nextIdx = event.key === 'ArrowUp' ? currentIdx - 1 : currentIdx + 1;
+            if (nextIdx >= 0 && nextIdx < processes.length) {
+              setSelectedProcessId(processes[nextIdx].id);
             }
             return;
           }
 
-          // Left/Right: nearest process on adjacent lifeline (by y)
+          // Left/Right: first process on adjacent lifeline
           if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && currentProcess?.lifelineId) {
             const sortedLifelines = [...lifelines].sort((a, b) => a.order - b.order);
             const currentLifelineIdx = sortedLifelines.findIndex(l => l.id === currentProcess.lifelineId);
             const targetLifelineIdx = event.key === 'ArrowLeft' ? currentLifelineIdx - 1 : currentLifelineIdx + 1;
             if (targetLifelineIdx < 0 || targetLifelineIdx >= sortedLifelines.length) return;
             const targetLifelineId = sortedLifelines[targetLifelineIdx].id;
-            const candidates = processes.filter(p => p.lifelineId === targetLifelineId);
-            if (candidates.length === 0) return;
-
-            const closest = candidates.reduce((best, p) => {
-              const y = yByProcessId.get(p.id) ?? 0;
-              const bestY = yByProcessId.get(best.id) ?? 0;
-              return Math.abs(y - currentY) < Math.abs(bestY - currentY) ? p : best;
-            }, candidates[0]);
-            setSelectedProcessId(closest.id);
+            const candidate = processes.find(p => p.lifelineId === targetLifelineId);
+            if (candidate) {
+              setSelectedProcessId(candidate.id);
+            }
             return;
           }
 
@@ -553,7 +533,7 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
     const options = { capture: true } as const;
     document.addEventListener('keydown', handleKeyDown, options);
     return () => document.removeEventListener('keydown', handleKeyDown, options);
-  }, [selectedAnchorId, processCreationMode, selectedNodeIds, selectedLifelineId, selectedProcessId, diagramNodes, lifelines, data, nodes, readOnly, onDataChange, diagramClipboard]);
+  }, [selectedAnchorId, processCreationMode, selectedNodeIds, selectedLifelineId, selectedProcessId, diagramNodes, lifelines, data, readOnly, onDataChange, diagramClipboard]);
 
   const activeTheme = useMemo(
     () => styles?.themes?.[currentTheme] || styles?.themes?.light || defaultLightTheme,
