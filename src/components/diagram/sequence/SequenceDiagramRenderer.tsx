@@ -227,6 +227,15 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   // Keyboard shortcuts for process creation, deletion, navigation, and copy/paste
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Only handle shortcuts when the diagram has focus.
+      // This prevents stealing Arrow/Tab from the JSON editor or other inputs.
+      const wrapper = reactFlowWrapper.current;
+      const activeEl = document.activeElement as HTMLElement | null;
+      const isDiagramActive = !!wrapper && !!activeEl && (activeEl === wrapper || wrapper.contains(activeEl));
+      if (!isDiagramActive) {
+        return;
+      }
+
       // Ignore keyboard events when typing in inputs or textareas
       const target = event.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
@@ -1736,6 +1745,9 @@ const FitViewHelper: React.FC<{
 
   const onNodeClick = useCallback((event: any, node: Node) => {
     if (readOnly || !isInteractive) return;
+
+    // Ensure key events go to the diagram after the user clicks an element.
+    reactFlowWrapper.current?.focus();
     
     // Handle anchor node clicks for process creation
     if (node.type === 'anchorNode') {
@@ -2129,6 +2141,7 @@ const FitViewHelper: React.FC<{
 
   // Close toolbar and tooltips when clicking outside
   const onPaneClick = useCallback(() => {
+    reactFlowWrapper.current?.focus();
     setSelectedNodeIds([]);
     setToolbarPosition(null);
     setSelectedAnchorId(null);
@@ -2273,7 +2286,12 @@ const FitViewHelper: React.FC<{
         />
       )}
 
-      <div className="flex-1 relative">
+      <div
+        ref={reactFlowWrapper}
+        tabIndex={0}
+        className="flex-1 relative focus:outline-none"
+        onPointerDownCapture={() => reactFlowWrapper.current?.focus()}
+      >
         <ReactFlow
           key="sequence-diagram"
           nodes={nodes}
