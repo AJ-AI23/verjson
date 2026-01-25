@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Bell, Mail } from 'lucide-react';
 import { NotificationsDialog } from './NotificationsDialog';
 import { InvitationsDialog } from './InvitationsDialog';
 import { SupportButton } from './SupportButton';
+import { PwaInstallButton } from './PwaInstallButton';
 import { useNotifications } from '@/contexts/NotificationsContext';
 
 export const NotificationsButton: React.FC = () => {
@@ -18,6 +19,9 @@ export const NotificationsButton: React.FC = () => {
     <div className="flex items-center gap-2">
       {/* Support Button */}
       <SupportButton />
+      
+      {/* PWA Install Button */}
+      <PwaInstallButton />
       
       {/* Invitations Button */}
       <div className="relative">
