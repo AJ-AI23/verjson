@@ -76,7 +76,8 @@ export function linesToMarkdown(lines: Record<string, string>): string {
         /^```/.test(line) ||       // code fence
         /^---$/.test(line) ||      // hr
         /^\*\*\*$/.test(line) ||   // hr
-        /^___$/.test(line)) {      // hr
+        /^___$/.test(line) ||      // hr
+        /!\[.*?\]\(.*?\)/.test(line)) { // image syntax (standalone images should not have trailing spaces)
       return line;
     }
     // Add two trailing spaces to force hard break
