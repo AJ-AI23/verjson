@@ -1,0 +1,17 @@
+{
+  "name": "VerJSON",
+  "short_name": "VerJSON",
+  "description": "Version, edit and render all your JSON files in collaboration!",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0891b2",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
