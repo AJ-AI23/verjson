@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Document } from '@/types/workspace';
-import { getEffectiveDocumentContentForEditor } from '@/lib/documentUtils';
+import { useEdgeFunctionWithAuth } from './useEdgeFunctionWithAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function useDocumentContent(documentId?: string) {
   const [content, setContent] = useState<any>(null);
@@ -9,6 +8,8 @@ export function useDocumentContent(documentId?: string) {
   const [error, setError] = useState<string | null>(null);
   const [fetchedDocumentId, setFetchedDocumentId] = useState<string | null>(null);
   const requestIdRef = useRef(0);
+  const { invoke } = useEdgeFunctionWithAuth();
+  const { user } = useAuth();
 
   useEffect(() => {
     console.log('[useDocumentContent] 🔄 Effect triggered:', {
@@ -42,11 +43,16 @@ export function useDocumentContent(documentId?: string) {
         setLoading(true);
         setError(null);
 
-        const { data, error } = await supabase.functions.invoke('document-content', {
+        const { data, error: fetchError, status } = await invoke<{ document: any }>('document-content', {
           body: { action: 'fetchDocument', document_id: documentId }
         });
 
-        if (error) throw error;
+        // 401 is already handled by useEdgeFunctionWithAuth (redirects to /auth)
+        if (status === 401) {
+          return;
+        }
+
+        if (fetchError) throw fetchError;
 
         // Ignore stale responses (user switched documents while request was in flight)
         if (requestId !== requestIdRef.current) {
@@ -54,8 +60,8 @@ export function useDocumentContent(documentId?: string) {
           return;
         }
 
-        console.log('[useDocumentContent] ✅ Content loaded successfully, content length:', JSON.stringify(data.document?.content || {}).length);
-        setContent(data.document);
+        console.log('[useDocumentContent] ✅ Content loaded successfully, content length:', JSON.stringify(data?.document?.content || {}).length);
+        setContent(data?.document);
         setFetchedDocumentId(documentId);
       } catch (err) {
         console.error('[useDocumentContent] ❌ Error fetching content:', err);

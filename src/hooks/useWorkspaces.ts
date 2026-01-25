@@ -1,6 +1,5 @@
 import { useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemoSession } from '@/contexts/DemoSessionContext';
 import { registerWorkspaceUpdateHandler } from './useNotifications';
@@ -8,6 +7,7 @@ import { Workspace, CreateWorkspaceData } from '@/types/workspace';
 import { toast } from 'sonner';
 import { registerWorkspaceRefreshHandler } from '@/lib/workspaceRefreshUtils';
 import { checkDemoSessionExpired } from '@/lib/supabaseErrorHandler';
+import { useEdgeFunctionWithAuth } from './useEdgeFunctionWithAuth';
 
 const WORKSPACE_QUERY_KEY = 'workspaces';
 
@@ -15,6 +15,7 @@ export function useWorkspaces() {
   const { user } = useAuth();
   const { handleDemoExpiration } = useDemoSession();
   const queryClient = useQueryClient();
+  const { invoke } = useEdgeFunctionWithAuth();
 
   const { data: workspaces = [], isLoading: loading, error: queryError } = useQuery({
     queryKey: [WORKSPACE_QUERY_KEY, user?.id],
@@ -23,11 +24,15 @@ export function useWorkspaces() {
       
       console.log('[useWorkspaces] 🔄 Fetching workspaces for user:', user.id);
       
-      const { data, error } = await supabase.functions.invoke('workspace-management', {
+      const { data, error, status } = await invoke<{ workspaces: Workspace[] }>('workspace-management', {
         body: { action: 'listUserWorkspaces' }
       });
       
       if (error) {
+        // 401 is already handled by useEdgeFunctionWithAuth (redirects to /auth)
+        if (status === 401) {
+          throw new Error('Session expired');
+        }
         const { isDemoExpired } = checkDemoSessionExpired(error);
         if (isDemoExpired) {
           handleDemoExpiration();
@@ -36,8 +41,8 @@ export function useWorkspaces() {
         throw error;
       }
 
-      console.log('[useWorkspaces] ✅ Fetched workspaces:', data.workspaces?.length || 0);
-      return data.workspaces || [];
+      console.log('[useWorkspaces] ✅ Fetched workspaces:', data?.workspaces?.length || 0);
+      return data?.workspaces || [];
     },
     enabled: !!user,
   });
@@ -48,15 +53,16 @@ export function useWorkspaces() {
     queryClient.invalidateQueries({ queryKey: [WORKSPACE_QUERY_KEY, user?.id] });
   }, [queryClient, user?.id]);
 
-  const createWorkspace = async (data: CreateWorkspaceData): Promise<Workspace | null> => {
+  const createWorkspace = async (workspaceData: CreateWorkspaceData): Promise<Workspace | null> => {
     if (!user) return null;
 
     try {
-      const { data: result, error } = await supabase.functions.invoke('workspace-management', {
-        body: { action: 'createWorkspace', ...data }
+      const { data: result, error, status } = await invoke<{ workspace: Workspace }>('workspace-management', {
+        body: { action: 'createWorkspace', ...workspaceData }
       });
 
       if (error) {
+        if (status === 401) return null; // Already handled
         const { isDemoExpired } = checkDemoSessionExpired(error);
         if (isDemoExpired) {
           handleDemoExpiration();
@@ -67,7 +73,7 @@ export function useWorkspaces() {
       
       refetch();
       toast.success('Workspace created successfully');
-      return result.workspace;
+      return result?.workspace || null;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create workspace';
       toast.error(message);
@@ -77,11 +83,12 @@ export function useWorkspaces() {
 
   const updateWorkspace = async (id: string, updates: Partial<CreateWorkspaceData>) => {
     try {
-      const { data, error } = await supabase.functions.invoke('workspace-management', {
+      const { data, error, status } = await invoke<{ workspace: Workspace }>('workspace-management', {
         body: { action: 'updateWorkspace', id, ...updates }
       });
 
       if (error) {
+        if (status === 401) return null; // Already handled
         const { isDemoExpired } = checkDemoSessionExpired(error);
         if (isDemoExpired) {
           handleDemoExpiration();
@@ -92,7 +99,7 @@ export function useWorkspaces() {
       
       refetch();
       toast.success('Workspace updated successfully');
-      return data.workspace;
+      return data?.workspace;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update workspace';
       toast.error(message);
@@ -102,11 +109,12 @@ export function useWorkspaces() {
 
   const deleteWorkspace = async (id: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke('workspace-management', {
+      const { error, status } = await invoke('workspace-management', {
         body: { action: 'deleteWorkspace', id }
       });
 
       if (error) {
+        if (status === 401) return; // Already handled
         const { isDemoExpired } = checkDemoSessionExpired(error);
         if (isDemoExpired) {
           handleDemoExpiration();

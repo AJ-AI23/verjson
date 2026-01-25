@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,8 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2 } from 'lucide-react';
 
+const LOGOUT_FLAG_KEY = 'logout-in-progress';
+const LOGOUT_FLAG_TTL_MS = 5000; // 5 seconds TTL for logout flag
+
 const Auth = () => {
-  const { user, signIn, signUp, signInDemo, resetPassword, loading } = useAuth();
+  const { user, session, sessionValidated, signIn, signUp, signInDemo, resetPassword, loading, forceLocalSignOut } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -19,11 +21,12 @@ const Auth = () => {
   const [message, setMessage] = useState('');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
+  const hasAttemptedRedirect = useRef(false);
 
   // Handle URL parameters for password reset and session expiration
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const error = urlParams.get('error');
+    const urlError = urlParams.get('error');
     const errorDescription = urlParams.get('error_description');
     const expired = urlParams.get('expired');
     
@@ -31,59 +34,80 @@ const Auth = () => {
       setError('Your session has expired. Please sign in again.');
       // Clean up the URL
       window.history.replaceState({}, '', '/auth');
-    } else if (error) {
-      console.error('Auth URL error:', error, errorDescription);
+    } else if (urlError) {
+      console.error('[Auth] Auth URL error:', urlError, errorDescription);
       setError(errorDescription || 'Authentication error occurred');
     }
   }, []);
 
-  // Redirect if already logged in - but check session validity first
+  // Check and manage the logout-in-progress flag
+  const isLogoutInProgress = (): boolean => {
+    const flagValue = sessionStorage.getItem(LOGOUT_FLAG_KEY);
+    if (!flagValue) return false;
+    
+    const timestamp = parseInt(flagValue, 10);
+    if (isNaN(timestamp)) {
+      // Old format (just 'true'), treat as expired
+      sessionStorage.removeItem(LOGOUT_FLAG_KEY);
+      return false;
+    }
+    
+    // Check if flag has expired
+    const elapsed = Date.now() - timestamp;
+    if (elapsed > LOGOUT_FLAG_TTL_MS) {
+      console.log('[Auth] Logout flag expired, clearing');
+      sessionStorage.removeItem(LOGOUT_FLAG_KEY);
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Clear logout flag only when we have confirmed no session
+  const clearLogoutFlagIfNoSession = () => {
+    if (!user && !session) {
+      sessionStorage.removeItem(LOGOUT_FLAG_KEY);
+    }
+  };
+
+  // Redirect if already logged in - but only after session is validated
   useEffect(() => {
-    // Clear logout flag when component mounts
-    const logoutInProgress = sessionStorage.getItem('logout-in-progress');
-    if (logoutInProgress) {
-      sessionStorage.removeItem('logout-in-progress');
-      return; // Don't redirect if we just logged out
+    // Don't redirect while loading
+    if (loading) {
+      console.log('[Auth] Still loading, not redirecting');
+      return;
     }
 
-    const checkSessionAndRedirect = async () => {
-      if (!loading && user) {
-        // Check if this is a demo session and if it has expired
-        try {
-          const { data, error } = await supabase
-            .from('demo_sessions')
-            .select('expires_at')
-            .eq('user_id', user.id)
-            .maybeSingle();
+    // Check if logout is in progress - don't redirect
+    if (isLogoutInProgress()) {
+      console.log('[Auth] Logout in progress, suppressing redirect');
+      // Clear flag if we have no session
+      clearLogoutFlagIfNoSession();
+      return;
+    }
 
-          if (error) {
-            console.error('[Auth] Error checking demo session:', error);
-          }
-
-          // If it's a demo session that has expired, clear local session only
-          if (data && new Date(data.expires_at) < new Date()) {
-            console.log('[Auth] Demo session expired, clearing local session');
-            // Don't call signOut() as the session is already gone server-side
-            // Clear local storage and reload to reset everything
-            localStorage.removeItem('sb-swghcmyqracwifpdfyap-auth-token');
-            window.location.reload();
-            return;
-          }
-
-          // Session is valid, proceed with redirect
-          console.log('[Auth] Valid session found, redirecting to home');
-          const timer = setTimeout(() => {
-            window.location.href = '/';
-          }, 100);
-          return () => clearTimeout(timer);
-        } catch (error) {
-          console.error('[Auth] Error in session check:', error);
-        }
+    // Only redirect if we have BOTH user and session AND session is validated
+    if (user && session && sessionValidated) {
+      // Prevent multiple redirects
+      if (hasAttemptedRedirect.current) {
+        console.log('[Auth] Already attempted redirect');
+        return;
       }
-    };
-
-    checkSessionAndRedirect();
-  }, [user, loading]);
+      
+      hasAttemptedRedirect.current = true;
+      console.log('[Auth] Valid session found, redirecting to home');
+      
+      // Use replace to prevent back-button loops
+      window.location.replace('/');
+    } else if (!user && !session) {
+      // No session - clear any stale logout flag
+      clearLogoutFlagIfNoSession();
+      hasAttemptedRedirect.current = false;
+    } else if (user && !sessionValidated) {
+      // We have a user but session not validated yet - wait
+      console.log('[Auth] User exists but session not validated, waiting...');
+    }
+  }, [user, session, sessionValidated, loading]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,6 +129,10 @@ const Auth = () => {
     }
 
     try {
+      // Clear any stale logout flag before signing in
+      sessionStorage.removeItem(LOGOUT_FLAG_KEY);
+      hasAttemptedRedirect.current = false;
+      
       const { error } = await signIn(email, password);
       if (error) {
         // Provide more user-friendly error messages
@@ -118,7 +146,7 @@ const Auth = () => {
       }
       // Don't redirect here - let the auth state change handle it
     } catch (err) {
-      console.error('Sign in error:', err);
+      console.error('[Auth] Sign in error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -165,7 +193,7 @@ const Auth = () => {
         setFullName('');
       }
     } catch (err) {
-      console.error('Sign up error:', err);
+      console.error('[Auth] Sign up error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -200,7 +228,7 @@ const Auth = () => {
         setShowForgotPassword(false);
       }
     } catch (err) {
-      console.error('Password reset error:', err);
+      console.error('[Auth] Password reset error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -213,6 +241,10 @@ const Auth = () => {
     setIsSubmitting(true);
 
     try {
+      // Clear any stale logout flag before signing in
+      sessionStorage.removeItem(LOGOUT_FLAG_KEY);
+      hasAttemptedRedirect.current = false;
+      
       const { error } = await signInDemo();
       if (error) {
         setError('Failed to create demo session. Please try again.');
@@ -220,7 +252,7 @@ const Auth = () => {
         setMessage('Demo session created! You will be automatically logged out after 10 minutes.');
       }
     } catch (err) {
-      console.error('Demo sign in error:', err);
+      console.error('[Auth] Demo sign in error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);

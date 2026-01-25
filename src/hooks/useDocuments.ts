@@ -4,9 +4,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDemoSession } from '@/contexts/DemoSessionContext';
 import { Document, CreateDocumentData } from '@/types/workspace';
 import { toast } from 'sonner';
-import { enhanceDocumentsWithEffectiveContent } from '@/lib/documentUtils';
 import { useSharedDocuments } from './useSharedDocuments';
 import { checkDemoSessionExpired } from '@/lib/supabaseErrorHandler';
+import { useEdgeFunctionWithAuth } from './useEdgeFunctionWithAuth';
 
 const VIRTUAL_SHARED_WORKSPACE_ID = '__shared_with_me__';
 
@@ -16,6 +16,7 @@ export function useDocuments(workspaceId?: string) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { invoke } = useEdgeFunctionWithAuth();
   
   // Use shared documents hook for the virtual workspace
   const sharedDocuments = useSharedDocuments();
@@ -36,12 +37,13 @@ export function useDocuments(workspaceId?: string) {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase.functions.invoke('document-management', {
+      const { data, error, status } = await invoke<{ documents: Document[] }>('document-management', {
         body: { action: 'listDocumentsByWorkspace', workspace_id: workspaceId }
       });
 
       if (error) {
         console.error('[useDocuments] Fetch error:', error);
+        if (status === 401) return; // Already handled
         const { isDemoExpired } = checkDemoSessionExpired(error);
         if (isDemoExpired) {
           handleDemoExpiration();
@@ -50,7 +52,7 @@ export function useDocuments(workspaceId?: string) {
         throw error;
       }
       
-      setDocuments(data.documents || []);
+      setDocuments(data?.documents || []);
     } catch (err) {
       console.error('[useDocuments] Error in fetchDocuments:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch documents');
@@ -60,17 +62,18 @@ export function useDocuments(workspaceId?: string) {
     }
   };
 
-  const createDocument = async (data: CreateDocumentData): Promise<Document | null> => {
+  const createDocument = async (docData: CreateDocumentData): Promise<Document | null> => {
     if (!user) return null;
 
     try {
-      console.log('[useDocuments] Creating document:', data);
+      console.log('[useDocuments] Creating document:', docData);
       
-      const { data: result, error } = await supabase.functions.invoke('document-management', {
-        body: { action: 'createDocument', ...data }
+      const { data: result, error, status } = await invoke<{ document: Document }>('document-management', {
+        body: { action: 'createDocument', ...docData }
       });
 
       if (error) {
+        if (status === 401) return null; // Already handled
         const { isDemoExpired } = checkDemoSessionExpired(error);
         if (isDemoExpired) {
           handleDemoExpiration();
@@ -79,11 +82,11 @@ export function useDocuments(workspaceId?: string) {
         throw error;
       }
       
-      console.log('[useDocuments] Document created:', result.document);
+      console.log('[useDocuments] Document created:', result?.document);
       
       await fetchDocuments(); // Refresh the list
       toast.success('Document created successfully');
-      return result.document;
+      return result?.document || null;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create document';
       setError(message);
@@ -96,11 +99,12 @@ export function useDocuments(workspaceId?: string) {
     try {
       console.log('[useDocuments] Updating document:', id, updates);
       
-      const { data, error } = await supabase.functions.invoke('document-management', {
+      const { data, error, status } = await invoke<{ document: Document }>('document-management', {
         body: { action: 'updateDocument', id, ...updates }
       });
 
       if (error) {
+        if (status === 401) return null; // Already handled
         const { isDemoExpired } = checkDemoSessionExpired(error);
         if (isDemoExpired) {
           handleDemoExpiration();
@@ -111,7 +115,7 @@ export function useDocuments(workspaceId?: string) {
       
       console.log('[useDocuments] Document updated');
       await fetchDocuments(); // Refresh the list
-      return data.document;
+      return data?.document;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update document';
       setError(message);
@@ -124,11 +128,12 @@ export function useDocuments(workspaceId?: string) {
     try {
       console.log('[useDocuments] Deleting document:', id);
       
-      const { data, error } = await supabase.functions.invoke('document-management', {
+      const { error, status } = await invoke('document-management', {
         body: { action: 'deleteDocument', id }
       });
 
       if (error) {
+        if (status === 401) return; // Already handled
         const { isDemoExpired } = checkDemoSessionExpired(error);
         if (isDemoExpired) {
           handleDemoExpiration();
