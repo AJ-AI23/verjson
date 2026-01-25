@@ -63,10 +63,16 @@ const Index = () => {
   // Redirect to auth if not logged in - with delay to prevent race conditions
   useEffect(() => {
     if (!loading && !user) {
+      // Check if we're already redirecting
+      if (window.location.pathname === '/auth') {
+        return;
+      }
+      
       // Add a small delay to ensure auth state is fully settled
       const timer = setTimeout(() => {
         console.log('[Index] Redirecting to auth - no user found');
-        window.location.href = '/auth';
+        // Use replace to prevent back-button loops
+        window.location.replace('/auth');
       }, 100);
       return () => clearTimeout(timer);
     }

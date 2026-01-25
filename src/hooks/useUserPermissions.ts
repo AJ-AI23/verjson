@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useEdgeFunctionWithAuth } from './useEdgeFunctionWithAuth';
 
 export interface UserPermissionDetails {
   id: string;
@@ -21,6 +22,7 @@ export function useUserPermissions(userId?: string) {
   const [permissions, setPermissions] = useState<UserPermissionDetails[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { invoke } = useEdgeFunctionWithAuth();
 
   const fetchUserPermissions = async () => {
     if (!user?.id || !userId) return;
@@ -37,14 +39,20 @@ export function useUserPermissions(userId?: string) {
       }
       
       // Use the permissions-management edge function
-      const { data, error } = await supabase.functions.invoke('permissions-management', {
+      const { data, error: fetchError, status } = await invoke<{ permissions: any[] }>('permissions-management', {
         body: {
           action: 'getUserAllPermissions',
           targetUserId: userId
         }
       });
 
-      if (error) throw error;
+      // 401 is already handled
+      if (status === 401) {
+        setLoading(false);
+        return;
+      }
+
+      if (fetchError) throw fetchError;
 
       setPermissions((data?.permissions || []).map(item => ({
         ...item,

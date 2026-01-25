@@ -1,9 +1,9 @@
 import { useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { registerInvitationUpdateHandler } from './useNotifications';
 import { toast } from 'sonner';
+import { useEdgeFunctionWithAuth } from './useEdgeFunctionWithAuth';
 
 export interface Invitation {
   id: string;
@@ -23,17 +23,23 @@ const INVITATIONS_QUERY_KEY = 'invitations';
 export function useInvitations() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { invoke } = useEdgeFunctionWithAuth();
 
   const { data: invitations = [], isLoading: loading, error: queryError } = useQuery({
     queryKey: [INVITATIONS_QUERY_KEY, user?.id],
     queryFn: async () => {
       if (!user) return [];
       
-      const { data, error } = await supabase.functions.invoke('permissions-management', {
+      const { data, error, status } = await invoke<{ invitations: any[] }>('permissions-management', {
         body: {
           action: 'getUserInvitations'
         }
       });
+
+      // 401 is already handled by useEdgeFunctionWithAuth
+      if (status === 401) {
+        throw new Error('Session expired');
+      }
 
       if (error) throw error;
 
@@ -75,13 +81,18 @@ export function useInvitations() {
       );
       
       // Use the permissions-management edge function
-      const { data, error } = await supabase.functions.invoke('permissions-management', {
+      const { data, error, status } = await invoke<{ success: boolean; message: string }>('permissions-management', {
         body: {
           action: 'acceptInvitation',
           invitationId: invitationId,
           invitationType: invitation.type
         }
       });
+
+      // 401 is already handled
+      if (status === 401) {
+        return false;
+      }
 
       if (error) {
         console.error('[useInvitations] Error accepting invitation:', error);
@@ -112,7 +123,7 @@ export function useInvitations() {
       toast.error(message);
       return false;
     }
-  }, [invitations, queryClient, user?.id, refetch]);
+  }, [invitations, queryClient, user?.id, refetch, invoke]);
 
   const declineInvitation = useCallback(async (invitationId: string) => {
     try {
@@ -129,13 +140,18 @@ export function useInvitations() {
       );
       
       // Use the permissions-management edge function
-      const { data, error } = await supabase.functions.invoke('permissions-management', {
+      const { data, error, status } = await invoke<{ success: boolean; message: string }>('permissions-management', {
         body: {
           action: 'declineInvitation',
           invitationId: invitationId,
           invitationType: invitation.type
         }
       });
+
+      // 401 is already handled
+      if (status === 401) {
+        return false;
+      }
 
       if (error) {
         console.error('Error declining invitation:', error);
@@ -158,7 +174,7 @@ export function useInvitations() {
       toast.error(message);
       return false;
     }
-  }, [invitations, queryClient, user?.id, refetch]);
+  }, [invitations, queryClient, user?.id, refetch, invoke]);
 
   // Register for notification-based updates
   useEffect(() => {
