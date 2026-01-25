@@ -36,6 +36,7 @@ import {
   linesToMarkdown, 
   markdownToLines, 
 } from '@/lib/markdownUtils';
+import { extractEmbedIdsFromPages } from '@/lib/markdown/embedUtils';
 import { cn } from '@/lib/utils';
 import { getMarkdownPlugins } from '@/lib/markdown/markdownPluginPresets';
 
@@ -133,6 +134,19 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       ...updatedPages[activePageIndex],
       lines: newLines
     };
+
+    // Garbage-collect unused *image* embeds when their embed:// references are removed.
+    // (Non-image embeds are preserved to avoid changing other embed systems.)
+    const currentEmbeds = document.data.embeds;
+    const shouldCleanupEmbeds = Array.isArray(currentEmbeds) && currentEmbeds.some(e => e.type === 'image');
+    const referencedEmbedIds = shouldCleanupEmbeds ? extractEmbedIdsFromPages(updatedPages) : null;
+    const cleanedEmbeds = shouldCleanupEmbeds
+      ? currentEmbeds!.filter((e) => {
+          if (e.type !== 'image') return true;
+          const refId = e.ref?.startsWith('embed://') ? e.ref.slice('embed://'.length) : undefined;
+          return referencedEmbedIds!.has(e.id) || (refId ? referencedEmbedIds!.has(refId) : false);
+        })
+      : currentEmbeds;
     
     onDocumentChange({
       ...document,
@@ -142,7 +156,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       },
       data: {
         ...document.data,
-        pages: updatedPages
+        pages: updatedPages,
+        ...(Array.isArray(currentEmbeds) ? { embeds: cleanedEmbeds } : {})
       }
     });
   }, [document, activePageIndex, onDocumentChange, readOnly]);
@@ -285,12 +300,26 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     const embedId = src.replace('embed://', '');
     const embed = document.data.embeds?.find(e => e.id === embedId);
     
-    if (embed?.data && embed.mimeType) {
-      return `data:${embed.mimeType};base64,${embed.data}`;
+    if (embed?.data) {
+      const trimmed = String(embed.data).trim();
+      if (trimmed.startsWith('data:')) return trimmed;
+      const base64 = trimmed.replace(/\s/g, '');
+      const mimeType = embed.mimeType || 'image/png';
+      if (base64) return `data:${mimeType};base64,${base64}`;
     }
     
     return src;
   }, [document.data.embeds]);
+
+  // Keep custom protocols intact (react-markdown's default URL sanitizer can strip unknown protocols)
+  const urlTransform = useCallback((url: string) => {
+    const u = String(url || '').trim();
+    const lower = u.toLowerCase();
+    if (lower.startsWith('embed://')) return u;
+    // Basic safety (keep existing behavior for common URLs; prevent script URLs)
+    if (lower.startsWith('javascript:') || lower.startsWith('vbscript:')) return '';
+    return u;
+  }, []);
   
   // Add new page
   const addPage = useCallback(() => {
@@ -643,6 +672,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           remarkPlugins={markdownPlugins.remarkPlugins}
           rehypePlugins={markdownPlugins.rehypePlugins}
           components={markdownComponents}
+          urlTransform={urlTransform}
         >
           {markdownContentForPreview}
         </ReactMarkdown>
