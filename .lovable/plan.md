@@ -1,130 +1,261 @@
 
-Goal: stop “logout/session-expired → redirected to /auth → automatically redirected back to / as if logged-in” loops by (1) making frontend auth state reflect backend reality, (2) having a single, consistent policy for 401 vs 403, and (3) preventing the Auth page from auto-redirecting while a logout/invalid-session recovery is in progress.
+# Plan: Unified Expand/Collapse Controls for Schema Diagrams
+
+## Overview
+
+This plan addresses the need to create a more generic, consistent approach to expand/collapse controls across all diagram nodes (JSON Schema and OpenAPI) while ensuring bidirectional synchronization between the diagram, structure editor, and JSON editor.
+
+## Current State Analysis
+
+### Existing Implementation
+
+1. **Expand/Collapse Button**: `NodeExpandCollapseButton` component exists and is used by most node types
+2. **State Management**: `handleToggleCollapse` in `useEditorState.ts` manages the central `collapsedPaths` state
+3. **Parent Expansion Logic**: When expanding a node, parent paths are automatically expanded
+4. **Descendant Cleanup**: When collapsing, descendant states are cleared
+
+### Identified Issues
+
+1. **Inconsistent Path Handling**: Some nodes use `path`, others use `nodePath`, and some derive paths from `id`
+2. **BaseNodeContainer Doesn't Include Expand Controls**: Each node type duplicates the expand/collapse button logic
+3. **Multi-level Expansion Not Unified**: Nodes representing nested content (like grouped properties) have ad-hoc expansion handling
+4. **Structure Editor Sync**: Path normalization between diagram and structure editor can be inconsistent
+
+## Technical Approach
+
+### Phase 1: Standardize Node Path Interface
+
+Create a unified interface for node data that all node types will implement.
+
+**Changes:**
+- Define a `BaseNodeData` interface with required `nodePath`, `isCollapsed`, `hasChildren`, and `onToggleCollapse` properties
+- Update all node generator functions to consistently set `nodePath` (not mix of `path`/`nodePath`)
+
+**Files to modify:**
+- `src/lib/diagram/types.ts` - Add `BaseNodeData` interface
+- `src/lib/diagram/nodeGenerator.ts` - Update all node creation functions
+
+### Phase 2: Enhance BaseNodeContainer with Expand Controls
+
+Move the expand/collapse button into `BaseNodeContainer` so all nodes automatically get consistent behavior.
+
+**Changes:**
+- Add optional expand/collapse props to `BaseNodeContainerProps`
+- Render `NodeExpandCollapseButton` within `BaseNodeContainer` when props are provided
+- Add a `headerSlot` or render children pattern for node-specific content
+
+**Files to modify:**
+- `src/components/schema-node/BaseNodeContainer.tsx` - Add expand control integration
+- `src/components/schema-node/NodeExpandCollapseButton.tsx` - Minor refinements if needed
+
+### Phase 3: Simplify Individual Node Components
+
+Remove duplicated expand/collapse logic from individual nodes since `BaseNodeContainer` now handles it.
+
+**Files to modify (all node types):**
+- `src/components/schema-node/SchemaTypeNode.tsx`
+- `src/components/schema-node/InfoNode.tsx`
+- `src/components/schema-node/EndpointNode.tsx`
+- `src/components/schema-node/ComponentsNode.tsx`
+- `src/components/schema-node/MethodNode.tsx`
+- `src/components/schema-node/ResponseNode.tsx`
+- `src/components/schema-node/ContentTypeNode.tsx`
+- `src/components/schema-node/RequestBodyNode.tsx`
+- `src/components/schema-node/ParametersNode.tsx`
+- `src/components/schema-node/MethodTagsNode.tsx`
+- `src/components/schema-node/SecurityNode.tsx`
+
+### Phase 4: Handle Multi-Level Expansion
+
+For nodes that represent multiple nested properties (e.g., grouped properties), implement a consistent approach:
+
+**Changes:**
+- Add `expandableChildren` property to node data for nodes with internal expansion levels
+- Create a helper utility for computing "next level" path when a node can expand further
+- Update `handleToggleCollapse` to support depth-aware expansion
+
+**Files to modify:**
+- `src/components/editor/useEditorState.ts` - Enhance toggle logic for multi-level nodes
+- `src/lib/diagram/layout/expandedPropertiesLayout.ts` - Pass depth info to nodes
+- `src/lib/diagram/layout/openApiLayout.ts` - Pass depth info to nodes
+
+### Phase 5: Improve Structure Editor Synchronization
+
+Ensure the structure editor correctly reflects diagram expansion state and vice versa.
+
+**Changes:**
+- Normalize path format between diagram (`root.paths.-v1-users`) and structure editor
+- Add path mapping utilities for OpenAPI-specific path formats
+- Ensure `selectedNodePath` triggers correct expansion in structure editor
+
+**Files to modify:**
+- `src/components/schema/SchemaStructureEditor.tsx` - Improve external collapsed state handling
+- `src/components/openapi/OpenApiStructureEditor.tsx` - Add same synchronization logic
 
 ---
 
-What’s happening now (root cause analysis)
+## Detailed Technical Implementation
 
-1) Frontend can believe a session exists even when backend rejects it
-- `AuthProvider` sets `user/session` from `supabase.auth.getSession()` and `onAuthStateChange(...)` without validating the session with the server.
-- If the stored session is stale/invalid (JWT expired, user deleted, etc.), the app still has `user != null` in React state.
+### New BaseNodeData Interface
 
-2) `/auth` page will redirect to `/` whenever `user` is truthy
-- `src/pages/Auth.tsx` has an effect that redirects to `/` if `user` exists.
-- It tries to guard this with `logout-in-progress`, but currently that guard only blocks one run:
-  - It removes the flag and returns early.
-  - Then when `loading` or `user` changes, the effect runs again (flag no longer exists), sees `user`, and redirects to `/`.
+```typescript
+// In src/lib/diagram/types.ts
+export interface BaseNodeData {
+  label: string;
+  nodePath: string;              // Canonical path for collapse state
+  isCollapsed?: boolean;
+  hasChildren?: boolean;
+  hasCollapsibleContent?: boolean;
+  onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
+}
+```
 
-3) “demo session check” errors don’t prevent redirect
-- In `Auth.tsx`, the demo session query errors are logged, but redirect continues anyway.
-- If the token is invalid, this query likely fails; the page still redirects to `/`, feeding the loop.
+### Enhanced BaseNodeContainer
 
-4) 401/403 handling is inconsistent across the app
-- Many hooks/components call `supabase.functions.invoke(...)` directly and do not consistently apply session-invalid handling.
-- `useEdgeFunctionWithAuth` currently treats `{ error: 'Unauthorized' }` in the body as “session expired” which may be too broad; and most callers aren’t using it anyway.
-- Some hooks use `checkDemoSessionExpired(...)`, but only check `isDemoExpired`, while `checkDemoSessionExpired` also triggers redirects for JWT-invalid patterns—this creates split-brain behavior.
+```typescript
+// In src/components/schema-node/BaseNodeContainer.tsx
+export interface BaseNodeContainerProps {
+  id: string;
+  isConnectable: boolean;
+  className?: string;
+  children: ReactNode;
+  showTargetHandle?: boolean;
+  showSourceHandle?: boolean;
+  selected?: boolean;
+  // New expand/collapse props
+  nodePath?: string;
+  isCollapsed?: boolean;
+  hasChildren?: boolean;
+  onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
+  showExpandButton?: boolean;
+}
 
-Resulting loop (common timeline)
-- Backend returns 401 for invalid JWT → redirect logic triggers → user sent to `/auth`
-- `/auth` sees `user` still set (because session wasn’t truly cleared/validated) → redirects back to `/`
-- `/` triggers requests again → 401 again → repeat
+export const BaseNodeContainer = memo(({ 
+  /* existing props */
+  nodePath,
+  isCollapsed,
+  hasChildren,
+  onToggleCollapse,
+  showExpandButton = true,
+}: BaseNodeContainerProps) => {
+  // Render expand button at start of content if applicable
+  const expandButton = showExpandButton && hasChildren && onToggleCollapse && nodePath ? (
+    <NodeExpandCollapseButton
+      isCollapsed={!!isCollapsed}
+      hasChildren={hasChildren}
+      path={nodePath}
+      onToggleCollapse={onToggleCollapse}
+      className="flex-shrink-0 mr-1"
+    />
+  ) : null;
+  
+  return (
+    <div className={cn('relative', className)}>
+      {/* Handles */}
+      <div className="flex items-start">
+        {expandButton}
+        <div className="flex-1 min-w-0">
+          {children}
+        </div>
+      </div>
+      {/* Debug info */}
+    </div>
+  );
+});
+```
+
+### Path Normalization Utility
+
+```typescript
+// In src/lib/diagram/pathUtils.ts (or new file)
+export const normalizeNodePath = (id: string, dataPath?: string): string => {
+  // Use dataPath if provided
+  if (dataPath) return dataPath;
+  
+  // Derive from id
+  if (id === 'root') return 'root';
+  if (id.startsWith('prop-')) return `root.properties.${id.substring(5)}`;
+  if (id.startsWith('endpoint-')) return `root.paths.${id.substring(9)}`;
+  if (id.startsWith('method-')) {
+    const parts = id.substring(7).split('-');
+    const method = parts[0];
+    const path = parts.slice(1).join('-');
+    return `root.paths.${path}.${method}`;
+  }
+  
+  // Fallback: replace dashes with dots
+  return id.replace(/-/g, '.');
+};
+
+export const pathToStructureEditorPath = (diagramPath: string): string => {
+  // Convert diagram path to structure editor format
+  // e.g., "root.paths.-v1-users" -> "root.paths./v1/users"
+  return diagramPath.replace(/-/g, '/');
+};
+```
+
+### Updated handleToggleCollapse
+
+The existing logic in `useEditorState.ts` already handles parent expansion and descendant cleanup. We'll add support for explicit depth tracking:
+
+```typescript
+// Enhancement in handleToggleCollapse
+const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean, expandDepth?: number) => {
+  setCollapsedPaths(prev => {
+    const updated = { ...prev };
+    updated[path] = isCollapsed;
+    
+    // Existing parent expansion logic
+    if (!isCollapsed) {
+      const segments = path.split('.');
+      let parentPath = '';
+      for (let i = 0; i < segments.length - 1; i++) {
+        parentPath = parentPath ? `${parentPath}.${segments[i]}` : segments[i];
+        if (updated[parentPath] !== false) {
+          updated[parentPath] = false;
+        }
+      }
+    }
+    
+    // Existing descendant cleanup logic
+    if (isCollapsed) {
+      const pathPrefix = path + '.';
+      Object.keys(updated).forEach(existingPath => {
+        if (existingPath.startsWith(pathPrefix)) {
+          delete updated[existingPath];
+        }
+      });
+    }
+    
+    return updated;
+  });
+}, []);
+```
 
 ---
 
-Target behavior (rules)
+## Migration Strategy
 
-A) Explicit user logout
-- Must always end with: `user=null, session=null`, auth token removed locally, and user stays on `/auth` until they sign in again.
-- No automatic bounce back to `/` based on stale state.
+1. **Phase 1-2**: Core infrastructure changes (types, BaseNodeContainer) - non-breaking
+2. **Phase 3**: Migrate nodes one-by-one, ensuring tests pass after each
+3. **Phase 4-5**: Enhance sync logic with backward compatibility
 
-B) Backend returns 401 (Unauthorized)
-- Treat as “auth invalid”: clear local session and redirect to `/auth?expired=true` (or similar).
-- Never attempt to keep user “logged in” locally after a 401 from protected endpoints.
+## Testing Approach
 
-C) Backend returns 403 (Forbidden)
-- Treat as “authenticated but not allowed”: do NOT sign out.
-- Show an error/toast and/or clear the selected resource (document/workspace) but keep the session.
+- Verify each node type still renders correctly
+- Test expand/collapse triggers update in structure editor
+- Test structure editor expand triggers update in diagram
+- Test JSON editor folding syncs with collapsed state
+- Verify parent expansion when child is expanded
+- Verify descendant cleanup when ancestor is collapsed
 
----
+## Files Summary
 
-Implementation approach (high-level)
-
-1) Make AuthProvider validate sessions against the backend
-- Add a lightweight “session validation” step any time we initialize or receive a session:
-  - After `getSession()` finds a session, call `supabase.auth.getUser()` (or equivalent) to confirm the token is actually accepted server-side.
-  - If it fails with session-invalid signals (JWT expired, sub not found, etc.), immediately clear local auth state and storage.
-- Ensure this validation is done outside the `onAuthStateChange` callback (using `setTimeout(0)` or a separate effect) to avoid deadlocks.
-
-2) Fix `/auth` redirect logic to be robust (no more “one-run” guard)
-- Change `logout-in-progress` semantics:
-  - Do not remove it immediately on mount.
-  - While it is set, do not auto-redirect to `/` even if `user` is temporarily truthy.
-  - Only clear it once we have confirmed `user` and `session` are null OR after a short TTL (e.g., 2–5 seconds) AND session validation passed.
-- Additionally, stop redirecting on `/auth` based on `user` alone; redirect only when:
-  - `session` exists AND session validation succeeded.
-- If session validation fails, remain on `/auth` and show the “expired” message.
-
-3) Centralize edge-function auth error handling (401 vs 403) and apply it consistently
-- Evolve `useEdgeFunctionWithAuth` into the single standard wrapper for protected edge-function calls:
-  - If Supabase returns `FunctionsHttpError` with `context.status === 401`: trigger `handleSessionExpired()` (clear local + redirect).
-  - If `context.status === 403`: return error to caller (no logout).
-  - Avoid relying on string matching or `"Unauthorized"` body checks as the primary signal; prefer HTTP status.
-- Update key hooks that run frequently / during initial app boot to use the wrapper:
-  - permissions hooks: `useDocumentPermissions`, `useWorkspacePermissions`, `useInvitations`, `useUserPermissions`
-  - core data: `useDocuments`, `useWorkspaces`, `useSharedDocuments`, `useDocumentContent`, notifications hooks
-- This is critical so that a 401 always triggers the same cleanup/redirect behavior no matter where it occurs.
-
-4) Make “force local logout” truly local and deterministic
-- In logout/expired handlers, do:
-  - `supabase.auth.signOut({ scope: 'local' })` (so local storage clears even if network fails)
-  - remove the known localStorage key `sb-swghcmyqracwifpdfyap-auth-token` as a safety net
-  - set `logout-in-progress` with a timestamp to prevent redirect races
-  - use `window.location.replace(...)` to prevent back-button loops
-
-5) Harden the Auth page’s “demo session expiration” branch
-- If the demo session check fails due to auth problems, treat it as “cannot validate session” and do NOT redirect to `/`.
-- If demo session is expired:
-  - use the same local-signout routine (clear token + state) and remain on `/auth` (optionally show demo-expired dialog/message).
-
-6) Add minimal observability to confirm correctness
-- Add consistent, low-noise logs (or debug-only logs) around:
-  - “session validated OK / failed”
-  - “redirect suppressed due to logout-in-progress”
-  - “401 => logout” vs “403 => show forbidden”
-- Optional (but recommended): add a Playwright test that:
-  - logs in, logs out, confirms it stays on `/auth`
-  - simulates invalid session token and confirms it lands on `/auth?expired=true` without bouncing back to `/`
-
----
-
-Concrete file touch list (where changes will be made)
-
-Frontend:
-- `src/contexts/AuthContext.tsx`
-  - add session validation after getSession/onAuthStateChange
-  - implement a single “forceLocalSignOut” used by signOut + handleSessionExpired
-- `src/pages/Auth.tsx`
-  - change redirect logic to require validated session, and fix logout-in-progress lifecycle (don’t clear immediately)
-  - don’t redirect to `/` if demo-session check errors or session invalid
-- `src/pages/Index.tsx`
-  - minor: use `replace` redirects; optionally add guard to avoid redirecting to `/auth` if already there
-- `src/hooks/useEdgeFunctionWithAuth.ts`
-  - make status-based 401/403 handling authoritative; avoid body-string heuristic as primary
-- Hooks that call edge functions directly (at minimum the “boot path” ones):
-  - `src/hooks/useWorkspaces.ts`, `src/hooks/useDocuments.ts`
-  - `src/hooks/useDocumentContent.ts`
-  - `src/hooks/useWorkspacePermissions.ts`, `src/hooks/useDocumentPermissions.ts`
-  - `src/hooks/useInvitations.ts`, `src/hooks/useUserPermissions.ts`
-  - (then expand to others like notifications, crowdin, versions as follow-up)
-
-Backend (optional follow-up if needed):
-- Consider ensuring edge functions return 403 for permission problems and 401 only for auth problems (some already do, but we’ll verify the ones involved in the loop).
-
----
-
-Acceptance criteria (how we’ll know it’s fixed)
-
-- Clicking “Log out” always lands you on `/auth` and you remain there until you explicitly sign in.
-- If any protected edge function returns 401, the user is sent to `/auth?expired=true` and does not bounce back to `/`.
-- 403 errors do not log the user out; they see an access/permission error and remain authenticated.
-- No infinite redirects between `/` and `/auth` under invalid/expired token conditions.
+| File | Action | Description |
+|------|--------|-------------|
+| `src/lib/diagram/types.ts` | Modify | Add `BaseNodeData` interface |
+| `src/components/schema-node/BaseNodeContainer.tsx` | Modify | Add expand control props and rendering |
+| `src/lib/diagram/nodeGenerator.ts` | Modify | Standardize `nodePath` in all node creators |
+| `src/components/schema-node/*.tsx` (11 files) | Modify | Simplify by using BaseNodeContainer expand controls |
+| `src/components/schema/SchemaStructureEditor.tsx` | Modify | Improve path sync with diagram |
+| `src/components/editor/useEditorState.ts` | Minor | No breaking changes, enhance logging |
