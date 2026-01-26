@@ -150,11 +150,13 @@ export function ChangeAccessDialog({
                 {getRoleIcon(permission.role)}
                 <div className="flex flex-col">
                   <span className="font-medium">
-                    {permission.username ? `@${permission.username}` : (permission.user_name || permission.user_email || 'Unknown User')}
+                    {permission.username ? `@${permission.username}` : (permission.user_name || 'Unknown User')}
                   </span>
-                  <span className="text-xs text-muted-foreground">
-                    {permission.username && permission.user_name ? permission.user_name : (permission.user_email || 'No email')}
-                  </span>
+                  {(permission.username && permission.user_name) && (
+                    <span className="text-xs text-muted-foreground">
+                      {permission.user_name}
+                    </span>
+                  )}
                 </div>
               </div>
               <Badge className={getRoleColor(permission.role)}>

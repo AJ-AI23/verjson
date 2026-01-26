@@ -254,7 +254,7 @@ async function handleUpdateWorkspacePermission(supabaseClient: any, data: any, l
 // ============== PERMISSION REMOVAL HANDLERS ==============
 
 async function handleRemoveDocumentPermission(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
-  const { permissionId, userEmail, userName, resourceName, emailNotificationsEnabled } = data;
+  const { permissionId, resourceName, emailNotificationsEnabled } = data;
   logger.debug('Removing document permission with atomicity', { permissionId });
 
   // Start an explicit transaction for atomicity
@@ -267,6 +267,15 @@ async function handleRemoveDocumentPermission(supabaseClient: any, data: any, us
   if (getPermError || !permissionData) {
     logger.error('Failed to get permission details', getPermError);
     throw new Error('Permission not found');
+  }
+
+  // Look up the user's email from auth.users for email notifications
+  let targetUserEmail: string | null = null;
+  try {
+    const { data: userData } = await supabaseClient.auth.admin.getUserById(permissionData.user_id);
+    targetUserEmail = userData?.user?.email || null;
+  } catch (lookupError) {
+    logger.warn('Could not look up user email for notification', lookupError);
   }
 
   // Remove the permission first (before notifications)
@@ -292,8 +301,8 @@ async function handleRemoveDocumentPermission(supabaseClient: any, data: any, us
 
     // Send email notification if enabled
     const shouldSendEmail = emailNotificationsEnabled ?? permissionData.email_notifications_enabled;
-    if (userEmail && shouldSendEmail) {
-      await sendRevocationEmail(userEmail, user.email, 'document', resourceName || 'Unknown Document', logger);
+    if (targetUserEmail && shouldSendEmail) {
+      await sendRevocationEmail(targetUserEmail, user.email, 'document', resourceName || 'Unknown Document', logger);
     }
   } catch (notificationError) {
     logger.warn('Failed to create notifications but permission was removed', notificationError);
@@ -305,7 +314,7 @@ async function handleRemoveDocumentPermission(supabaseClient: any, data: any, us
 }
 
 async function handleRemoveWorkspacePermission(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
-  const { permissionId, userEmail, userName, resourceName, emailNotificationsEnabled } = data;
+  const { permissionId, resourceName, emailNotificationsEnabled } = data;
   logger.debug('Removing workspace permission with atomicity', { permissionId });
 
   // Get permission details before removing it
@@ -318,6 +327,15 @@ async function handleRemoveWorkspacePermission(supabaseClient: any, data: any, u
   if (getPermError || !permissionData) {
     logger.error('Failed to get permission details', getPermError);
     throw new Error('Permission not found');
+  }
+
+  // Look up the user's email from auth.users for email notifications
+  let targetUserEmail: string | null = null;
+  try {
+    const { data: userData } = await supabaseClient.auth.admin.getUserById(permissionData.user_id);
+    targetUserEmail = userData?.user?.email || null;
+  } catch (lookupError) {
+    logger.warn('Could not look up user email for notification', lookupError);
   }
 
   // Remove the permission first (before notifications)
@@ -343,8 +361,8 @@ async function handleRemoveWorkspacePermission(supabaseClient: any, data: any, u
 
     // Send email notification if enabled
     const shouldSendEmail = emailNotificationsEnabled ?? permissionData.email_notifications_enabled;
-    if (userEmail && shouldSendEmail) {
-      await sendRevocationEmail(userEmail, user.email, 'workspace', resourceName || 'Unknown Workspace', logger);
+    if (targetUserEmail && shouldSendEmail) {
+      await sendRevocationEmail(targetUserEmail, user.email, 'workspace', resourceName || 'Unknown Workspace', logger);
     }
   } catch (notificationError) {
     logger.warn('Failed to create notifications but permission was removed', notificationError);
@@ -724,41 +742,45 @@ async function handleInviteBulkDocuments(supabaseClient: any, data: any, user: a
 // ============== HELPER FUNCTIONS ==============
 
 async function findOrCreateUserProfile(supabaseClient: any, email: string, logger: EdgeFunctionLogger): Promise<string | null> {
-  logger.debug('Looking up user profile', { email });
+  logger.debug('Looking up user profile by email via auth.users', { email });
 
-  // Check if user exists in profiles
-  const { data: targetUserProfile } = await supabaseClient
-    .from("profiles")
-    .select("user_id, email, full_name, username")
-    .eq("email", email)
-    .maybeSingle();
-
-  if (targetUserProfile?.user_id) {
-    logger.debug('Found existing user profile', { userId: targetUserProfile.user_id });
-    return targetUserProfile.user_id;
+  // First check auth.users table directly (email is only stored there now)
+  const { data: authUsers, error: listError } = await supabaseClient.auth.admin.listUsers();
+  
+  if (listError) {
+    logger.warn('Failed to list auth users', listError);
+    return null;
   }
-
-  // Check auth.users table for existing user without profile
-  const { data: authUsers } = await supabaseClient.auth.admin.listUsers();
+  
   const existingAuthUser = authUsers.users?.find((u: any) => u.email === email);
   
   if (existingAuthUser) {
-    logger.debug('Found existing auth user without profile, creating profile', { userId: existingAuthUser.id });
+    logger.debug('Found existing auth user', { userId: existingAuthUser.id });
     
-    // Create missing profile
-    const { error: profileCreateError } = await supabaseClient
+    // Check if profile exists for this user
+    const { data: existingProfile } = await supabaseClient
       .from("profiles")
-      .insert({
-        user_id: existingAuthUser.id,
-        email: existingAuthUser.email,
-        full_name: existingAuthUser.user_metadata?.full_name || existingAuthUser.email,
-        username: existingAuthUser.user_metadata?.username || existingAuthUser.email?.split('@')[0]
-      });
+      .select("user_id")
+      .eq("user_id", existingAuthUser.id)
+      .maybeSingle();
+    
+    if (!existingProfile) {
+      logger.debug('Creating missing profile for existing auth user', { userId: existingAuthUser.id });
       
-    if (profileCreateError) {
-      logger.warn("Failed to create missing profile", profileCreateError);
-    } else {
-      logger.info("Profile created successfully for existing auth user");
+      // Create missing profile (without email column - it no longer exists)
+      const { error: profileCreateError } = await supabaseClient
+        .from("profiles")
+        .insert({
+          user_id: existingAuthUser.id,
+          full_name: existingAuthUser.user_metadata?.full_name || existingAuthUser.email,
+          username: existingAuthUser.user_metadata?.username || existingAuthUser.email?.split('@')[0]
+        });
+        
+      if (profileCreateError) {
+        logger.warn("Failed to create missing profile", profileCreateError);
+      } else {
+        logger.info("Profile created successfully for existing auth user");
+      }
     }
     
     return existingAuthUser.id;
