@@ -149,7 +149,8 @@ export const generateOpenApiLayout = (
         [],
         400,
         yOffset,
-        false
+        false,
+        'root.paths' // Explicit nodePath for OpenAPI paths
       );
       
       const pathsContainerEdge = createEdge('root', pathsContainerNode.id, undefined, false, {}, 'default');

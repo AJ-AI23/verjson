@@ -122,7 +122,7 @@ export const createPropertyNode = (
   xPos: number,
   yOffset: number,
   isCollapsed?: boolean,
-  path?: string
+  nodePath?: string
 ): Node => {
   const nodeId = `prop-${propName}`;
   
@@ -146,8 +146,11 @@ export const createPropertyNode = (
     notationCount,
     hasNotations: notationCount > 0,
     isCollapsed,
-    path
+    nodePath
   });
+
+  // Compute default path based on property name
+  const computedPath = nodePath || `root.properties.${propName}`;
 
   return {
     id: nodeId,
@@ -167,7 +170,7 @@ export const createPropertyNode = (
       isCollapsed: isCollapsed,
       hasCollapsibleContent: (propSchema.type === 'object' && propSchema.properties) || 
                             (propSchema.type === 'array' && propSchema.items),
-      path: path || `root.properties.${propName}`
+      nodePath: computedPath
     }
   };
 };
@@ -206,7 +209,7 @@ export const createInfoNode = (
       notationCount: notationCount,
       hasNotations: notationCount > 0,
       hasMoreLevels: isExpanded,
-      path: 'root.info',
+      nodePath: 'root.info',
       hasCollapsibleContent: hasChildren,
       isCollapsed: isCollapsed
     }
@@ -453,7 +456,7 @@ export const createComponentsNode = (
       notationCount: notationCount,
       hasNotations: notationCount > 0,
       hasMoreLevels: isExpanded,
-      path: 'root.components',
+      nodePath: 'root.components',
       hasCollapsibleContent: hasChildren,
       isCollapsed: isCollapsed
     }
@@ -747,7 +750,8 @@ export const createGroupedPropertiesNode = (
   properties: [string, any][],
   requiredProps: string[],
   xPos: number,
-  yOffset: number
+  yOffset: number,
+  nodePath?: string
 ): Node => {
   const propertyDetails = properties.map(([name, prop]) => ({
     name,
@@ -770,6 +774,7 @@ export const createGroupedPropertiesNode = (
       propertyDetails: propertyDetails,
       hasCollapsibleContent: true,
       isCollapsed: false, // Grouped nodes show their content by default to display bullet points
+      nodePath: nodePath || nodeId,
       description: `View details of ${properties.length} grouped properties`
     }
   };
@@ -782,7 +787,8 @@ export const createGroupedEndpointsNode = (
   groupedEndpoints: Array<{ path: string; pathData: any }>,
   xPos: number,
   yOffset: number,
-  parentNodeId: string
+  parentNodeId: string,
+  nodePath?: string
 ): Node => {
   const endpointCount = groupedEndpoints.length;
   
@@ -799,8 +805,10 @@ export const createGroupedEndpointsNode = (
     };
   });
   
+  const nodeId = `${parentNodeId}-grouped-endpoints`;
+  
   return {
-    id: `${parentNodeId}-grouped-endpoints`,
+    id: nodeId,
     type: 'schemaType',
     position: { x: xPos, y: yOffset },
     data: {
@@ -811,6 +819,7 @@ export const createGroupedEndpointsNode = (
       endpointDetails: endpointDetails,
       hasCollapsibleContent: true,
       isCollapsed: false,
+      nodePath: nodePath || nodeId,
       description: `View details of ${endpointCount} grouped endpoints`
     }
   };
