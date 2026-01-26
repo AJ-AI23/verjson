@@ -17,12 +17,72 @@ interface YjsSyncMessage {
 interface ConnectedClient {
   socket: WebSocket;
   documentId: string;
-  userId: string | null;
+  userId: string;
   userName?: string;
   userAvatar?: string;
 }
 
 const connectedClients = new Map<string, ConnectedClient>();
+
+// Check if user has access to a document
+async function checkDocumentAccess(supabase: any, documentId: string, userId: string): Promise<boolean> {
+  try {
+    // Check if user owns the document
+    const { data: ownedDoc } = await supabase
+      .from('documents')
+      .select('id')
+      .eq('id', documentId)
+      .eq('user_id', userId)
+      .single();
+    
+    if (ownedDoc) {
+      console.log(`User ${userId} owns document ${documentId}`);
+      return true;
+    }
+
+    // Check if user has workspace access
+    const { data: document } = await supabase
+      .from('documents')
+      .select('workspace_id')
+      .eq('id', documentId)
+      .single();
+    
+    if (document?.workspace_id) {
+      const { data: workspacePermission } = await supabase
+        .from('workspace_permissions')
+        .select('id')
+        .eq('workspace_id', document.workspace_id)
+        .eq('user_id', userId)
+        .eq('status', 'accepted')
+        .single();
+      
+      if (workspacePermission) {
+        console.log(`User ${userId} has workspace access to document ${documentId}`);
+        return true;
+      }
+    }
+
+    // Check if user has direct document permission
+    const { data: documentPermission } = await supabase
+      .from('document_permissions')
+      .select('id')
+      .eq('document_id', documentId)
+      .eq('user_id', userId)
+      .eq('status', 'accepted')
+      .single();
+    
+    if (documentPermission) {
+      console.log(`User ${userId} has direct permission to document ${documentId}`);
+      return true;
+    }
+
+    console.log(`User ${userId} has NO access to document ${documentId}`);
+    return false;
+  } catch (error) {
+    console.error('Error checking document access:', error);
+    return false;
+  }
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -51,45 +111,67 @@ serve(async (req) => {
     });
   }
 
+  // SECURITY: Require authentication - reject connections without valid token
+  if (!authToken) {
+    console.log(`Rejected connection to ${documentId}: No auth token provided`);
+    return new Response(JSON.stringify({ error: "Authentication required" }), { 
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
   // Initialize Supabase client
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   );
 
-  let userId: string | null = null;
-  let userName: string | undefined;
-  let userAvatar: string | undefined;
-
   // Verify auth token and get user info
-  if (authToken) {
-    try {
-      const { data: { user }, error } = await supabase.auth.getUser(authToken);
-      if (user && !error) {
-        userId = user.id;
-        
-        // Get user profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name, avatar_url')
-          .eq('user_id', user.id)
-          .single();
-        
-        if (profile) {
-          userName = profile.full_name || user.email?.split('@')[0];
-          userAvatar = profile.avatar_url;
-        }
-      }
-    } catch (error) {
-      console.error('Auth verification failed:', error);
-    }
+  const { data: { user }, error: authError } = await supabase.auth.getUser(authToken);
+  
+  if (authError || !user) {
+    console.log(`Rejected connection to ${documentId}: Invalid auth token`, authError?.message);
+    return new Response(JSON.stringify({ error: "Invalid authentication token" }), { 
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 
+  const userId = user.id;
+  console.log(`User ${userId} attempting to connect to document ${documentId}`);
+
+  // SECURITY: Verify user has access to this document before allowing connection
+  const hasAccess = await checkDocumentAccess(supabase, documentId, userId);
+  
+  if (!hasAccess) {
+    console.log(`Rejected connection: User ${userId} has no access to document ${documentId}`);
+    return new Response(JSON.stringify({ error: "Access denied to this document" }), { 
+      status: 403,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Get user profile info
+  let userName: string | undefined;
+  let userAvatar: string | undefined;
+  
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, avatar_url')
+    .eq('user_id', userId)
+    .single();
+  
+  if (profile) {
+    userName = profile.full_name || user.email?.split('@')[0];
+    userAvatar = profile.avatar_url;
+  }
+
+  // Now safe to upgrade to WebSocket - user is authenticated and has access
   const { socket, response } = Deno.upgradeWebSocket(req);
   const clientId = crypto.randomUUID();
 
   socket.onopen = () => {
-    console.log(`Client ${clientId} connected to document ${documentId}`);
+    console.log(`Client ${clientId} (user ${userId}) connected to document ${documentId}`);
     
     connectedClients.set(clientId, {
       socket,
@@ -100,9 +182,7 @@ serve(async (req) => {
     });
 
     // Update collaboration session
-    if (userId) {
-      updateCollaborationSession(supabase, documentId, userId, userName, userAvatar);
-    }
+    updateCollaborationSession(supabase, documentId, userId, userName, userAvatar);
 
     // Send current Yjs state to new client
     loadAndSendYjsState(supabase, socket, documentId);
@@ -111,7 +191,7 @@ serve(async (req) => {
     broadcastToDocument(documentId, {
       type: 'awareness',
       documentId,
-      userId: userId || undefined,
+      userId,
       awareness: {
         user: { id: userId, name: userName, avatar: userAvatar },
         joined: true
@@ -131,10 +211,8 @@ serve(async (req) => {
         
         console.log(`Received binary Yjs update from ${clientId}, size: ${uint8Array.length} bytes`);
         
-        // Save Yjs update to database
-        if (userId) {
-          await saveYjsUpdate(supabase, documentId, userId, base64Data);
-        }
+        // Save Yjs update to database (userId is guaranteed to exist now)
+        await saveYjsUpdate(supabase, documentId, userId, base64Data);
         
         // Broadcast binary update to other clients
         broadcastBinaryToDocument(documentId, uint8Array, clientId);
@@ -148,7 +226,7 @@ serve(async (req) => {
       switch (message.type) {
         case 'update':
           // Handle base64 encoded updates from custom client
-          if (message.data && userId) {
+          if (message.data) {
             await saveYjsUpdate(supabase, documentId, userId, message.data);
             
             // Convert base64 back to binary for broadcasting
@@ -166,7 +244,7 @@ serve(async (req) => {
           broadcastToDocument(documentId, message, clientId);
           
           // Update collaboration session
-          if (userId && message.awareness) {
+          if (message.awareness) {
             await updateCollaborationSession(
               supabase, 
               documentId, 
@@ -189,19 +267,17 @@ serve(async (req) => {
   };
 
   socket.onclose = () => {
-    console.log(`Client ${clientId} disconnected from document ${documentId}`);
+    console.log(`Client ${clientId} (user ${userId}) disconnected from document ${documentId}`);
     connectedClients.delete(clientId);
 
     // Remove collaboration session
-    if (userId) {
-      removeCollaborationSession(supabase, documentId, userId);
-    }
+    removeCollaborationSession(supabase, documentId, userId);
 
     // Notify other clients about user leaving
     broadcastToDocument(documentId, {
       type: 'awareness',
       documentId,
-      userId: userId || undefined,
+      userId,
       awareness: {
         user: { id: userId, name: userName, avatar: userAvatar },
         left: true
