@@ -5,6 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Signed URL expiry time in seconds (1 hour)
+const SIGNED_URL_EXPIRY = 3600;
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -111,16 +114,25 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get public URL
-    const { data: urlData } = supabase.storage
+    // Generate signed URL instead of public URL (bucket is now private)
+    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
       .from('diagram-renders')
-      .getPublicUrl(storagePath);
+      .createSignedUrl(storagePath, SIGNED_URL_EXPIRY);
+
+    if (signedUrlError) {
+      console.error('Signed URL error:', signedUrlError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to generate signed URL' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
-        publicUrl: urlData.publicUrl,
-        storagePath
+        signedUrl: signedUrlData.signedUrl,
+        storagePath,
+        expiresIn: SIGNED_URL_EXPIRY
       }),
       { 
         status: 200, 

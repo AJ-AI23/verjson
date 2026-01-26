@@ -5,6 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Signed URL expiry time in seconds (1 hour)
+const SIGNED_URL_EXPIRY = 3600;
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -84,7 +87,7 @@ Deno.serve(async (req) => {
         storagePath = renderData.storage_path.replace(/\.png$/, '.svg');
       }
 
-      // Get the image from storage
+      // Get the image from storage using service role (bypasses RLS for public documents)
       const { data: imageData, error: imageError } = await supabase.storage
         .from('diagram-renders')
         .download(storagePath);
@@ -116,6 +119,53 @@ Deno.serve(async (req) => {
           'Cache-Control': 'public, max-age=3600'
         }
       });
+    }
+
+    // Check if signed URL is requested for image download
+    if (url.searchParams.get('signed_url') === 'true') {
+      const imgFormat = url.searchParams.get('img_format') || 'png';
+      
+      const { data: renderData, error: renderError } = await supabase
+        .from('diagram_renders')
+        .select('storage_path')
+        .eq('document_id', documentId)
+        .eq('style_theme', styleTheme)
+        .single();
+
+      if (renderError || !renderData) {
+        return new Response(
+          JSON.stringify({ error: 'Render not found. Please render the diagram first.' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      let storagePath = renderData.storage_path;
+      if (imgFormat === 'svg') {
+        storagePath = renderData.storage_path.replace(/\.png$/, '.svg');
+      }
+
+      // Generate signed URL for public document access
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from('diagram-renders')
+        .createSignedUrl(storagePath, SIGNED_URL_EXPIRY);
+
+      if (signedUrlError) {
+        return new Response(
+          JSON.stringify({ error: 'Failed to generate signed URL' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          signedUrl: signedUrlData.signedUrl,
+          expiresIn: SIGNED_URL_EXPIRY
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
     // Apply theme if specified for JSON response

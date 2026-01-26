@@ -143,13 +143,17 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         return;
       }
       
-      // Get public URL from storage
-      const { data: urlData } = supabase.storage
+      // Generate signed URL for private bucket (1 hour expiry)
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from('markdown-renders')
-        .getPublicUrl(render.storage_path);
+        .createSignedUrl(render.storage_path, 3600);
       
-      await navigator.clipboard.writeText(urlData.publicUrl);
-      toast.success('PDF URL copied to clipboard');
+      if (signedUrlError || !signedUrlData?.signedUrl) {
+        throw new Error('Failed to generate signed URL');
+      }
+      
+      await navigator.clipboard.writeText(signedUrlData.signedUrl);
+      toast.success('PDF URL copied to clipboard (valid for 1 hour)');
     } catch (error) {
       console.error('Failed to get PDF URL:', error);
       toast.error('Failed to copy PDF URL');

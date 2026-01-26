@@ -5,6 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Signed URL expiry time in seconds (1 hour)
+const SIGNED_URL_EXPIRY = 3600;
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -99,19 +102,28 @@ Deno.serve(async (req) => {
       // Non-fatal - PDF is still saved, just metadata failed
     }
 
-    // Get public URL
-    const { data: urlData } = supabase.storage
+    // Generate signed URL instead of public URL (bucket is now private)
+    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
       .from('markdown-renders')
-      .getPublicUrl(storagePath);
+      .createSignedUrl(storagePath, SIGNED_URL_EXPIRY);
 
-    console.log('PDF uploaded successfully:', urlData.publicUrl);
+    if (signedUrlError) {
+      console.error('Signed URL error:', signedUrlError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to generate signed URL' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('PDF uploaded successfully, signed URL generated');
 
     return new Response(
       JSON.stringify({
         success: true,
-        publicUrl: urlData.publicUrl,
+        signedUrl: signedUrlData.signedUrl,
         storagePath,
-        pageCount: pageCount || 1
+        pageCount: pageCount || 1,
+        expiresIn: SIGNED_URL_EXPIRY
       }),
       { 
         status: 200, 
