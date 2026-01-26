@@ -1,6 +1,5 @@
 import { useCallback, useRef } from 'react';
 import { CollapsedState } from '@/lib/diagram/types';
-import { useDebug } from '@/contexts/DebugContext';
 
 interface UseBulkExpandCollapseProps {
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
@@ -11,7 +10,6 @@ export const useBulkExpandCollapse = ({
   onToggleCollapse, 
   maxDepth 
 }: UseBulkExpandCollapseProps) => {
-  const { debugToast } = useDebug();
   const isBulkExpandingRef = useRef(false);
 
   // Convert path to JSONEditor array format
@@ -46,12 +44,8 @@ export const useBulkExpandCollapse = ({
     collapsedPathsRef?: React.MutableRefObject<CollapsedState>
   ) => {
     if (!editorRef?.current || !onToggleCollapse) {
-      debugToast('Missing editor or onToggleCollapse callback');
       return;
     }
-
-    debugToast(`Starting bulk expand for: ${basePath}`);
-    debugToast(`bulkExpand received maxDepth: ${maxDepth}`);
 
     // Before expanding new paths, collapse any existing paths that are deeper than maxDepth
     if (collapsedPathsRef?.current) {
@@ -62,7 +56,6 @@ export const useBulkExpandCollapse = ({
         if (!isCollapsed && path.startsWith(basePath) && path !== basePath) {
           const pathDepth = path === 'root' ? 0 : path.split('.').length - 1;
           if (pathDepth > maxAllowedDepth) {
-            debugToast(`Collapsing deep path: ${path} (depth ${pathDepth} > max ${maxAllowedDepth})`);
             onToggleCollapse(path, true); // true = collapsed
           }
         }
@@ -75,7 +68,6 @@ export const useBulkExpandCollapse = ({
 
     // If maxDepth is 1, don't bulk expand any children - just let JSONEditor handle the natural expansion
     if (maxDepth <= 1) {
-      debugToast(`maxDepth is ${maxDepth}, skipping bulk expansion`);
       return;
     }
 
@@ -100,21 +92,15 @@ export const useBulkExpandCollapse = ({
 
     // Get the schema for the clicked path and generate expansion paths
     const schemaAtPath = getSchemaAtPath(rootSchema, basePath);
-    debugToast(`Schema at path ${basePath}`, schemaAtPath);
     
     if (schemaAtPath) {
       generatePaths(schemaAtPath, basePath);
-    } else {
-      debugToast(`No schema found at path: ${basePath}`);
     }
 
-    debugToast(`Generated ${pathsToExpand.length} paths for baseDepth ${baseDepth} + (maxDepth-1) ${maxDepth-1}`, pathsToExpand);
-    
     // Process each path using JSONEditor API directly
-    pathsToExpand.forEach((path, index) => {
+    pathsToExpand.forEach((path) => {
       try {
         const pathArray = convertPathToArray(path);
-        debugToast(`Expanding ${index + 1}/${pathsToExpand.length}: ${path} -> [${pathArray.join(', ')}]`);
         
         // Call JSONEditor expand method directly
         editorRef.current.expand({
@@ -132,8 +118,6 @@ export const useBulkExpandCollapse = ({
         console.error(`[BULK-DIRECT] Error expanding path ${path}:`, error);
       }
     });
-    
-    debugToast(`Completed processing ${pathsToExpand.length} paths`);
   }, [onToggleCollapse, maxDepth, getSchemaAtPath, convertPathToArray]);
 
   return {
