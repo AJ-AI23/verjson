@@ -43,7 +43,7 @@ serve(async (req) => {
       )
     }
     
-    // Create authenticated Supabase client
+    // Create authenticated Supabase client for user operations
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -52,6 +52,12 @@ serve(async (req) => {
           headers: { Authorization: authHeader },
         },
       }
+    )
+
+    // Create service role client for secure operations (storing hashes)
+    const serviceClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
@@ -75,7 +81,7 @@ serve(async (req) => {
         result = await handleListApiKeys(supabaseClient, user, logger);
         break;
       case 'createApiKey':
-        result = await handleCreateApiKey(supabaseClient, requestData, user, logger);
+        result = await handleCreateApiKey(supabaseClient, serviceClient, requestData, user, logger);
         break;
       case 'updateApiKey':
         result = await handleUpdateApiKey(supabaseClient, requestData, user, logger);
@@ -113,6 +119,7 @@ serve(async (req) => {
 async function handleListApiKeys(supabaseClient: any, user: any, logger: EdgeFunctionLogger) {
   logger.debug('Listing API keys', { userId: user.id });
 
+  // Note: key_hash is no longer in api_keys table - it's in the secure api_key_secrets table
   const { data: apiKeys, error } = await supabaseClient
     .from('api_keys')
     .select('id, name, key_prefix, scopes, last_used_at, expires_at, created_at, is_active')
@@ -128,7 +135,13 @@ async function handleListApiKeys(supabaseClient: any, user: any, logger: EdgeFun
   return { apiKeys };
 }
 
-async function handleCreateApiKey(supabaseClient: any, data: any, user: any, logger: EdgeFunctionLogger) {
+async function handleCreateApiKey(
+  supabaseClient: any, 
+  serviceClient: any, 
+  data: any, 
+  user: any, 
+  logger: EdgeFunctionLogger
+) {
   const { name, scopes, expiresAt } = data;
   logger.debug('Creating API key', { name, scopes, userId: user.id });
 
@@ -157,10 +170,10 @@ async function handleCreateApiKey(supabaseClient: any, data: any, user: any, log
   // Format the key for display: prefix_rest
   const displayKey = `vj_${rawKey}`;
 
+  // Step 1: Insert metadata into api_keys table (user can see this)
   const apiKeyData = {
     user_id: user.id,
     name: name.trim(),
-    key_hash: keyHash,
     key_prefix: keyPrefix,
     scopes: requestedScopes,
     expires_at: expiresAt || null,
@@ -176,6 +189,20 @@ async function handleCreateApiKey(supabaseClient: any, data: any, user: any, log
   if (error) {
     logger.error('Failed to create API key', error);
     throw error;
+  }
+
+  // Step 2: Store hash in secure table using SECURITY DEFINER function
+  // This uses service role to call the function that inserts into api_key_secrets
+  const { error: hashError } = await serviceClient.rpc('store_api_key_hash', {
+    p_api_key_id: apiKey.id,
+    p_key_hash: keyHash
+  });
+
+  if (hashError) {
+    logger.error('Failed to store API key hash', hashError);
+    // Rollback: delete the api_key record
+    await supabaseClient.from('api_keys').delete().eq('id', apiKey.id);
+    throw new Error('Failed to create API key securely');
   }
 
   logger.info('Successfully created API key', { keyId: apiKey.id, name });
@@ -274,6 +301,7 @@ async function handleDeleteApiKey(supabaseClient: any, data: any, user: any, log
     throw new Error('API key ID is required');
   }
 
+  // The api_key_secrets record will be deleted via CASCADE
   const { error } = await supabaseClient
     .from('api_keys')
     .delete()

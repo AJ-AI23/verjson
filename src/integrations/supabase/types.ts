@@ -14,13 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_key_secrets: {
+        Row: {
+          api_key_id: string
+          created_at: string
+          id: string
+          key_hash: string
+        }
+        Insert: {
+          api_key_id: string
+          created_at?: string
+          id?: string
+          key_hash: string
+        }
+        Update: {
+          api_key_id?: string
+          created_at?: string
+          id?: string
+          key_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_api_key_secrets_api_key_id"
+            columns: ["api_key_id"]
+            isOneToOne: true
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_keys: {
         Row: {
           created_at: string
           expires_at: string | null
           id: string
           is_active: boolean
-          key_hash: string
           key_prefix: string
           last_used_at: string | null
           name: string
@@ -33,7 +61,6 @@ export type Database = {
           expires_at?: string | null
           id?: string
           is_active?: boolean
-          key_hash: string
           key_prefix: string
           last_used_at?: string | null
           name: string
@@ -46,7 +73,6 @@ export type Database = {
           expires_at?: string | null
           id?: string
           is_active?: boolean
-          key_hash?: string
           key_prefix?: string
           last_used_at?: string | null
           name?: string
@@ -914,6 +940,10 @@ export type Database = {
           success: boolean
         }[]
       }
+      delete_api_key_hash: {
+        Args: { p_api_key_id: string }
+        Returns: undefined
+      }
       generate_content_hash: { Args: { content: string }; Returns: string }
       get_document_permissions: {
         Args: { doc_id: string }
@@ -1037,6 +1067,10 @@ export type Database = {
           username: string
           workspace_id: string
         }[]
+      }
+      store_api_key_hash: {
+        Args: { p_api_key_id: string; p_key_hash: string }
+        Returns: undefined
       }
       user_has_workspace_access: {
         Args: { user_id: string; workspace_id: string }
