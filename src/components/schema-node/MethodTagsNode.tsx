@@ -1,7 +1,6 @@
 import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { NodeExpandCollapseButton } from './NodeExpandCollapseButton';
 import { BaseNodeContainer } from './BaseNodeContainer';
 
 export interface MethodTagsNodeProps {
@@ -12,6 +11,7 @@ export interface MethodTagsNodeProps {
     hasMoreLevels?: boolean;
     isCollapsed?: boolean;
     path?: string;
+    hasCollapsibleContent?: boolean;
   };
   id: string;
   isConnectable: boolean;
@@ -20,10 +20,10 @@ export interface MethodTagsNodeProps {
 }
 
 export const MethodTagsNode = memo(({ data, isConnectable, id, selected, onToggleCollapse }: MethodTagsNodeProps) => {
-  const { label, tags = [], tagCount, hasMoreLevels = false, isCollapsed = false, path } = data;
+  const { label, tags = [], tagCount, hasMoreLevels = false, isCollapsed = false, path, hasCollapsibleContent } = data;
 
   // Determine if node has children
-  const hasChildren = hasMoreLevels || tagCount > 0;
+  const hasChildren = hasCollapsibleContent || hasMoreLevels || tagCount > 0;
   const nodePath = path || id;
 
   return (
@@ -36,18 +36,14 @@ export const MethodTagsNode = memo(({ data, isConnectable, id, selected, onToggl
         'bg-cyan-50 border-cyan-200',
         isCollapsed && 'border-dashed bg-cyan-50/50'
       )}
+      // Pass expand/collapse props to BaseNodeContainer
+      nodePath={nodePath}
+      isCollapsed={isCollapsed}
+      hasChildren={hasChildren}
+      onToggleCollapse={onToggleCollapse}
     >
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          {hasChildren && onToggleCollapse && (
-            <NodeExpandCollapseButton
-              isCollapsed={isCollapsed}
-              hasChildren={hasChildren}
-              path={nodePath}
-              onToggleCollapse={onToggleCollapse}
-              className="flex-shrink-0"
-            />
-          )}
           <div className="text-sm font-semibold text-cyan-900 flex-1">{label}</div>
         </div>
         

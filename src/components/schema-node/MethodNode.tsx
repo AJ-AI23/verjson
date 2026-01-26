@@ -2,7 +2,6 @@ import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { NodeNotations } from './NodeNotations';
-import { NodeExpandCollapseButton } from './NodeExpandCollapseButton';
 import { NotationComment } from '@/types/notations';
 import { BaseNodeContainer } from './BaseNodeContainer';
 
@@ -21,6 +20,7 @@ export interface MethodNodeProps {
     hasMoreLevels?: boolean;
     isCollapsed?: boolean;
     nodePath?: string;
+    hasCollapsibleContent?: boolean;
   };
   id: string;
   isConnectable: boolean;
@@ -30,10 +30,10 @@ export interface MethodNodeProps {
 }
 
 export const MethodNode = memo(({ data, isConnectable, id, selected, onAddNotation, onToggleCollapse }: MethodNodeProps) => {
-  const { path, method, summary, description, label, notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, nodePath } = data;
+  const { path, method, summary, description, label, notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, nodePath, hasCollapsibleContent } = data;
 
   // Determine if node has children (responses, request body, etc.)
-  const hasChildren = hasMoreLevels || !!data.requestBody || (data.responses && Object.keys(data.responses).length > 0);
+  const hasChildren = hasCollapsibleContent || hasMoreLevels || !!data.requestBody || (data.responses && Object.keys(data.responses).length > 0);
   const collapsePath = nodePath || id;
 
   const getMethodColor = (method: string) => {
@@ -60,19 +60,15 @@ export const MethodNode = memo(({ data, isConnectable, id, selected, onAddNotati
         isCollapsed && 'border-dashed bg-slate-50/50',
         hasNotations && 'border-l-2 border-l-amber-400'
       )}
+      // Pass expand/collapse props to BaseNodeContainer
+      nodePath={collapsePath}
+      isCollapsed={isCollapsed}
+      hasChildren={hasChildren}
+      onToggleCollapse={onToggleCollapse}
     >
       <div className="flex flex-col gap-2">
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-2">
-            {hasChildren && onToggleCollapse && (
-              <NodeExpandCollapseButton
-                isCollapsed={isCollapsed}
-                hasChildren={hasChildren}
-                path={collapsePath}
-                onToggleCollapse={onToggleCollapse}
-                className="flex-shrink-0"
-              />
-            )}
             <Badge 
               variant="outline" 
               className={cn('text-xs px-2 w-fit', getMethodColor(method))}

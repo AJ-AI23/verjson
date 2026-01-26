@@ -2,7 +2,6 @@ import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { NodeNotations } from './NodeNotations';
-import { NodeExpandCollapseButton } from './NodeExpandCollapseButton';
 import { NotationComment } from '@/types/notations';
 import { BaseNodeContainer } from './BaseNodeContainer';
 import { Shield } from 'lucide-react';
@@ -20,6 +19,7 @@ export interface SecurityNodeProps {
     hasMoreLevels?: boolean;
     isCollapsed?: boolean;
     path?: string;
+    hasCollapsibleContent?: boolean;
   };
   id: string;
   isConnectable: boolean;
@@ -29,10 +29,10 @@ export interface SecurityNodeProps {
 }
 
 export const SecurityNode = memo(({ data, isConnectable, id, selected, onAddNotation, onToggleCollapse }: SecurityNodeProps) => {
-  const { label, securityDetails = [], notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, path } = data;
+  const { label, securityDetails = [], notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, path, hasCollapsibleContent } = data;
 
   // Determine if node has children
-  const hasChildren = hasMoreLevels || securityDetails.length > 0;
+  const hasChildren = hasCollapsibleContent || hasMoreLevels || securityDetails.length > 0;
   const nodePath = path || id;
 
   return (
@@ -46,18 +46,14 @@ export const SecurityNode = memo(({ data, isConnectable, id, selected, onAddNota
         isCollapsed && 'border-dashed bg-amber-50/50',
         hasNotations && 'border-l-2 border-l-amber-400'
       )}
+      // Pass expand/collapse props to BaseNodeContainer
+      nodePath={nodePath}
+      isCollapsed={isCollapsed}
+      hasChildren={hasChildren}
+      onToggleCollapse={onToggleCollapse}
     >
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          {hasChildren && onToggleCollapse && (
-            <NodeExpandCollapseButton
-              isCollapsed={isCollapsed}
-              hasChildren={hasChildren}
-              path={nodePath}
-              onToggleCollapse={onToggleCollapse}
-              className="flex-shrink-0"
-            />
-          )}
           <div className="flex items-center gap-1.5 flex-1">
             <Shield className="w-3.5 h-3.5 text-amber-700" />
             <div className="text-sm font-semibold text-amber-900">{label}</div>

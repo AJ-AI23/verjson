@@ -2,7 +2,6 @@ import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { NodeNotations } from './NodeNotations';
-import { NodeExpandCollapseButton } from './NodeExpandCollapseButton';
 import { NotationComment } from '@/types/notations';
 import { BaseNodeContainer } from './BaseNodeContainer';
 
@@ -20,6 +19,7 @@ export interface ContentTypeNodeProps {
     hasMoreLevels?: boolean;
     isCollapsed?: boolean;
     path?: string;
+    hasCollapsibleContent?: boolean;
   };
   id: string;
   isConnectable: boolean;
@@ -29,10 +29,10 @@ export interface ContentTypeNodeProps {
 }
 
 export const ContentTypeNode = memo(({ data, isConnectable, id, selected, onAddNotation, onToggleCollapse }: ContentTypeNodeProps) => {
-  const { contentType, contentTypes, isConsolidated, description, notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, path } = data;
+  const { contentType, contentTypes, isConsolidated, description, notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, path, hasCollapsibleContent } = data;
 
   // Determine if node has children
-  const hasChildren = hasMoreLevels || !!data.schema;
+  const hasChildren = hasCollapsibleContent || hasMoreLevels || !!data.schema;
   const nodePath = path || id;
 
   const getContentTypeColor = (type: string) => {
@@ -58,18 +58,14 @@ export const ContentTypeNode = memo(({ data, isConnectable, id, selected, onAddN
         isCollapsed && 'border-dashed bg-slate-50/50',
         hasNotations && 'border-l-2 border-l-amber-400'
       )}
+      // Pass expand/collapse props to BaseNodeContainer
+      nodePath={nodePath}
+      isCollapsed={isCollapsed}
+      hasChildren={hasChildren}
+      onToggleCollapse={onToggleCollapse}
     >
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          {hasChildren && onToggleCollapse && (
-            <NodeExpandCollapseButton
-              isCollapsed={isCollapsed}
-              hasChildren={hasChildren}
-              path={nodePath}
-              onToggleCollapse={onToggleCollapse}
-              className="flex-shrink-0"
-            />
-          )}
           {isConsolidated ? (
             // Consolidated view showing multiple content types
             <div className="flex flex-col gap-1 flex-1">
