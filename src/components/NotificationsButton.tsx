@@ -17,8 +17,6 @@ export const NotificationsButton: React.FC = () => {
 
   return (
     <div className="flex items-center gap-2">
-      {/* Support Button */}
-      <SupportButton />
       
       {/* PWA Install Button */}
       <PwaInstallButton />

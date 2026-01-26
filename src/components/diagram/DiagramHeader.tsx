@@ -102,25 +102,6 @@ export const DiagramHeader: React.FC<DiagramHeaderProps> = ({
               </Tooltip>
             </TooltipProvider>
           )}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={showDiagramDebug ? "default" : "outline"}
-                  size="sm"
-                  onClick={toggleDiagramDebug}
-                  className="gap-2"
-                >
-                  <Bug className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {showDiagramDebug 
-                  ? "Hide node debug info" 
-                  : "Show node dimensions and positions"}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
           <Button
             variant="outline"
             size="sm"
