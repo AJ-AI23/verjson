@@ -20,7 +20,7 @@ export interface ComponentsNodeProps {
     hasNotations?: boolean;
     hasMoreLevels?: boolean;
     isCollapsed?: boolean;
-    path?: string;
+    nodePath?: string;
     hasCollapsibleContent?: boolean;
   };
   id: string;
@@ -31,11 +31,11 @@ export interface ComponentsNodeProps {
 }
 
 export const ComponentsNode = memo(({ data, isConnectable, id, selected, onAddNotation, onToggleCollapse }: ComponentsNodeProps) => {
-  const { schemasCount, schemas = [], notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, path, hasCollapsibleContent } = data;
+  const { schemasCount, schemas = [], notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, nodePath: dataNodePath, hasCollapsibleContent } = data;
 
   // Determine if node has children
   const hasChildren = hasCollapsibleContent || hasMoreLevels || schemas.length > 0;
-  const nodePath = path || 'root.components';
+  const nodePath = dataNodePath || 'root.components';
 
   return (
     <BaseNodeContainer

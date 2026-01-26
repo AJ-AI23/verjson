@@ -21,7 +21,7 @@ export interface InfoNodeProps {
     hasNotations?: boolean;
     hasMoreLevels?: boolean;
     isCollapsed?: boolean;
-    path?: string;
+    nodePath?: string;
     hasCollapsibleContent?: boolean;
   };
   id: string;
@@ -32,14 +32,14 @@ export interface InfoNodeProps {
 }
 
 export const InfoNode = memo(({ data, isConnectable, id, selected, onAddNotation, onToggleCollapse }: InfoNodeProps) => {
-  const { title, version, description, properties = [], notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, path, hasCollapsibleContent } = data;
+  const { title, version, description, properties = [], notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, nodePath: dataNodePath, hasCollapsibleContent } = data;
 
   // Add safety check for properties array
   const safeProperties = Array.isArray(properties) ? properties : [];
   
   // Determine if node has children
   const hasChildren = hasCollapsibleContent || hasMoreLevels || safeProperties.length > 0;
-  const nodePath = path || 'root.info';
+  const nodePath = dataNodePath || 'root.info';
 
   return (
     <BaseNodeContainer

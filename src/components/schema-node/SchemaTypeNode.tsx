@@ -48,7 +48,7 @@ interface SchemaTypeNodeProps {
     notations?: NotationComment[];
     notationCount?: number;
     hasNotations?: boolean;
-    path?: string; // For tracking paths in grouped nodes
+    nodePath?: string; // Canonical path for collapse state tracking
     truncatedAncestors?: string[]; // List of property names that were truncated
     isTruncatedRepresentative?: boolean; // True if this node represents truncated boxes
     truncatedProperties?: Array<{ label: string; type?: string }>; // Properties represented by this truncated box
@@ -91,7 +91,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, selected, onAddNo
     notations = [],
     notationCount = 0,
     hasNotations = false,
-    path,
+    nodePath: dataNodePath,
     truncatedAncestors,
     isTruncatedRepresentative,
     truncatedProperties,
@@ -104,10 +104,9 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, selected, onAddNo
     (type === 'openapi') || // OpenAPI root always has children
     isRoot; // Root nodes always have potential children
   
-  // Compute the path for this node (use data.path if available, otherwise derive from id)
-  const nodePath = path || (id.startsWith('prop-') ? `root.properties.${id.substring(5)}` : 
-                   id === 'root' ? 'root' : 
-                   id.replace(/-/g, '.'));
+  // Use nodePath from data if available, fallback to id-based path only for root
+  // Note: All nodes should now receive nodePath from their generators
+  const nodePath = dataNodePath || (id === 'root' ? 'root' : id.replace(/-/g, '.'));
 
   const [isNotationsExpanded, setIsNotationsExpanded] = useState(false);
 
@@ -243,7 +242,7 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, selected, onAddNo
             nodeId={id}
             onExpandProperty={onAddNotation ? (propName: string) => {
               // When expanding a property from a grouped node, we need to trigger the expansion
-              const groupedPath = path || id.replace('grouped-', '').replace('-properties', '');
+              const groupedPath = nodePath || id.replace('grouped-', '').replace('-properties', '');
               const expandPath = groupedPath === 'root' ? 
                 'root.properties._grouped' : 
                 `${groupedPath}._grouped`;
