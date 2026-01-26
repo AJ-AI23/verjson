@@ -111,7 +111,6 @@ async function handleGetUserProfile(supabaseClient: any, user: any, logger: Edge
   
   const profileData = {
     user_id: user.id,
-    email: user.email,
     full_name: user.user_metadata?.full_name || user.email,
     username: user.user_metadata?.username || user.email?.split('@')[0] || 'user'
   };

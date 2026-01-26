@@ -534,7 +534,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const getDisplayName = () => {
     if (profile?.username) return profile.username;
     if (profile?.full_name) return profile.full_name;
-    if (profile?.email) return profile.email.split('@')[0];
     if (user?.email) return user.email.split('@')[0];
     return 'User';
   };

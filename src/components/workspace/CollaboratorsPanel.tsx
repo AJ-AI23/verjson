@@ -87,7 +87,7 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
         try {
           const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('email, full_name, username')
+            .select('full_name, username')
             .eq('user_id', ownerId)
             .maybeSingle();
           

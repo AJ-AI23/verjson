@@ -6,7 +6,6 @@ import { toast } from 'sonner';
 export interface UserProfile {
   id: string;
   user_id: string;
-  email: string | null;
   full_name: string | null;
   username: string | null;
   avatar_url: string | null;
@@ -77,18 +76,16 @@ export const useUserProfile = () => {
     }
   };
 
-  // Get display name (prioritize full_name, fallback to username, then email)
+  // Get display name (prioritize full_name, fallback to username)
   const getDisplayName = () => {
     if (profile?.full_name) return profile.full_name;
     if (profile?.username) return profile.username;
-    if (profile?.email) return profile.email;
     return 'Unknown User';
   };
 
-  // Get username for notations (prioritize username, fallback to email prefix)
+  // Get username for notations (prioritize username)
   const getNotationUsername = () => {
     if (profile?.username) return profile.username;
-    if (profile?.email) return profile.email.split('@')[0];
     return 'anonymous';
   };
 
