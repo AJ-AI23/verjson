@@ -123,7 +123,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   // PIN security dialog states
   const [showPinSetupDialog, setShowPinSetupDialog] = useState(false);
   const [pinSetupDocument, setPinSetupDocument] = useState<any>(null);
-  const [documentPinStatus, setDocumentPinStatus] = useState<{[key: string]: boolean}>({});
+  const [documentPinStatus, setDocumentPinStatus] = useState<{[key: string]: { hasPin: boolean; isBricked: boolean }}>({});
   const [documentPermissions, setDocumentPermissions] = useState<Record<string, any[]>>({});
 
   const handleCreateWorkspace = async () => {
@@ -359,7 +359,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
 
   const handlePinSetup = async (document: any) => {
     const status = await checkDocumentPinStatus(document.id);
-    setDocumentPinStatus(prev => ({ ...prev, [document.id]: status.hasPin }));
+    setDocumentPinStatus(prev => ({ ...prev, [document.id]: { hasPin: status.hasPin, isBricked: status.isBricked } }));
     setPinSetupDocument(document);
     setShowPinSetupDialog(true);
   };
@@ -396,7 +396,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
   const handlePinStatusChange = async () => {
     if (pinSetupDocument) {
       const status = await checkDocumentPinStatus(pinSetupDocument.id);
-      setDocumentPinStatus(prev => ({ ...prev, [pinSetupDocument.id]: status.hasPin }));
+      setDocumentPinStatus(prev => ({ ...prev, [pinSetupDocument.id]: { hasPin: status.hasPin, isBricked: status.isBricked } }));
     }
   };
 
@@ -745,7 +745,12 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
                                   Invited
                                 </Badge>
                               )}
-                              {documentPinStatus[doc.id] && (
+                              {documentPinStatus[doc.id]?.isBricked && (
+                                <div title="Document Locked - Too many failed PIN attempts">
+                                  <Shield className="h-2.5 w-2.5 md:h-3 md:w-3 text-red-600" />
+                                </div>
+                              )}
+                              {documentPinStatus[doc.id]?.hasPin && !documentPinStatus[doc.id]?.isBricked && (
                                 <div title="PIN Protected">
                                   <Shield className="h-2.5 w-2.5 md:h-3 md:w-3 text-amber-600" />
                                 </div>
@@ -861,7 +866,8 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
         onOpenChange={setShowPinSetupDialog}
         documentId={pinSetupDocument?.id || ''}
         documentName={pinSetupDocument?.name || ''}
-        currentlyHasPin={pinSetupDocument ? (documentPinStatus[pinSetupDocument.id] || false) : false}
+        currentlyHasPin={pinSetupDocument ? (documentPinStatus[pinSetupDocument.id]?.hasPin || false) : false}
+        currentlyIsBricked={pinSetupDocument ? (documentPinStatus[pinSetupDocument.id]?.isBricked || false) : false}
         onPinStatusChange={handlePinStatusChange}
       />
 

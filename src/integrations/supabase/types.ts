@@ -452,6 +452,8 @@ export type Database = {
           import_url: string | null
           is_public: boolean
           name: string
+          pin_bricked: boolean
+          pin_bricked_at: string | null
           pin_code: string | null
           pin_enabled: boolean
           updated_at: string
@@ -469,6 +471,8 @@ export type Database = {
           import_url?: string | null
           is_public?: boolean
           name: string
+          pin_bricked?: boolean
+          pin_bricked_at?: string | null
           pin_code?: string | null
           pin_enabled?: boolean
           updated_at?: string
@@ -486,6 +490,8 @@ export type Database = {
           import_url?: string | null
           is_public?: boolean
           name?: string
+          pin_bricked?: boolean
+          pin_bricked_at?: string | null
           pin_code?: string | null
           pin_enabled?: boolean
           updated_at?: string
@@ -632,6 +638,38 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pin_verification_attempts: {
+        Row: {
+          attempted_at: string
+          created_at: string
+          document_id: string
+          id: string
+          success: boolean
+        }
+        Insert: {
+          attempted_at?: string
+          created_at?: string
+          document_id: string
+          id?: string
+          success?: boolean
+        }
+        Update: {
+          attempted_at?: string
+          created_at?: string
+          document_id?: string
+          id?: string
+          success?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pin_verification_attempts_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
             referencedColumns: ["id"]
           },
         ]
@@ -913,6 +951,7 @@ export type Database = {
       cleanup_expired_demo_sessions: { Args: never; Returns: undefined }
       cleanup_old_collaboration_sessions: { Args: never; Returns: undefined }
       cleanup_old_editor_history: { Args: never; Returns: undefined }
+      cleanup_old_pin_attempts: { Args: never; Returns: undefined }
       create_initial_version_safe: {
         Args: { p_content: Json; p_document_id: string; p_user_id: string }
         Returns: string
@@ -1065,6 +1104,7 @@ export type Database = {
         Args: { p_api_key_id: string; p_key_hash: string }
         Returns: undefined
       }
+      unbrick_document: { Args: { doc_id: string }; Returns: boolean }
       user_has_workspace_access: {
         Args: { user_id: string; workspace_id: string }
         Returns: boolean

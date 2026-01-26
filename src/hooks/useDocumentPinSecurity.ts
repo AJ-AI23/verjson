@@ -7,12 +7,21 @@ interface PinVerificationState {
   [documentId: string]: boolean;
 }
 
+interface DocumentPinStatus {
+  hasPin: boolean;
+  isOwner: boolean;
+  needsPin: boolean;
+  isBricked: boolean;
+  failedAttempts: number;
+  brickedAt?: string;
+}
+
 export function useDocumentPinSecurity() {
   const { user } = useAuth();
   const [verifiedPins, setVerifiedPins] = useState<PinVerificationState>({});
 
   // Check if document has PIN protection
-  const checkDocumentPinStatus = async (documentId: string) => {
+  const checkDocumentPinStatus = async (documentId: string): Promise<DocumentPinStatus> => {
     try {
       const { data, error } = await supabase.functions.invoke('document-security', {
         body: {
@@ -26,10 +35,15 @@ export function useDocumentPinSecurity() {
       // Add client-side verification check
       const needsPin = data.needsPin && !verifiedPins[documentId];
 
-      return { ...data, needsPin };
+      return { 
+        ...data, 
+        needsPin,
+        isBricked: data.isBricked || false,
+        failedAttempts: data.failedAttempts || 0
+      };
     } catch (error) {
       console.error('Error checking document PIN status:', error);
-      return { hasPin: false, isOwner: false, needsPin: false };
+      return { hasPin: false, isOwner: false, needsPin: false, isBricked: false, failedAttempts: 0 };
     }
   };
 
@@ -86,7 +100,7 @@ export function useDocumentPinSecurity() {
   };
 
   // Verify PIN for document access
-  const verifyDocumentPin = async (documentId: string, pin: string) => {
+  const verifyDocumentPin = async (documentId: string, pin: string): Promise<{ success: boolean; isBricked?: boolean; remainingAttempts?: number }> => {
     try {
       const { data, error } = await supabase.functions.invoke('document-security', {
         body: {
@@ -114,14 +128,52 @@ export function useDocumentPinSecurity() {
         }));
 
         toast.success(data.message);
-        return true;
+        return { success: true };
       } else {
-        toast.error(data.error);
-        return false;
+        if (data.isBricked) {
+          toast.error('Document Locked', {
+            description: data.error
+          });
+        } else {
+          toast.error(data.error);
+        }
+        return { 
+          success: false, 
+          isBricked: data.isBricked,
+          remainingAttempts: data.remainingAttempts
+        };
       }
     } catch (error) {
       console.error('Error verifying document PIN:', error);
       toast.error('Failed to verify PIN');
+      return { success: false };
+    }
+  };
+
+  // Unbrick a document (owner only)
+  const unbrickDocument = async (documentId: string) => {
+    if (!user) return false;
+
+    try {
+      const { data, error } = await supabase.functions.invoke('document-security', {
+        body: {
+          action: 'unbrickDocument',
+          documentId
+        }
+      });
+
+      if (error) throw error;
+
+      if (!data.success) {
+        toast.error(data.error);
+        return false;
+      }
+
+      toast.success(data.message);
+      return true;
+    } catch (error) {
+      console.error('Error unbricking document:', error);
+      toast.error('Failed to unlock document');
       return false;
     }
   };
@@ -170,6 +222,7 @@ export function useDocumentPinSecurity() {
     setDocumentPin,
     removeDocumentPin,
     verifyDocumentPin,
+    unbrickDocument,
     clearDocumentPinVerification,
     isDocumentPinVerified: (documentId: string) => !!verifiedPins[documentId]
   };
