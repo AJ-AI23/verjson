@@ -236,11 +236,13 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
                             )}
                            <div className="flex flex-col min-w-0">
                             <span className="font-medium truncate">
-                                {permission.username ? `@${permission.username}` : (permission.user_name || permission.user_email || 'Unknown User')}
+                                {permission.username ? `@${permission.username}` : (permission.user_name || 'Unknown User')}
                               </span>
-                              <span className="text-xs text-muted-foreground truncate">
-                                {permission.username && permission.user_name ? permission.user_name : (permission.user_email || 'No email')}
-                              </span>
+                              {(permission.username && permission.user_name) && (
+                                <span className="text-xs text-muted-foreground truncate">
+                                  {permission.user_name}
+                                </span>
+                              )}
                            </div>
                          </div>
                        </div>
