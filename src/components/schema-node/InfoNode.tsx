@@ -1,7 +1,6 @@
 import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { NodeNotations } from './NodeNotations';
-import { NodeExpandCollapseButton } from './NodeExpandCollapseButton';
 import { NotationComment } from '@/types/notations';
 import { BaseNodeContainer } from './BaseNodeContainer';
 
@@ -23,6 +22,7 @@ export interface InfoNodeProps {
     hasMoreLevels?: boolean;
     isCollapsed?: boolean;
     path?: string;
+    hasCollapsibleContent?: boolean;
   };
   id: string;
   isConnectable: boolean;
@@ -32,14 +32,14 @@ export interface InfoNodeProps {
 }
 
 export const InfoNode = memo(({ data, isConnectable, id, selected, onAddNotation, onToggleCollapse }: InfoNodeProps) => {
-  const { title, version, description, properties = [], notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, path } = data;
+  const { title, version, description, properties = [], notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, path, hasCollapsibleContent } = data;
 
   // Add safety check for properties array
   const safeProperties = Array.isArray(properties) ? properties : [];
   
   // Determine if node has children
-  const hasChildren = hasMoreLevels || safeProperties.length > 0;
-  const nodePath = path || id;
+  const hasChildren = hasCollapsibleContent || hasMoreLevels || safeProperties.length > 0;
+  const nodePath = path || 'root.info';
 
   return (
     <BaseNodeContainer
@@ -53,19 +53,15 @@ export const InfoNode = memo(({ data, isConnectable, id, selected, onAddNotation
         isCollapsed && 'border-dashed bg-blue-50/50',
         hasNotations && 'border-l-2 border-l-amber-400'
       )}
+      // Pass expand/collapse props to BaseNodeContainer
+      nodePath={nodePath}
+      isCollapsed={isCollapsed}
+      hasChildren={hasChildren}
+      onToggleCollapse={onToggleCollapse}
     >
       <div className="flex flex-col gap-2">
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-2">
-            {hasChildren && onToggleCollapse && (
-              <NodeExpandCollapseButton
-                isCollapsed={isCollapsed}
-                hasChildren={hasChildren}
-                path={nodePath}
-                onToggleCollapse={onToggleCollapse}
-                className="flex-shrink-0"
-              />
-            )}
             <div className="text-sm font-semibold text-slate-900 flex-1">{title}</div>
             <NodeNotations
               notations={notations}

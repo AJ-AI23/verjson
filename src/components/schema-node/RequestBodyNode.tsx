@@ -2,7 +2,6 @@ import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { NodeNotations } from './NodeNotations';
-import { NodeExpandCollapseButton } from './NodeExpandCollapseButton';
 import { NotationComment } from '@/types/notations';
 import { BaseNodeContainer } from './BaseNodeContainer';
 
@@ -18,6 +17,7 @@ export interface RequestBodyNodeProps {
     hasMoreLevels?: boolean;
     isCollapsed?: boolean;
     path?: string;
+    hasCollapsibleContent?: boolean;
   };
   id: string;
   isConnectable: boolean;
@@ -27,10 +27,10 @@ export interface RequestBodyNodeProps {
 }
 
 export const RequestBodyNode = memo(({ data, isConnectable, id, selected, onAddNotation, onToggleCollapse }: RequestBodyNodeProps) => {
-  const { description, required, label, notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, path } = data;
+  const { description, required, label, notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, path, hasCollapsibleContent } = data;
 
   // Determine if node has children
-  const hasChildren = hasMoreLevels || !!data.schema;
+  const hasChildren = hasCollapsibleContent || hasMoreLevels || !!data.schema;
   const nodePath = path || id;
 
   return (
@@ -44,18 +44,14 @@ export const RequestBodyNode = memo(({ data, isConnectable, id, selected, onAddN
         isCollapsed && 'border-dashed bg-amber-50/50',
         hasNotations && 'border-l-2 border-l-amber-400'
       )}
+      // Pass expand/collapse props to BaseNodeContainer
+      nodePath={nodePath}
+      isCollapsed={isCollapsed}
+      hasChildren={hasChildren}
+      onToggleCollapse={onToggleCollapse}
     >
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          {hasChildren && onToggleCollapse && (
-            <NodeExpandCollapseButton
-              isCollapsed={isCollapsed}
-              hasChildren={hasChildren}
-              path={nodePath}
-              onToggleCollapse={onToggleCollapse}
-              className="flex-shrink-0"
-            />
-          )}
           <div className="flex items-center gap-2 flex-1">
             <Badge variant="outline" className="text-xs px-2 bg-amber-100 text-amber-800 border-amber-200">
               Request Body

@@ -1,71 +1,39 @@
 
 # Plan: Unified Expand/Collapse Controls for Schema Diagrams
 
+## Status: Phases 1-3 Complete ✓
+
 ## Overview
 
 This plan addresses the need to create a more generic, consistent approach to expand/collapse controls across all diagram nodes (JSON Schema and OpenAPI) while ensuring bidirectional synchronization between the diagram, structure editor, and JSON editor.
 
-## Current State Analysis
+## Completed Work
 
-### Existing Implementation
+### Phase 1: Standardize Node Path Interface ✓
+- Added `BaseNodeData` interface to `src/lib/diagram/types.ts` with `nodePath`, `isCollapsed`, `hasChildren`, `hasCollapsibleContent`, and `onToggleCollapse` properties
 
-1. **Expand/Collapse Button**: `NodeExpandCollapseButton` component exists and is used by most node types
-2. **State Management**: `handleToggleCollapse` in `useEditorState.ts` manages the central `collapsedPaths` state
-3. **Parent Expansion Logic**: When expanding a node, parent paths are automatically expanded
-4. **Descendant Cleanup**: When collapsing, descendant states are cleared
+### Phase 2: Enhance BaseNodeContainer with Expand Controls ✓
+- Updated `BaseNodeContainer` to accept expand/collapse props (`nodePath`, `isCollapsed`, `hasChildren`, `onToggleCollapse`, `showExpandButton`)
+- `BaseNodeContainer` now renders `NodeExpandCollapseButton` automatically when expand props are provided
+- Debug footer now shows the nodePath for debugging
 
-### Identified Issues
+### Phase 3: Simplify Individual Node Components ✓
+All 11 node components updated to use BaseNodeContainer's expand controls:
+- `SchemaTypeNode.tsx` - Removed inline expand button, passes props to BaseNodeContainer
+- `InfoNode.tsx` - Simplified, uses BaseNodeContainer expand
+- `EndpointNode.tsx` - Simplified, uses BaseNodeContainer expand
+- `ComponentsNode.tsx` - Simplified, uses BaseNodeContainer expand
+- `MethodNode.tsx` - Simplified, uses BaseNodeContainer expand
+- `ResponseNode.tsx` - Simplified, uses BaseNodeContainer expand
+- `ContentTypeNode.tsx` - Simplified, uses BaseNodeContainer expand
+- `ParametersNode.tsx` - Simplified, uses BaseNodeContainer expand
+- `SecurityNode.tsx` - Simplified, uses BaseNodeContainer expand
+- `RequestBodyNode.tsx` - Simplified, uses BaseNodeContainer expand
+- `MethodTagsNode.tsx` - Simplified, uses BaseNodeContainer expand
 
-1. **Inconsistent Path Handling**: Some nodes use `path`, others use `nodePath`, and some derive paths from `id`
-2. **BaseNodeContainer Doesn't Include Expand Controls**: Each node type duplicates the expand/collapse button logic
-3. **Multi-level Expansion Not Unified**: Nodes representing nested content (like grouped properties) have ad-hoc expansion handling
-4. **Structure Editor Sync**: Path normalization between diagram and structure editor can be inconsistent
+## Remaining Work
 
-## Technical Approach
-
-### Phase 1: Standardize Node Path Interface
-
-Create a unified interface for node data that all node types will implement.
-
-**Changes:**
-- Define a `BaseNodeData` interface with required `nodePath`, `isCollapsed`, `hasChildren`, and `onToggleCollapse` properties
-- Update all node generator functions to consistently set `nodePath` (not mix of `path`/`nodePath`)
-
-**Files to modify:**
-- `src/lib/diagram/types.ts` - Add `BaseNodeData` interface
-- `src/lib/diagram/nodeGenerator.ts` - Update all node creation functions
-
-### Phase 2: Enhance BaseNodeContainer with Expand Controls
-
-Move the expand/collapse button into `BaseNodeContainer` so all nodes automatically get consistent behavior.
-
-**Changes:**
-- Add optional expand/collapse props to `BaseNodeContainerProps`
-- Render `NodeExpandCollapseButton` within `BaseNodeContainer` when props are provided
-- Add a `headerSlot` or render children pattern for node-specific content
-
-**Files to modify:**
-- `src/components/schema-node/BaseNodeContainer.tsx` - Add expand control integration
-- `src/components/schema-node/NodeExpandCollapseButton.tsx` - Minor refinements if needed
-
-### Phase 3: Simplify Individual Node Components
-
-Remove duplicated expand/collapse logic from individual nodes since `BaseNodeContainer` now handles it.
-
-**Files to modify (all node types):**
-- `src/components/schema-node/SchemaTypeNode.tsx`
-- `src/components/schema-node/InfoNode.tsx`
-- `src/components/schema-node/EndpointNode.tsx`
-- `src/components/schema-node/ComponentsNode.tsx`
-- `src/components/schema-node/MethodNode.tsx`
-- `src/components/schema-node/ResponseNode.tsx`
-- `src/components/schema-node/ContentTypeNode.tsx`
-- `src/components/schema-node/RequestBodyNode.tsx`
-- `src/components/schema-node/ParametersNode.tsx`
-- `src/components/schema-node/MethodTagsNode.tsx`
-- `src/components/schema-node/SecurityNode.tsx`
-
-### Phase 4: Handle Multi-Level Expansion
+### Phase 4: Handle Multi-Level Expansion (Future)
 
 For nodes that represent multiple nested properties (e.g., grouped properties), implement a consistent approach:
 
@@ -79,7 +47,7 @@ For nodes that represent multiple nested properties (e.g., grouped properties), 
 - `src/lib/diagram/layout/expandedPropertiesLayout.ts` - Pass depth info to nodes
 - `src/lib/diagram/layout/openApiLayout.ts` - Pass depth info to nodes
 
-### Phase 5: Improve Structure Editor Synchronization
+### Phase 5: Improve Structure Editor Synchronization (Future)
 
 Ensure the structure editor correctly reflects diagram expansion state and vice versa.
 
@@ -94,9 +62,9 @@ Ensure the structure editor correctly reflects diagram expansion state and vice 
 
 ---
 
-## Detailed Technical Implementation
+## Technical Implementation Details
 
-### New BaseNodeData Interface
+### BaseNodeData Interface (Implemented)
 
 ```typescript
 // In src/lib/diagram/types.ts
@@ -110,152 +78,40 @@ export interface BaseNodeData {
 }
 ```
 
-### Enhanced BaseNodeContainer
+### Enhanced BaseNodeContainer (Implemented)
 
-```typescript
-// In src/components/schema-node/BaseNodeContainer.tsx
-export interface BaseNodeContainerProps {
-  id: string;
-  isConnectable: boolean;
-  className?: string;
-  children: ReactNode;
-  showTargetHandle?: boolean;
-  showSourceHandle?: boolean;
-  selected?: boolean;
-  // New expand/collapse props
-  nodePath?: string;
-  isCollapsed?: boolean;
-  hasChildren?: boolean;
-  onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
-  showExpandButton?: boolean;
-}
+The BaseNodeContainer now accepts these additional props:
+- `nodePath`: Canonical path for collapse state
+- `isCollapsed`: Whether the node is collapsed
+- `hasChildren`: Whether the node has collapsible children
+- `onToggleCollapse`: Callback to toggle collapsed state
+- `showExpandButton`: Whether to show the expand button (default true when props provided)
 
-export const BaseNodeContainer = memo(({ 
-  /* existing props */
-  nodePath,
-  isCollapsed,
-  hasChildren,
-  onToggleCollapse,
-  showExpandButton = true,
-}: BaseNodeContainerProps) => {
-  // Render expand button at start of content if applicable
-  const expandButton = showExpandButton && hasChildren && onToggleCollapse && nodePath ? (
-    <NodeExpandCollapseButton
-      isCollapsed={!!isCollapsed}
-      hasChildren={hasChildren}
-      path={nodePath}
-      onToggleCollapse={onToggleCollapse}
-      className="flex-shrink-0 mr-1"
-    />
-  ) : null;
-  
-  return (
-    <div className={cn('relative', className)}>
-      {/* Handles */}
-      <div className="flex items-start">
-        {expandButton}
-        <div className="flex-1 min-w-0">
-          {children}
-        </div>
-      </div>
-      {/* Debug info */}
-    </div>
-  );
-});
-```
+When these props are provided, BaseNodeContainer automatically renders the expand/collapse button as part of its layout, ensuring consistent positioning across all node types.
 
-### Path Normalization Utility
+### handleToggleCollapse (Existing - Works Well)
 
-```typescript
-// In src/lib/diagram/pathUtils.ts (or new file)
-export const normalizeNodePath = (id: string, dataPath?: string): string => {
-  // Use dataPath if provided
-  if (dataPath) return dataPath;
-  
-  // Derive from id
-  if (id === 'root') return 'root';
-  if (id.startsWith('prop-')) return `root.properties.${id.substring(5)}`;
-  if (id.startsWith('endpoint-')) return `root.paths.${id.substring(9)}`;
-  if (id.startsWith('method-')) {
-    const parts = id.substring(7).split('-');
-    const method = parts[0];
-    const path = parts.slice(1).join('-');
-    return `root.paths.${path}.${method}`;
-  }
-  
-  // Fallback: replace dashes with dots
-  return id.replace(/-/g, '.');
-};
-
-export const pathToStructureEditorPath = (diagramPath: string): string => {
-  // Convert diagram path to structure editor format
-  // e.g., "root.paths.-v1-users" -> "root.paths./v1/users"
-  return diagramPath.replace(/-/g, '/');
-};
-```
-
-### Updated handleToggleCollapse
-
-The existing logic in `useEditorState.ts` already handles parent expansion and descendant cleanup. We'll add support for explicit depth tracking:
-
-```typescript
-// Enhancement in handleToggleCollapse
-const handleToggleCollapse = useCallback((path: string, isCollapsed: boolean, expandDepth?: number) => {
-  setCollapsedPaths(prev => {
-    const updated = { ...prev };
-    updated[path] = isCollapsed;
-    
-    // Existing parent expansion logic
-    if (!isCollapsed) {
-      const segments = path.split('.');
-      let parentPath = '';
-      for (let i = 0; i < segments.length - 1; i++) {
-        parentPath = parentPath ? `${parentPath}.${segments[i]}` : segments[i];
-        if (updated[parentPath] !== false) {
-          updated[parentPath] = false;
-        }
-      }
-    }
-    
-    // Existing descendant cleanup logic
-    if (isCollapsed) {
-      const pathPrefix = path + '.';
-      Object.keys(updated).forEach(existingPath => {
-        if (existingPath.startsWith(pathPrefix)) {
-          delete updated[existingPath];
-        }
-      });
-    }
-    
-    return updated;
-  });
-}, []);
-```
+The existing logic in `useEditorState.ts` handles:
+- Parent expansion when expanding a child
+- Descendant cleanup when collapsing an ancestor
+- Component segment auto-collapse logic
 
 ---
 
-## Migration Strategy
-
-1. **Phase 1-2**: Core infrastructure changes (types, BaseNodeContainer) - non-breaking
-2. **Phase 3**: Migrate nodes one-by-one, ensuring tests pass after each
-3. **Phase 4-5**: Enhance sync logic with backward compatibility
-
-## Testing Approach
-
-- Verify each node type still renders correctly
-- Test expand/collapse triggers update in structure editor
-- Test structure editor expand triggers update in diagram
-- Test JSON editor folding syncs with collapsed state
-- Verify parent expansion when child is expanded
-- Verify descendant cleanup when ancestor is collapsed
-
 ## Files Summary
 
-| File | Action | Description |
+| File | Status | Description |
 |------|--------|-------------|
-| `src/lib/diagram/types.ts` | Modify | Add `BaseNodeData` interface |
-| `src/components/schema-node/BaseNodeContainer.tsx` | Modify | Add expand control props and rendering |
-| `src/lib/diagram/nodeGenerator.ts` | Modify | Standardize `nodePath` in all node creators |
-| `src/components/schema-node/*.tsx` (11 files) | Modify | Simplify by using BaseNodeContainer expand controls |
-| `src/components/schema/SchemaStructureEditor.tsx` | Modify | Improve path sync with diagram |
-| `src/components/editor/useEditorState.ts` | Minor | No breaking changes, enhance logging |
+| `src/lib/diagram/types.ts` | ✓ Done | Added `BaseNodeData` interface |
+| `src/components/schema-node/BaseNodeContainer.tsx` | ✓ Done | Added expand control props and rendering |
+| `src/components/schema-node/SchemaTypeNode.tsx` | ✓ Done | Uses BaseNodeContainer expand |
+| `src/components/schema-node/InfoNode.tsx` | ✓ Done | Uses BaseNodeContainer expand |
+| `src/components/schema-node/EndpointNode.tsx` | ✓ Done | Uses BaseNodeContainer expand |
+| `src/components/schema-node/ComponentsNode.tsx` | ✓ Done | Uses BaseNodeContainer expand |
+| `src/components/schema-node/MethodNode.tsx` | ✓ Done | Uses BaseNodeContainer expand |
+| `src/components/schema-node/ResponseNode.tsx` | ✓ Done | Uses BaseNodeContainer expand |
+| `src/components/schema-node/ContentTypeNode.tsx` | ✓ Done | Uses BaseNodeContainer expand |
+| `src/components/schema-node/ParametersNode.tsx` | ✓ Done | Uses BaseNodeContainer expand |
+| `src/components/schema-node/SecurityNode.tsx` | ✓ Done | Uses BaseNodeContainer expand |
+| `src/components/schema-node/RequestBodyNode.tsx` | ✓ Done | Uses BaseNodeContainer expand |
+| `src/components/schema-node/MethodTagsNode.tsx` | ✓ Done | Uses BaseNodeContainer expand |

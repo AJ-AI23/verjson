@@ -5,7 +5,6 @@ import { NodeHeader } from './NodeHeader';
 import { NodeMetaInfo } from './NodeMetaInfo';
 import { PropertyDetails } from './PropertyDetails';
 import { NodeCollapseIndicator } from './NodeCollapseIndicator';
-import { NodeExpandCollapseButton } from './NodeExpandCollapseButton';
 import { NotationsIndicator } from './NotationsIndicator';
 import { NotationsPanel } from './NotationsPanel';
 import { NotationComment } from '@/types/notations';
@@ -160,19 +159,14 @@ export const SchemaTypeNode = memo(({ data, isConnectable, id, selected, onAddNo
       showTargetHandle={!isRoot}
       showSourceHandle={showSourceHandle}
       selected={selected}
+      // Pass expand/collapse props to BaseNodeContainer
+      nodePath={nodePath}
+      isCollapsed={isCollapsed}
+      hasChildren={hasChildren}
+      onToggleCollapse={onToggleCollapse}
     >
       <div className="flex flex-col gap-1 min-w-0">
         <div className="flex items-start justify-between gap-2 min-w-0">
-          {/* Expand/Collapse button */}
-          {hasChildren && onToggleCollapse && (
-            <NodeExpandCollapseButton
-              isCollapsed={!!isCollapsed}
-              hasChildren={hasChildren}
-              path={nodePath}
-              onToggleCollapse={onToggleCollapse}
-              className="flex-shrink-0 mt-0.5"
-            />
-          )}
           <div className="min-w-0 flex-1">
             <NodeHeader 
               label={label}

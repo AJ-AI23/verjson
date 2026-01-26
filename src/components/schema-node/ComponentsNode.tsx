@@ -1,7 +1,6 @@
 import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { NodeNotations } from './NodeNotations';
-import { NodeExpandCollapseButton } from './NodeExpandCollapseButton';
 import { NotationComment } from '@/types/notations';
 import { BaseNodeContainer } from './BaseNodeContainer';
 
@@ -22,6 +21,7 @@ export interface ComponentsNodeProps {
     hasMoreLevels?: boolean;
     isCollapsed?: boolean;
     path?: string;
+    hasCollapsibleContent?: boolean;
   };
   id: string;
   isConnectable: boolean;
@@ -31,11 +31,11 @@ export interface ComponentsNodeProps {
 }
 
 export const ComponentsNode = memo(({ data, isConnectable, id, selected, onAddNotation, onToggleCollapse }: ComponentsNodeProps) => {
-  const { schemasCount, schemas = [], notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, path } = data;
+  const { schemasCount, schemas = [], notations = [], notationCount = 0, hasNotations = false, hasMoreLevels = false, isCollapsed = false, path, hasCollapsibleContent } = data;
 
   // Determine if node has children
-  const hasChildren = hasMoreLevels || schemas.length > 0;
-  const nodePath = path || id;
+  const hasChildren = hasCollapsibleContent || hasMoreLevels || schemas.length > 0;
+  const nodePath = path || 'root.components';
 
   return (
     <BaseNodeContainer
@@ -49,19 +49,15 @@ export const ComponentsNode = memo(({ data, isConnectable, id, selected, onAddNo
         isCollapsed && 'border-dashed bg-emerald-50/50',
         hasNotations && 'border-l-2 border-l-amber-400'
       )}
+      // Pass expand/collapse props to BaseNodeContainer
+      nodePath={nodePath}
+      isCollapsed={isCollapsed}
+      hasChildren={hasChildren}
+      onToggleCollapse={onToggleCollapse}
     >
       <div className="flex flex-col gap-2">
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-2">
-            {hasChildren && onToggleCollapse && (
-              <NodeExpandCollapseButton
-                isCollapsed={isCollapsed}
-                hasChildren={hasChildren}
-                path={nodePath}
-                onToggleCollapse={onToggleCollapse}
-                className="flex-shrink-0"
-              />
-            )}
             <div className="text-sm font-semibold text-slate-900 flex-1">Components</div>
             <NodeNotations
               notations={notations}
