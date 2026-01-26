@@ -3,7 +3,6 @@ import { useRef, useCallback, useEffect } from 'react';
 import { CollapsedState } from '@/lib/diagram/types';
 import { FoldingDebugInfo } from './types';
 import { useBulkExpandCollapse } from './useBulkExpandCollapse';
-import { useDebug } from '@/contexts/DebugContext';
 
 interface UseJsonEditorEventsProps {
   onToggleCollapse?: (path: string, isCollapsed: boolean) => void;
@@ -22,7 +21,6 @@ export const useJsonEditorEvents = ({
   maxDepth,
   rootSchema
 }: UseJsonEditorEventsProps) => {
-  const { debugToast } = useDebug();
   // Keep a reference to the latest collapsedPaths
   const collapsedPathsRef = useRef<Record<string, boolean>>(collapsedPaths);
   
@@ -67,21 +65,13 @@ export const useJsonEditorEvents = ({
     onToggleCollapse,
     maxDepth
   });
-  debugToast('useJsonEditorEvents initialized', { maxDepth });
 
   // Create event handlers for JSONEditor
   const createEditorEventHandlers = useCallback(() => {
-    debugToast('Creating JSONEditor event handlers with toggle logic');
-    
     // Handle expand event from JSONEditor - we use this to toggle the collapsed state
     const onExpand = (node: any) => {
       const path = node.path.length > 0 ? node.path.join('.') : 'root';
       const normalizedPath = normalizePath(path);
-      
-      // Reduced logging - only log when necessary
-      if (path === 'root' || path.includes('properties')) {
-        debugToast(`onExpand: ${normalizedPath}`);
-      }
       
       // Force update the ref to latest state before reading
       collapsedPathsRef.current = { ...collapsedPaths };
@@ -93,11 +83,6 @@ export const useJsonEditorEvents = ({
       // If current state is true (collapsed), new state is false (expanded)
       // If current state is false (expanded), new state is true (collapsed)
       const newCollapsedState = !currentlyCollapsed;
-      
-      // Only log significant state changes
-      if (path === 'root' || path.includes('properties')) {
-        debugToast(`${normalizedPath}: ${currentlyCollapsed ? 'collapsed' : 'expanded'} → ${newCollapsedState ? 'collapsed' : 'expanded'}`);
-      }
       
       if (onToggleCollapse) {
         onToggleCollapse(normalizedPath, newCollapsedState);
