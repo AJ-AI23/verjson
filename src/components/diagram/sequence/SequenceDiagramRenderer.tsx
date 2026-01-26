@@ -192,38 +192,63 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
   // Clipboard management for copy/paste
   const diagramClipboard = useDiagramClipboard();
 
-  // Duplicate selected node handler
-  const handleDuplicateNode = useCallback(() => {
-    if (selectedNodeIds.length !== 1 || !onDataChange) return;
+  // Duplicate selected entities handler (nodes, lifelines)
+  const handleDuplicateSelection = useCallback(() => {
+    if (!onDataChange) return;
     
-    const nodeId = selectedNodeIds[0];
-    const node = diagramNodes.find(n => n.id === nodeId);
-    if (!node) return;
+    // Build selection from current state
+    const selection = {
+      nodeIds: selectedNodeIds,
+      lifelineIds: selectedLifelineId ? [selectedLifelineId] : [],
+      processIds: [] as string[] // Processes cannot be duplicated alone
+    };
     
-    // Copy and immediately paste
-    diagramClipboard.copyNode(node);
-    const newNode = diagramClipboard.pasteNode(diagramNodes, lifelines);
-    if (newNode) {
-      onDataChange({ ...data, nodes: [...diagramNodes, newNode] });
-      // Select the new node
-      setSelectedNodeIds([newNode.id]);
+    // Copy then immediately paste
+    const copied = diagramClipboard.copySelection(
+      selection,
+      diagramNodes,
+      lifelines,
+      data.processes || []
+    );
+    
+    if (copied) {
+      const pasteResult = diagramClipboard.pasteSelection(
+        diagramNodes,
+        lifelines,
+        data.processes || []
+      );
+      
+      if (pasteResult) {
+        // Merge updated processes with existing ones
+        const mergedProcesses = (data.processes || []).map(p => {
+          const updated = pasteResult.updatedProcesses.find(up => up.id === p.id);
+          return updated || p;
+        });
+        
+        onDataChange({
+          ...data,
+          nodes: [...diagramNodes, ...pasteResult.newNodes],
+          lifelines: [...lifelines, ...pasteResult.newLifelines],
+          processes: [...mergedProcesses, ...pasteResult.newProcesses]
+        });
+        
+        // Select the new entities
+        if (pasteResult.newNodes.length > 0) {
+          setSelectedNodeIds(pasteResult.newNodes.map(n => n.id));
+          setSelectedLifelineId(null);
+          setSelectedProcessId(null);
+        } else if (pasteResult.newLifelines.length > 0) {
+          setSelectedLifelineId(pasteResult.newLifelines[0].id);
+          setSelectedNodeIds([]);
+          setSelectedProcessId(null);
+        }
+      }
     }
-  }, [selectedNodeIds, diagramNodes, lifelines, data, onDataChange, diagramClipboard]);
+  }, [selectedNodeIds, selectedLifelineId, diagramNodes, lifelines, data, onDataChange, diagramClipboard]);
 
-  // Duplicate selected lifeline handler
-  const handleDuplicateLifeline = useCallback(() => {
-    if (!selectedLifelineId || !onDataChange) return;
-    
-    const lifeline = lifelines.find(l => l.id === selectedLifelineId);
-    if (!lifeline) return;
-    
-    diagramClipboard.copyLifeline(lifeline);
-    const newLifeline = diagramClipboard.pasteLifeline(lifelines);
-    if (newLifeline) {
-      onDataChange({ ...data, lifelines: [...lifelines, newLifeline] });
-      setSelectedLifelineId(newLifeline.id);
-    }
-  }, [selectedLifelineId, lifelines, data, onDataChange, diagramClipboard]);
+  // Legacy handler for backward compatibility with toolbar
+  const handleDuplicateNode = handleDuplicateSelection;
+  const handleDuplicateLifeline = handleDuplicateSelection;
 
   // Keyboard shortcuts for process creation, deletion, navigation, and copy/paste
   useEffect(() => {
@@ -337,24 +362,78 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
         return;
       }
       
-      // Copy (Ctrl+C / Cmd+C)
+      // Copy (Ctrl+C / Cmd+C) - uses multi-entity clipboard
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c' && !readOnly) {
         event.preventDefault();
         
-        if (selectedNodeIds.length === 1) {
-          const node = diagramNodes.find(n => n.id === selectedNodeIds[0]);
-          if (node) {
-            diagramClipboard.copyNode(node);
-          }
-        } else if (selectedLifelineId) {
-          const lifeline = lifelines.find(l => l.id === selectedLifelineId);
-          if (lifeline) {
-            diagramClipboard.copyLifeline(lifeline);
-          }
-        } else if (selectedProcessId) {
-          const process = (data.processes || []).find(p => p.id === selectedProcessId);
-          if (process) {
-            diagramClipboard.copyProcess(process);
+        // Build selection from current state
+        const selection = {
+          nodeIds: selectedNodeIds,
+          lifelineIds: selectedLifelineId ? [selectedLifelineId] : [],
+          processIds: selectedProcessId ? [selectedProcessId] : []
+        };
+        
+        // Use multi-entity copy with validation
+        diagramClipboard.copySelection(
+          selection,
+          diagramNodes,
+          lifelines,
+          data.processes || []
+        );
+        return;
+      }
+      
+      // Duplicate (Ctrl+D / Cmd+D) - copy and immediate paste
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'd' && !readOnly && onDataChange) {
+        event.preventDefault();
+        
+        // Build selection from current state
+        const selection = {
+          nodeIds: selectedNodeIds,
+          lifelineIds: selectedLifelineId ? [selectedLifelineId] : [],
+          processIds: selectedProcessId ? [selectedProcessId] : []
+        };
+        
+        // Copy then immediately paste
+        const copied = diagramClipboard.copySelection(
+          selection,
+          diagramNodes,
+          lifelines,
+          data.processes || []
+        );
+        
+        if (copied) {
+          const pasteResult = diagramClipboard.pasteSelection(
+            diagramNodes,
+            lifelines,
+            data.processes || []
+          );
+          
+          if (pasteResult) {
+            // Merge updated processes with existing ones
+            const existingProcessIds = new Set((data.processes || []).map(p => p.id));
+            const mergedProcesses = (data.processes || []).map(p => {
+              const updated = pasteResult.updatedProcesses.find(up => up.id === p.id);
+              return updated || p;
+            });
+            
+            onDataChange({
+              ...data,
+              nodes: [...diagramNodes, ...pasteResult.newNodes],
+              lifelines: [...lifelines, ...pasteResult.newLifelines],
+              processes: [...mergedProcesses, ...pasteResult.newProcesses]
+            });
+            
+            // Select the new entities
+            if (pasteResult.newNodes.length > 0) {
+              setSelectedNodeIds(pasteResult.newNodes.map(n => n.id));
+              setSelectedLifelineId(null);
+              setSelectedProcessId(null);
+            } else if (pasteResult.newLifelines.length > 0) {
+              setSelectedLifelineId(pasteResult.newLifelines[0].id);
+              setSelectedNodeIds([]);
+              setSelectedProcessId(null);
+            }
           }
         }
         return;
@@ -364,27 +443,35 @@ export const SequenceDiagramRenderer: React.FC<SequenceDiagramRendererProps> = (
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v' && !readOnly && onDataChange) {
         event.preventDefault();
         
-        if (diagramClipboard.clipboardType === 'node') {
-          const newNode = diagramClipboard.pasteNode(diagramNodes, lifelines);
-          if (newNode) {
-            onDataChange({ ...data, nodes: [...diagramNodes, newNode] });
-            setSelectedNodeIds([newNode.id]);
-          }
-        } else if (diagramClipboard.clipboardType === 'lifeline') {
-          const newLifeline = diagramClipboard.pasteLifeline(lifelines);
-          if (newLifeline) {
-            onDataChange({ ...data, lifelines: [...lifelines, newLifeline] });
-            setSelectedLifelineId(newLifeline.id);
-          }
-        } else if (diagramClipboard.clipboardType === 'process') {
-          const result = diagramClipboard.pasteProcess(data.processes || [], diagramNodes);
-          if (result) {
-            onDataChange({ 
-              ...data, 
-              processes: [...(data.processes || []), result.process],
-              nodes: result.updatedNodes
-            });
-            setSelectedProcessId(result.process.id);
+        const pasteResult = diagramClipboard.pasteSelection(
+          diagramNodes,
+          lifelines,
+          data.processes || []
+        );
+        
+        if (pasteResult) {
+          // Merge updated processes with existing ones
+          const mergedProcesses = (data.processes || []).map(p => {
+            const updated = pasteResult.updatedProcesses.find(up => up.id === p.id);
+            return updated || p;
+          });
+          
+          onDataChange({
+            ...data,
+            nodes: [...diagramNodes, ...pasteResult.newNodes],
+            lifelines: [...lifelines, ...pasteResult.newLifelines],
+            processes: [...mergedProcesses, ...pasteResult.newProcesses]
+          });
+          
+          // Select the new entities
+          if (pasteResult.newNodes.length > 0) {
+            setSelectedNodeIds(pasteResult.newNodes.map(n => n.id));
+            setSelectedLifelineId(null);
+            setSelectedProcessId(null);
+          } else if (pasteResult.newLifelines.length > 0) {
+            setSelectedLifelineId(pasteResult.newLifelines[0].id);
+            setSelectedNodeIds([]);
+            setSelectedProcessId(null);
           }
         }
         return;
@@ -2493,9 +2580,11 @@ const FitViewHelper: React.FC<{
                 <NodeToolbarWrapper
                   diagramPosition={toolbarPosition}
                   selectedCount={selectedNodeIds.length}
+                  entityType="node"
                   onEdit={handleEditNode}
                   onDelete={handleDeleteNode}
-                  onDuplicate={selectedNodeIds.length === 1 ? handleDuplicateNode : undefined}
+                  onDuplicate={handleDuplicateNode}
+                  canDuplicate={true}
                 />
               )}
               
@@ -2503,8 +2592,11 @@ const FitViewHelper: React.FC<{
                 <NodeToolbarWrapper
                   diagramPosition={processToolbarPosition}
                   selectedCount={1}
+                  entityType="process"
                   onEdit={handleEditProcess}
                   onDelete={handleDeleteProcess}
+                  canDuplicate={false}
+                  duplicateDisabledReason="Processes cannot be duplicated without their connected nodes"
                 />
               )}
               
@@ -2512,9 +2604,11 @@ const FitViewHelper: React.FC<{
                 <NodeToolbarWrapper
                   diagramPosition={lifelineToolbarPosition}
                   selectedCount={1}
+                  entityType="lifeline"
                   onEdit={handleEditLifeline}
                   onDelete={handleDeleteLifeline}
                   onDuplicate={handleDuplicateLifeline}
+                  canDuplicate={true}
                 />
               )}
               
