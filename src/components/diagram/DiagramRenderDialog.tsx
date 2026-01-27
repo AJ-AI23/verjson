@@ -118,6 +118,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
         pixelRatio: 1,
         backgroundColor: selectedThemeData?.colors?.background,
         cacheBust: true,
+        skipFonts: true,
         filter: (node) => {
           if (node.classList) {
             return !node.classList.contains('react-flow__controls') &&
@@ -273,11 +274,9 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
           ref={previewContainerRef}
           className="border shadow-lg relative"
           style={{ 
-            width: '100%',
-            height: '100%',
+            aspectRatio: `${width} / ${height}`,
             maxWidth: '100%',
             maxHeight: '100%',
-            aspectRatio: `${width} / ${height}`,
             backgroundColor: activeThemeData.colors.background
           }}
         >
