@@ -256,42 +256,85 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   ), [data, previewStyles, activeTheme, handleRenderReady, handleFitViewReady, handleGetViewportReady, handleViewportChange]);
 
   // Preview panel content (reusable for both layouts)
-  const PreviewPanel = () => (
-    <div className="h-full flex flex-col">
-      <div className="bg-muted px-3 py-2 border-b flex items-center justify-between flex-shrink-0">
-        <span className="text-sm font-medium">Preview</span>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleFitView}
-          className="h-7 text-xs"
-        >
-          Fit to View
-        </Button>
-      </div>
-      <div className="flex-1 min-h-0 flex items-center justify-center p-2">
-        <div 
-          ref={previewContainerRef}
-          className="border shadow-lg relative"
-          style={{ 
-            aspectRatio: `${width} / ${height}`,
-            maxWidth: '100%',
-            maxHeight: '100%',
-            backgroundColor: activeThemeData.colors.background
-          }}
-        >
-          {previewContent}
-          {/* Render area indicator */}
-          <div className="absolute inset-0 pointer-events-none z-10">
-            <div className="absolute inset-0 border-2 border-dashed border-primary/50" />
-            <div className="absolute top-2 right-2 bg-background/90 px-2 py-1 rounded text-xs font-mono shadow-sm">
-              {width} × {height}
+  const PreviewPanel = () => {
+    const wrapperRef = React.useRef<HTMLDivElement>(null);
+    const [containerSize, setContainerSize] = React.useState({ width: 0, height: 0 });
+
+    React.useEffect(() => {
+      const updateSize = () => {
+        if (wrapperRef.current) {
+          const rect = wrapperRef.current.getBoundingClientRect();
+          setContainerSize({ width: rect.width, height: rect.height });
+        }
+      };
+      updateSize();
+      const resizeObserver = new ResizeObserver(updateSize);
+      if (wrapperRef.current) {
+        resizeObserver.observe(wrapperRef.current);
+      }
+      return () => resizeObserver.disconnect();
+    }, []);
+
+    // Calculate dimensions that fit within container while maintaining aspect ratio
+    const targetAspect = width / height;
+    const containerAspect = containerSize.width / (containerSize.height || 1);
+    
+    let previewWidth: string;
+    let previewHeight: string;
+    
+    if (containerSize.width === 0) {
+      // Initial render - use 100% width as default
+      previewWidth = '100%';
+      previewHeight = 'auto';
+    } else if (targetAspect > containerAspect) {
+      // Target is wider than container - constrain by width
+      previewWidth = '100%';
+      previewHeight = 'auto';
+    } else {
+      // Target is taller than container - constrain by height
+      previewWidth = 'auto';
+      previewHeight = '100%';
+    }
+
+    return (
+      <div className="h-full flex flex-col">
+        <div className="bg-muted px-3 py-2 border-b flex items-center justify-between flex-shrink-0">
+          <span className="text-sm font-medium">Preview</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleFitView}
+            className="h-7 text-xs"
+          >
+            Fit to View
+          </Button>
+        </div>
+        <div ref={wrapperRef} className="flex-1 min-h-0 flex items-center justify-center p-2">
+          <div 
+            ref={previewContainerRef}
+            className="border shadow-lg relative"
+            style={{ 
+              aspectRatio: `${width} / ${height}`,
+              width: previewWidth,
+              height: previewHeight,
+              maxWidth: '100%',
+              maxHeight: '100%',
+              backgroundColor: activeThemeData.colors.background
+            }}
+          >
+            {previewContent}
+            {/* Render area indicator */}
+            <div className="absolute inset-0 pointer-events-none z-10">
+              <div className="absolute inset-0 border-2 border-dashed border-primary/50" />
+              <div className="absolute top-2 right-2 bg-background/90 px-2 py-1 rounded text-xs font-mono shadow-sm">
+                {width} × {height}
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
