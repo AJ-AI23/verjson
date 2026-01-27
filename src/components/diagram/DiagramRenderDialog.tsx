@@ -1,26 +1,19 @@
-import React, { useState, useMemo, useCallback } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DiagramStyles, DiagramStyleTheme, defaultLightTheme, defaultDarkTheme } from "@/types/diagramStyles";
-import { SequenceDiagramData } from "@/types/diagram";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { toPng, toSvg } from "html-to-image";
-import { Settings, Eye } from "lucide-react";
-import { ReactFlowProvider } from "@xyflow/react";
-import { SequenceDiagramRenderer } from "./sequence/SequenceDiagramRenderer";
-import { useIsMobile } from "@/hooks/use-mobile";
+import React, { useState, useMemo, useCallback } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DiagramStyles, DiagramStyleTheme, defaultLightTheme, defaultDarkTheme } from '@/types/diagramStyles';
+import { SequenceDiagramData } from '@/types/diagram';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { toPng, toSvg } from 'html-to-image';
+import { Settings, Eye } from 'lucide-react';
+import { ReactFlowProvider } from '@xyflow/react';
+import { SequenceDiagramRenderer } from './sequence/SequenceDiagramRenderer';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface DiagramRenderDialogProps {
   open: boolean;
@@ -37,27 +30,27 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   documentId,
   data,
   styles,
-  diagramRef,
+  diagramRef
 }) => {
   const isMobile = useIsMobile();
   const [width, setWidth] = useState(1920);
   const [height, setHeight] = useState(1080);
-  const [selectedTheme, setSelectedTheme] = useState<string>("light");
-  const [outputFormat, setOutputFormat] = useState<"png" | "svg">("png");
-
+  const [selectedTheme, setSelectedTheme] = useState<string>('light');
+  const [outputFormat, setOutputFormat] = useState<'png' | 'svg'>('png');
+  
   const [activeTheme, setActiveTheme] = useState<string>(selectedTheme);
-  const [mobileTab, setMobileTab] = useState<string>("settings");
+  const [mobileTab, setMobileTab] = useState<string>('settings');
   const previewContainerRef = React.useRef<HTMLDivElement>(null);
   const previewFitViewRef = React.useRef<(() => void) | null>(null);
   const previewGetViewportRef = React.useRef<(() => { x: number; y: number; zoom: number }) | null>(null);
   const hasFittedViewRef = React.useRef(false);
   const isReadyRef = React.useRef(false);
-
+  
   // Memoize callbacks to prevent unnecessary re-renders
   const handleRenderReady = useCallback(() => {
     isReadyRef.current = true;
   }, []);
-
+  
   const handleFitViewReady = useCallback((fitView: () => void) => {
     previewFitViewRef.current = fitView;
     // Auto fit view once on initial load
@@ -66,11 +59,11 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       setTimeout(() => fitView(), 150);
     }
   }, []);
-
+  
   const handleGetViewportReady = useCallback((getViewport: () => { x: number; y: number; zoom: number }) => {
     previewGetViewportRef.current = getViewport;
   }, []);
-
+  
   const handleViewportChange = useCallback(() => {
     // No state updates needed - just track via refs
   }, []);
@@ -82,7 +75,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
 
   // Trigger fitView when switching to preview tab on mobile
   React.useEffect(() => {
-    if (isMobile && mobileTab === "preview" && previewFitViewRef.current) {
+    if (isMobile && mobileTab === 'preview' && previewFitViewRef.current) {
       // Small delay to ensure ReactFlow is fully rendered
       const timer = setTimeout(() => {
         if (previewFitViewRef.current) {
@@ -96,18 +89,18 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
   // Default themes if none provided
   const defaultThemes = {
     light: defaultLightTheme,
-    dark: defaultDarkTheme,
+    dark: defaultDarkTheme
   };
 
-  const availableThemes = styles?.themes ? Object.keys(styles.themes) : ["light", "dark"];
+  const availableThemes = styles?.themes ? Object.keys(styles.themes) : ['light', 'dark'];
 
   const handleRender = async () => {
     if (!previewContainerRef.current) {
-      toast.error("Preview container not found");
+      toast.error('Preview container not found');
       return;
     }
 
-    const selectedThemeData = styles?.themes?.[selectedTheme] || defaultThemes[selectedTheme as "light" | "dark"];
+    const selectedThemeData = styles?.themes?.[selectedTheme] || defaultThemes[selectedTheme as 'light' | 'dark'];
     const captureWidth = width;
     const captureHeight = height;
     const captureFormat = outputFormat;
@@ -117,24 +110,23 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       const containerToCapture = previewContainerRef.current;
 
       // Capture the preview container directly with exact output dimensions
-      const renderFunction = captureFormat === "svg" ? toSvg : toPng;
+      const renderFunction = captureFormat === 'svg' ? toSvg : toPng;
       const dataUrl = await renderFunction(containerToCapture, {
-        quality: captureFormat === "png" ? 1.0 : undefined,
+        quality: captureFormat === 'png' ? 1.0 : undefined,
         canvasWidth: captureWidth,
         canvasHeight: captureHeight,
         pixelRatio: 1,
         backgroundColor: selectedThemeData?.colors?.background,
         cacheBust: true,
+        skipFonts: true,
         filter: (node) => {
           if (node.classList) {
-            return (
-              !node.classList.contains("react-flow__controls") &&
-              !node.classList.contains("react-flow__minimap") &&
-              !node.classList.contains("react-flow__attribution")
-            );
+            return !node.classList.contains('react-flow__controls') &&
+                   !node.classList.contains('react-flow__minimap') &&
+                   !node.classList.contains('react-flow__attribution');
           }
           return true;
-        },
+        }
       });
 
       if (!dataUrl || dataUrl.length < 100) {
@@ -142,38 +134,36 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       }
 
       // Upload to server
-      const { data: uploadData, error } = await supabase.functions.invoke("diagram-render", {
+      const { data: uploadData, error } = await supabase.functions.invoke('diagram-render', {
         body: {
           documentId,
           styleTheme: captureTheme,
           width: captureWidth,
           height: captureHeight,
           imageData: dataUrl,
-          format: captureFormat,
-        },
+          format: captureFormat
+        }
       });
 
       if (error) throw error;
 
       toast.success(`Diagram rendered successfully as ${captureFormat.toUpperCase()}!`);
       onOpenChange(false);
+
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to render diagram");
+      toast.error(error instanceof Error ? error.message : 'Failed to render diagram');
     }
   };
 
   // Memoize preview styles to prevent unnecessary re-renders
-  const previewStyles: DiagramStyles = useMemo(
-    () => ({
-      themes: styles?.themes || defaultThemes,
-    }),
-    [styles?.themes],
-  );
+  const previewStyles: DiagramStyles = useMemo(() => ({
+    themes: styles?.themes || defaultThemes
+  }), [styles?.themes]);
 
   // Get the active theme colors
-  const activeThemeData = useMemo(
-    () => previewStyles.themes[selectedTheme] || previewStyles.themes["light"] || defaultLightTheme,
-    [previewStyles.themes, selectedTheme],
+  const activeThemeData = useMemo(() => 
+    previewStyles.themes[selectedTheme] || previewStyles.themes['light'] || defaultLightTheme,
+    [previewStyles.themes, selectedTheme]
   );
 
   const handleFitView = () => {
@@ -216,7 +206,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {availableThemes.map((theme) => (
+            {availableThemes.map(theme => (
               <SelectItem key={theme} value={theme}>
                 {theme.charAt(0).toUpperCase() + theme.slice(1)}
               </SelectItem>
@@ -227,7 +217,7 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
 
       <div className="space-y-2">
         <Label htmlFor="format">Output Format</Label>
-        <Select value={outputFormat} onValueChange={(value: "png" | "svg") => setOutputFormat(value)}>
+        <Select value={outputFormat} onValueChange={(value: 'png' | 'svg') => setOutputFormat(value)}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
@@ -241,81 +231,119 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       <div className="pt-4 space-y-2 border-t">
         <div className="text-sm text-muted-foreground">
           <p>Aspect Ratio: {(width / height).toFixed(2)}</p>
-          <p className="mt-1">
-            Resolution: {width} × {height}
-          </p>
+          <p className="mt-1">Resolution: {width} × {height}</p>
         </div>
       </div>
     </div>
   );
 
   // Memoize the preview content to prevent re-renders when isRendering changes
-  const previewContent = useMemo(
-    () => (
-      <ReactFlowProvider>
-        <SequenceDiagramRenderer
-          data={data}
-          styles={previewStyles}
-          theme={activeTheme}
-          readOnly={true}
-          isRenderMode={true}
-          hasUserInteractedWithViewport={hasFittedViewRef.current}
-          onRenderReady={handleRenderReady}
-          onFitViewReady={handleFitViewReady}
-          onGetViewportReady={handleGetViewportReady}
-          onViewportChange={handleViewportChange}
-        />
-      </ReactFlowProvider>
-    ),
-    [
-      data,
-      previewStyles,
-      activeTheme,
-      handleRenderReady,
-      handleFitViewReady,
-      handleGetViewportReady,
-      handleViewportChange,
-    ],
-  );
+  const previewContent = useMemo(() => (
+    <ReactFlowProvider>
+      <SequenceDiagramRenderer
+        data={data}
+        styles={previewStyles}
+        theme={activeTheme}
+        readOnly={true}
+        isRenderMode={true}
+        hasUserInteractedWithViewport={hasFittedViewRef.current}
+        onRenderReady={handleRenderReady}
+        onFitViewReady={handleFitViewReady}
+        onGetViewportReady={handleGetViewportReady}
+        onViewportChange={handleViewportChange}
+      />
+    </ReactFlowProvider>
+  ), [data, previewStyles, activeTheme, handleRenderReady, handleFitViewReady, handleGetViewportReady, handleViewportChange]);
 
   // Preview panel content (reusable for both layouts)
-  const PreviewPanel = () => (
-    <div className="h-full flex flex-col">
-      <div className="bg-muted px-3 py-2 border-b flex items-center justify-between flex-shrink-0">
-        <span className="text-sm font-medium">Preview</span>
-        <Button variant="ghost" size="sm" onClick={handleFitView} className="h-7 text-xs">
-          Fit to View
-        </Button>
-      </div>
-      <div className="flex-1 min-h-0 flex items-center justify-center p-2">
-        <div
-          ref={previewContainerRef}
-          className="border shadow-lg relative"
-          style={{
-            width: "100%",
-            height: "100%",
-            maxWidth: "100%",
-            maxHeight: "100%",
-            aspectRatio: `${width} / ${height}`,
-            backgroundColor: activeThemeData.colors.background,
-          }}
-        >
-          {previewContent}
-          {/* Render area indicator */}
-          <div className="absolute inset-0 pointer-events-none z-10">
-            <div className="absolute inset-0 border-2 border-dashed border-primary/50" />
+  const PreviewPanel = () => {
+    const wrapperRef = React.useRef<HTMLDivElement>(null);
+    const [containerSize, setContainerSize] = React.useState({ width: 0, height: 0 });
+
+    React.useEffect(() => {
+      const updateSize = () => {
+        if (wrapperRef.current) {
+          const rect = wrapperRef.current.getBoundingClientRect();
+          setContainerSize({ width: rect.width, height: rect.height });
+        }
+      };
+      updateSize();
+      const resizeObserver = new ResizeObserver(updateSize);
+      if (wrapperRef.current) {
+        resizeObserver.observe(wrapperRef.current);
+      }
+      return () => resizeObserver.disconnect();
+    }, []);
+
+    // Calculate dimensions that fit within container while maintaining aspect ratio
+    const targetAspect = width / height;
+    const containerAspect = containerSize.width / (containerSize.height || 1);
+    
+    let previewWidth: string;
+    let previewHeight: string;
+    
+    if (containerSize.width === 0) {
+      // Initial render - use 100% width as default
+      previewWidth = '100%';
+      previewHeight = 'auto';
+    } else if (targetAspect > containerAspect) {
+      // Target is wider than container - constrain by width
+      previewWidth = '100%';
+      previewHeight = 'auto';
+    } else {
+      // Target is taller than container - constrain by height
+      previewWidth = 'auto';
+      previewHeight = '100%';
+    }
+
+    return (
+      <div className="h-full flex flex-col">
+        <div className="bg-muted px-3 py-2 border-b flex items-center justify-between flex-shrink-0">
+          <span className="text-sm font-medium">Preview</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleFitView}
+            className="h-7 text-xs"
+          >
+            Fit to View
+          </Button>
+        </div>
+        <div ref={wrapperRef} className="flex-1 min-h-0 flex items-center justify-center p-2">
+          <div 
+            ref={previewContainerRef}
+            className="border shadow-lg relative"
+            style={{ 
+              aspectRatio: `${width} / ${height}`,
+              width: previewWidth,
+              height: previewHeight,
+              maxWidth: '100%',
+              maxHeight: '100%',
+              backgroundColor: activeThemeData.colors.background
+            }}
+          >
+            {previewContent}
+            {/* Render area indicator */}
+            <div className="absolute inset-0 pointer-events-none z-10">
+              <div className="absolute inset-0 border-2 border-dashed border-primary/50" />
+              <div className="absolute top-2 right-2 bg-background/90 px-2 py-1 rounded text-xs font-mono shadow-sm">
+                {width} × {height}
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={isMobile ? "max-w-full h-[90vh] p-4" : "max-w-6xl h-[80vh]"}>
         <DialogHeader>
           <DialogTitle>Render Diagram</DialogTitle>
-          <DialogDescription>Configure settings and preview before rendering</DialogDescription>
+          <DialogDescription>
+            Configure settings and preview before rendering
+          </DialogDescription>
         </DialogHeader>
 
         {isMobile ? (
@@ -356,10 +384,17 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
         )}
 
         <DialogFooter className={isMobile ? "flex-col gap-2" : ""}>
-          <Button variant="outline" onClick={() => onOpenChange(false)} className={isMobile ? "w-full" : ""}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className={isMobile ? "w-full" : ""}
+          >
             Cancel
           </Button>
-          <Button onClick={handleRender} className={isMobile ? "w-full" : ""}>
+          <Button
+            onClick={handleRender}
+            className={isMobile ? "w-full" : ""}
+          >
             Render {outputFormat.toUpperCase()}
           </Button>
         </DialogFooter>
