@@ -108,18 +108,14 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
 
     try {
       const containerToCapture = previewContainerRef.current;
-      const previewRect = containerToCapture.getBoundingClientRect();
-      
-      // Calculate pixel ratio to achieve target dimensions
-      const pixelRatio = captureWidth / previewRect.width;
 
-      // Capture the preview container directly
+      // Capture the preview container directly with exact output dimensions
       const renderFunction = captureFormat === 'svg' ? toSvg : toPng;
       const dataUrl = await renderFunction(containerToCapture, {
         quality: captureFormat === 'png' ? 1.0 : undefined,
-        pixelRatio: captureFormat === 'png' ? pixelRatio : 1,
-        width: previewRect.width,
-        height: previewRect.height,
+        canvasWidth: captureWidth,
+        canvasHeight: captureHeight,
+        pixelRatio: 1,
         backgroundColor: selectedThemeData?.colors?.background,
         cacheBust: true,
         filter: (node) => {
@@ -286,6 +282,13 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
           }}
         >
           {previewContent}
+          {/* Render area indicator */}
+          <div className="absolute inset-0 pointer-events-none z-10">
+            <div className="absolute inset-0 border-2 border-dashed border-primary/50" />
+            <div className="absolute top-2 right-2 bg-background/90 px-2 py-1 rounded text-xs font-mono shadow-sm">
+              {width} × {height}
+            </div>
+          </div>
         </div>
       </div>
     </div>
