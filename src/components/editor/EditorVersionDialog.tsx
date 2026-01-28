@@ -2,8 +2,9 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { VersionHistory } from '@/components/VersionHistory';
-import { Operation } from 'fast-json-patch'; // Changed from JsonPatch to Operation
-import { SchemaPatch } from '@/lib/versionUtils'; // Added import for SchemaPatch
+import { Operation } from 'fast-json-patch';
+import { SchemaPatch, Version, VersionTier } from '@/lib/versionUtils';
+import { DocumentVersionComparison } from '@/lib/importVersionUtils';
 import { useDebug } from '@/contexts/DebugContext';
 
 interface EditorVersionDialogProps {
@@ -13,11 +14,18 @@ interface EditorVersionDialogProps {
   onToggleSelection: (patchId: string) => Promise<void>;
   onMarkAsReleased: (patchId: string) => Promise<void>;
   onDeleteVersion: (patchId: string) => void;
-  onImportVersion?: (importedSchema: any, comparison: any, sourceDocumentName: string) => void;
+  onImportVersion?: (importedSchema: any, comparison: DocumentVersionComparison, sourceDocumentName: string) => void;
   currentSchema?: any;
   currentFileType?: string;
   userRole: 'owner' | 'editor' | 'viewer';
   isOwner: boolean;
+  // New props for commit functionality
+  currentVersion?: Version;
+  isModified?: boolean;
+  schema?: string;
+  patches?: any[];
+  onVersionBump?: (newVersion: Version, tier: VersionTier, description: string) => void;
+  suggestedVersion?: Version | null;
 }
 
 export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({
@@ -31,7 +39,13 @@ export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({
   currentSchema,
   currentFileType,
   userRole,
-  isOwner
+  isOwner,
+  currentVersion,
+  isModified,
+  schema,
+  patches,
+  onVersionBump,
+  suggestedVersion
 }) => {
   const { debugToast } = useDebug();
 
@@ -43,7 +57,7 @@ export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh]">
         <DialogHeader>
-          <DialogTitle>Version History</DialogTitle>
+          <DialogTitle>Versions</DialogTitle>
         </DialogHeader>
         <VersionHistory 
           documentId={documentId}
@@ -55,6 +69,12 @@ export const EditorVersionDialog: React.FC<EditorVersionDialogProps> = ({
           currentFileType={currentFileType}
           userRole={userRole}
           isOwner={isOwner}
+          currentVersion={currentVersion}
+          isModified={isModified}
+          schema={schema}
+          patches={patches}
+          onVersionBump={onVersionBump}
+          suggestedVersion={suggestedVersion}
         />
       </DialogContent>
     </Dialog>
