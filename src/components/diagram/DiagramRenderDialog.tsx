@@ -123,7 +123,8 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
           if (node.classList) {
             return !node.classList.contains('react-flow__controls') &&
                    !node.classList.contains('react-flow__minimap') &&
-                   !node.classList.contains('react-flow__attribution');
+                   !node.classList.contains('react-flow__attribution') &&
+                   !node.classList.contains('render-overlay-indicator');
           }
           return true;
         }
@@ -172,16 +173,26 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
     }
   };
 
+  // Use refs to store input values to prevent focus loss during typing
+  const widthInputRef = React.useRef<HTMLInputElement>(null);
+  const heightInputRef = React.useRef<HTMLInputElement>(null);
+
   // Settings panel content (reusable for both layouts)
   const SettingsPanel = () => (
     <div className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="width">Width (px)</Label>
         <Input
+          ref={widthInputRef}
           id="width"
           type="number"
-          value={width}
-          onChange={(e) => setWidth(parseInt(e.target.value) || 1920)}
+          defaultValue={width}
+          onBlur={(e) => setWidth(parseInt(e.target.value) || 1920)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              setWidth(parseInt((e.target as HTMLInputElement).value) || 1920);
+            }
+          }}
           min={800}
           max={4096}
         />
@@ -190,10 +201,16 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
       <div className="space-y-2">
         <Label htmlFor="height">Height (px)</Label>
         <Input
+          ref={heightInputRef}
           id="height"
           type="number"
-          value={height}
-          onChange={(e) => setHeight(parseInt(e.target.value) || 1080)}
+          defaultValue={height}
+          onBlur={(e) => setHeight(parseInt(e.target.value) || 1080)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              setHeight(parseInt((e.target as HTMLInputElement).value) || 1080);
+            }
+          }}
           min={600}
           max={4096}
         />
@@ -323,8 +340,8 @@ export const DiagramRenderDialog: React.FC<DiagramRenderDialogProps> = ({
             }}
           >
             {previewContent}
-            {/* Render area indicator */}
-            <div className="absolute inset-0 pointer-events-none z-10">
+            {/* Render area indicator - hidden during capture via filter */}
+            <div className="render-overlay-indicator absolute inset-0 pointer-events-none z-10">
               <div className="absolute inset-0 border-2 border-dashed border-primary/50" />
               <div className="absolute top-2 right-2 bg-background/90 px-2 py-1 rounded text-xs font-mono shadow-sm">
                 {width} × {height}
