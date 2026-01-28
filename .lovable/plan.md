@@ -1,170 +1,265 @@
 
-# Fix Diagram Render Dialog: Aspect Ratio and Font Error
 
-## Issues Identified
+# Refactor: Move Commit Version to Versions Dialog and Add Document Information Dialog
 
-### Issue 1: Font Error
-**Error**: `can't access property "trim", font is undefined`
+## Overview
 
-**Root Cause**: The `html-to-image` library attempts to embed web fonts during capture, which can fail when fonts are undefined or not accessible.
+This plan restructures the version management UI by:
+1. Moving the "Current Version" panel (renamed to "Commit Version") from the editor bottom into the Versions dialog
+2. Renaming "History" dialog to "Versions"
+3. Creating a new "Document Information" dialog accessible via a document icon in the header
+4. Moving existing document information from the Versions dialog into the new Document Information dialog
 
-**Solution**: Add `skipFonts: true` option to the `toPng`/`toSvg` call, matching the working implementation in `MarkdownRenderDialog.tsx`.
+## Current Architecture
 
-### Issue 2: Aspect Ratio Not Respected
-**Current Behavior**: The capture area indicator fills the entire preview space regardless of the specified dimensions.
+```text
++------------------------------------------+
+| EditorToolbar (header)                   |
+|  [DocumentConfigDialog] Doc Name [...]   |
+|  [History button]                        |
++------------------------------------------+
+| EditorContent                            |
+|  +------------------------------------+  |
+|  | JsonEditorWrapper                  |  |
+|  +------------------------------------+  |
+|  | VersionControls (Current Version)  |  | <-- Move this
+|  +------------------------------------+  |
++------------------------------------------+
 
-**Root Cause**: The CSS uses `width: '100%', height: '100%'` combined with `aspectRatio`, but CSS `aspect-ratio` only works when ONE dimension is constrained and the other is auto. With both set to 100%, the aspect ratio is ignored.
+History Dialog (EditorVersionDialog):
++------------------------------------------+
+| Version History                          |
++------------------------------------------+
+| Document Information Panel (green)       | <-- Move to new dialog
++------------------------------------------+
+| Compare Versions Button                  |
++------------------------------------------+
+| Version History Table                    |
++------------------------------------------+
+```
 
-**Solution**: Use a proper "fit within container" approach:
-- Remove explicit width/height 100%
-- Let the container size itself based on aspect ratio
-- Use max-width and max-height to constrain within available space
-- The container will then properly maintain the target aspect ratio
+## Target Architecture
+
+```text
++------------------------------------------+
+| EditorToolbar (header)                   |
+|  [DocInfoBtn][DocConfig] Doc Name [...]  | <-- Add document info button
+|  [Versions button]                       | <-- Rename from History
++------------------------------------------+
+| EditorContent                            |
+|  +------------------------------------+  |
+|  | JsonEditorWrapper                  |  |
+|  +------------------------------------+  |
+|  | (VersionControls removed)          |  | <-- Removed
+|  +------------------------------------+  |
++------------------------------------------+
+
+Versions Dialog (renamed):
++------------------------------------------+
+| Versions                                 |
++------------------------------------------+
+| Commit Version Panel                     | <-- Moved here (top)
+|  [Version inputs] [Description] [Commit] |
++------------------------------------------+
+| Compare Versions Button                  |
++------------------------------------------+
+| Version History Table                    |
++------------------------------------------+
+
+New Document Information Dialog:
++------------------------------------------+
+| Document Information                     |
++------------------------------------------+
+| Document ID, File Name, Type, etc.       |
++------------------------------------------+
+```
 
 ## Implementation Details
 
-### File: `src/components/diagram/DiagramRenderDialog.tsx`
+### 1. Create New Document Information Dialog
 
-**Change 1: Add skipFonts to prevent font error (line ~114-129)**
-```typescript
-const dataUrl = await renderFunction(containerToCapture, {
-  quality: captureFormat === 'png' ? 1.0 : undefined,
-  canvasWidth: captureWidth,
-  canvasHeight: captureHeight,
-  pixelRatio: 1,
-  backgroundColor: selectedThemeData?.colors?.background,
-  cacheBust: true,
-  skipFonts: true,  // NEW: Prevent font embedding errors
-  filter: (node) => {
-    // ... existing filter
-  }
-});
-```
+**New file: `src/components/DocumentInformationDialog.tsx`**
 
-**Change 2: Fix preview container sizing (lines ~272-292)**
+A new dialog component that displays document metadata:
+- Document ID (with copy button)
+- File Name
+- File Type (badge)
+- Workspace ID
+- Created/Updated timestamps
+- Content Keys
+- User ID
 
-Current (broken):
-```typescript
-style={{ 
-  width: '100%',
-  height: '100%',
-  maxWidth: '100%',
-  maxHeight: '100%',
-  aspectRatio: `${width} / ${height}`,
-  backgroundColor: activeThemeData.colors.background
-}}
-```
+This content is moved from the green "Document Information Panel" in VersionHistory.
 
-Fixed approach - container that respects aspect ratio within available space:
-```typescript
-style={{ 
-  width: 'auto',
-  height: 'auto',
-  maxWidth: '100%',
-  maxHeight: '100%',
-  aspectRatio: `${width} / ${height}`,
-  backgroundColor: activeThemeData.colors.background,
-  // Use object-fit-like behavior via width/height calculation
-  // The aspect-ratio works when we don't force both dimensions
-}}
-```
+### 2. Update EditorToolbar
 
-However, a more reliable cross-browser approach is to calculate the constrained dimensions programmatically based on the available space. We should:
+**File: `src/components/schema/EditorToolbar.tsx`**
 
-1. Get the available container dimensions
-2. Calculate the maximum size that fits while maintaining aspect ratio
-3. Apply those computed dimensions
-
-This ensures the preview container exactly matches the target aspect ratio regardless of the preview area dimensions.
-
-## Visual Result
-
-Before (broken):
-```text
-+------------------------------------------+
-| Preview                                  |
-| +--------------------------------------+ |
-| |                         1920 × 1080  | | <- Fills entire area
-| |                                      | |    regardless of ratio
-| +--------------------------------------+ |
-+------------------------------------------+
-```
-
-After (fixed):
-```text
-+------------------------------------------+
-| Preview                                  |
-|    +-----------------------------+       |
-|    |                  1920×1080  |       | <- Correct 16:9 aspect
-|    |                             |       |    ratio centered
-|    +-----------------------------+       |
-+------------------------------------------+
-```
-
-## Technical Approach for Aspect Ratio
-
-Use a wrapper div with flexbox centering, and let the inner container use `aspect-ratio` with only `max-width` and `max-height` constraints:
+Changes:
+- Add a document information button (FileText icon) next to the document name
+- Opens the new DocumentInformationDialog
+- Rename "History" button text to "Versions"
 
 ```typescript
-// Outer wrapper (already exists)
-<div className="flex-1 min-h-0 flex items-center justify-center p-2">
-  
-  // Inner capture container - fixed approach
-  <div 
-    ref={previewContainerRef}
-    className="border shadow-lg relative overflow-hidden"
-    style={{ 
-      aspectRatio: `${width} / ${height}`,
-      maxWidth: '100%',
-      maxHeight: '100%',
-      // Key: Use min() to ensure we don't exceed container bounds
-      width: 'min(100%, calc((100vh - 300px) * ' + (width/height) + '))',
-      height: 'auto',
-      backgroundColor: activeThemeData.colors.background
-    }}
-  >
+// Add new state
+const [isDocInfoDialogOpen, setIsDocInfoDialogOpen] = useState(false);
+
+// Add button next to document name
+<Button
+  variant="ghost"
+  size="sm"
+  onClick={() => setIsDocInfoDialogOpen(true)}
+  title="Document Information"
+>
+  <FileText className="h-4 w-4" />
+</Button>
+
+// Render dialog
+<DocumentInformationDialog
+  isOpen={isDocInfoDialogOpen}
+  onOpenChange={setIsDocInfoDialogOpen}
+  document={selectedDocument}
+/>
 ```
 
-A simpler CSS-only approach that works reliably:
-- Set width to 100%, height to auto, and let aspect-ratio control height
-- If height exceeds container, CSS object-fit-like logic kicks in
+### 3. Update EditorVersionDialog
 
-The most robust solution is:
+**File: `src/components/editor/EditorVersionDialog.tsx`**
+
+Changes:
+- Rename dialog title from "Version History" to "Versions"
+- Pass additional props to VersionHistory for the commit functionality
+- Add commit-related props interface
+
 ```typescript
-style={{ 
-  maxWidth: '100%',
-  maxHeight: '100%',
-  aspectRatio: `${width} / ${height}`,
-  width: `min(100%, calc(100% * ${Math.min(1, (width/height) / containerAspectRatio)}))`,
-  backgroundColor: activeThemeData.colors.background
-}}
+interface EditorVersionDialogProps {
+  // ... existing props
+  // New props for commit functionality
+  currentVersion: Version;
+  isModified: boolean;
+  schema?: string;
+  patches?: any[];
+  onVersionBump: (newVersion: Version, tier: VersionTier, description: string) => void;
+  onImportVersion?: (...) => void;
+  currentFileType?: string;
+  suggestedVersion?: Version | null;
+}
 ```
 
-But simpler is often better - we can use:
+### 4. Update VersionHistory Component
+
+**File: `src/components/VersionHistory.tsx`**
+
+Changes:
+- Remove the "Document Information Panel" (green section, lines 356-401)
+- Add new props for commit functionality at the top
+- Integrate VersionControls component at the top of the dialog (renamed section header to "Commit Version")
+- Keep the version comparison and table functionality
+
 ```typescript
-style={{ 
-  aspectRatio: `${width} / ${height}`,
-  maxWidth: '100%',
-  maxHeight: '100%',
-  width: '100%',        // Start at full width
-  height: 'fit-content', // Let height adjust based on aspect ratio
-  backgroundColor: activeThemeData.colors.background
-}}
+interface VersionHistoryProps {
+  // ... existing props
+  // New props for commit functionality
+  currentVersion?: Version;
+  isModified?: boolean;
+  schema?: string;
+  onVersionBump?: (newVersion: Version, tier: VersionTier, description: string) => void;
+  suggestedVersion?: Version | null;
+}
+
+// In the render:
+return (
+  <div className="version-history overflow-auto max-h-[400px]">
+    {/* Commit Version Section - NEW */}
+    {onVersionBump && (
+      <div className="mb-4">
+        <VersionControls
+          version={currentVersion}
+          userRole={userRole}
+          onVersionBump={onVersionBump}
+          isModified={isModified}
+          schema={schema}
+          patches={patches}
+          onImportVersion={onImportVersion}
+          documentId={documentId}
+          currentFileType={currentFileType}
+          suggestedVersion={suggestedVersion}
+        />
+      </div>
+    )}
+    
+    {/* Compare Versions Button - existing */}
+    ...
+    
+    {/* Version History Table - existing */}
+    ...
+  </div>
+);
 ```
 
-After testing, the reliable approach is to remove explicit sizing and rely on aspect-ratio + max constraints within a flexbox centering container.
+### 5. Update EditorContent
 
-## Summary of Changes
+**File: `src/components/schema/EditorContent.tsx`**
 
-| Location | Change |
-|----------|--------|
-| Line ~120 | Add `skipFonts: true` to toPng/toSvg options |
-| Lines ~275-282 | Fix container styling to properly respect aspect ratio |
+Changes:
+- Remove the VersionControls component from the editor pane
+- The JsonEditorWrapper now fills the full height without version controls below
+
+```typescript
+const editorPane = (
+  <div className="flex flex-col h-full">
+    <JsonEditorWrapper
+      value={schema} 
+      onChange={guardedOnEditorChange} 
+      // ... other props
+    />
+    {/* VersionControls REMOVED from here */}
+  </div>
+);
+```
+
+### 6. Update Editor.tsx
+
+**File: `src/components/Editor.tsx`**
+
+Changes:
+- Pass additional props to EditorVersionDialog for commit functionality
+- These include: currentVersion, isModified, schema, patches, onVersionBump, suggestedVersion
+
+### 7. Update VersionControls Title
+
+**File: `src/components/VersionControls.tsx`**
+
+Changes:
+- Rename the section header from "Current Version" to "Commit Version"
+
+```typescript
+<h3 className="text-sm font-medium text-slate-700">Commit Version</h3>
+```
+
+## Files to Create
+
+| File | Description |
+|------|-------------|
+| `src/components/DocumentInformationDialog.tsx` | New dialog for document metadata |
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/components/schema/EditorToolbar.tsx` | Add document info button, rename History to Versions |
+| `src/components/schema/EditorContent.tsx` | Remove VersionControls from editor pane |
+| `src/components/editor/EditorVersionDialog.tsx` | Rename title, pass commit props to VersionHistory |
+| `src/components/VersionHistory.tsx` | Remove document info panel, add VersionControls at top |
+| `src/components/VersionControls.tsx` | Rename header to "Commit Version" |
+| `src/components/Editor.tsx` | Pass additional props to EditorVersionDialog |
 
 ## Testing Scenarios
 
-1. Set 1920x1080 (16:9) - verify preview shows wide rectangle, not filling vertical space
-2. Set 1080x1920 (9:16) - verify preview shows tall rectangle
-3. Set 1000x1000 (1:1) - verify preview shows square
-4. Click Render - verify no font error occurs
-5. Verify exported file matches exact specified dimensions
+1. Open a document and click the Versions button - verify commit panel appears at top
+2. Make changes and commit from within the Versions dialog
+3. Click the document info icon - verify document metadata dialog opens
+4. Verify all document information displays correctly in new dialog
+5. Verify version history table still works correctly
+6. Verify version comparison still works
+
