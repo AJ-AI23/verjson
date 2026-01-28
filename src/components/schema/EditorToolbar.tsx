@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { Save, MessageCircle, FileText, Calendar, Clock, Copy, X, Share, Download, RefreshCw, Palette, Upload, Image } from 'lucide-react';
+import { Save, MessageCircle, FileText, Calendar, Clock, Copy, X, Share, Download, RefreshCw, Palette, Upload, Image, Info } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -18,6 +18,7 @@ import { DocumentConfigDialog } from '@/components/DocumentConfigDialog';
 import { UrlAuthDialog } from '@/components/workspace/UrlAuthDialog';
 import { DiagramRenderDialog } from '@/components/diagram/DiagramRenderDialog';
 import { MarkdownRenderDialog } from '@/components/markdown/MarkdownRenderDialog';
+import { DocumentInformationDialog } from '@/components/DocumentInformationDialog';
 import { supabase } from '@/integrations/supabase/client';
 
 import { SchemaType } from '@/lib/schemaUtils';
@@ -75,6 +76,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [pendingUrl, setPendingUrl] = useState<string>('');
   const [isRenderDialogOpen, setIsRenderDialogOpen] = useState(false);
+  const [isDocInfoDialogOpen, setIsDocInfoDialogOpen] = useState(false);
   
   const { groupedNotations, activeNotationCount } = useNotationsManager(schema);
   
@@ -298,6 +300,21 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-sm">
                   <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={() => setIsDocInfoDialogOpen(true)}
+                          >
+                            <Info className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Document Information</p>
+                        </TooltipContent>
+                      </Tooltip>
                       <DocumentConfigDialog 
                         document={selectedDocument}
                         onDocumentUpdate={onDocumentUpdate || (() => {})}
@@ -443,7 +460,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                   disabled={!selectedDocument}
                 >
                   <Save className="h-4 w-4" />
-                  <span className="hidden sm:inline">History</span>
+                  <span className="hidden sm:inline">Versions</span>
                 </Button>
 
                 <Button 
@@ -639,6 +656,13 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             return null;
           }
         })()}
+
+        {/* Document Information Dialog */}
+        <DocumentInformationDialog
+          isOpen={isDocInfoDialogOpen}
+          onOpenChange={setIsDocInfoDialogOpen}
+          document={selectedDocument}
+        />
       </div>
     </TooltipProvider>
   );

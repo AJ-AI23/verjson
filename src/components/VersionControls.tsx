@@ -230,7 +230,7 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
   return (
     <div className="border-t border-slate-200 p-3 bg-slate-50 space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-slate-700">Current Version</h3>
+        <h3 className="text-sm font-medium text-slate-700">Commit Version</h3>
         <div className="flex items-center gap-2">
           {onImportVersion && documentId && currentFileType && (
             <Button

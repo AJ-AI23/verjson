@@ -454,6 +454,20 @@ export const Editor = ({ initialSchema, onSave, documentName, selectedDocument, 
         onDeleteVersion={handleDeleteVersion}
         userRole={userPermissions.role}
         isOwner={userPermissions.isOwner}
+        currentVersion={currentVersion}
+        isModified={isModified}
+        schema={schema}
+        patches={patches}
+        onVersionBump={async (newVersion, tier, description) => {
+          const newVersionId = await handleVersionBump(newVersion, tier, description);
+          if (newVersionId) {
+            console.log('📌 Tracking newly committed version from Versions dialog:', newVersionId);
+            setLoadedVersionId(newVersionId);
+          }
+        }}
+        onImportVersion={handleImportVersion}
+        currentFileType={selectedDocument?.file_type}
+        suggestedVersion={suggestedVersion}
       />
     </div>
   );

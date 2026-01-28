@@ -5,7 +5,6 @@ import { JsonEditorWrapper } from '@/components/JsonEditorWrapper';
 import { SchemaDiagram } from '@/components/diagram/SchemaDiagram';
 import { MarkdownEditor } from '@/components/markdown/MarkdownEditor';
 import { MarkdownStylesDialog } from '@/components/markdown/MarkdownStylesDialog';
-import { VersionControls } from '@/components/VersionControls';
 import { CollapsedState } from '@/lib/diagram/types';
 import { DocumentVersionComparison } from '@/lib/importVersionUtils';
 import { Version, VersionTier } from '@/lib/versionUtils';
@@ -173,18 +172,6 @@ export const EditorContent: React.FC<EditorContentProps> = ({
         showDiagram={showDiagram}
         onToggleDiagram={() => setShowDiagram(!showDiagram)}
         selectedNodePath={selectedNodePath}
-      />
-      <VersionControls 
-        version={currentVersion} 
-        userRole={userRole}
-        onVersionBump={onVersionBump}
-        isModified={isModified}
-        schema={schema}
-        patches={patches}
-        onImportVersion={onImportVersion}
-        documentId={documentId}
-        currentFileType={currentFileType}
-        suggestedVersion={suggestedVersion}
       />
     </div>
   );
