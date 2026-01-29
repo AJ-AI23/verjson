@@ -4,3 +4,7 @@ export { ManifestBreadcrumb } from './ManifestBreadcrumb';
 export { ManifestSearch } from './ManifestSearch';
 export { ManifestContentPane } from './ManifestContentPane';
 export { ManifestStructureEditor } from './ManifestStructureEditor';
+export { TOCEntryEditor } from './TOCEntryEditor';
+export { EditableValue } from './EditableValue';
+export { AddPageButton } from './AddPageButton';
+export { DocumentReferenceDialog } from './DocumentReferenceDialog';
