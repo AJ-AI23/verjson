@@ -205,6 +205,33 @@ export const ManifestStructureEditor: React.FC<ManifestStructureEditorProps> = (
     onSchemaChange(newSchema);
   }, [schema, onSchemaChange]);
 
+  // Detect embed type from document content
+  const detectEmbedType = useCallback((documentContent: any): 'markdown' | 'diagram' | 'json-schema' | 'openapi' => {
+    if (!documentContent) return 'markdown';
+    
+    // Check for VerjSON document types
+    if (documentContent.verjson) {
+      const docType = documentContent.type;
+      if (docType === 'markdown' || docType === 'extended-markdown') {
+        return 'markdown';
+      }
+      if (docType === 'sequence' || docType === 'flowchart') {
+        return 'diagram';
+      }
+      if (docType === 'json-schema') {
+        return 'json-schema';
+      }
+    }
+    
+    // Check for OpenAPI/Swagger documents
+    if (documentContent.openapi || documentContent.swagger) {
+      return 'openapi';
+    }
+    
+    // Default to markdown for unknown types
+    return 'markdown';
+  }, []);
+
   // Handle add embed - fetches document content and creates embed entry
   const handleAddEmbed = useCallback(async (documentId: string, documentName?: string): Promise<string | null> => {
     try {
@@ -229,10 +256,13 @@ export const ManifestStructureEditor: React.FC<ManifestStructureEditorProps> = (
         return null;
       }
 
+      // Detect the embedded document type
+      const embedType = detectEmbedType(documentContent);
+
       const embedId = `embed-${Date.now()}`;
       const newEmbed: ManifestEmbed = {
         id: embedId,
-        type: 'markdown',
+        type: embedType,
         documentId,
         content: documentContent, // Store the full document content
       };
@@ -247,7 +277,7 @@ export const ManifestStructureEditor: React.FC<ManifestStructureEditorProps> = (
       onSchemaChange(newSchema);
       
       toast.success('Document embedded', {
-        description: documentName || 'Content copied to manifest'
+        description: `${embedType.charAt(0).toUpperCase() + embedType.slice(1)} content copied to manifest`
       });
       
       return embedId;
@@ -256,7 +286,7 @@ export const ManifestStructureEditor: React.FC<ManifestStructureEditorProps> = (
       toast.error('Failed to embed document');
       return null;
     }
-  }, [schema, onSchemaChange, invoke]);
+  }, [schema, onSchemaChange, invoke, detectEmbedType]);
 
   if (!schema || typeof schema !== 'object') {
     return (
