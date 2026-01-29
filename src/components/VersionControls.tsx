@@ -12,7 +12,7 @@ import { Download } from 'lucide-react';
 interface VersionControlsProps {
   version: Version;
   userRole?: 'owner' | 'editor' | 'viewer' | null;
-  onVersionBump: (newVersion: Version, tier: VersionTier, description: string, isReleased?: boolean, autoVersion?: boolean) => void;
+  onVersionBump: (newVersion: Version, tier: VersionTier, description: string, isReleased?: boolean, autoVersion?: boolean) => Promise<string | null>;
   isModified: boolean;
   schema?: string;
   patches?: any[];
