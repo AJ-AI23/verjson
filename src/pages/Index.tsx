@@ -60,19 +60,19 @@ const Index = () => {
       setSelectedDocument(prev => prev ? { ...prev, ...metadata } : null);
     }
   }, [documentContent]);
-  // Redirect to auth if not logged in - with delay to prevent race conditions
+  // Redirect to landing page if not logged in - with delay to prevent race conditions
   useEffect(() => {
     if (!loading && !user) {
-      // Check if we're already redirecting
-      if (window.location.pathname === '/auth') {
+      // Check if we're already on auth or landing page
+      if (window.location.pathname === '/auth' || window.location.pathname === '/landing.html') {
         return;
       }
       
       // Add a small delay to ensure auth state is fully settled
       const timer = setTimeout(() => {
-        console.log('[Index] Redirecting to auth - no user found');
+        console.log('[Index] Redirecting to landing page - no user found');
         // Use replace to prevent back-button loops
-        window.location.replace('/auth');
+        window.location.replace('/landing.html');
       }, 100);
       return () => clearTimeout(timer);
     }
