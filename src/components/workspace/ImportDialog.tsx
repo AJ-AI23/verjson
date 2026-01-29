@@ -23,7 +23,7 @@ interface FileToImport {
   id: string;
   name: string;
   content: any;
-  fileType: 'json-schema' | 'openapi' | 'diagram';
+  fileType: 'json-schema' | 'openapi' | 'diagram' | 'markdown' | 'manifest';
   source: 'file' | 'url';
   size: number;
   valid: boolean;
@@ -55,8 +55,14 @@ export function ImportDialog({
   const [editingFileId, setEditingFileId] = useState<string | null>(null);
   const [editingFileName, setEditingFileName] = useState<string>('');
 
-  const detectFileType = (content: any): 'json-schema' | 'openapi' | 'diagram' => {
+  const detectFileType = (content: any): 'json-schema' | 'openapi' | 'diagram' | 'markdown' | 'manifest' => {
     if (content.openapi || content.swagger) return 'openapi';
+    // VerjSON manifest detection
+    if (content.verjson && content.type === 'manifest') return 'manifest';
+    // VerjSON markdown detection
+    if (content.verjson && (content.type === 'markdown' || content.type === 'extended-markdown')) return 'markdown';
+    // VerjSON diagram detection
+    if (content.verjson && (content.type === 'sequence' || content.type === 'flowchart')) return 'diagram';
     if (content.$schema?.includes('diagram') || content.type === 'diagram' || content.diagramType) return 'diagram';
     return 'json-schema';
   };
@@ -71,11 +77,26 @@ export function ImportDialog({
         if (!content.info || !content.paths) {
           return { valid: false, error: 'Invalid OpenAPI structure - missing info or paths' };
         }
+      } else if (content.verjson && content.type === 'manifest') {
+        // VerjSON manifest validation
+        if (!content.data?.toc) {
+          return { valid: false, error: 'Invalid manifest structure - missing data.toc' };
+        }
+        return { valid: true };
+      } else if (content.verjson && (content.type === 'markdown' || content.type === 'extended-markdown')) {
+        // VerjSON markdown validation
+        if (!content.data?.pages) {
+          return { valid: false, error: 'Invalid markdown structure - missing data.pages' };
+        }
+        return { valid: true };
+      } else if (content.verjson && (content.type === 'sequence' || content.type === 'flowchart')) {
+        // VerjSON diagram validation
+        return { valid: true };
       } else if (content.type || content.properties || content.$schema) {
         // Basic JSON Schema validation
         return { valid: true };
       } else {
-        return { valid: false, error: 'Unknown file format - not a valid OpenAPI or JSON Schema' };
+        return { valid: false, error: 'Unknown file format - not a valid OpenAPI, JSON Schema, or VerjSON document' };
       }
       
       return { valid: true };

@@ -39,7 +39,7 @@ try {
   console.warn('Could not pre-load draft 2020-12 meta-schema:', e);
 }
 
-export type SchemaType = 'json-schema' | 'openapi' | 'diagram' | 'markdown';
+export type SchemaType = 'json-schema' | 'openapi' | 'diagram' | 'markdown' | 'manifest';
 
 const isMarkdownDocType = (t: any): boolean => t === 'markdown' || t === 'extended-markdown';
 
@@ -53,13 +53,23 @@ export const validateJsonSchema = (jsonString: string, schemaType: SchemaType = 
     // Parse JSON
     const parsedSchema = JSON.parse(jsonString);
     
-    // Auto-detect schema type (prefer OpenAPI/Diagram when confidently detected)
+    // Auto-detect schema type (prefer OpenAPI/Diagram/Manifest when confidently detected)
     const detectedType = detectSchemaType(parsedSchema);
     const typeToUse: SchemaType =
-      detectedType === 'openapi' || detectedType === 'diagram' || detectedType === 'markdown' ? detectedType : schemaType;
+      detectedType === 'openapi' || detectedType === 'diagram' || detectedType === 'markdown' || detectedType === 'manifest' ? detectedType : schemaType;
     
     // Validate based on the detected or provided schema type
-    if (typeToUse === 'markdown') {
+    if (typeToUse === 'manifest') {
+      // Check for VerjSON manifest structure
+      if (parsedSchema?.verjson === undefined || parsedSchema?.type !== 'manifest') {
+        console.warn('Schema is missing VerjSON manifest structure properties');
+        throw new Error('Schema is missing VerjSON manifest structure properties');
+      }
+      if (!parsedSchema?.data?.toc || !Array.isArray(parsedSchema.data.toc)) {
+        console.warn('Manifest schema is missing data.toc array');
+        throw new Error('Manifest schema is missing data.toc array');
+      }
+    } else if (typeToUse === 'markdown') {
       // Check for VerjSON markdown structure
       if (parsedSchema?.verjson === undefined || !isMarkdownDocType(parsedSchema?.type)) {
         console.warn('Schema is missing VerjSON markdown structure properties');
@@ -193,6 +203,11 @@ export const formatJsonSchema = (schema: any): string => {
 export const detectSchemaType = (schema: any): SchemaType => {
   if (!schema || typeof schema !== 'object') {
     return 'json-schema'; // Default fallback
+  }
+
+  // Check for VerjSON manifest type
+  if (schema.verjson !== undefined && schema.type === 'manifest') {
+    return 'manifest';
   }
 
   // Check for VerjSON markdown type
