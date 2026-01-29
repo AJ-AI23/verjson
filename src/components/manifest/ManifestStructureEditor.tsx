@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SortablePropertyList, SortableItem, reorderArrayItems } from '@/components/schema/SortablePropertyList';
 import { useStructureSearch } from '@/hooks/useStructureSearch';
 import { StructureSearchBar } from '@/components/schema/StructureSearchBar';
-import { ManifestDocument, TOCEntry } from '@/types/manifest';
+import { ManifestDocument, TOCEntry, ManifestEmbed } from '@/types/manifest';
 import { CollapsedState } from '@/lib/diagram/types';
 import { ConsistencyIssue } from '@/types/consistency';
 import { TOCEntryEditor } from './TOCEntryEditor';
@@ -202,6 +202,27 @@ export const ManifestStructureEditor: React.FC<ManifestStructureEditorProps> = (
     onSchemaChange(newSchema);
   }, [schema, onSchemaChange]);
 
+  // Handle add embed - creates embed entry and returns embed ID
+  const handleAddEmbed = useCallback((documentId: string, documentName?: string): string => {
+    const embedId = `embed-${Date.now()}`;
+    const newEmbed: ManifestEmbed = {
+      id: embedId,
+      type: 'markdown',
+      documentId,
+    };
+    
+    const newSchema = {
+      ...schema,
+      data: {
+        ...schema.data,
+        embeds: [...(schema.data.embeds || []), newEmbed],
+      },
+    };
+    onSchemaChange(newSchema);
+    
+    return embedId;
+  }, [schema, onSchemaChange]);
+
   if (!schema || typeof schema !== 'object') {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -346,6 +367,7 @@ export const ManifestStructureEditor: React.FC<ManifestStructureEditorProps> = (
                         onDelete={handleTocDelete}
                         onAddChild={handleTocAddChild}
                         onReorder={handleTocReorder}
+                        onAddEmbed={handleAddEmbed}
                         expandedPaths={expandedTocPaths}
                         onToggleExpand={handleToggleTocExpand}
                       />

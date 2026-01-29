@@ -29,6 +29,7 @@ interface TOCEntryEditorProps {
   onDelete: (path: number[]) => void;
   onAddChild: (path: number[], child: TOCEntry) => void;
   onReorder: (path: number[], oldIndex: number, newIndex: number) => void;
+  onAddEmbed: (documentId: string, documentName?: string) => string; // Returns embed ID
   expandedPaths: Set<string>;
   onToggleExpand: (pathKey: string) => void;
 }
@@ -41,6 +42,7 @@ export const TOCEntryEditor: React.FC<TOCEntryEditorProps> = ({
   onDelete,
   onAddChild,
   onReorder,
+  onAddEmbed,
   expandedPaths,
   onToggleExpand,
 }) => {
@@ -81,7 +83,18 @@ export const TOCEntryEditor: React.FC<TOCEntryEditorProps> = ({
   };
 
   const handleReferenceSelect = (reference: string, documentName?: string) => {
-    onUpdate(path, { ref: reference });
+    // For embeds, we need to create an embed entry and reference it
+    if (referenceMode === 'embed' && reference.startsWith('embed://')) {
+      // Extract document ID from embed://documentId format
+      const documentId = reference.replace('embed://', '');
+      // Create embed entry and get the embed ID
+      const embedId = onAddEmbed(documentId, documentName);
+      // Update the TOC entry to reference the embed
+      onUpdate(path, { ref: `embed://${embedId}` });
+    } else {
+      // For links, just use the reference directly
+      onUpdate(path, { ref: reference });
+    }
   };
 
   const openReferenceDialog = (mode: ReferenceMode) => {
@@ -212,6 +225,7 @@ export const TOCEntryEditor: React.FC<TOCEntryEditorProps> = ({
                             onDelete={onDelete}
                             onAddChild={onAddChild}
                             onReorder={onReorder}
+                            onAddEmbed={onAddEmbed}
                             expandedPaths={expandedPaths}
                             onToggleExpand={onToggleExpand}
                           />
