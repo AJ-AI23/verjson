@@ -1,0 +1,225 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://verjson.lovable.app/api/manifest-schema.v1.json",
+  "title": "VerjSON Manifest Schema",
+  "description": "Schema for VerjSON manifest documents - indexed repository/navigation structure for documentation",
+  "type": "object",
+  "required": ["verjson", "type", "info", "data"],
+  "properties": {
+    "verjson": {
+      "type": "string",
+      "description": "VerjSON format version",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "type": {
+      "type": "string",
+      "const": "manifest",
+      "description": "Document type identifier"
+    },
+    "info": {
+      "type": "object",
+      "required": ["version", "title"],
+      "properties": {
+        "version": {
+          "type": "string",
+          "description": "Document semantic version",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "title": {
+          "type": "string",
+          "description": "Document title"
+        },
+        "description": {
+          "type": "string",
+          "description": "Document description"
+        },
+        "author": {
+          "type": "string",
+          "description": "Document author"
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "modified": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last modification timestamp"
+        }
+      }
+    },
+    "data": {
+      "type": "object",
+      "required": ["toc"],
+      "properties": {
+        "toc": {
+          "type": "array",
+          "description": "Hierarchical table of contents",
+          "items": {
+            "$ref": "#/$defs/TOCEntry"
+          }
+        },
+        "index": {
+          "type": "array",
+          "description": "Keyword index for search",
+          "items": {
+            "$ref": "#/$defs/IndexEntry"
+          }
+        },
+        "embeds": {
+          "type": "array",
+          "description": "Embedded content",
+          "items": {
+            "$ref": "#/$defs/ManifestEmbed"
+          }
+        },
+        "defaultPage": {
+          "type": "string",
+          "description": "ID of the default landing page"
+        }
+      }
+    },
+    "styles": {
+      "type": "object",
+      "description": "Style themes for the manifest",
+      "properties": {
+        "themes": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/ManifestTheme"
+          }
+        }
+      }
+    },
+    "selectedTheme": {
+      "type": "string",
+      "description": "Currently selected theme name"
+    }
+  },
+  "$defs": {
+    "TOCEntry": {
+      "type": "object",
+      "required": ["id", "title"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the TOC entry"
+        },
+        "title": {
+          "type": "string",
+          "description": "Display title"
+        },
+        "icon": {
+          "type": "string",
+          "description": "Optional icon name (lucide icon)"
+        },
+        "ref": {
+          "type": "string",
+          "description": "Reference to content: document://uuid or embed://id"
+        },
+        "anchor": {
+          "type": "string",
+          "description": "Optional anchor within the referenced document"
+        },
+        "children": {
+          "type": "array",
+          "description": "Nested child entries",
+          "items": {
+            "$ref": "#/$defs/TOCEntry"
+          }
+        },
+        "keywords": {
+          "type": "array",
+          "description": "Searchable keywords for this entry",
+          "items": {
+            "type": "string"
+          }
+        },
+        "description": {
+          "type": "string",
+          "description": "Short description for search results"
+        }
+      }
+    },
+    "IndexEntry": {
+      "type": "object",
+      "required": ["keyword", "entries"],
+      "properties": {
+        "keyword": {
+          "type": "string",
+          "description": "Index keyword"
+        },
+        "entries": {
+          "type": "array",
+          "description": "References to TOC entries",
+          "items": {
+            "$ref": "#/$defs/IndexReference"
+          }
+        }
+      }
+    },
+    "IndexReference": {
+      "type": "object",
+      "required": ["tocId"],
+      "properties": {
+        "tocId": {
+          "type": "string",
+          "description": "Reference to TOC entry ID"
+        },
+        "anchor": {
+          "type": "string",
+          "description": "Optional anchor within the document"
+        },
+        "context": {
+          "type": "string",
+          "description": "Context snippet for search preview"
+        }
+      }
+    },
+    "ManifestEmbed": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique embed identifier"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["markdown"],
+          "description": "Embed content type"
+        },
+        "content": {
+          "description": "Inline content (MarkdownDocument structure)"
+        },
+        "documentId": {
+          "type": "string",
+          "description": "Reference to external document"
+        }
+      }
+    },
+    "ManifestTheme": {
+      "type": "object",
+      "properties": {
+        "navigation": {
+          "type": "object",
+          "properties": {
+            "background": { "type": "string" },
+            "text": { "type": "string" },
+            "activeBackground": { "type": "string" },
+            "hoverBackground": { "type": "string" }
+          }
+        },
+        "content": {
+          "type": "object",
+          "properties": {
+            "background": { "type": "string" },
+            "text": { "type": "string" },
+            "linkColor": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

@@ -5,12 +5,14 @@ import { JsonEditorWrapper } from '@/components/JsonEditorWrapper';
 import { SchemaDiagram } from '@/components/diagram/SchemaDiagram';
 import { MarkdownEditor } from '@/components/markdown/MarkdownEditor';
 import { MarkdownStylesDialog } from '@/components/markdown/MarkdownStylesDialog';
+import { ManifestEditor } from '@/components/manifest/ManifestEditor';
 import { CollapsedState } from '@/lib/diagram/types';
 import { DocumentVersionComparison } from '@/lib/importVersionUtils';
 import { Version, VersionTier } from '@/lib/versionUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MarkdownDocument } from '@/types/markdown';
+import { ManifestDocument } from '@/types/manifest';
 import { MarkdownStyles, defaultMarkdownStyles } from '@/types/markdownStyles';
 import {
   AlertDialog,
@@ -230,6 +232,18 @@ export const EditorContent: React.FC<EditorContentProps> = ({
     </>
   ) : null;
 
+  // Manifest editor pane for manifest documents
+  const manifestPane = parsedSchema && currentFileType === 'manifest' ? (
+    <ManifestEditor
+      document={parsedSchema as ManifestDocument}
+      onDocumentChange={handleDiagramSchemaChange}
+      readOnly={userRole === 'viewer'}
+      isFullscreen={isFullscreen}
+      onToggleFullscreen={onToggleFullscreen}
+      workspaceId={workspaceId}
+    />
+  ) : null;
+
   const downgradeWarningDialog = (
     <AlertDialog open={showMarkdownDowngradeWarning} onOpenChange={setShowMarkdownDowngradeWarning}>
       <AlertDialogContent>
@@ -264,8 +278,9 @@ export const EditorContent: React.FC<EditorContentProps> = ({
 
   // Determine which right pane to show
   const isMarkdown = currentFileType === 'markdown';
-  const rightPane = isMarkdown ? markdownPane : diagramPane;
-  const rightPaneLabel = isMarkdown ? 'Preview' : 'Diagram';
+  const isManifest = currentFileType === 'manifest';
+  const rightPane = isManifest ? manifestPane : (isMarkdown ? markdownPane : diagramPane);
+  const rightPaneLabel = isManifest ? 'Viewer' : (isMarkdown ? 'Preview' : 'Diagram');
 
   if (isMobile) {
     return (
