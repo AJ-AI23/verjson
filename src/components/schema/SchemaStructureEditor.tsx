@@ -1928,8 +1928,9 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
         fields.push({ key: 'selectedTheme', value: schema.selectedTheme, path: ['selectedTheme'] });
       }
     } else {
-      // JSON Schema Document section: $schema, $id, type
-      const docKeys = ['$schema', '$id', 'type'];
+      // JSON Schema Document section: combine config and metadata fields
+      // Config fields: $schema, $id, type
+      const docKeys = ['$schema', '$id', 'type', 'title', 'description', 'name', 'version'];
       for (const key of docKeys) {
         if (schema?.[key] !== undefined) {
           fields.push({ key, value: schema[key], path: [key] });
@@ -1940,23 +1941,11 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
     return fields;
   }, [schema, schemaType]);
 
-  // Metadata section - shows descriptive fields (title, description, etc.)
+  // Metadata section is only used for verjson documents (not JSON Schema)
+  // For JSON Schema, metadata fields are merged into documentFields
   const metadataFields = useMemo(() => {
-    const fields: { key: string; value: any; path: string[] }[] = [];
-    
-    const isVerjsonFormat = (schemaType === 'diagram' || schemaType === 'markdown') && schema?.verjson !== undefined;
-    
-    if (!isVerjsonFormat) {
-      // JSON Schema or legacy diagram: title, description, name, version
-      const metaKeys = ['title', 'description', 'name', 'version'];
-      for (const key of metaKeys) {
-        if (schema?.[key] !== undefined) {
-          fields.push({ key, value: schema[key], path: [key] });
-        }
-      }
-    }
-    
-    return fields;
+    // Metadata section is no longer used for JSON Schema - all fields go in Document section
+    return [];
   }, [schema, schemaType]);
 
   // Info section for verjson documents (version, title, description, etc.)
@@ -2009,14 +1998,12 @@ export const SchemaStructureEditor: React.FC<SchemaStructureEditorProps> = ({
       
       <ScrollArea className="flex-1">
         <div className="space-y-3 p-4">
-          {/* Document section for verjson formats (diagram/markdown) or Metadata section (JSON Schema) */}
+          {/* Document section - shows root-level format/config fields */}
           {documentFields.length > 0 && (
             <div className="border rounded-lg overflow-hidden">
               <div className="flex items-center gap-3 p-3 bg-muted/30 border-b">
                 <FileCode className="h-4 w-4 text-muted-foreground" />
-                <span className="font-semibold text-sm">
-                  {(schemaType === 'diagram' || schemaType === 'markdown') && schema?.verjson ? 'Document' : 'Metadata'}
-                </span>
+                <span className="font-semibold text-sm">Document</span>
               </div>
               <div className="p-3 bg-background space-y-2">
                 {documentFields.map(({ key, value, path }) => (
