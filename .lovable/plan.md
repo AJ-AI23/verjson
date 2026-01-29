@@ -1,384 +1,181 @@
 
-# ✅ COMPLETED: Align Document Version Numbers and Refresh Version Table After Commit
 
-## Status: Implemented
+# Static HTML Landing Page for VerjSON Marketing
 
-All items have been completed:
+## Overview
 
-1. ✅ **Refresh version table after commit** - `onVersionCreated` callback triggers `refetch()` in VersionHistory
-2. ✅ **Update document internal version** - `updateDocumentVersion` utility updates version property before commit
-3. ✅ **Handle different document types** - JSON Schema uses `root.version`, others use `info.version`
-4. ✅ **Set initial version to 0.0.1** - All default schemas and database function updated
-5. ✅ **Import version handling** - `extractVersionFromDocument` utility added
+Create a static HTML landing page at `/landing.html` that serves as a marketing entry point for VerjSON. The page will be optimized for search engines and LLM crawlers following the SEO plan guidelines, with a clear call-to-action linking to `/auth`.
 
-## Overview (Original)
+## Approach
 
-This plan implements several improvements to version number alignment:
+Since this is a React/Vite SPA, we have two options:
+1. **Create a separate static HTML file** in the `public/` folder - immediately crawlable, no JS required
+2. **Create a React landing page component** - requires JS to render
 
-1. **Refresh version table after commit** - The Versions dialog table will update after a new commit
-2. **Update document internal version** - When committing, increment the version property inside the document content
-3. **Handle different document types** - Different version property locations based on file type
-4. **Set initial version to 0.0.1** - New documents start at 0.0.1 (not 0.1.0 as currently)
-5. **Import version handling** - Use the imported document's version or default to 0.0.1
-
-## Current Behavior
-
-- Initial versions are created as `0.1.0` in the database function
-- Document content does not have its internal version property updated when committing
-- The Versions dialog does not refresh after committing a new version
-- OpenAPI defaults have `info.version: "1.0.0"`
-- Diagram defaults have `info.version: "0.1.0"`
-- Markdown defaults have `info.version: "1.0.0"`
-- JSON Schema has no version property by default
-
-## Version Property Locations by Document Type
-
-| Document Type | Version Location | Example |
-|---------------|------------------|---------|
-| `json-schema` | `root.version` | `{ "version": "0.0.1", ... }` |
-| `openapi` | `root.info.version` | `{ "info": { "version": "0.0.1" } }` |
-| `diagram` | `root.info.version` | `{ "info": { "version": "0.0.1" } }` |
-| `markdown` | `root.info.version` | `{ "info": { "version": "0.0.1" } }` |
-
-## Implementation Details
-
-### 1. Refresh Version Table After Commit
-
-**Files**: 
-- `src/components/VersionHistory.tsx`
-- `src/components/VersionControls.tsx`
-
-The `useDocumentVersions` hook already has a real-time subscription that triggers `fetchVersions` when database changes occur. However, the commit flow in `VersionControls` should trigger an explicit refresh to ensure immediate UI update.
-
-**Changes**:
-- Add a callback prop `onVersionCreated` to `VersionControls` that the parent (`VersionHistory`) provides
-- In `VersionHistory`, pass a callback that triggers `refetch()` from the `useDocumentVersions` hook
-- After `onVersionBump` succeeds in `VersionControls`, call `onVersionCreated()`
-
-### 2. Update Document Internal Version When Committing
-
-**Files**:
-- `src/hooks/useVersioning.ts`
-
-Before saving a new version, update the schema's internal version property based on the document type. This requires knowing the current file type.
-
-**Changes**:
-- Add `fileType` parameter to `useVersioning` hook
-- Create utility function `updateDocumentVersion(schema: any, fileType: string, version: Version): any`
-- In `handleVersionBump`, call this utility to update the schema before generating the patch
-
-**Utility function logic**:
-```typescript
-function updateDocumentVersion(schema: any, fileType: string, version: Version): any {
-  const versionString = `${version.major}.${version.minor}.${version.patch}`;
-  const updatedSchema = { ...schema };
-  
-  if (fileType === 'json-schema') {
-    updatedSchema.version = versionString;
-  } else if (fileType === 'openapi' || fileType === 'diagram' || fileType === 'markdown') {
-    if (!updatedSchema.info) {
-      updatedSchema.info = {};
-    }
-    updatedSchema.info.version = versionString;
-  }
-  
-  return updatedSchema;
-}
-```
-
-### 3. Set Initial Version to 0.0.1
-
-**Files**:
-- `supabase/migrations/new_migration.sql` - Update the `create_initial_version_safe` function
-- `src/lib/defaultSchema.ts` - Add `version: "0.0.1"` to default JSON schema
-- `src/lib/defaultOasSchema.ts` - Change `info.version` from `"1.0.0"` to `"0.0.1"`
-- `src/lib/defaultDiagramSchema.ts` - Change `info.version` from `"0.1.0"` to `"0.0.1"`
-- `src/lib/defaultMarkdownSchema.ts` - Change `info.version` from `"1.0.0"` to `"0.0.1"`
-
-**Database function update**:
-```sql
--- Change version from 0.1.0 to 0.0.1
-version_major: 0,
-version_minor: 0, -- Changed from 1
-version_patch: 1,
-```
-
-### 4. Handle Import Version
-
-**Files**:
-- `src/hooks/useVersioning.ts` - Update `handleImportVersion`
-- `src/lib/versionUtils.ts` - Add helper to extract version from document
-
-**Logic**:
-- When importing, extract the version from the imported document's content
-- If version exists in document, parse it and use it
-- If version doesn't exist, default to `0.0.1`
-- Use the extracted/default version as the initial version when creating the import
-
-**Helper function**:
-```typescript
-function extractVersionFromDocument(content: any, fileType: string): Version {
-  let versionString: string | undefined;
-  
-  if (fileType === 'json-schema') {
-    versionString = content?.version;
-  } else if (fileType === 'openapi' || fileType === 'diagram' || fileType === 'markdown') {
-    versionString = content?.info?.version;
-  }
-  
-  if (versionString && typeof versionString === 'string') {
-    const parsed = parseVersion(versionString);
-    return parsed;
-  }
-  
-  // Default to 0.0.1
-  return { major: 0, minor: 0, patch: 1 };
-}
-```
-
-## Additional Improvements
-
-### 5. Ensure Version Property Exists in New Documents
-
-When creating a new document, ensure the initial content has the version property set:
-
-**Files**:
-- `src/components/workspace/ImportDialog.tsx` (or wherever documents are created)
-
-The document creation flow should ensure that:
-1. When using default schemas, they already have `version: "0.0.1"` (from updated defaults)
-2. When importing external content, the version is either preserved or set to `0.0.1`
-
-### 6. Validate and Sync Versions
-
-Add a check when loading documents to ensure the internal document version matches the latest committed version in the database.
+**Recommendation**: Create a static HTML file (`public/landing.html`) for maximum SEO benefit since search engines and LLMs can read it without JavaScript execution. We can also create a redirect from the main app for unauthenticated users.
 
 ---
 
-## Technical Implementation
+## Implementation Details
 
-### File: `src/lib/versionUtils.ts`
+### 1. Create Static Landing Page (`public/landing.html`)
 
-Add new utility functions:
+**Structure following SEO guidelines:**
 
-```typescript
-// Extract version from document content based on file type
-export const extractVersionFromDocument = (content: any, fileType: string): Version => {
-  let versionString: string | undefined;
-  
-  if (fileType === 'json-schema') {
-    versionString = content?.version;
-  } else {
-    // openapi, diagram, markdown all use info.version
-    versionString = content?.info?.version;
-  }
-  
-  if (versionString && typeof versionString === 'string') {
-    return parseVersion(versionString);
-  }
-  
-  return { major: 0, minor: 0, patch: 1 }; // Default
-};
+```
+<h1>Version, edit and render all your JSON files in full collaboration with VerJSON!</h1>
 
-// Update version in document content based on file type
-export const updateDocumentVersion = (content: any, fileType: string, version: Version): any => {
-  const versionString = formatVersion(version);
-  const updated = JSON.parse(JSON.stringify(content)); // Deep clone
-  
-  if (fileType === 'json-schema') {
-    updated.version = versionString;
-  } else {
-    // openapi, diagram, markdown all use info.version
-    if (!updated.info) {
-      updated.info = {};
-    }
-    updated.info.version = versionString;
-  }
-  
-  return updated;
-};
+<h2>What problem VerJSON solves</h2>
+  - API versioning challenges
+  - Schema drift and inconsistency
+  - Collaboration on technical specs
+  - Breaking change management
+
+<h2>How VerJSON works</h2>
+  - Visual structure editor
+  - Real-time collaboration (Yjs)
+  - Semantic versioning with diff/merge
+  - Automatic diagram generation
+
+<h2>Who VerJSON is for</h2>
+  - API developers
+  - Technical writers
+  - DevOps/Platform teams
+  - Solution architects
+
+<h2>Supported Formats</h2>
+  - OpenAPI 3.1 specifications
+  - JSON Schema documents
+  - Sequence diagrams
+  - Markdown documentation
+
+<h2>FAQ</h2>
+  - Common questions about versioning, collaboration, etc.
 ```
 
-### File: `src/hooks/useVersioning.ts`
+**SEO Meta Tags:**
+- Title: "VerJSON - Version, edit and render all your JSON files in full collaboration"
+- Meta description: Canonical positioning sentence
+- Open Graph tags for social sharing
+- Twitter card tags
+- Structured data (JSON-LD) for product/software application
 
-Modify `handleVersionBump` to update the document's internal version:
+**Technical Keywords to Include:**
+- JSON Schema
+- OpenAPI 3.1
+- diff / merge
+- version control
+- conflict resolution
+- API evolution
+- real-time collaboration
+- semantic versioning
 
-```typescript
-const handleVersionBump = async (
-  newVersion: Version, 
-  tier: VersionTier, 
-  description: string, 
-  isReleased: boolean = false, 
-  autoVersion: boolean = false
-): Promise<string | null> => {
-  // ... existing validation code ...
-  
-  // Parse and update the document's internal version
-  let parsedCurrentSchema = JSON.parse(schema);
-  
-  // Determine the file type from context or add as parameter
-  const finalVersionToUse = autoVersion ? /* calculated version */ : newVersion;
-  
-  // Update the document's internal version property
-  parsedCurrentSchema = updateDocumentVersion(
-    parsedCurrentSchema, 
-    fileType, 
-    finalVersionToUse
-  );
-  
-  // Update the editor with the versioned schema
-  const updatedSchemaString = JSON.stringify(parsedCurrentSchema, null, 2);
-  setSchema(updatedSchemaString);
-  
-  // Generate patch from database version to updated current schema
-  const patch = generatePatch(
-    parsedPreviousSchema, 
-    parsedCurrentSchema, // Now includes updated version
-    newVersion, 
-    tier, 
-    description,
-    isReleased
-  );
-  
-  // ... rest of the function ...
-};
+### 2. Update `index.html` Meta Tags
+
+Ensure consistency with the landing page:
+- Update og:image to a VerjSON-specific image (not lovable.dev)
+- Remove twitter:site reference to @lovable_dev
+- Keep meta description consistent
+
+### 3. Create Sitemap (`public/sitemap.xml`)
+
+Include:
+- Landing page (`/landing.html`)
+- Auth page (`/auth`)
+- API docs (`/api-docs`)
+- Documentation pages (`/docs/*`)
+
+### 4. Update `robots.txt`
+
+Add sitemap reference:
+```
+Sitemap: https://verjson.lovable.app/sitemap.xml
 ```
 
-### File: `src/components/VersionControls.tsx`
+### 5. Styling Approach
 
-Add callback for version creation:
+The landing page will use:
+- Inline CSS or a separate CSS file for complete independence from the React app
+- Match the VerjSON brand colors (primary blue: `#2563eb`)
+- Responsive design for mobile/tablet/desktop
+- Clean, professional typography
+- Visual sections with icons/illustrations using inline SVG
 
-```typescript
-interface VersionControlsProps {
-  // ... existing props ...
-  onVersionCreated?: () => void; // NEW: callback after successful commit
-}
+---
 
-const handleBumpVersion = async () => {
-  // ... existing code ...
-  
-  onVersionBump(editableVersion, selectedTier, description, isReleased, autoVersion);
-  setDescription('');
-  setIsReleased(false);
-  
-  // Trigger refresh after commit
-  onVersionCreated?.(); // NEW
-  
-  // ... existing toast ...
-};
-```
+## Page Sections
 
-### File: `src/components/VersionHistory.tsx`
+### Hero Section
+- Logo
+- H1 headline (canonical positioning)
+- Subheadline with key benefits
+- Primary CTA: "Get Started Free" -> `/auth`
+- Secondary CTA: "View Documentation" -> `/docs`
 
-Pass the refresh callback:
+### Problem Section
+- Pain points developers face
+- Technical language about API versioning challenges
 
-```typescript
-<VersionControls
-  version={currentVersion}
-  // ... existing props ...
-  onVersionCreated={() => refetch()} // NEW: refresh after commit
-/>
-```
+### Solution Section
+- How VerJSON addresses each pain point
+- Feature highlights with brief descriptions
 
-### Database Migration
+### Features Grid
+- Visual structure editor
+- Real-time collaboration
+- Version control with diff/merge
+- Automatic diagram generation
+- Consistency checking
+- Multi-format support
 
-```sql
--- Update the create_initial_version_safe function to use 0.0.1
-CREATE OR REPLACE FUNCTION create_initial_version_safe(
-  p_document_id UUID, 
-  p_user_id UUID, 
-  p_content JSONB
-) 
-RETURNS UUID
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = 'public'
-AS $function$
-DECLARE
-  v_version_id UUID;
-  v_existing_count INTEGER;
-BEGIN
-  -- Check if initial version already exists
-  SELECT COUNT(*) INTO v_existing_count
-  FROM document_versions 
-  WHERE document_id = p_document_id 
-    AND description = 'Initial version';
-    
-  IF v_existing_count > 0 THEN
-    SELECT id INTO v_version_id
-    FROM document_versions 
-    WHERE document_id = p_document_id 
-      AND description = 'Initial version'
-    ORDER BY created_at ASC
-    LIMIT 1;
-    
-    RETURN v_version_id;
-  END IF;
-  
-  -- Create initial version with 0.0.1 (changed from 0.1.0)
-  INSERT INTO document_versions (
-    document_id, 
-    user_id, 
-    version_major, 
-    version_minor, 
-    version_patch,
-    description, 
-    tier, 
-    is_released, 
-    is_selected,
-    full_document
-  ) VALUES (
-    p_document_id, 
-    p_user_id, 
-    0,  -- major
-    0,  -- minor (changed from 1)
-    1,  -- patch
-    'Initial version', 
-    'patch',  -- tier (changed from 'minor')
-    true, 
-    true,
-    p_content
-  ) 
-  RETURNING id INTO v_version_id;
-  
-  RETURN v_version_id;
-EXCEPTION
-  WHEN unique_violation THEN
-    SELECT id INTO v_version_id
-    FROM document_versions 
-    WHERE document_id = p_document_id 
-      AND description = 'Initial version'
-    ORDER BY created_at ASC
-    LIMIT 1;
-    
-    RETURN v_version_id;
-END;
-$function$;
-```
+### Target Audience Section
+- API developers
+- Technical writers
+- Platform teams
+- Use case examples
+
+### FAQ Section
+- 5-7 common questions
+- LLM-friendly structured answers
+
+### Footer
+- Links to docs, API docs
+- Copyright
+- Get started CTA
+
+---
+
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `public/landing.html` | Main static landing page |
+| `public/landing.css` | Styles for landing page |
+| `public/sitemap.xml` | SEO sitemap |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/lib/versionUtils.ts` | Add `extractVersionFromDocument` and `updateDocumentVersion` utilities |
-| `src/lib/defaultSchema.ts` | Add `version: "0.0.1"` to default JSON schema |
-| `src/lib/defaultOasSchema.ts` | Change `info.version` to `"0.0.1"` |
-| `src/lib/defaultDiagramSchema.ts` | Change `info.version` to `"0.0.1"` |
-| `src/lib/defaultMarkdownSchema.ts` | Change `info.version` to `"0.0.1"` |
-| `src/hooks/useVersioning.ts` | Add fileType parameter, update schema version before commit |
-| `src/components/editor/useEditorState.ts` | Pass fileType to useVersioning |
-| `src/components/VersionControls.tsx` | Add `onVersionCreated` callback prop |
-| `src/components/VersionHistory.tsx` | Pass refetch callback to VersionControls |
-| `supabase/migrations/` | New migration to update `create_initial_version_safe` function |
+| `public/robots.txt` | Add sitemap reference |
+| `index.html` | Update meta tags, remove lovable.dev references |
 
-## Testing Scenarios
+---
 
-1. **New document creation**: Verify initial version is 0.0.1
-2. **JSON Schema commit**: Verify `version` property in root is updated
-3. **OpenAPI commit**: Verify `info.version` is updated
-4. **Diagram commit**: Verify `info.version` is updated
-5. **Markdown commit**: Verify `info.version` is updated
-6. **Version table refresh**: Verify table updates immediately after commit
-7. **Import with version**: Verify imported document's version is preserved
-8. **Import without version**: Verify default 0.0.1 is used
+## Technical Considerations
+
+- The landing page will be pure HTML/CSS with no JavaScript dependencies
+- All assets (logo, icons) will use inline SVG or reference existing `/favicon.png`
+- The page will be fully functional even if the React app fails to load
+- Responsive breakpoints: mobile (< 640px), tablet (640-1024px), desktop (> 1024px)
+
+## SEO/LLM Optimization
+
+Following the uploaded SEO plan:
+1. Consistent canonical description across all meta tags
+2. Explicit technical language (JSON Schema, OpenAPI 3.1, diff/merge, etc.)
+3. Structured content with semantic HTML (h1, h2, article, section)
+4. FAQ section for LLM question-answering
+5. Problem-solution content structure
+6. JSON-LD structured data for software application
 
