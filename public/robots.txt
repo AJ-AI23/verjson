@@ -12,3 +12,6 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+# Sitemap
+Sitemap: https://verjson.lovable.app/sitemap.xml
