@@ -372,7 +372,6 @@ export const ManifestStructureEditor: React.FC<ManifestStructureEditorProps> = (
                         onToggleExpand={handleToggleTocExpand}
                       />
                     </SortableItem>
-                    </SortableItem>
                   ))}
                 </SortablePropertyList>
               ) : (
