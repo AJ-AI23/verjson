@@ -29,7 +29,7 @@ interface TOCEntryEditorProps {
   onDelete: (path: number[]) => void;
   onAddChild: (path: number[], child: TOCEntry) => void;
   onReorder: (path: number[], oldIndex: number, newIndex: number) => void;
-  onAddEmbed: (documentId: string, documentName?: string) => string; // Returns embed ID
+  onAddEmbed: (documentId: string, documentName?: string) => Promise<string | null>; // Returns embed ID or null on failure
   expandedPaths: Set<string>;
   onToggleExpand: (pathKey: string) => void;
 }
@@ -56,6 +56,7 @@ export const TOCEntryEditor: React.FC<TOCEntryEditorProps> = ({
   const [editedTitle, setEditedTitle] = useState(entry.title);
   const [referenceDialogOpen, setReferenceDialogOpen] = useState(false);
   const [referenceMode, setReferenceMode] = useState<ReferenceMode>('link');
+  const [isEmbedding, setIsEmbedding] = useState(false);
 
   const handleTitleSubmit = () => {
     if (editedTitle.trim() !== entry.title) {
@@ -82,15 +83,22 @@ export const TOCEntryEditor: React.FC<TOCEntryEditorProps> = ({
     }
   };
 
-  const handleReferenceSelect = (reference: string, documentName?: string) => {
+  const handleReferenceSelect = async (reference: string, documentName?: string) => {
     // For embeds, we need to create an embed entry and reference it
     if (referenceMode === 'embed' && reference.startsWith('embed://')) {
       // Extract document ID from embed://documentId format
       const documentId = reference.replace('embed://', '');
-      // Create embed entry and get the embed ID
-      const embedId = onAddEmbed(documentId, documentName);
-      // Update the TOC entry to reference the embed
-      onUpdate(path, { ref: `embed://${embedId}` });
+      setIsEmbedding(true);
+      try {
+        // Create embed entry (fetches content) and get the embed ID
+        const embedId = await onAddEmbed(documentId, documentName);
+        if (embedId) {
+          // Update the TOC entry to reference the embed
+          onUpdate(path, { ref: `embed://${embedId}` });
+        }
+      } finally {
+        setIsEmbedding(false);
+      }
     } else {
       // For links, just use the reference directly
       onUpdate(path, { ref: reference });
