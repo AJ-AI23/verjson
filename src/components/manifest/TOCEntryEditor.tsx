@@ -29,7 +29,7 @@ interface TOCEntryEditorProps {
   onDelete: (path: number[]) => void;
   onAddChild: (path: number[], child: TOCEntry) => void;
   onReorder: (path: number[], oldIndex: number, newIndex: number) => void;
-  onAddEmbed: (documentId: string, documentName?: string) => Promise<string | null>; // Returns embed ID or null on failure
+  onAddEmbed: (documentId: string, documentName?: string, tocPath?: number[]) => Promise<string | null>; // Returns embed ID or null on failure
   expandedPaths: Set<string>;
   onToggleExpand: (pathKey: string) => void;
 }
@@ -90,12 +90,10 @@ export const TOCEntryEditor: React.FC<TOCEntryEditorProps> = ({
       const documentId = reference.replace('embed://', '');
       setIsEmbedding(true);
       try {
-        // Create embed entry (fetches content) and get the embed ID
-        const embedId = await onAddEmbed(documentId, documentName);
-        if (embedId) {
-          // Update the TOC entry to reference the embed
-          onUpdate(path, { ref: `embed://${embedId}` });
-        }
+        // Create embed entry (fetches content) and update TOC ref atomically
+        // Pass the TOC path so both operations happen in a single schema change
+        await onAddEmbed(documentId, documentName, path);
+        // Note: ref is now set inside handleAddEmbed to avoid race condition
       } finally {
         setIsEmbedding(false);
       }

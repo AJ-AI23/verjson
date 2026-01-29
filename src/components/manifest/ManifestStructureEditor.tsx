@@ -232,8 +232,12 @@ export const ManifestStructureEditor: React.FC<ManifestStructureEditorProps> = (
     return 'markdown';
   }, []);
 
-  // Handle add embed - fetches document content and creates embed entry
-  const handleAddEmbed = useCallback(async (documentId: string, documentName?: string): Promise<string | null> => {
+  // Handle add embed - fetches document content, creates embed entry, and updates TOC ref
+  const handleAddEmbed = useCallback(async (
+    documentId: string, 
+    documentName?: string,
+    tocPath?: number[]  // Optional TOC path to update ref in same transaction
+  ): Promise<string | null> => {
     try {
       // Fetch the document's latest released version content
       const { data, error } = await invoke<{ document: any }>('document-content', {
@@ -267,13 +271,28 @@ export const ManifestStructureEditor: React.FC<ManifestStructureEditorProps> = (
         content: documentContent, // Store the full document content
       };
       
-      const newSchema = {
+      // Build new schema with embed added
+      let newSchema = {
         ...schema,
         data: {
           ...schema.data,
           embeds: [...(schema.data.embeds || []), newEmbed],
+          toc: [...schema.data.toc],
         },
       };
+      
+      // If TOC path provided, also update the TOC entry's ref in the same transaction
+      if (tocPath && tocPath.length > 0) {
+        let current: TOCEntry[] = newSchema.data.toc;
+        for (let i = 0; i < tocPath.length - 1; i++) {
+          const entry = current[tocPath[i]];
+          entry.children = [...(entry.children || [])];
+          current = entry.children;
+        }
+        const lastIndex = tocPath[tocPath.length - 1];
+        current[lastIndex] = { ...current[lastIndex], ref: `embed://${embedId}` };
+      }
+      
       onSchemaChange(newSchema);
       
       toast.success('Document embedded', {
