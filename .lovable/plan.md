@@ -1,8 +1,17 @@
 
+# ✅ COMPLETED: Align Document Version Numbers and Refresh Version Table After Commit
 
-# Align Document Version Numbers and Refresh Version Table After Commit
+## Status: Implemented
 
-## Overview
+All items have been completed:
+
+1. ✅ **Refresh version table after commit** - `onVersionCreated` callback triggers `refetch()` in VersionHistory
+2. ✅ **Update document internal version** - `updateDocumentVersion` utility updates version property before commit
+3. ✅ **Handle different document types** - JSON Schema uses `root.version`, others use `info.version`
+4. ✅ **Set initial version to 0.0.1** - All default schemas and database function updated
+5. ✅ **Import version handling** - `extractVersionFromDocument` utility added
+
+## Overview (Original)
 
 This plan implements several improvements to version number alignment:
 
