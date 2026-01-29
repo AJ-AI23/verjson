@@ -12,7 +12,8 @@ import {
   markAsReleased,
   deleteVersion,
   formatVersion,
-  validateVersionForCreation
+  validateVersionForCreation,
+  updateDocumentVersion
 } from '@/lib/versionUtils';
 import { useDocumentVersions } from '@/hooks/useDocumentVersions';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,6 +26,7 @@ interface UseVersioningProps {
   setSavedSchema: (schema: string) => void;
   setSchema: (schema: string) => void;
   documentId?: string;
+  fileType?: string;
 }
 
 export const useVersioning = ({ 
@@ -32,7 +34,8 @@ export const useVersioning = ({
   savedSchema, 
   setSavedSchema, 
   setSchema,
-  documentId
+  documentId,
+  fileType = 'json-schema'
 }: UseVersioningProps) => {
   const { debugToast } = useDebug();
   const [patches, setPatches] = useState<SchemaPatch[]>([]);
@@ -219,13 +222,34 @@ export const useVersioning = ({
       // Clear any previous suggested version on successful validation
       setSuggestedVersion(null);
       
-      // Ensure the current schema is valid
-      const parsedCurrentSchema = JSON.parse(schema);
+      // Parse the current schema
+      let parsedCurrentSchema = JSON.parse(schema);
       
       // Use database version as the baseline for patches (the merged state of selected versions)
       const parsedPreviousSchema = databaseVersion ? JSON.parse(databaseVersion) : {};
       
-      // Generate patch from database version to current schema
+      // Calculate the final version to use (for updating document content)
+      // When auto-versioning, we still need to bump the version for the document content
+      const finalVersionForContent = autoVersion 
+        ? { major: newVersion.major, minor: newVersion.minor, patch: newVersion.patch + 1 }
+        : newVersion;
+      
+      // Update the document's internal version property before generating patch
+      parsedCurrentSchema = updateDocumentVersion(
+        parsedCurrentSchema, 
+        fileType, 
+        finalVersionForContent
+      );
+      
+      // Update the editor with the versioned schema
+      const updatedSchemaString = JSON.stringify(parsedCurrentSchema, null, 2);
+      console.log('📝 EDITOR CHANGE from useVersioning - updating document version property', {
+        fileType,
+        newVersion: formatVersion(finalVersionForContent)
+      });
+      setSchema(updatedSchemaString);
+      
+      // Generate patch from database version to updated current schema (now includes version)
       const patch = generatePatch(
         parsedPreviousSchema, 
         parsedCurrentSchema, 

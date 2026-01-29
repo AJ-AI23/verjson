@@ -68,7 +68,8 @@ export const useEditorState = (defaultSchema: string, documentId?: string) => {
     savedSchema,
     setSavedSchema,
     setSchema,
-    documentId
+    documentId,
+    fileType: schemaType
   });
   
   // Function to handle toggling collapsed state of a path

@@ -4,7 +4,7 @@ export const defaultOasSchema = `{
   "info": {
     "title": "Sample API",
     "description": "A sample API to demonstrate OpenAPI 3.1 with JSON Schema",
-    "version": "1.0.0"
+    "version": "0.0.1"
   },
   "paths": {
     "/users": {

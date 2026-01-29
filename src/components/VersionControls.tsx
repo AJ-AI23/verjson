@@ -20,6 +20,7 @@ interface VersionControlsProps {
   documentId?: string;
   currentFileType?: string;
   suggestedVersion?: Version | null;
+  onVersionCreated?: () => void; // NEW: callback after successful commit
 }
 
 export const VersionControls: React.FC<VersionControlsProps> = ({ 
@@ -32,7 +33,8 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
   onImportVersion,
   documentId,
   currentFileType,
-  suggestedVersion
+  suggestedVersion,
+  onVersionCreated
 }) => {
   const { debugToast, errorToast } = useDebug();
   const [description, setDescription] = useState('');
@@ -176,7 +178,7 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
     }
   }, [description, editableVersion.major, editableVersion.minor, editableVersion.patch, patches, schema, isModified]);
 
-  const handleBumpVersion = () => {
+  const handleBumpVersion = async () => {
     debugToast('Commit clicked', {
       hasChanges: hasActualChanges,
       hasDescription: !!description.trim(),
@@ -193,9 +195,15 @@ export const VersionControls: React.FC<VersionControlsProps> = ({
       return;
     }
     
-    onVersionBump(editableVersion, selectedTier, description, isReleased, autoVersion);
+    const result = await onVersionBump(editableVersion, selectedTier, description, isReleased, autoVersion);
     setDescription('');
     setIsReleased(false);
+    
+    // Trigger refresh after successful commit
+    if (result !== null) {
+      onVersionCreated?.();
+    }
+    
     if (!autoVersion) {
       toast.success(`Version ${isReleased ? 'released' : 'created'}: ${formatVersion(editableVersion)}`);
     } else {

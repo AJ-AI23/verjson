@@ -10,7 +10,7 @@ export const defaultMarkdownSchema: MarkdownDocument = {
   verjson: '1.0.0',
   type: 'markdown',
   info: {
-    version: '1.0.0',
+    version: '0.0.1',
     title: 'Untitled Document',
     description: '',
     created: new Date().toISOString(),
@@ -55,7 +55,7 @@ export function createMarkdownDocument(title: string, description?: string): Mar
     verjson: "1.0.0",
     type: "markdown",
     info: {
-      version: "1.0.0",
+      version: "0.0.1",
       title,
       description: description || "A markdown document",
       created: now,
