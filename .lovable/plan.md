@@ -1,181 +1,279 @@
 
-
-# Static HTML Landing Page for VerjSON Marketing
+# Manifest Document Type Implementation Plan
 
 ## Overview
 
-Create a static HTML landing page at `/landing.html` that serves as a marketing entry point for VerjSON. The page will be optimized for search engines and LLM crawlers following the SEO plan guidelines, with a clear call-to-action linking to `/auth`.
+Introduce a new VerjSON document type called **"manifest"** that serves as an indexed repository/navigation structure for documentation. The manifest acts as a table of contents and navigation system (similar to WinHelp or manpages) that references or embeds other markdown documents, allowing users to create structured, navigable documentation suites.
 
-## Approach
+## Design Principles
 
-Since this is a React/Vite SPA, we have two options:
-1. **Create a separate static HTML file** in the `public/` folder - immediately crawlable, no JS required
-2. **Create a React landing page component** - requires JS to render
-
-**Recommendation**: Create a static HTML file (`public/landing.html`) for maximum SEO benefit since search engines and LLMs can read it without JavaScript execution. We can also create a redirect from the main app for unauthenticated users.
+1. **Reference-based architecture**: The manifest contains structure and navigation metadata, not the actual content. Content is stored in separate markdown documents and referenced via `document://` or embedded via inline content.
+2. **WinHelp/Manpage influences**: Hierarchical navigation, indexed topics, searchable content, and cross-references.
+3. **Consistency with VerjSON format**: Follow the existing patterns from diagram and markdown document types.
 
 ---
 
-## Implementation Details
+## Technical Specification
 
-### 1. Create Static Landing Page (`public/landing.html`)
+### 1. Manifest Document Schema
 
-**Structure following SEO guidelines:**
+The manifest follows the VerjSON pattern with these key sections:
 
-```
-<h1>Version, edit and render all your JSON files in full collaboration with VerJSON!</h1>
-
-<h2>What problem VerJSON solves</h2>
-  - API versioning challenges
-  - Schema drift and inconsistency
-  - Collaboration on technical specs
-  - Breaking change management
-
-<h2>How VerJSON works</h2>
-  - Visual structure editor
-  - Real-time collaboration (Yjs)
-  - Semantic versioning with diff/merge
-  - Automatic diagram generation
-
-<h2>Who VerJSON is for</h2>
-  - API developers
-  - Technical writers
-  - DevOps/Platform teams
-  - Solution architects
-
-<h2>Supported Formats</h2>
-  - OpenAPI 3.1 specifications
-  - JSON Schema documents
-  - Sequence diagrams
-  - Markdown documentation
-
-<h2>FAQ</h2>
-  - Common questions about versioning, collaboration, etc.
+```text
++------------------------+
+|  verjson: "1.0.0"      |
+|  type: "manifest"      |
++------------------------+
+|  info:                 |
+|    - version           |
+|    - title             |
+|    - description       |
++------------------------+
+|  data:                 |
+|    - toc (table of     |
+|      contents tree)    |
+|    - index (keyword    |
+|      index)            |
+|    - embeds (inline    |
+|      or referenced     |
+|      content)          |
++------------------------+
+|  styles:               |
+|    - navigation theme  |
+|    - preview theme     |
++------------------------+
 ```
 
-**SEO Meta Tags:**
-- Title: "VerJSON - Version, edit and render all your JSON files in full collaboration"
-- Meta description: Canonical positioning sentence
-- Open Graph tags for social sharing
-- Twitter card tags
-- Structured data (JSON-LD) for product/software application
+### 2. Core Data Structures
 
-**Technical Keywords to Include:**
-- JSON Schema
-- OpenAPI 3.1
-- diff / merge
-- version control
-- conflict resolution
-- API evolution
-- real-time collaboration
-- semantic versioning
+**Table of Contents (TOC)**:
+- Hierarchical tree of sections and pages
+- Each entry can reference external markdown documents via `document://id` or embedded content via `embed://id`
+- Supports unlimited nesting depth
 
-### 2. Update `index.html` Meta Tags
+**Index**:
+- Keyword-based index for search
+- Each keyword points to one or more TOC entries or specific sections within documents
 
-Ensure consistency with the landing page:
-- Update og:image to a VerjSON-specific image (not lovable.dev)
-- Remove twitter:site reference to @lovable_dev
-- Keep meta description consistent
-
-### 3. Create Sitemap (`public/sitemap.xml`)
-
-Include:
-- Landing page (`/landing.html`)
-- Auth page (`/auth`)
-- API docs (`/api-docs`)
-- Documentation pages (`/docs/*`)
-
-### 4. Update `robots.txt`
-
-Add sitemap reference:
-```
-Sitemap: https://verjson.lovable.app/sitemap.xml
-```
-
-### 5. Styling Approach
-
-The landing page will use:
-- Inline CSS or a separate CSS file for complete independence from the React app
-- Match the VerjSON brand colors (primary blue: `#2563eb`)
-- Responsive design for mobile/tablet/desktop
-- Clean, professional typography
-- Visual sections with icons/illustrations using inline SVG
+**Embeds**:
+- Similar to markdown embeds but for documentation pages
+- Can embed markdown documents inline (for self-contained exports)
+- Can reference external documents (for live collaboration)
 
 ---
 
-## Page Sections
+## Implementation Roadmap
 
-### Hero Section
-- Logo
-- H1 headline (canonical positioning)
-- Subheadline with key benefits
-- Primary CTA: "Get Started Free" -> `/auth`
-- Secondary CTA: "View Documentation" -> `/docs`
-
-### Problem Section
-- Pain points developers face
-- Technical language about API versioning challenges
-
-### Solution Section
-- How VerJSON addresses each pain point
-- Feature highlights with brief descriptions
-
-### Features Grid
-- Visual structure editor
-- Real-time collaboration
-- Version control with diff/merge
-- Automatic diagram generation
-- Consistency checking
-- Multi-format support
-
-### Target Audience Section
-- API developers
-- Technical writers
-- Platform teams
-- Use case examples
-
-### FAQ Section
-- 5-7 common questions
-- LLM-friendly structured answers
-
-### Footer
-- Links to docs, API docs
-- Copyright
-- Get started CTA
-
----
-
-## Files to Create
-
-| File | Purpose |
-|------|---------|
-| `public/landing.html` | Main static landing page |
-| `public/landing.css` | Styles for landing page |
-| `public/sitemap.xml` | SEO sitemap |
-
-## Files to Modify
+### Phase 1: Type Definitions and Schema
 
 | File | Changes |
 |------|---------|
-| `public/robots.txt` | Add sitemap reference |
-| `index.html` | Update meta tags, remove lovable.dev references |
+| `src/types/manifest.ts` | New file - TypeScript interfaces for ManifestDocument, TOCEntry, IndexEntry, ManifestEmbed |
+| `src/types/workspace.ts` | Add 'manifest' to file_type union |
+| `public/api/manifest-schema.v1.json` | New file - JSON Schema for manifest documents |
+| `src/lib/schemaUtils.ts` | Update SchemaType union and detectSchemaType() to recognize manifest documents |
+
+### Phase 2: Default Schema and Document Creation
+
+| File | Changes |
+|------|---------|
+| `src/lib/defaultManifestSchema.ts` | New file - Default manifest document template |
+| `src/components/workspace/WorkspacePanel.tsx` | Add 'manifest' option to document type selector |
+| `src/components/workspace/ImportDialog.tsx` | Add manifest detection to file type validation |
+
+### Phase 3: Editor Integration
+
+| File | Changes |
+|------|---------|
+| `src/components/schema/EditorContent.tsx` | Add manifest pane routing (similar to markdown pane) |
+| `src/components/manifest/ManifestEditor.tsx` | New file - Main editor component with structure editor and preview |
+| `src/components/manifest/ManifestPreview.tsx` | New file - Navigation-style preview renderer |
+| `src/components/manifest/ManifestTOCEditor.tsx` | New file - Visual TOC tree editor |
+| `src/components/manifest/ManifestIndexEditor.tsx` | New file - Keyword index management |
+
+### Phase 4: Preview Interface
+
+| File | Changes |
+|------|---------|
+| `src/components/manifest/ManifestViewer.tsx` | New file - WinHelp-style viewer component |
+| `src/components/manifest/ManifestNavigation.tsx` | New file - Sidebar navigation tree |
+| `src/components/manifest/ManifestSearch.tsx` | New file - Full-text and index search |
+| `src/components/manifest/ManifestBreadcrumb.tsx` | New file - Navigation breadcrumb trail |
+| `src/hooks/useManifestResolver.ts` | New file - Hook to resolve document:// references in manifests |
+
+---
+
+## Detailed Type Definitions
+
+```typescript
+// src/types/manifest.ts
+
+export interface ManifestDocument {
+  verjson: string;           // "1.0.0"
+  type: 'manifest';
+  info: {
+    version: string;         // Semantic version
+    title: string;
+    description?: string;
+    author?: string;
+    created?: string;
+    modified?: string;
+  };
+  data: ManifestData;
+  styles?: ManifestStyles;
+  selectedTheme?: string;
+}
+
+export interface ManifestData {
+  toc: TOCEntry[];           // Hierarchical table of contents
+  index?: IndexEntry[];      // Keyword index
+  embeds?: ManifestEmbed[];  // Embedded content
+  defaultPage?: string;      // ID of default landing page
+}
+
+export interface TOCEntry {
+  id: string;                // Unique identifier
+  title: string;             // Display title
+  icon?: string;             // Optional icon name
+  ref?: string;              // Reference: "document://uuid" or "embed://id"
+  anchor?: string;           // Optional anchor within referenced document
+  children?: TOCEntry[];     // Nested entries (folders/sections)
+  keywords?: string[];       // Searchable keywords for this entry
+  description?: string;      // Short description for search results
+}
+
+export interface IndexEntry {
+  keyword: string;           // Index keyword
+  entries: IndexReference[]; // References to TOC entries or specific anchors
+}
+
+export interface IndexReference {
+  tocId: string;             // Reference to TOC entry ID
+  anchor?: string;           // Optional anchor within the document
+  context?: string;          // Context snippet for search preview
+}
+
+export interface ManifestEmbed {
+  id: string;                // Unique embed identifier
+  type: 'markdown';          // Currently only markdown supported
+  content?: any;             // Inline MarkdownDocument for embedded content
+  documentId?: string;       // Reference to external document for linked content
+}
+
+export interface ManifestStyles {
+  themes?: Record<string, ManifestTheme>;
+}
+
+export interface ManifestTheme {
+  navigation: {
+    background: string;
+    text: string;
+    activeBackground: string;
+    hoverBackground: string;
+  };
+  content: {
+    background: string;
+    text: string;
+    linkColor: string;
+  };
+}
+```
+
+---
+
+## Preview Interface Design
+
+The manifest preview renders a WinHelp-inspired interface with:
+
+```text
++--------------------------------------------------+
+|  [Search bar...]                    [Theme] [?]  |
++--------------------------------------------------+
+|          |                                       |
+|  TOC     |  Content Area                         |
+|  Tree    |                                       |
+|          |  [Breadcrumb: Home > Section > Page]  |
+|  [+] Sec1|                                       |
+|    - Page|  # Page Title                         |
+|    - Page|                                       |
+|  [+] Sec2|  Rendered markdown content from       |
+|  [-] Sec3|  the referenced document...           |
+|    - Page|                                       |
+|    - Page|  [Previous] [Next]                    |
+|          |                                       |
++--------------------------------------------------+
+|  Index: A B C D E F G H I J K L M N O P Q R S T |
++--------------------------------------------------+
+```
+
+**Key Features**:
+1. **Collapsible TOC tree** - Navigate sections
+2. **Search** - Full-text search across all referenced documents + keyword index
+3. **Breadcrumb navigation** - Track current location
+4. **Previous/Next navigation** - Linear navigation through content
+5. **Index tab** - Alphabetical keyword index
 
 ---
 
 ## Technical Considerations
 
-- The landing page will be pure HTML/CSS with no JavaScript dependencies
-- All assets (logo, icons) will use inline SVG or reference existing `/favicon.png`
-- The page will be fully functional even if the React app fails to load
-- Responsive breakpoints: mobile (< 640px), tablet (640-1024px), desktop (> 1024px)
+### Document Reference Resolution
+- Reuse existing `useDocumentRefResolver` hook pattern
+- Extend to support manifest-specific resolution with TOC context
+- Cache resolved documents for performance
 
-## SEO/LLM Optimization
+### Structure Editor Integration
+- The manifest structure editor will show:
+  - **TOC** section: Visual tree editor for navigation structure
+  - **Index** section: Keyword management interface
+  - **Embeds** section: Manage embedded vs referenced content
 
-Following the uploaded SEO plan:
-1. Consistent canonical description across all meta tags
-2. Explicit technical language (JSON Schema, OpenAPI 3.1, diff/merge, etc.)
-3. Structured content with semantic HTML (h1, h2, article, section)
-4. FAQ section for LLM question-answering
-5. Problem-solution content structure
-6. JSON-LD structured data for software application
+### Search Implementation
+- Index keywords from manifest + full-text from resolved documents
+- Use existing search patterns from structure editor
 
+### Collaboration
+- Manifest documents support real-time collaboration via existing Yjs integration
+- Referenced documents maintain independent collaboration sessions
+
+---
+
+## Files Summary
+
+### New Files to Create (10 files)
+1. `src/types/manifest.ts` - TypeScript type definitions
+2. `public/api/manifest-schema.v1.json` - JSON Schema for validation
+3. `src/lib/defaultManifestSchema.ts` - Default document template
+4. `src/components/manifest/ManifestEditor.tsx` - Main editor component
+5. `src/components/manifest/ManifestPreview.tsx` - Preview/viewer component
+6. `src/components/manifest/ManifestTOCEditor.tsx` - TOC tree editor
+7. `src/components/manifest/ManifestNavigation.tsx` - Navigation sidebar
+8. `src/components/manifest/ManifestSearch.tsx` - Search component
+9. `src/components/manifest/ManifestBreadcrumb.tsx` - Breadcrumb navigation
+10. `src/hooks/useManifestResolver.ts` - Document reference resolver
+
+### Files to Modify (6 files)
+1. `src/types/workspace.ts` - Add 'manifest' to file_type
+2. `src/lib/schemaUtils.ts` - Add manifest detection and validation
+3. `src/components/workspace/WorkspacePanel.tsx` - Add manifest creation option
+4. `src/components/workspace/ImportDialog.tsx` - Add manifest detection
+5. `src/components/schema/EditorContent.tsx` - Route to manifest editor
+6. `src/components/schema/SchemaStructureEditor.tsx` - Add manifest structure sections
+
+---
+
+## Database Considerations
+
+No database schema changes required. The `file_type` column in the `documents` table is a plain string, so 'manifest' can be used immediately.
+
+---
+
+## Suggested Implementation Order
+
+1. **Phase 1**: Type definitions and schema (foundational)
+2. **Phase 2**: Default schema and document creation (enables creating manifests)
+3. **Phase 3**: Basic editor with TOC management (enables editing)
+4. **Phase 4**: Preview interface with navigation (enables viewing)
+5. **Phase 5**: Search and index features (enhances usability)
+
+This phased approach allows for incremental development and testing, with each phase delivering usable functionality.
