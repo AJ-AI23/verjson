@@ -45,7 +45,7 @@ interface VersionHistoryProps {
   isModified?: boolean;
   schema?: string;
   patches?: any[];
-  onVersionBump?: (newVersion: Version, tier: VersionTier, description: string) => void;
+  onVersionBump?: (newVersion: Version, tier: VersionTier, description: string, isReleased?: boolean, autoVersion?: boolean) => Promise<string | null>;
   suggestedVersion?: Version | null;
 }
 
