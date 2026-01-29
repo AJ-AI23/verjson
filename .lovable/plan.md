@@ -1,279 +1,220 @@
 
-# Manifest Document Type Implementation Plan
+# Plan: TOC Entry Ref Persistence and Modular Content Renderers
 
 ## Overview
+This plan addresses two requirements:
+1. **TOC Entry Reference Persistence**: Ensure the TOC entry's `ref` field is set when embedding/linking so the preview can locate and render the content
+2. **Modular Content Renderers**: Create reusable renderer components that can display markdown, diagram, and other VerjSON document types within the manifest preview
 
-Introduce a new VerjSON document type called **"manifest"** that serves as an indexed repository/navigation structure for documentation. The manifest acts as a table of contents and navigation system (similar to WinHelp or manpages) that references or embeds other markdown documents, allowing users to create structured, navigable documentation suites.
+## Current State Analysis
 
-## Design Principles
+### What's Already Working
+- Embeds are correctly stored in `data.embeds` with full content copied from the source document
+- TOC entries have a `ref` field that should point to `embed://{embedId}` or `document://{documentId}`
+- The `ManifestContentPane` already checks for `embed://` and `document://` references
 
-1. **Reference-based architecture**: The manifest contains structure and navigation metadata, not the actual content. Content is stored in separate markdown documents and referenced via `document://` or embedded via inline content.
-2. **WinHelp/Manpage influences**: Hierarchical navigation, indexed topics, searchable content, and cross-references.
-3. **Consistency with VerjSON format**: Follow the existing patterns from diagram and markdown document types.
+### What's Missing
+1. When linking (not embedding), the `ref` is set to `document://{documentId}` but no content is fetched at render time
+2. The `ManifestContentPane` doesn't actually render the embedded content - it just shows a placeholder
+3. No reusable renderer modules exist for the different document types
 
 ---
 
-## Technical Specification
+## Implementation
 
-### 1. Manifest Document Schema
+### Phase 1: Verify TOC Entry Reference Setting
 
-The manifest follows the VerjSON pattern with these key sections:
+The current implementation already sets the `ref` correctly in `TOCEntryEditor.tsx`:
+- For embeds: `onUpdate(path, { ref: `embed://${embedId}` })`
+- For links: `onUpdate(path, { ref: reference })` where reference is `document://{documentId}`
+
+**Verification Task**: Confirm this is working by checking the JSON output after embedding/linking.
+
+---
+
+### Phase 2: Create Modular Content Renderers
+
+Create a new `src/components/renderers/` directory with standalone, read-only renderers:
+
+#### 2.1 Markdown Content Renderer
+**File**: `src/components/renderers/MarkdownContentRenderer.tsx`
+
+Extract the preview rendering logic from `MarkdownEditor.tsx` into a reusable component:
+- Accepts a `MarkdownDocument` as input
+- Renders all pages with proper theming
+- Handles embed resolution for images
+- Supports both `markdown` and `extended-markdown` types
 
 ```text
-+------------------------+
-|  verjson: "1.0.0"      |
-|  type: "manifest"      |
-+------------------------+
-|  info:                 |
-|    - version           |
-|    - title             |
-|    - description       |
-+------------------------+
-|  data:                 |
-|    - toc (table of     |
-|      contents tree)    |
-|    - index (keyword    |
-|      index)            |
-|    - embeds (inline    |
-|      or referenced     |
-|      content)          |
-+------------------------+
-|  styles:               |
-|    - navigation theme  |
-|    - preview theme     |
-+------------------------+
+Props:
+  - document: MarkdownDocument
+  - theme?: 'light' | 'dark' (optional override)
+  - className?: string
 ```
 
-### 2. Core Data Structures
+#### 2.2 Diagram Content Renderer  
+**File**: `src/components/renderers/DiagramContentRenderer.tsx`
 
-**Table of Contents (TOC)**:
-- Hierarchical tree of sections and pages
-- Each entry can reference external markdown documents via `document://id` or embedded content via `embed://id`
-- Supports unlimited nesting depth
+Wrap the existing `SequenceDiagramRenderer` in a simpler read-only facade:
+- Accepts a `DiagramDocument` as input
+- Sets `readOnly={true}` by default
+- Handles sequence and flowchart types
 
-**Index**:
-- Keyword-based index for search
-- Each keyword points to one or more TOC entries or specific sections within documents
+```text
+Props:
+  - document: DiagramDocument
+  - theme?: 'light' | 'dark' (optional override)
+  - className?: string
+```
 
-**Embeds**:
-- Similar to markdown embeds but for documentation pages
-- Can embed markdown documents inline (for self-contained exports)
-- Can reference external documents (for live collaboration)
+#### 2.3 Universal Document Renderer
+**File**: `src/components/renderers/DocumentContentRenderer.tsx`
 
----
+A dispatcher component that detects document type and routes to the appropriate renderer:
 
-## Implementation Roadmap
+```text
+Props:
+  - content: any (the document object)
+  - className?: string
+  
+Logic:
+  if content.type === 'markdown' || 'extended-markdown' -> MarkdownContentRenderer
+  if content.type === 'sequence' || 'flowchart' -> DiagramContentRenderer
+  else -> JSON preview or error message
+```
 
-### Phase 1: Type Definitions and Schema
+#### 2.4 Index Export
+**File**: `src/components/renderers/index.ts`
 
-| File | Changes |
-|------|---------|
-| `src/types/manifest.ts` | New file - TypeScript interfaces for ManifestDocument, TOCEntry, IndexEntry, ManifestEmbed |
-| `src/types/workspace.ts` | Add 'manifest' to file_type union |
-| `public/api/manifest-schema.v1.json` | New file - JSON Schema for manifest documents |
-| `src/lib/schemaUtils.ts` | Update SchemaType union and detectSchemaType() to recognize manifest documents |
-
-### Phase 2: Default Schema and Document Creation
-
-| File | Changes |
-|------|---------|
-| `src/lib/defaultManifestSchema.ts` | New file - Default manifest document template |
-| `src/components/workspace/WorkspacePanel.tsx` | Add 'manifest' option to document type selector |
-| `src/components/workspace/ImportDialog.tsx` | Add manifest detection to file type validation |
-
-### Phase 3: Editor Integration
-
-| File | Changes |
-|------|---------|
-| `src/components/schema/EditorContent.tsx` | Add manifest pane routing (similar to markdown pane) |
-| `src/components/manifest/ManifestEditor.tsx` | New file - Main editor component with structure editor and preview |
-| `src/components/manifest/ManifestPreview.tsx` | New file - Navigation-style preview renderer |
-| `src/components/manifest/ManifestTOCEditor.tsx` | New file - Visual TOC tree editor |
-| `src/components/manifest/ManifestIndexEditor.tsx` | New file - Keyword index management |
-
-### Phase 4: Preview Interface
-
-| File | Changes |
-|------|---------|
-| `src/components/manifest/ManifestViewer.tsx` | New file - WinHelp-style viewer component |
-| `src/components/manifest/ManifestNavigation.tsx` | New file - Sidebar navigation tree |
-| `src/components/manifest/ManifestSearch.tsx` | New file - Full-text and index search |
-| `src/components/manifest/ManifestBreadcrumb.tsx` | New file - Navigation breadcrumb trail |
-| `src/hooks/useManifestResolver.ts` | New file - Hook to resolve document:// references in manifests |
+Export all renderers for easy imports.
 
 ---
 
-## Detailed Type Definitions
+### Phase 3: Update ManifestEmbed Type
+
+Update `src/types/manifest.ts` to support multiple document types:
 
 ```typescript
-// src/types/manifest.ts
-
-export interface ManifestDocument {
-  verjson: string;           // "1.0.0"
-  type: 'manifest';
-  info: {
-    version: string;         // Semantic version
-    title: string;
-    description?: string;
-    author?: string;
-    created?: string;
-    modified?: string;
-  };
-  data: ManifestData;
-  styles?: ManifestStyles;
-  selectedTheme?: string;
-}
-
-export interface ManifestData {
-  toc: TOCEntry[];           // Hierarchical table of contents
-  index?: IndexEntry[];      // Keyword index
-  embeds?: ManifestEmbed[];  // Embedded content
-  defaultPage?: string;      // ID of default landing page
-}
-
-export interface TOCEntry {
-  id: string;                // Unique identifier
-  title: string;             // Display title
-  icon?: string;             // Optional icon name
-  ref?: string;              // Reference: "document://uuid" or "embed://id"
-  anchor?: string;           // Optional anchor within referenced document
-  children?: TOCEntry[];     // Nested entries (folders/sections)
-  keywords?: string[];       // Searchable keywords for this entry
-  description?: string;      // Short description for search results
-}
-
-export interface IndexEntry {
-  keyword: string;           // Index keyword
-  entries: IndexReference[]; // References to TOC entries or specific anchors
-}
-
-export interface IndexReference {
-  tocId: string;             // Reference to TOC entry ID
-  anchor?: string;           // Optional anchor within the document
-  context?: string;          // Context snippet for search preview
-}
-
 export interface ManifestEmbed {
-  id: string;                // Unique embed identifier
-  type: 'markdown';          // Currently only markdown supported
-  content?: any;             // Inline MarkdownDocument for embedded content
-  documentId?: string;       // Reference to external document for linked content
-}
-
-export interface ManifestStyles {
-  themes?: Record<string, ManifestTheme>;
-}
-
-export interface ManifestTheme {
-  navigation: {
-    background: string;
-    text: string;
-    activeBackground: string;
-    hoverBackground: string;
-  };
-  content: {
-    background: string;
-    text: string;
-    linkColor: string;
-  };
+  id: string;
+  type: 'markdown' | 'diagram' | 'json-schema' | 'openapi';
+  content?: any;  // The embedded document content
+  documentId?: string;  // Reference to source (for refresh purposes)
 }
 ```
 
 ---
 
-## Preview Interface Design
+### Phase 4: Update ManifestContentPane
 
-The manifest preview renders a WinHelp-inspired interface with:
+**File**: `src/components/manifest/ManifestContentPane.tsx`
+
+Enhance to render actual content using the new modular renderers:
+
+1. **For embed references** (`embed://{id}`):
+   - Look up the embed in `data.embeds`
+   - Use `DocumentContentRenderer` to display the stored `content`
+
+2. **For document references** (`document://{id}`):
+   - Create a `useManifestDocumentResolver` hook to fetch linked documents on-demand
+   - Display loading state while fetching
+   - Cache resolved documents to avoid refetching
+   - Render with `DocumentContentRenderer`
 
 ```text
-+--------------------------------------------------+
-|  [Search bar...]                    [Theme] [?]  |
-+--------------------------------------------------+
-|          |                                       |
-|  TOC     |  Content Area                         |
-|  Tree    |                                       |
-|          |  [Breadcrumb: Home > Section > Page]  |
-|  [+] Sec1|                                       |
-|    - Page|  # Page Title                         |
-|    - Page|                                       |
-|  [+] Sec2|  Rendered markdown content from       |
-|  [-] Sec3|  the referenced document...           |
-|    - Page|                                       |
-|    - Page|  [Previous] [Next]                    |
-|          |                                       |
-+--------------------------------------------------+
-|  Index: A B C D E F G H I J K L M N O P Q R S T |
-+--------------------------------------------------+
+Updated component structure:
+
+ManifestContentPane
+├── Header (page title, description)
+├── Content Area
+│   ├── If embed:// → DocumentContentRenderer(embed.content)
+│   ├── If document:// → DocumentContentRenderer(resolvedDocument)
+│   └── If no ref → "No content linked" placeholder
+└── Navigation Footer (prev/next)
 ```
 
-**Key Features**:
-1. **Collapsible TOC tree** - Navigate sections
-2. **Search** - Full-text search across all referenced documents + keyword index
-3. **Breadcrumb navigation** - Track current location
-4. **Previous/Next navigation** - Linear navigation through content
-5. **Index tab** - Alphabetical keyword index
+---
+
+### Phase 5: Create Document Resolver Hook
+
+**File**: `src/hooks/useManifestDocumentResolver.ts`
+
+A specialized hook for resolving `document://` references in the manifest viewer:
+
+```typescript
+interface UseManifestDocumentResolverResult {
+  resolveDocument: (documentId: string) => Promise<any>;
+  getDocument: (documentId: string) => any | null;
+  isLoading: (documentId: string) => boolean;
+  error: (documentId: string) => string | null;
+}
+```
+
+This reuses patterns from the existing `useDocumentRefResolver` hook but is optimized for manifest page navigation.
+
+---
+
+### Phase 6: Update Structure Editor Embed Type Detection
+
+**File**: `src/components/manifest/ManifestStructureEditor.tsx`
+
+When creating embeds, detect the document type from the fetched content and set the `type` field appropriately:
+
+```typescript
+const handleAddEmbed = async (documentId: string, documentName?: string) => {
+  // ... fetch document content ...
+  
+  // Detect embedded document type
+  let embedType: 'markdown' | 'diagram' | 'json-schema' | 'openapi' = 'markdown';
+  if (documentContent.verjson) {
+    if (documentContent.type === 'markdown' || documentContent.type === 'extended-markdown') {
+      embedType = 'markdown';
+    } else if (documentContent.type === 'sequence' || documentContent.type === 'flowchart') {
+      embedType = 'diagram';
+    }
+  } else if (documentContent.openapi || documentContent.swagger) {
+    embedType = 'openapi';
+  }
+  
+  const newEmbed = {
+    id: embedId,
+    type: embedType,
+    documentId,
+    content: documentContent,
+  };
+  // ...
+};
+```
+
+---
+
+## File Changes Summary
+
+| File | Change Type |
+|------|------------|
+| `src/components/renderers/MarkdownContentRenderer.tsx` | Create |
+| `src/components/renderers/DiagramContentRenderer.tsx` | Create |
+| `src/components/renderers/DocumentContentRenderer.tsx` | Create |
+| `src/components/renderers/index.ts` | Create |
+| `src/hooks/useManifestDocumentResolver.ts` | Create |
+| `src/types/manifest.ts` | Modify |
+| `src/components/manifest/ManifestContentPane.tsx` | Modify |
+| `src/components/manifest/ManifestStructureEditor.tsx` | Modify |
 
 ---
 
 ## Technical Considerations
 
-### Document Reference Resolution
-- Reuse existing `useDocumentRefResolver` hook pattern
-- Extend to support manifest-specific resolution with TOC context
-- Cache resolved documents for performance
+### Renderer Extraction Strategy
+- The `MarkdownContentRenderer` extracts ~200 lines of theme-aware component definitions and ReactMarkdown configuration from `MarkdownEditor.tsx`
+- The original `MarkdownEditor` will be refactored to use `MarkdownContentRenderer` internally for its preview pane
+- This ensures no code duplication and consistent rendering
 
-### Structure Editor Integration
-- The manifest structure editor will show:
-  - **TOC** section: Visual tree editor for navigation structure
-  - **Index** section: Keyword management interface
-  - **Embeds** section: Manage embedded vs referenced content
+### Performance
+- Embedded content is pre-loaded (stored in manifest), so embed rendering is immediate
+- Linked documents require on-demand fetching with loading states
+- Document cache prevents redundant network requests during page navigation
 
-### Search Implementation
-- Index keywords from manifest + full-text from resolved documents
-- Use existing search patterns from structure editor
-
-### Collaboration
-- Manifest documents support real-time collaboration via existing Yjs integration
-- Referenced documents maintain independent collaboration sessions
-
----
-
-## Files Summary
-
-### New Files to Create (10 files)
-1. `src/types/manifest.ts` - TypeScript type definitions
-2. `public/api/manifest-schema.v1.json` - JSON Schema for validation
-3. `src/lib/defaultManifestSchema.ts` - Default document template
-4. `src/components/manifest/ManifestEditor.tsx` - Main editor component
-5. `src/components/manifest/ManifestPreview.tsx` - Preview/viewer component
-6. `src/components/manifest/ManifestTOCEditor.tsx` - TOC tree editor
-7. `src/components/manifest/ManifestNavigation.tsx` - Navigation sidebar
-8. `src/components/manifest/ManifestSearch.tsx` - Search component
-9. `src/components/manifest/ManifestBreadcrumb.tsx` - Breadcrumb navigation
-10. `src/hooks/useManifestResolver.ts` - Document reference resolver
-
-### Files to Modify (6 files)
-1. `src/types/workspace.ts` - Add 'manifest' to file_type
-2. `src/lib/schemaUtils.ts` - Add manifest detection and validation
-3. `src/components/workspace/WorkspacePanel.tsx` - Add manifest creation option
-4. `src/components/workspace/ImportDialog.tsx` - Add manifest detection
-5. `src/components/schema/EditorContent.tsx` - Route to manifest editor
-6. `src/components/schema/SchemaStructureEditor.tsx` - Add manifest structure sections
-
----
-
-## Database Considerations
-
-No database schema changes required. The `file_type` column in the `documents` table is a plain string, so 'manifest' can be used immediately.
-
----
-
-## Suggested Implementation Order
-
-1. **Phase 1**: Type definitions and schema (foundational)
-2. **Phase 2**: Default schema and document creation (enables creating manifests)
-3. **Phase 3**: Basic editor with TOC management (enables editing)
-4. **Phase 4**: Preview interface with navigation (enables viewing)
-5. **Phase 5**: Search and index features (enhances usability)
-
-This phased approach allows for incremental development and testing, with each phase delivering usable functionality.
+### Nested Manifests
+- A manifest can embed another manifest
+- The renderer should detect this and render the embedded manifest's TOC inline or show a simplified view to prevent infinite nesting
