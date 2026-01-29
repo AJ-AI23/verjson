@@ -1,4 +1,3 @@
-
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { EditorSettingsProvider } from '@/contexts/EditorSettingsContext';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -10,6 +9,7 @@ import Index from '@/pages/Index';
 import Auth from '@/pages/Auth';
 import { PublicDiagram } from '@/pages/PublicDiagram';
 import ApiDocs from '@/pages/ApiDocs';
+import Docs from '@/pages/Docs';
 import NotFound from '@/pages/NotFound';
 
 function App() {
@@ -21,13 +21,14 @@ function App() {
             <EditorSettingsProvider>
               <NotificationsProvider>
                 <Router>
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/auth" element={<Auth />} />
-                    <Route path="/public/diagram/:documentId" element={<PublicDiagram />} />
-                    <Route path="/api-docs" element={<ApiDocs />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/docs" element={<Docs />} />
+                  <Route path="/public/diagram/:documentId" element={<PublicDiagram />} />
+                  <Route path="/api-docs" element={<ApiDocs />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
                 </Router>
               </NotificationsProvider>
             </EditorSettingsProvider>
