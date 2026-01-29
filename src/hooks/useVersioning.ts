@@ -273,10 +273,10 @@ export const useVersioning = ({
         newVersionId: newVersionRecord?.id,
       });
       
-      // Update saved schema and database version to current schema
-      lastCommitRef.current = { at: Date.now(), schema };
-      setSavedSchema(schema);
-      setDatabaseVersion(schema);
+      // Update saved schema and database version to the UPDATED schema (with new version number)
+      lastCommitRef.current = { at: Date.now(), schema: updatedSchemaString };
+      setSavedSchema(updatedSchemaString);
+      setDatabaseVersion(updatedSchemaString);
 
       console.log('[useVersioning] handleVersionBump FINALIZE', {
         documentId,
