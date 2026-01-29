@@ -392,4 +392,40 @@ export const deleteVersion = (
   const updatedPatches = patches.filter(p => p.id !== patchId);
   
   return { success: true, updatedPatches };
+}
+
+// Extract version from document content based on file type
+export const extractVersionFromDocument = (content: any, fileType: string): Version => {
+  let versionString: string | undefined;
+  
+  if (fileType === 'json-schema') {
+    versionString = content?.version;
+  } else {
+    // openapi, diagram, markdown all use info.version
+    versionString = content?.info?.version;
+  }
+  
+  if (versionString && typeof versionString === 'string') {
+    return parseVersion(versionString);
+  }
+  
+  return { major: 0, minor: 0, patch: 1 }; // Default to 0.0.1
+};
+
+// Update version in document content based on file type
+export const updateDocumentVersion = (content: any, fileType: string, version: Version): any => {
+  const versionString = formatVersion(version);
+  const updated = JSON.parse(JSON.stringify(content)); // Deep clone
+  
+  if (fileType === 'json-schema') {
+    updated.version = versionString;
+  } else {
+    // openapi, diagram, markdown all use info.version
+    if (!updated.info) {
+      updated.info = {};
+    }
+    updated.info.version = versionString;
+  }
+  
+  return updated;
 };

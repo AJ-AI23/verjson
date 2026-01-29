@@ -76,6 +76,7 @@ export const exampleSchema = `{
 
 export const defaultSchema = `{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "0.0.1",
   "title": "My Schema",
   "type": "object",
   "properties": {

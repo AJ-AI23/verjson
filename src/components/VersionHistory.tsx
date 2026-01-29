@@ -381,6 +381,7 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
             documentId={documentId}
             currentFileType={currentFileType}
             suggestedVersion={suggestedVersion}
+            onVersionCreated={() => refetch()}
           />
         </div>
       )}

@@ -5,7 +5,7 @@ export const defaultDiagramSchema: DiagramDocument = {
   verjson: '1.0.0',
   type: 'sequence',
   info: {
-    version: '0.1.0',
+    version: '0.0.1',
     title: 'New Sequence Diagram',
     description: 'A sequence diagram showing interactions between components',
     created: new Date().toISOString(),
@@ -198,7 +198,7 @@ export const defaultFlowchartSchema: DiagramDocument = {
   verjson: '1.0.0',
   type: 'flowchart',
   info: {
-    version: '0.1.0',
+    version: '0.0.1',
     title: 'New Flowchart',
     description: 'A basic flowchart diagram',
     created: new Date().toISOString(),
