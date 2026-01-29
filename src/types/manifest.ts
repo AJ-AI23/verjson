@@ -55,9 +55,9 @@ export interface IndexReference {
 
 export interface ManifestEmbed {
   id: string;                // Unique embed identifier
-  type: 'markdown';          // Currently only markdown supported
-  content?: any;             // Inline MarkdownDocument for embedded content
-  documentId?: string;       // Reference to external document for linked content
+  type: 'markdown' | 'diagram' | 'json-schema' | 'openapi';  // Supported document types
+  content?: any;             // The embedded document content (full copy)
+  documentId?: string;       // Reference to source document (for refresh purposes)
 }
 
 export interface ManifestStyles {

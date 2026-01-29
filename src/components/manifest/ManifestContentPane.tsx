@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { TOCEntry, ManifestEmbed } from '@/types/manifest';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, FileText, ExternalLink } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ChevronLeft, ChevronRight, FileText, ExternalLink, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DocumentContentRenderer } from '@/components/renderers';
+import { useManifestDocumentResolver } from '@/hooks/useManifestDocumentResolver';
 
 interface ManifestContentPaneProps {
   entry: TOCEntry | null;
@@ -20,6 +23,40 @@ export const ManifestContentPane: React.FC<ManifestContentPaneProps> = ({
   onPrevious,
   onNext,
 }) => {
+  const { resolveDocument, getDocument, isLoading, getError } = useManifestDocumentResolver();
+
+  // Determine content source
+  const hasRef = !!entry?.ref;
+  const isDocumentRef = entry?.ref?.startsWith('document://');
+  const isEmbedRef = entry?.ref?.startsWith('embed://');
+
+  // Extract document ID from document:// reference
+  const linkedDocumentId = useMemo(() => {
+    if (isDocumentRef && entry?.ref) {
+      return entry.ref.replace('document://', '');
+    }
+    return null;
+  }, [isDocumentRef, entry?.ref]);
+
+  // Find embed content if it's an embed reference
+  const embedContent = useMemo(() => {
+    if (!isEmbedRef || !embeds || !entry?.ref) return null;
+    const embedId = entry.ref.replace('embed://', '');
+    return embeds.find(e => e.id === embedId) || null;
+  }, [isEmbedRef, embeds, entry?.ref]);
+
+  // Resolve linked document on demand
+  useEffect(() => {
+    if (linkedDocumentId) {
+      resolveDocument(linkedDocumentId);
+    }
+  }, [linkedDocumentId, resolveDocument]);
+
+  // Get resolved document content
+  const resolvedDocumentContent = linkedDocumentId ? getDocument(linkedDocumentId) : null;
+  const isLoadingDocument = linkedDocumentId ? isLoading(linkedDocumentId) : false;
+  const documentError = linkedDocumentId ? getError(linkedDocumentId) : null;
+
   if (!entry) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground">
@@ -30,16 +67,6 @@ export const ManifestContentPane: React.FC<ManifestContentPaneProps> = ({
       </div>
     );
   }
-
-  // Determine content source
-  const hasRef = !!entry.ref;
-  const isDocumentRef = entry.ref?.startsWith('document://');
-  const isEmbedRef = entry.ref?.startsWith('embed://');
-
-  // Find embed content if it's an embed reference
-  const embedContent = isEmbedRef && embeds
-    ? embeds.find(e => `embed://${e.id}` === entry.ref)
-    : null;
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
@@ -55,6 +82,7 @@ export const ManifestContentPane: React.FC<ManifestContentPaneProps> = ({
 
           {/* Content area */}
           <div className="prose dark:prose-invert max-w-none">
+            {/* No reference and no children - empty page */}
             {!hasRef && !entry.children?.length && (
               <div className="text-center py-12 text-muted-foreground">
                 <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -66,20 +94,35 @@ export const ManifestContentPane: React.FC<ManifestContentPaneProps> = ({
               </div>
             )}
 
-            {isDocumentRef && (
-              <div className="border rounded-lg p-4 bg-muted/30">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <ExternalLink className="h-4 w-4" />
-                  <span className="text-sm">
-                    References external document: <code className="text-xs">{entry.ref}</code>
-                  </span>
-                </div>
-                <p className="text-sm mt-2">
-                  Document content will be resolved and displayed here when the resolver is connected.
-                </p>
+            {/* Document reference - fetch and render */}
+            {isDocumentRef && linkedDocumentId && (
+              <div className="not-prose">
+                {isLoadingDocument && (
+                  <div className="space-y-4">
+                    <Skeleton className="h-8 w-3/4" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-2/3" />
+                  </div>
+                )}
+
+                {documentError && (
+                  <div className="border rounded-lg p-4 bg-destructive/10 text-destructive">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4" />
+                      <span className="text-sm font-medium">Failed to load document</span>
+                    </div>
+                    <p className="text-sm mt-2">{documentError}</p>
+                  </div>
+                )}
+
+                {resolvedDocumentContent && !isLoadingDocument && (
+                  <DocumentContentRenderer content={resolvedDocumentContent} />
+                )}
               </div>
             )}
 
+            {/* Embed reference - render stored content */}
             {isEmbedRef && !embedContent && (
               <div className="border rounded-lg p-4 bg-muted/30">
                 <div className="flex items-center gap-2 text-muted-foreground">
@@ -91,7 +134,13 @@ export const ManifestContentPane: React.FC<ManifestContentPaneProps> = ({
               </div>
             )}
 
-            {embedContent && (
+            {embedContent && embedContent.content && (
+              <div className="not-prose">
+                <DocumentContentRenderer content={embedContent.content} />
+              </div>
+            )}
+
+            {embedContent && !embedContent.content && (
               <div className="border rounded-lg p-4 bg-muted/30">
                 <div className="flex items-center gap-2 text-muted-foreground mb-2">
                   <FileText className="h-4 w-4" />
@@ -100,7 +149,7 @@ export const ManifestContentPane: React.FC<ManifestContentPaneProps> = ({
                 <p className="text-sm">
                   {embedContent.documentId 
                     ? `Linked to document: ${embedContent.documentId}`
-                    : 'Inline markdown content'
+                    : 'No content available'
                   }
                 </p>
               </div>
