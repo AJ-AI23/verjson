@@ -1,265 +1,375 @@
 
 
-# Refactor: Move Commit Version to Versions Dialog and Add Document Information Dialog
+# Align Document Version Numbers and Refresh Version Table After Commit
 
 ## Overview
 
-This plan restructures the version management UI by:
-1. Moving the "Current Version" panel (renamed to "Commit Version") from the editor bottom into the Versions dialog
-2. Renaming "History" dialog to "Versions"
-3. Creating a new "Document Information" dialog accessible via a document icon in the header
-4. Moving existing document information from the Versions dialog into the new Document Information dialog
+This plan implements several improvements to version number alignment:
 
-## Current Architecture
+1. **Refresh version table after commit** - The Versions dialog table will update after a new commit
+2. **Update document internal version** - When committing, increment the version property inside the document content
+3. **Handle different document types** - Different version property locations based on file type
+4. **Set initial version to 0.0.1** - New documents start at 0.0.1 (not 0.1.0 as currently)
+5. **Import version handling** - Use the imported document's version or default to 0.0.1
 
-```text
-+------------------------------------------+
-| EditorToolbar (header)                   |
-|  [DocumentConfigDialog] Doc Name [...]   |
-|  [History button]                        |
-+------------------------------------------+
-| EditorContent                            |
-|  +------------------------------------+  |
-|  | JsonEditorWrapper                  |  |
-|  +------------------------------------+  |
-|  | VersionControls (Current Version)  |  | <-- Move this
-|  +------------------------------------+  |
-+------------------------------------------+
+## Current Behavior
 
-History Dialog (EditorVersionDialog):
-+------------------------------------------+
-| Version History                          |
-+------------------------------------------+
-| Document Information Panel (green)       | <-- Move to new dialog
-+------------------------------------------+
-| Compare Versions Button                  |
-+------------------------------------------+
-| Version History Table                    |
-+------------------------------------------+
-```
+- Initial versions are created as `0.1.0` in the database function
+- Document content does not have its internal version property updated when committing
+- The Versions dialog does not refresh after committing a new version
+- OpenAPI defaults have `info.version: "1.0.0"`
+- Diagram defaults have `info.version: "0.1.0"`
+- Markdown defaults have `info.version: "1.0.0"`
+- JSON Schema has no version property by default
 
-## Target Architecture
+## Version Property Locations by Document Type
 
-```text
-+------------------------------------------+
-| EditorToolbar (header)                   |
-|  [DocInfoBtn][DocConfig] Doc Name [...]  | <-- Add document info button
-|  [Versions button]                       | <-- Rename from History
-+------------------------------------------+
-| EditorContent                            |
-|  +------------------------------------+  |
-|  | JsonEditorWrapper                  |  |
-|  +------------------------------------+  |
-|  | (VersionControls removed)          |  | <-- Removed
-|  +------------------------------------+  |
-+------------------------------------------+
-
-Versions Dialog (renamed):
-+------------------------------------------+
-| Versions                                 |
-+------------------------------------------+
-| Commit Version Panel                     | <-- Moved here (top)
-|  [Version inputs] [Description] [Commit] |
-+------------------------------------------+
-| Compare Versions Button                  |
-+------------------------------------------+
-| Version History Table                    |
-+------------------------------------------+
-
-New Document Information Dialog:
-+------------------------------------------+
-| Document Information                     |
-+------------------------------------------+
-| Document ID, File Name, Type, etc.       |
-+------------------------------------------+
-```
+| Document Type | Version Location | Example |
+|---------------|------------------|---------|
+| `json-schema` | `root.version` | `{ "version": "0.0.1", ... }` |
+| `openapi` | `root.info.version` | `{ "info": { "version": "0.0.1" } }` |
+| `diagram` | `root.info.version` | `{ "info": { "version": "0.0.1" } }` |
+| `markdown` | `root.info.version` | `{ "info": { "version": "0.0.1" } }` |
 
 ## Implementation Details
 
-### 1. Create New Document Information Dialog
+### 1. Refresh Version Table After Commit
 
-**New file: `src/components/DocumentInformationDialog.tsx`**
+**Files**: 
+- `src/components/VersionHistory.tsx`
+- `src/components/VersionControls.tsx`
 
-A new dialog component that displays document metadata:
-- Document ID (with copy button)
-- File Name
-- File Type (badge)
-- Workspace ID
-- Created/Updated timestamps
-- Content Keys
-- User ID
+The `useDocumentVersions` hook already has a real-time subscription that triggers `fetchVersions` when database changes occur. However, the commit flow in `VersionControls` should trigger an explicit refresh to ensure immediate UI update.
 
-This content is moved from the green "Document Information Panel" in VersionHistory.
+**Changes**:
+- Add a callback prop `onVersionCreated` to `VersionControls` that the parent (`VersionHistory`) provides
+- In `VersionHistory`, pass a callback that triggers `refetch()` from the `useDocumentVersions` hook
+- After `onVersionBump` succeeds in `VersionControls`, call `onVersionCreated()`
 
-### 2. Update EditorToolbar
+### 2. Update Document Internal Version When Committing
 
-**File: `src/components/schema/EditorToolbar.tsx`**
+**Files**:
+- `src/hooks/useVersioning.ts`
 
-Changes:
-- Add a document information button (FileText icon) next to the document name
-- Opens the new DocumentInformationDialog
-- Rename "History" button text to "Versions"
+Before saving a new version, update the schema's internal version property based on the document type. This requires knowing the current file type.
+
+**Changes**:
+- Add `fileType` parameter to `useVersioning` hook
+- Create utility function `updateDocumentVersion(schema: any, fileType: string, version: Version): any`
+- In `handleVersionBump`, call this utility to update the schema before generating the patch
+
+**Utility function logic**:
+```typescript
+function updateDocumentVersion(schema: any, fileType: string, version: Version): any {
+  const versionString = `${version.major}.${version.minor}.${version.patch}`;
+  const updatedSchema = { ...schema };
+  
+  if (fileType === 'json-schema') {
+    updatedSchema.version = versionString;
+  } else if (fileType === 'openapi' || fileType === 'diagram' || fileType === 'markdown') {
+    if (!updatedSchema.info) {
+      updatedSchema.info = {};
+    }
+    updatedSchema.info.version = versionString;
+  }
+  
+  return updatedSchema;
+}
+```
+
+### 3. Set Initial Version to 0.0.1
+
+**Files**:
+- `supabase/migrations/new_migration.sql` - Update the `create_initial_version_safe` function
+- `src/lib/defaultSchema.ts` - Add `version: "0.0.1"` to default JSON schema
+- `src/lib/defaultOasSchema.ts` - Change `info.version` from `"1.0.0"` to `"0.0.1"`
+- `src/lib/defaultDiagramSchema.ts` - Change `info.version` from `"0.1.0"` to `"0.0.1"`
+- `src/lib/defaultMarkdownSchema.ts` - Change `info.version` from `"1.0.0"` to `"0.0.1"`
+
+**Database function update**:
+```sql
+-- Change version from 0.1.0 to 0.0.1
+version_major: 0,
+version_minor: 0, -- Changed from 1
+version_patch: 1,
+```
+
+### 4. Handle Import Version
+
+**Files**:
+- `src/hooks/useVersioning.ts` - Update `handleImportVersion`
+- `src/lib/versionUtils.ts` - Add helper to extract version from document
+
+**Logic**:
+- When importing, extract the version from the imported document's content
+- If version exists in document, parse it and use it
+- If version doesn't exist, default to `0.0.1`
+- Use the extracted/default version as the initial version when creating the import
+
+**Helper function**:
+```typescript
+function extractVersionFromDocument(content: any, fileType: string): Version {
+  let versionString: string | undefined;
+  
+  if (fileType === 'json-schema') {
+    versionString = content?.version;
+  } else if (fileType === 'openapi' || fileType === 'diagram' || fileType === 'markdown') {
+    versionString = content?.info?.version;
+  }
+  
+  if (versionString && typeof versionString === 'string') {
+    const parsed = parseVersion(versionString);
+    return parsed;
+  }
+  
+  // Default to 0.0.1
+  return { major: 0, minor: 0, patch: 1 };
+}
+```
+
+## Additional Improvements
+
+### 5. Ensure Version Property Exists in New Documents
+
+When creating a new document, ensure the initial content has the version property set:
+
+**Files**:
+- `src/components/workspace/ImportDialog.tsx` (or wherever documents are created)
+
+The document creation flow should ensure that:
+1. When using default schemas, they already have `version: "0.0.1"` (from updated defaults)
+2. When importing external content, the version is either preserved or set to `0.0.1`
+
+### 6. Validate and Sync Versions
+
+Add a check when loading documents to ensure the internal document version matches the latest committed version in the database.
+
+---
+
+## Technical Implementation
+
+### File: `src/lib/versionUtils.ts`
+
+Add new utility functions:
 
 ```typescript
-// Add new state
-const [isDocInfoDialogOpen, setIsDocInfoDialogOpen] = useState(false);
+// Extract version from document content based on file type
+export const extractVersionFromDocument = (content: any, fileType: string): Version => {
+  let versionString: string | undefined;
+  
+  if (fileType === 'json-schema') {
+    versionString = content?.version;
+  } else {
+    // openapi, diagram, markdown all use info.version
+    versionString = content?.info?.version;
+  }
+  
+  if (versionString && typeof versionString === 'string') {
+    return parseVersion(versionString);
+  }
+  
+  return { major: 0, minor: 0, patch: 1 }; // Default
+};
 
-// Add button next to document name
-<Button
-  variant="ghost"
-  size="sm"
-  onClick={() => setIsDocInfoDialogOpen(true)}
-  title="Document Information"
->
-  <FileText className="h-4 w-4" />
-</Button>
+// Update version in document content based on file type
+export const updateDocumentVersion = (content: any, fileType: string, version: Version): any => {
+  const versionString = formatVersion(version);
+  const updated = JSON.parse(JSON.stringify(content)); // Deep clone
+  
+  if (fileType === 'json-schema') {
+    updated.version = versionString;
+  } else {
+    // openapi, diagram, markdown all use info.version
+    if (!updated.info) {
+      updated.info = {};
+    }
+    updated.info.version = versionString;
+  }
+  
+  return updated;
+};
+```
 
-// Render dialog
-<DocumentInformationDialog
-  isOpen={isDocInfoDialogOpen}
-  onOpenChange={setIsDocInfoDialogOpen}
-  document={selectedDocument}
+### File: `src/hooks/useVersioning.ts`
+
+Modify `handleVersionBump` to update the document's internal version:
+
+```typescript
+const handleVersionBump = async (
+  newVersion: Version, 
+  tier: VersionTier, 
+  description: string, 
+  isReleased: boolean = false, 
+  autoVersion: boolean = false
+): Promise<string | null> => {
+  // ... existing validation code ...
+  
+  // Parse and update the document's internal version
+  let parsedCurrentSchema = JSON.parse(schema);
+  
+  // Determine the file type from context or add as parameter
+  const finalVersionToUse = autoVersion ? /* calculated version */ : newVersion;
+  
+  // Update the document's internal version property
+  parsedCurrentSchema = updateDocumentVersion(
+    parsedCurrentSchema, 
+    fileType, 
+    finalVersionToUse
+  );
+  
+  // Update the editor with the versioned schema
+  const updatedSchemaString = JSON.stringify(parsedCurrentSchema, null, 2);
+  setSchema(updatedSchemaString);
+  
+  // Generate patch from database version to updated current schema
+  const patch = generatePatch(
+    parsedPreviousSchema, 
+    parsedCurrentSchema, // Now includes updated version
+    newVersion, 
+    tier, 
+    description,
+    isReleased
+  );
+  
+  // ... rest of the function ...
+};
+```
+
+### File: `src/components/VersionControls.tsx`
+
+Add callback for version creation:
+
+```typescript
+interface VersionControlsProps {
+  // ... existing props ...
+  onVersionCreated?: () => void; // NEW: callback after successful commit
+}
+
+const handleBumpVersion = async () => {
+  // ... existing code ...
+  
+  onVersionBump(editableVersion, selectedTier, description, isReleased, autoVersion);
+  setDescription('');
+  setIsReleased(false);
+  
+  // Trigger refresh after commit
+  onVersionCreated?.(); // NEW
+  
+  // ... existing toast ...
+};
+```
+
+### File: `src/components/VersionHistory.tsx`
+
+Pass the refresh callback:
+
+```typescript
+<VersionControls
+  version={currentVersion}
+  // ... existing props ...
+  onVersionCreated={() => refetch()} // NEW: refresh after commit
 />
 ```
 
-### 3. Update EditorVersionDialog
+### Database Migration
 
-**File: `src/components/editor/EditorVersionDialog.tsx`**
-
-Changes:
-- Rename dialog title from "Version History" to "Versions"
-- Pass additional props to VersionHistory for the commit functionality
-- Add commit-related props interface
-
-```typescript
-interface EditorVersionDialogProps {
-  // ... existing props
-  // New props for commit functionality
-  currentVersion: Version;
-  isModified: boolean;
-  schema?: string;
-  patches?: any[];
-  onVersionBump: (newVersion: Version, tier: VersionTier, description: string) => void;
-  onImportVersion?: (...) => void;
-  currentFileType?: string;
-  suggestedVersion?: Version | null;
-}
-```
-
-### 4. Update VersionHistory Component
-
-**File: `src/components/VersionHistory.tsx`**
-
-Changes:
-- Remove the "Document Information Panel" (green section, lines 356-401)
-- Add new props for commit functionality at the top
-- Integrate VersionControls component at the top of the dialog (renamed section header to "Commit Version")
-- Keep the version comparison and table functionality
-
-```typescript
-interface VersionHistoryProps {
-  // ... existing props
-  // New props for commit functionality
-  currentVersion?: Version;
-  isModified?: boolean;
-  schema?: string;
-  onVersionBump?: (newVersion: Version, tier: VersionTier, description: string) => void;
-  suggestedVersion?: Version | null;
-}
-
-// In the render:
-return (
-  <div className="version-history overflow-auto max-h-[400px]">
-    {/* Commit Version Section - NEW */}
-    {onVersionBump && (
-      <div className="mb-4">
-        <VersionControls
-          version={currentVersion}
-          userRole={userRole}
-          onVersionBump={onVersionBump}
-          isModified={isModified}
-          schema={schema}
-          patches={patches}
-          onImportVersion={onImportVersion}
-          documentId={documentId}
-          currentFileType={currentFileType}
-          suggestedVersion={suggestedVersion}
-        />
-      </div>
-    )}
+```sql
+-- Update the create_initial_version_safe function to use 0.0.1
+CREATE OR REPLACE FUNCTION create_initial_version_safe(
+  p_document_id UUID, 
+  p_user_id UUID, 
+  p_content JSONB
+) 
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = 'public'
+AS $function$
+DECLARE
+  v_version_id UUID;
+  v_existing_count INTEGER;
+BEGIN
+  -- Check if initial version already exists
+  SELECT COUNT(*) INTO v_existing_count
+  FROM document_versions 
+  WHERE document_id = p_document_id 
+    AND description = 'Initial version';
     
-    {/* Compare Versions Button - existing */}
-    ...
+  IF v_existing_count > 0 THEN
+    SELECT id INTO v_version_id
+    FROM document_versions 
+    WHERE document_id = p_document_id 
+      AND description = 'Initial version'
+    ORDER BY created_at ASC
+    LIMIT 1;
     
-    {/* Version History Table - existing */}
-    ...
-  </div>
-);
+    RETURN v_version_id;
+  END IF;
+  
+  -- Create initial version with 0.0.1 (changed from 0.1.0)
+  INSERT INTO document_versions (
+    document_id, 
+    user_id, 
+    version_major, 
+    version_minor, 
+    version_patch,
+    description, 
+    tier, 
+    is_released, 
+    is_selected,
+    full_document
+  ) VALUES (
+    p_document_id, 
+    p_user_id, 
+    0,  -- major
+    0,  -- minor (changed from 1)
+    1,  -- patch
+    'Initial version', 
+    'patch',  -- tier (changed from 'minor')
+    true, 
+    true,
+    p_content
+  ) 
+  RETURNING id INTO v_version_id;
+  
+  RETURN v_version_id;
+EXCEPTION
+  WHEN unique_violation THEN
+    SELECT id INTO v_version_id
+    FROM document_versions 
+    WHERE document_id = p_document_id 
+      AND description = 'Initial version'
+    ORDER BY created_at ASC
+    LIMIT 1;
+    
+    RETURN v_version_id;
+END;
+$function$;
 ```
-
-### 5. Update EditorContent
-
-**File: `src/components/schema/EditorContent.tsx`**
-
-Changes:
-- Remove the VersionControls component from the editor pane
-- The JsonEditorWrapper now fills the full height without version controls below
-
-```typescript
-const editorPane = (
-  <div className="flex flex-col h-full">
-    <JsonEditorWrapper
-      value={schema} 
-      onChange={guardedOnEditorChange} 
-      // ... other props
-    />
-    {/* VersionControls REMOVED from here */}
-  </div>
-);
-```
-
-### 6. Update Editor.tsx
-
-**File: `src/components/Editor.tsx`**
-
-Changes:
-- Pass additional props to EditorVersionDialog for commit functionality
-- These include: currentVersion, isModified, schema, patches, onVersionBump, suggestedVersion
-
-### 7. Update VersionControls Title
-
-**File: `src/components/VersionControls.tsx`**
-
-Changes:
-- Rename the section header from "Current Version" to "Commit Version"
-
-```typescript
-<h3 className="text-sm font-medium text-slate-700">Commit Version</h3>
-```
-
-## Files to Create
-
-| File | Description |
-|------|-------------|
-| `src/components/DocumentInformationDialog.tsx` | New dialog for document metadata |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/schema/EditorToolbar.tsx` | Add document info button, rename History to Versions |
-| `src/components/schema/EditorContent.tsx` | Remove VersionControls from editor pane |
-| `src/components/editor/EditorVersionDialog.tsx` | Rename title, pass commit props to VersionHistory |
-| `src/components/VersionHistory.tsx` | Remove document info panel, add VersionControls at top |
-| `src/components/VersionControls.tsx` | Rename header to "Commit Version" |
-| `src/components/Editor.tsx` | Pass additional props to EditorVersionDialog |
+| `src/lib/versionUtils.ts` | Add `extractVersionFromDocument` and `updateDocumentVersion` utilities |
+| `src/lib/defaultSchema.ts` | Add `version: "0.0.1"` to default JSON schema |
+| `src/lib/defaultOasSchema.ts` | Change `info.version` to `"0.0.1"` |
+| `src/lib/defaultDiagramSchema.ts` | Change `info.version` to `"0.0.1"` |
+| `src/lib/defaultMarkdownSchema.ts` | Change `info.version` to `"0.0.1"` |
+| `src/hooks/useVersioning.ts` | Add fileType parameter, update schema version before commit |
+| `src/components/editor/useEditorState.ts` | Pass fileType to useVersioning |
+| `src/components/VersionControls.tsx` | Add `onVersionCreated` callback prop |
+| `src/components/VersionHistory.tsx` | Pass refetch callback to VersionControls |
+| `supabase/migrations/` | New migration to update `create_initial_version_safe` function |
 
 ## Testing Scenarios
 
-1. Open a document and click the Versions button - verify commit panel appears at top
-2. Make changes and commit from within the Versions dialog
-3. Click the document info icon - verify document metadata dialog opens
-4. Verify all document information displays correctly in new dialog
-5. Verify version history table still works correctly
-6. Verify version comparison still works
+1. **New document creation**: Verify initial version is 0.0.1
+2. **JSON Schema commit**: Verify `version` property in root is updated
+3. **OpenAPI commit**: Verify `info.version` is updated
+4. **Diagram commit**: Verify `info.version` is updated
+5. **Markdown commit**: Verify `info.version` is updated
+6. **Version table refresh**: Verify table updates immediately after commit
+7. **Import with version**: Verify imported document's version is preserved
+8. **Import without version**: Verify default 0.0.1 is used
 
