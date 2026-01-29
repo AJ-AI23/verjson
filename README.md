@@ -1,73 +1,94 @@
-# Welcome to your Lovable project
+# VerjSON
 
-## Project info
+A visual schema editor and documentation platform for API specifications, JSON Schema, sequence diagrams, and markdown documents.
 
-**URL**: https://lovable.dev/projects/2f491b05-34e1-413e-a223-1337f65f0279
+## Overview
 
-## How can I edit this code?
+VerjSON provides a unified workspace for creating, editing, and managing structured documents with real-time collaboration, version control, and visual diagram generation.
 
-There are several ways of editing your application.
+## Features
 
-**Use Lovable**
+### Document Types
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/2f491b05-34e1-413e-a223-1337f65f0279) and start prompting.
+- **OpenAPI Specifications** — Create and edit OpenAPI 3.x documents with a visual structure editor
+- **JSON Schema** — Design and validate JSON Schema definitions with property management
+- **Sequence Diagrams** — Build interactive sequence diagrams with lifelines, nodes, and processes
+- **Markdown Documents** — Author rich markdown content with embedded diagrams and styling
 
-Changes made via Lovable will be committed automatically to this repo.
+### Visual Editing
 
-**Use your preferred IDE**
+- **Structure Editor** — Navigate and edit document structure through an intuitive tree view
+- **Schema Diagrams** — Automatically generate visual diagrams from your schema definitions
+- **Dual-Pane Interface** — Side-by-side JSON editor and visual preview with bidirectional sync
+- **Drag-and-Drop** — Reorder properties, array items, and components with drag-and-drop
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Version Control
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- **Version History** — Track all changes with semantic versioning (major.minor.patch)
+- **Version Comparison** — Compare any two versions with diff visualization
+- **Released Versions** — Mark stable versions as released for reference
+- **Import/Export** — Import versions from other documents or external sources
 
-Follow these steps:
+### Collaboration
+
+- **Workspaces** — Organize documents into collaborative workspaces
+- **Real-time Sync** — Multiple users can edit simultaneously with live updates
+- **Permissions** — Role-based access control (owner, editor, viewer)
+- **Notifications** — Stay informed about document changes and invitations
+
+### Advanced Features
+
+- **Consistency Checking** — Detect and resolve inconsistencies across your schemas
+- **Component References** — Reuse schema components with `$ref` references
+- **Document References** — Link schemas across documents for modular design
+- **Crowdin Integration** — Export and sync translations for internationalization
+- **PDF/Image Export** — Render diagrams and documents to downloadable formats
+- **Public Sharing** — Generate public links for read-only document access
+
+## Technology Stack
+
+- **Frontend** — React, TypeScript, Vite, Tailwind CSS
+- **UI Components** — shadcn/ui, Radix UI primitives
+- **Diagrams** — React Flow for interactive node-based diagrams
+- **Editor** — Monaco Editor for JSON/code editing
+- **Backend** — Supabase (PostgreSQL, Edge Functions, Auth, Storage)
+- **Real-time** — Yjs for conflict-free collaborative editing
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+ and npm
+
+### Installation
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Clone the repository
+git clone <repository-url>
+cd verjson
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Install dependencies
+npm install
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The application will be available at `http://localhost:5173`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Environment Variables
 
-**Use GitHub Codespaces**
+Copy `.env.example` to `.env` and configure:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- `VITE_SUPABASE_URL` — Your Supabase project URL
+- `VITE_SUPABASE_ANON_KEY` — Your Supabase anonymous key
 
-## What technologies are used for this project?
+## Documentation
 
-This project is built with:
+- [Getting Started Guide](docs/getting-started.md)
+- [VerjSON Configuration](docs/verjson-configuration.md)
+- [API Documentation](/api-docs)
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## License
 
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/2f491b05-34e1-413e-a223-1337f65f0279) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Copyright © 2024. All rights reserved.
