@@ -567,28 +567,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               </div>
 
               <div className="flex items-center gap-2 md:gap-3">
-                {/* Hierarchy Depth Control */}
-                <div className="flex items-center gap-2 md:gap-3">
-                  <Label htmlFor="max-depth" className="text-xs text-muted-foreground whitespace-nowrap">
-                    <span className="hidden md:inline">Hierarchy Depth: </span>
-                    <span className="md:hidden">Depth: </span>
-                    {maxDepth}
-                  </Label>
-                  <Slider
-                    id="max-depth"
-                    min={1}
-                    max={10}
-                    step={1}
-                    value={[maxDepth]}
-                    onValueChange={([value]) => {
-                      debugToast('[DEBUG] Slider changed to', value);
-                      updateMaxDepth(value);
-                    }}
-                    className="w-16 md:w-28"
-                    disabled={!selectedDocument}
-                  />
-                </div>
-
                 {/* Close Button */}
                 {selectedDocument && onClose && (
                   <Button 
