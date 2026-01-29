@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- Primary Meta Tags -->
+  <title>VerJSON – Collaborative JSON Schema & OpenAPI Editor with Version Control</title>
+  <meta name="title" content="VerJSON – Collaborative JSON Schema & OpenAPI Editor with Version Control" />
+  <meta name="description" content="Version, edit, and visualize JSON Schema and OpenAPI 3.1 specifications with real-time collaboration. Semantic versioning, diff/merge, automatic diagrams, and conflict resolution for API teams." />
+  <meta name="keywords" content="JSON Schema, OpenAPI 3.1, API versioning, version control, real-time collaboration, diff merge, schema editor, API documentation, sequence diagrams, semantic versioning, conflict resolution" />
+  <meta name="author" content="VerjSON" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://verjson.lovable.app/landing.html" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://verjson.lovable.app/landing.html" />
+  <meta property="og:title" content="VerJSON – Collaborative JSON Schema & OpenAPI Editor with Version Control" />
+  <meta property="og:description" content="Version, edit, and visualize JSON Schema and OpenAPI 3.1 specifications with real-time collaboration. Semantic versioning, diff/merge, automatic diagrams, and conflict resolution for API teams." />
+  <meta property="og:image" content="https://verjson.lovable.app/lovable-uploads/ddcae931-0504-44bb-96aa-260e6650c307.png" />
+  <meta property="og:site_name" content="VerJSON" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content="https://verjson.lovable.app/landing.html" />
+  <meta name="twitter:title" content="VerJSON – Collaborative JSON Schema & OpenAPI Editor with Version Control" />
+  <meta name="twitter:description" content="Version, edit, and visualize JSON Schema and OpenAPI 3.1 specifications with real-time collaboration. Semantic versioning, diff/merge, automatic diagrams, and conflict resolution for API teams." />
+  <meta name="twitter:image" content="https://verjson.lovable.app/lovable-uploads/ddcae931-0504-44bb-96aa-260e6650c307.png" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/favicon.png" />
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="/landing.css" />
+
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "VerJSON",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Web",
+    "description": "Version, edit, and visualize JSON Schema and OpenAPI 3.1 specifications with real-time collaboration. Semantic versioning, diff/merge, automatic diagrams, and conflict resolution for API teams.",
+    "url": "https://verjson.lovable.app",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "featureList": [
+      "OpenAPI 3.1 specification editing",
+      "JSON Schema validation and editing",
+      "Real-time collaborative editing",
+      "Semantic versioning with diff and merge",
+      "Automatic schema diagram generation",
+      "Sequence diagram creation",
+      "Markdown documentation support",
+      "Conflict resolution for concurrent edits"
+    ],
+    "screenshot": "https://verjson.lovable.app/lovable-uploads/ddcae931-0504-44bb-96aa-260e6650c307.png"
+  }
+  </script>
+
+  <!-- FAQ Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What file formats does VerJSON support?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "VerJSON supports OpenAPI 3.x specifications, JSON Schema documents, sequence diagrams in a custom JSON format, and Markdown documentation with extended syntax including tables, task lists, and embedded diagrams."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How does real-time collaboration work in VerJSON?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "VerJSON uses Yjs, a CRDT-based framework, to enable real-time collaborative editing. Multiple users can edit the same document simultaneously, with automatic conflict resolution ensuring changes are merged seamlessly without data loss."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is semantic versioning in VerJSON?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "VerJSON implements semantic versioning (major.minor.patch) for all documents. Each version stores patches using JSON Patch (RFC 6902), allowing you to track changes over time, compare versions with visual diffs, and merge changes between document versions."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can VerJSON generate diagrams from my API specifications?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes, VerJSON automatically generates interactive schema diagrams from OpenAPI specifications and JSON Schema documents. These diagrams visualize endpoints, request/response schemas, and data relationships in an explorable format."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How does VerJSON handle API breaking changes?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "VerJSON provides consistency checking to detect breaking changes between API versions. It analyzes schema modifications and flags potential compatibility issues, helping teams manage API evolution without breaking existing integrations."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is VerJSON suitable for team collaboration?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Absolutely. VerJSON is built for teams with features like workspaces, document permissions (owner, editor, viewer), real-time collaboration, version history, and notifications. Teams can invite collaborators and work on specifications together."
+        }
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <nav class="nav-container">
+      <a href="/landing.html" class="logo">
+        <img src="/lovable-uploads/7294f82f-d904-40c7-afc7-fdf654d21170.png" alt="VerJSON Logo" width="140" height="40" />
+      </a>
+      <div class="nav-links">
+        <a href="/docs/getting-started" class="nav-link">Documentation</a>
+        <a href="/api-docs" class="nav-link">API</a>
+        <a href="/auth" class="btn btn-primary">Get Started Free</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="hero-content">
+        <h1>Version, Edit, and Visualize Your JSON Schemas with Real-Time Collaboration</h1>
+        <p class="hero-subtitle">
+          The collaborative editor for OpenAPI 3.1 specifications and JSON Schema documents. 
+          Semantic versioning, visual diff/merge, automatic diagrams, and conflict resolution—built for API teams.
+        </p>
+        <div class="hero-cta">
+          <a href="/auth" class="btn btn-primary btn-large">Get Started Free</a>
+          <a href="/docs/getting-started" class="btn btn-secondary btn-large">View Documentation</a>
+        </div>
+        <p class="hero-note">No credit card required • Free tier available</p>
+      </div>
+    </section>
+
+    <!-- Problem Section -->
+    <section class="section" id="problem">
+      <div class="container">
+        <h2>The Challenge: Managing API Specifications at Scale</h2>
+        <p class="section-intro">
+          API development teams face critical challenges when working with JSON Schema and OpenAPI specifications.
+        </p>
+        <div class="problem-grid">
+          <article class="problem-card">
+            <div class="problem-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </div>
+            <h3>Version Control Chaos</h3>
+            <p>Git diffs on JSON files are unreadable. Teams struggle to understand what changed between API versions and why.</p>
+          </article>
+          <article class="problem-card">
+            <div class="problem-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <h3>Schema Drift</h3>
+            <p>Documentation gets out of sync with implementation. Breaking changes slip through without detection.</p>
+          </article>
+          <article class="problem-card">
+            <div class="problem-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <h3>Collaboration Friction</h3>
+            <p>Editing the same specification simultaneously leads to merge conflicts. Handoffs between team members are error-prone.</p>
+          </article>
+          <article class="problem-card">
+            <div class="problem-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            </div>
+            <h3>Complex Schemas</h3>
+            <p>Large OpenAPI specs with nested $ref references are impossible to navigate. Understanding data relationships requires constant context-switching.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Solution Section -->
+    <section class="section section-alt" id="solution">
+      <div class="container">
+        <h2>How VerJSON Solves These Problems</h2>
+        <p class="section-intro">
+          A purpose-built editor for JSON Schema and OpenAPI that treats your specifications as first-class citizens.
+        </p>
+        <div class="solution-grid">
+          <article class="solution-card">
+            <div class="solution-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>
+            </div>
+            <h3>Visual Structure Editor</h3>
+            <p>Edit your OpenAPI and JSON Schema documents through an intuitive tree-based interface. No more hunting through thousands of lines of JSON—see and modify your schema structure directly.</p>
+          </article>
+          <article class="solution-card">
+            <div class="solution-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            </div>
+            <h3>Real-Time Collaboration</h3>
+            <p>Multiple team members can edit the same specification simultaneously using CRDT-based synchronization. See collaborator cursors, changes merge automatically, and conflicts resolve themselves.</p>
+          </article>
+          <article class="solution-card">
+            <div class="solution-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+            </div>
+            <h3>Semantic Versioning</h3>
+            <p>Create versions with major.minor.patch numbering. Each version stores JSON Patch diffs, enabling visual comparisons that show exactly what changed—not just line-level diffs.</p>
+          </article>
+          <article class="solution-card">
+            <div class="solution-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+            </div>
+            <h3>Automatic Diagrams</h3>
+            <p>Generate interactive diagrams from your OpenAPI specs automatically. Visualize endpoints, request/response schemas, and $ref relationships in an explorable graph view.</p>
+          </article>
+          <article class="solution-card">
+            <div class="solution-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <h3>Consistency Checking</h3>
+            <p>Detect breaking changes and inconsistencies between API versions. Get warnings when modifications might break existing integrations before they ship.</p>
+          </article>
+          <article class="solution-card">
+            <div class="solution-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+            </div>
+            <h3>Multi-Format Support</h3>
+            <p>Work with OpenAPI 3.x, JSON Schema, sequence diagrams, and Markdown documentation—all in one unified workspace with consistent versioning and collaboration.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Grid -->
+    <section class="section" id="features">
+      <div class="container">
+        <h2>Built for Technical Teams</h2>
+        <div class="features-list">
+          <div class="feature-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>OpenAPI 3.0 and 3.1 specification support</span>
+          </div>
+          <div class="feature-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>JSON Schema draft-07 and later validation</span>
+          </div>
+          <div class="feature-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>$ref resolution with automatic dereferencing</span>
+          </div>
+          <div class="feature-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Monaco Editor with JSON syntax highlighting</span>
+          </div>
+          <div class="feature-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Workspaces with role-based permissions</span>
+          </div>
+          <div class="feature-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Import from URL with authentication support</span>
+          </div>
+          <div class="feature-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Export to PNG, PDF, and multiple formats</span>
+          </div>
+          <div class="feature-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Crowdin integration for translations</span>
+          </div>
+          <div class="feature-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>REST API for automation and CI/CD</span>
+          </div>
+          <div class="feature-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Undo/redo with full history tracking</span>
+          </div>
+          <div class="feature-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Dark mode and customizable themes</span>
+          </div>
+          <div class="feature-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>PWA support for offline access</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Audience Section -->
+    <section class="section section-alt" id="audience">
+      <div class="container">
+        <h2>Who Uses VerJSON</h2>
+        <div class="audience-grid">
+          <article class="audience-card">
+            <h3>API Developers</h3>
+            <p>Design and iterate on OpenAPI specifications with immediate visual feedback. Catch breaking changes before they reach production.</p>
+          </article>
+          <article class="audience-card">
+            <h3>Technical Writers</h3>
+            <p>Document APIs with Markdown that stays synchronized with the specification. Generate diagrams automatically for visual documentation.</p>
+          </article>
+          <article class="audience-card">
+            <h3>Platform Teams</h3>
+            <p>Manage API specifications across multiple services. Enforce consistency standards and track API evolution over time.</p>
+          </article>
+          <article class="audience-card">
+            <h3>Solution Architects</h3>
+            <p>Model system integrations with sequence diagrams. Visualize complex API relationships and data flows.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="section" id="faq">
+      <div class="container">
+        <h2>Frequently Asked Questions</h2>
+        <div class="faq-list">
+          <details class="faq-item">
+            <summary>What file formats does VerJSON support?</summary>
+            <p>VerJSON supports OpenAPI 3.x specifications, JSON Schema documents, sequence diagrams in a custom JSON format, and Markdown documentation with extended syntax including tables, task lists, and embedded diagrams.</p>
+          </details>
+          <details class="faq-item">
+            <summary>How does real-time collaboration work in VerJSON?</summary>
+            <p>VerJSON uses Yjs, a CRDT-based framework, to enable real-time collaborative editing. Multiple users can edit the same document simultaneously, with automatic conflict resolution ensuring changes are merged seamlessly without data loss.</p>
+          </details>
+          <details class="faq-item">
+            <summary>What is semantic versioning in VerJSON?</summary>
+            <p>VerJSON implements semantic versioning (major.minor.patch) for all documents. Each version stores patches using JSON Patch (RFC 6902), allowing you to track changes over time, compare versions with visual diffs, and merge changes between document versions.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Can VerJSON generate diagrams from my API specifications?</summary>
+            <p>Yes, VerJSON automatically generates interactive schema diagrams from OpenAPI specifications and JSON Schema documents. These diagrams visualize endpoints, request/response schemas, and data relationships in an explorable format.</p>
+          </details>
+          <details class="faq-item">
+            <summary>How does VerJSON handle API breaking changes?</summary>
+            <p>VerJSON provides consistency checking to detect breaking changes between API versions. It analyzes schema modifications and flags potential compatibility issues, helping teams manage API evolution without breaking existing integrations.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Is VerJSON suitable for team collaboration?</summary>
+            <p>Absolutely. VerJSON is built for teams with features like workspaces, document permissions (owner, editor, viewer), real-time collaboration, version history, and notifications. Teams can invite collaborators and work on specifications together.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Does VerJSON have an API for automation?</summary>
+            <p>Yes, VerJSON provides a REST API that allows you to read documents, manage versions, and integrate with CI/CD pipelines. API keys with configurable scopes (read, write, admin) are available for authentication.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="section cta-section">
+      <div class="container cta-container">
+        <h2>Start Collaborating on Your API Specifications</h2>
+        <p>Join teams using VerJSON to version, edit, and visualize their JSON Schema and OpenAPI documents.</p>
+        <a href="/auth" class="btn btn-primary btn-large">Get Started Free</a>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <img src="/lovable-uploads/7294f82f-d904-40c7-afc7-fdf654d21170.png" alt="VerJSON Logo" width="120" height="35" />
+        <p>Collaborative JSON Schema & OpenAPI Editor</p>
+      </div>
+      <div class="footer-links">
+        <div class="footer-column">
+          <h4>Product</h4>
+          <a href="/auth">Get Started</a>
+          <a href="/docs/getting-started">Documentation</a>
+          <a href="/api-docs">API Reference</a>
+        </div>
+        <div class="footer-column">
+          <h4>Resources</h4>
+          <a href="/docs/verjson-configuration">Configuration</a>
+          <a href="/public/api/openapi.json">OpenAPI Spec</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2025 VerJSON. All rights reserved.</p>
+    </div>
+  </footer>
+</body>
+</html>
