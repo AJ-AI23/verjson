@@ -12,6 +12,8 @@ import { ConsistencyIssue } from '@/types/consistency';
 import { TOCEntryEditor } from './TOCEntryEditor';
 import { EditableValue } from './EditableValue';
 import { AddPageButton } from './AddPageButton';
+import { useEdgeFunctionWithAuth } from '@/hooks/useEdgeFunctionWithAuth';
+import { toast } from 'sonner';
 
 interface ManifestStructureEditorProps {
   schema: ManifestDocument;
@@ -33,6 +35,7 @@ export const ManifestStructureEditor: React.FC<ManifestStructureEditorProps> = (
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<'structure' | 'pages'>('structure');
   const [expandedTocPaths, setExpandedTocPaths] = useState<Set<string>>(new Set());
+  const { invoke } = useEdgeFunctionWithAuth();
 
   // Search functionality
   const {
@@ -202,26 +205,58 @@ export const ManifestStructureEditor: React.FC<ManifestStructureEditorProps> = (
     onSchemaChange(newSchema);
   }, [schema, onSchemaChange]);
 
-  // Handle add embed - creates embed entry and returns embed ID
-  const handleAddEmbed = useCallback((documentId: string, documentName?: string): string => {
-    const embedId = `embed-${Date.now()}`;
-    const newEmbed: ManifestEmbed = {
-      id: embedId,
-      type: 'markdown',
-      documentId,
-    };
-    
-    const newSchema = {
-      ...schema,
-      data: {
-        ...schema.data,
-        embeds: [...(schema.data.embeds || []), newEmbed],
-      },
-    };
-    onSchemaChange(newSchema);
-    
-    return embedId;
-  }, [schema, onSchemaChange]);
+  // Handle add embed - fetches document content and creates embed entry
+  const handleAddEmbed = useCallback(async (documentId: string, documentName?: string): Promise<string | null> => {
+    try {
+      // Fetch the document's latest released version content
+      const { data, error } = await invoke<{ document: any }>('document-content', {
+        body: { action: 'fetchDocument', document_id: documentId }
+      });
+
+      if (error) {
+        console.error('[ManifestStructureEditor] Failed to fetch document for embed:', error);
+        toast.error('Failed to embed document', {
+          description: error.message || 'Could not fetch document content'
+        });
+        return null;
+      }
+
+      const documentContent = data?.document?.content;
+      if (!documentContent) {
+        toast.error('Failed to embed document', {
+          description: 'Document has no content'
+        });
+        return null;
+      }
+
+      const embedId = `embed-${Date.now()}`;
+      const newEmbed: ManifestEmbed = {
+        id: embedId,
+        type: 'markdown',
+        documentId,
+        content: documentContent, // Store the full document content
+      };
+      
+      const newSchema = {
+        ...schema,
+        data: {
+          ...schema.data,
+          embeds: [...(schema.data.embeds || []), newEmbed],
+        },
+      };
+      onSchemaChange(newSchema);
+      
+      toast.success('Document embedded', {
+        description: documentName || 'Content copied to manifest'
+      });
+      
+      return embedId;
+    } catch (err) {
+      console.error('[ManifestStructureEditor] Error embedding document:', err);
+      toast.error('Failed to embed document');
+      return null;
+    }
+  }, [schema, onSchemaChange, invoke]);
 
   if (!schema || typeof schema !== 'object') {
     return (
