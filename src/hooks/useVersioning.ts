@@ -228,11 +228,10 @@ export const useVersioning = ({
       // Use database version as the baseline for patches (the merged state of selected versions)
       const parsedPreviousSchema = databaseVersion ? JSON.parse(databaseVersion) : {};
       
-      // Calculate the final version to use (for updating document content)
-      // When auto-versioning, we still need to bump the version for the document content
-      const finalVersionForContent = autoVersion 
-        ? { major: newVersion.major, minor: newVersion.minor, patch: newVersion.patch + 1 }
-        : newVersion;
+      // Calculate the final version to use (for updating document content).
+      // IMPORTANT: VersionControls already passes the target version number even in auto-version mode
+      // (e.g., current version + 1 for patch). Do not bump again here.
+      const finalVersionForContent = newVersion;
       
       // Update the document's internal version property before generating patch
       parsedCurrentSchema = updateDocumentVersion(
