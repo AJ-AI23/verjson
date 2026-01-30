@@ -1,220 +1,163 @@
 
-# Plan: TOC Entry Ref Persistence and Modular Content Renderers
+# Plan: Manifest Renderer Full-Height Layout and Mobile Responsive View
 
 ## Overview
-This plan addresses two requirements:
-1. **TOC Entry Reference Persistence**: Ensure the TOC entry's `ref` field is set when embedding/linking so the preview can locate and render the content
-2. **Modular Content Renderers**: Create reusable renderer components that can display markdown, diagram, and other VerjSON document types within the manifest preview
+This plan addresses two issues:
+1. The manifest renderer does not extend to the bottom of the page correctly
+2. Mobile view needs improvement with tabbed navigation for better usability
 
-## Current State Analysis
+## Current Issues
 
-### What's Already Working
-- Embeds are correctly stored in `data.embeds` with full content copied from the source document
-- TOC entries have a `ref` field that should point to `embed://{embedId}` or `document://{documentId}`
-- The `ManifestContentPane` already checks for `embed://` and `document://` references
+### Height Problem
+- `Docs.tsx` uses `<main className="flex-1">` which doesn't properly constrain height for flex children
+- `ManifestEditor` uses `h-full` but this requires explicit height from parent
+- Result: Content doesn't fill the viewport and scrolling behavior is incorrect
 
-### What's Missing
-1. When linking (not embedding), the `ref` is set to `document://{documentId}` but no content is fetched at render time
-2. The `ManifestContentPane` doesn't actually render the embedded content - it just shows a placeholder
-3. No reusable renderer modules exist for the different document types
+### Mobile Problem
+- `ManifestNavigation` has fixed `w-64` (256px) width
+- On mobile screens, this leaves very little room for content
+- No mechanism to show/hide navigation on small screens
 
 ---
 
 ## Implementation
 
-### Phase 1: Verify TOC Entry Reference Setting
+### Phase 1: Fix Height Layout
 
-The current implementation already sets the `ref` correctly in `TOCEntryEditor.tsx`:
-- For embeds: `onUpdate(path, { ref: `embed://${embedId}` })`
-- For links: `onUpdate(path, { ref: reference })` where reference is `document://{documentId}`
+#### 1.1 Update Docs.tsx
+Ensure the main container properly fills viewport height using flexbox and `min-h-0` to allow nested flex children to scroll correctly.
 
-**Verification Task**: Confirm this is working by checking the JSON output after embedding/linking.
+```text
+Changes:
+- Keep outer container: min-h-screen, flex, flex-col
+- Main element: flex-1, flex, flex-col, min-h-0, overflow-hidden
+```
+
+#### 1.2 Update ManifestEditor.tsx
+Add `overflow-hidden` to prevent layout overflow issues with the flex container.
 
 ---
 
-### Phase 2: Create Modular Content Renderers
+### Phase 2: Mobile Responsive Design with Tabs
 
-Create a new `src/components/renderers/` directory with standalone, read-only renderers:
+#### 2.1 Add Mobile Detection
+Import and use the existing `useIsMobile()` hook in `ManifestEditor`.
 
-#### 2.1 Markdown Content Renderer
-**File**: `src/components/renderers/MarkdownContentRenderer.tsx`
-
-Extract the preview rendering logic from `MarkdownEditor.tsx` into a reusable component:
-- Accepts a `MarkdownDocument` as input
-- Renders all pages with proper theming
-- Handles embed resolution for images
-- Supports both `markdown` and `extended-markdown` types
+#### 2.2 Create Tabbed Mobile Layout
+On mobile screens (< 768px), replace the side-by-side layout with a tabbed interface:
 
 ```text
-Props:
-  - document: MarkdownDocument
-  - theme?: 'light' | 'dark' (optional override)
-  - className?: string
+Mobile Layout:
++----------------------------------+
+|  [Contents] [Page]               |  <- Tab bar
++----------------------------------+
+|                                  |
+|   Navigation / Content           |  <- Based on active tab
+|   (full width)                   |
+|                                  |
++----------------------------------+
+|  [Previous]        [Next]        |  <- Navigation footer
++----------------------------------+
 ```
 
-#### 2.2 Diagram Content Renderer  
-**File**: `src/components/renderers/DiagramContentRenderer.tsx`
+**Tab Behavior:**
+- "Contents" tab: Shows the navigation tree (full width)
+- "Page" tab: Shows the content pane (full width)
+- When user selects an entry in Contents, automatically switch to Page tab
 
-Wrap the existing `SequenceDiagramRenderer` in a simpler read-only facade:
-- Accepts a `DiagramDocument` as input
-- Sets `readOnly={true}` by default
-- Handles sequence and flowchart types
-
-```text
-Props:
-  - document: DiagramDocument
-  - theme?: 'light' | 'dark' (optional override)
-  - className?: string
-```
-
-#### 2.3 Universal Document Renderer
-**File**: `src/components/renderers/DocumentContentRenderer.tsx`
-
-A dispatcher component that detects document type and routes to the appropriate renderer:
-
-```text
-Props:
-  - content: any (the document object)
-  - className?: string
-  
-Logic:
-  if content.type === 'markdown' || 'extended-markdown' -> MarkdownContentRenderer
-  if content.type === 'sequence' || 'flowchart' -> DiagramContentRenderer
-  else -> JSON preview or error message
-```
-
-#### 2.4 Index Export
-**File**: `src/components/renderers/index.ts`
-
-Export all renderers for easy imports.
+#### 2.3 Desktop Layout (Unchanged)
+On desktop screens (>= 768px), keep the existing side-by-side layout with navigation sidebar.
 
 ---
 
-### Phase 3: Update ManifestEmbed Type
+### Phase 3: Component Updates
 
-Update `src/types/manifest.ts` to support multiple document types:
+#### 3.1 ManifestEditor.tsx Changes
 
 ```typescript
-export interface ManifestEmbed {
-  id: string;
-  type: 'markdown' | 'diagram' | 'json-schema' | 'openapi';
-  content?: any;  // The embedded document content
-  documentId?: string;  // Reference to source (for refresh purposes)
-}
-```
+// Add imports
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
----
+// Inside component
+const isMobile = useIsMobile();
+const [activeTab, setActiveTab] = useState<'contents' | 'page'>('page');
 
-### Phase 4: Update ManifestContentPane
-
-**File**: `src/components/manifest/ManifestContentPane.tsx`
-
-Enhance to render actual content using the new modular renderers:
-
-1. **For embed references** (`embed://{id}`):
-   - Look up the embed in `data.embeds`
-   - Use `DocumentContentRenderer` to display the stored `content`
-
-2. **For document references** (`document://{id}`):
-   - Create a `useManifestDocumentResolver` hook to fetch linked documents on-demand
-   - Display loading state while fetching
-   - Cache resolved documents to avoid refetching
-   - Render with `DocumentContentRenderer`
-
-```text
-Updated component structure:
-
-ManifestContentPane
-├── Header (page title, description)
-├── Content Area
-│   ├── If embed:// → DocumentContentRenderer(embed.content)
-│   ├── If document:// → DocumentContentRenderer(resolvedDocument)
-│   └── If no ref → "No content linked" placeholder
-└── Navigation Footer (prev/next)
-```
-
----
-
-### Phase 5: Create Document Resolver Hook
-
-**File**: `src/hooks/useManifestDocumentResolver.ts`
-
-A specialized hook for resolving `document://` references in the manifest viewer:
-
-```typescript
-interface UseManifestDocumentResolverResult {
-  resolveDocument: (documentId: string) => Promise<any>;
-  getDocument: (documentId: string) => any | null;
-  isLoading: (documentId: string) => boolean;
-  error: (documentId: string) => string | null;
-}
-```
-
-This reuses patterns from the existing `useDocumentRefResolver` hook but is optimized for manifest page navigation.
-
----
-
-### Phase 6: Update Structure Editor Embed Type Detection
-
-**File**: `src/components/manifest/ManifestStructureEditor.tsx`
-
-When creating embeds, detect the document type from the fetched content and set the `type` field appropriately:
-
-```typescript
-const handleAddEmbed = async (documentId: string, documentName?: string) => {
-  // ... fetch document content ...
-  
-  // Detect embedded document type
-  let embedType: 'markdown' | 'diagram' | 'json-schema' | 'openapi' = 'markdown';
-  if (documentContent.verjson) {
-    if (documentContent.type === 'markdown' || documentContent.type === 'extended-markdown') {
-      embedType = 'markdown';
-    } else if (documentContent.type === 'sequence' || documentContent.type === 'flowchart') {
-      embedType = 'diagram';
-    }
-  } else if (documentContent.openapi || documentContent.swagger) {
-    embedType = 'openapi';
+// Update handleSelectEntry to switch to content tab on mobile
+const handleSelectEntry = useCallback((entryId: string) => {
+  setSelectedEntryId(entryId);
+  if (isMobile) {
+    setActiveTab('page'); // Auto-switch to content when selecting
   }
-  
-  const newEmbed = {
-    id: embedId,
-    type: embedType,
-    documentId,
-    content: documentContent,
-  };
-  // ...
-};
+}, [isMobile]);
+
+// Render logic
+return (
+  <div className="...">
+    {/* Search header - unchanged */}
+    
+    {/* Mobile tabbed view */}
+    {isMobile ? (
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+        <TabsList className="w-full rounded-none border-b">
+          <TabsTrigger value="contents" className="flex-1">Contents</TabsTrigger>
+          <TabsTrigger value="page" className="flex-1">Page</TabsTrigger>
+        </TabsList>
+        <TabsContent value="contents" className="flex-1 m-0 overflow-hidden">
+          <ManifestNavigation ... className="w-full border-r-0" />
+        </TabsContent>
+        <TabsContent value="page" className="flex-1 m-0 flex flex-col overflow-hidden">
+          <ManifestBreadcrumb ... />
+          <ManifestContentPane ... />
+        </TabsContent>
+      </Tabs>
+    ) : (
+      /* Desktop side-by-side view - existing code */
+    )}
+  </div>
+);
+```
+
+#### 3.2 ManifestNavigation.tsx Changes
+Make the width responsive by accepting an optional `className` prop and removing the hardcoded `w-64`:
+
+```typescript
+interface ManifestNavigationProps {
+  // ... existing props
+  className?: string;
+}
+
+// Change from:
+<div className="w-64 border-r bg-sidebar flex flex-col shrink-0">
+
+// To:
+<div className={cn("w-64 border-r bg-sidebar flex flex-col shrink-0", className)}>
 ```
 
 ---
 
 ## File Changes Summary
 
-| File | Change Type |
-|------|------------|
-| `src/components/renderers/MarkdownContentRenderer.tsx` | Create |
-| `src/components/renderers/DiagramContentRenderer.tsx` | Create |
-| `src/components/renderers/DocumentContentRenderer.tsx` | Create |
-| `src/components/renderers/index.ts` | Create |
-| `src/hooks/useManifestDocumentResolver.ts` | Create |
-| `src/types/manifest.ts` | Modify |
-| `src/components/manifest/ManifestContentPane.tsx` | Modify |
-| `src/components/manifest/ManifestStructureEditor.tsx` | Modify |
+| File | Change Type | Description |
+|------|-------------|-------------|
+| `src/pages/Docs.tsx` | Modify | Fix height constraints with proper flex layout |
+| `src/components/manifest/ManifestEditor.tsx` | Modify | Add mobile detection and tabbed view |
+| `src/components/manifest/ManifestNavigation.tsx` | Modify | Accept className prop for responsive width |
 
 ---
 
 ## Technical Considerations
 
-### Renderer Extraction Strategy
-- The `MarkdownContentRenderer` extracts ~200 lines of theme-aware component definitions and ReactMarkdown configuration from `MarkdownEditor.tsx`
-- The original `MarkdownEditor` will be refactored to use `MarkdownContentRenderer` internally for its preview pane
-- This ensures no code duplication and consistent rendering
+### Why Tabs Instead of Drawer?
+- Tabs provide clear navigation between views without overlay complexity
+- More intuitive UX for documentation browsing
+- Matches common mobile documentation patterns (similar to MDN, React docs)
+- No need for gesture handling or swipe-to-close logic
+
+### Auto-Tab Switching
+When a user taps an entry in the "Contents" tab, automatically switching to "Page" tab provides seamless navigation without requiring manual tab switching.
 
 ### Performance
-- Embedded content is pre-loaded (stored in manifest), so embed rendering is immediate
-- Linked documents require on-demand fetching with loading states
-- Document cache prevents redundant network requests during page navigation
-
-### Nested Manifests
-- A manifest can embed another manifest
-- The renderer should detect this and render the embedded manifest's TOC inline or show a simplified view to prevent infinite nesting
+- Tab content uses conditional rendering
+- Navigation tree state is preserved when switching tabs
+- No additional network requests from tab switching
