@@ -5,8 +5,10 @@ import { ManifestBreadcrumb } from './ManifestBreadcrumb';
 import { ManifestSearch } from './ManifestSearch';
 import { ManifestContentPane } from './ManifestContentPane';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ManifestEditorProps {
   document: ManifestDocument;
@@ -62,6 +64,8 @@ export const ManifestEditor: React.FC<ManifestEditorProps> = ({
   onToggleFullscreen,
   workspaceId,
 }) => {
+  const isMobile = useIsMobile();
+  const [activeTab, setActiveTab] = useState<'contents' | 'page'>('page');
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(
     document.data.defaultPage || document.data.toc[0]?.id || null
   );
@@ -87,7 +91,10 @@ export const ManifestEditor: React.FC<ManifestEditorProps> = ({
 
   const handleSelectEntry = useCallback((entryId: string) => {
     setSelectedEntryId(entryId);
-  }, []);
+    if (isMobile) {
+      setActiveTab('page');
+    }
+  }, [isMobile]);
 
   const handleToggleCollapse = useCallback((entryId: string) => {
     setCollapsedSections(prev => {
@@ -119,7 +126,7 @@ export const ManifestEditor: React.FC<ManifestEditorProps> = ({
 
   return (
     <div className={cn(
-      "flex flex-col h-full bg-background",
+      "flex flex-col h-full bg-background overflow-hidden",
       isFullscreen && "fixed inset-0 z-50"
     )}>
       {/* Header with search and fullscreen toggle */}
@@ -148,34 +155,70 @@ export const ManifestEditor: React.FC<ManifestEditorProps> = ({
       </div>
 
       {/* Main content area */}
-      <div className="flex flex-1 min-h-0">
-        {/* Navigation sidebar */}
-        <ManifestNavigation
-          toc={document.data.toc}
-          selectedEntryId={selectedEntryId}
-          collapsedSections={collapsedSections}
-          onSelectEntry={handleSelectEntry}
-          onToggleCollapse={handleToggleCollapse}
-        />
-
-        {/* Content pane */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Breadcrumb */}
-          <ManifestBreadcrumb
-            path={breadcrumbPath}
+      {isMobile ? (
+        <Tabs 
+          value={activeTab} 
+          onValueChange={(v) => setActiveTab(v as 'contents' | 'page')} 
+          className="flex-1 flex flex-col min-h-0"
+        >
+          <TabsList className="w-full rounded-none border-b shrink-0">
+            <TabsTrigger value="contents" className="flex-1">Contents</TabsTrigger>
+            <TabsTrigger value="page" className="flex-1">Page</TabsTrigger>
+          </TabsList>
+          <TabsContent value="contents" className="flex-1 m-0 overflow-hidden data-[state=inactive]:hidden">
+            <ManifestNavigation
+              toc={document.data.toc}
+              selectedEntryId={selectedEntryId}
+              collapsedSections={collapsedSections}
+              onSelectEntry={handleSelectEntry}
+              onToggleCollapse={handleToggleCollapse}
+              className="w-full border-r-0 h-full"
+            />
+          </TabsContent>
+          <TabsContent value="page" className="flex-1 m-0 flex flex-col overflow-hidden data-[state=inactive]:hidden">
+            <ManifestBreadcrumb
+              path={breadcrumbPath}
+              onSelectEntry={handleSelectEntry}
+            />
+            <ManifestContentPane
+              entry={selectedEntry}
+              embeds={document.data.embeds}
+              workspaceId={workspaceId}
+              onPrevious={currentIndex > 0 ? handlePrevious : undefined}
+              onNext={currentIndex < flattenedToc.length - 1 ? handleNext : undefined}
+            />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <div className="flex flex-1 min-h-0">
+          {/* Navigation sidebar */}
+          <ManifestNavigation
+            toc={document.data.toc}
+            selectedEntryId={selectedEntryId}
+            collapsedSections={collapsedSections}
             onSelectEntry={handleSelectEntry}
+            onToggleCollapse={handleToggleCollapse}
           />
 
-          {/* Content */}
-          <ManifestContentPane
-            entry={selectedEntry}
-            embeds={document.data.embeds}
-            workspaceId={workspaceId}
-            onPrevious={currentIndex > 0 ? handlePrevious : undefined}
-            onNext={currentIndex < flattenedToc.length - 1 ? handleNext : undefined}
-          />
+          {/* Content pane */}
+          <div className="flex-1 flex flex-col min-w-0">
+            {/* Breadcrumb */}
+            <ManifestBreadcrumb
+              path={breadcrumbPath}
+              onSelectEntry={handleSelectEntry}
+            />
+
+            {/* Content */}
+            <ManifestContentPane
+              entry={selectedEntry}
+              embeds={document.data.embeds}
+              workspaceId={workspaceId}
+              onPrevious={currentIndex > 0 ? handlePrevious : undefined}
+              onNext={currentIndex < flattenedToc.length - 1 ? handleNext : undefined}
+            />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

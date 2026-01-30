@@ -106,7 +106,7 @@ const Docs: React.FC = () => {
       </header>
 
       {/* Manifest Viewer */}
-      <main className="flex-1">
+      <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
         <ManifestEditor
           document={manifest}
           onDocumentChange={() => {}} // Read-only, no changes
