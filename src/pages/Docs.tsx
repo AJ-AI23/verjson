@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ManifestDocument } from '@/types/manifest';
 import { ManifestEditor } from '@/components/manifest/ManifestEditor';
-import { Loader2, AlertCircle, BookOpen } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 
@@ -81,17 +81,27 @@ const Docs: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="flex h-14 items-center px-4 gap-4">
-          <Link to="/" className="flex items-center gap-2 font-semibold hover:opacity-80 transition-opacity">
-            <BookOpen className="h-5 w-5 text-primary" />
-            <span>VerjSON Docs</span>
+      {/* Header - matching landing.html style */}
+      <header className="border-b bg-background sticky top-0 z-50">
+        <div className="max-w-[1200px] mx-auto px-6 py-4 flex items-center justify-between">
+          <Link to="/landing.html" className="hover:opacity-80 transition-opacity">
+            <img 
+              src="/lovable-uploads/7294f82f-d904-40c7-afc7-fdf654d21170.png" 
+              alt="VerJSON Logo" 
+              className="h-9 w-auto"
+            />
           </Link>
-          <div className="flex-1" />
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/">Back to App</Link>
-          </Button>
+          <div className="flex items-center gap-6">
+            <Link to="/docs" className="text-muted-foreground font-medium text-[0.9375rem] hover:text-foreground transition-colors">
+              Documentation
+            </Link>
+            <Link to="/api-docs" className="text-muted-foreground font-medium text-[0.9375rem] hover:text-foreground transition-colors">
+              API
+            </Link>
+            <Button asChild>
+              <Link to="/auth">Login / Signup</Link>
+            </Button>
+          </div>
         </div>
       </header>
 
