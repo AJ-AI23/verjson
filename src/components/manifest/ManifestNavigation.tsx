@@ -11,6 +11,7 @@ interface ManifestNavigationProps {
   collapsedSections: Set<string>;
   onSelectEntry: (entryId: string) => void;
   onToggleCollapse: (entryId: string) => void;
+  className?: string;
 }
 
 // Map icon names to components
@@ -97,9 +98,10 @@ export const ManifestNavigation: React.FC<ManifestNavigationProps> = ({
   collapsedSections,
   onSelectEntry,
   onToggleCollapse,
+  className,
 }) => {
   return (
-    <div className="w-64 border-r bg-sidebar flex flex-col shrink-0">
+    <div className={cn("w-64 border-r bg-sidebar flex flex-col shrink-0", className)}>
       <div className="p-2 border-b">
         <h3 className="text-sm font-semibold text-sidebar-foreground">Contents</h3>
       </div>
