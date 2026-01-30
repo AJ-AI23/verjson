@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { ManifestDocument, TOCEntry } from '@/types/manifest';
+import { ManifestDocument, TOCEntry, ManifestTheme, defaultManifestTheme } from '@/types/manifest';
 import { ManifestNavigation } from './ManifestNavigation';
 import { ManifestBreadcrumb } from './ManifestBreadcrumb';
 import { ManifestSearch } from './ManifestSearch';
@@ -83,6 +83,15 @@ export const ManifestEditor: React.FC<ManifestEditorProps> = ({
   }, [document.data.toc, selectedEntryId]);
 
   const flattenedToc = useMemo(() => flattenToc(document.data.toc), [document.data.toc]);
+
+  // Resolve the selected theme
+  const activeTheme = useMemo((): ManifestTheme => {
+    const selectedThemeName = document.selectedTheme;
+    if (selectedThemeName && document.styles?.themes?.[selectedThemeName]) {
+      return document.styles.themes[selectedThemeName];
+    }
+    return defaultManifestTheme;
+  }, [document.selectedTheme, document.styles?.themes]);
 
   const currentIndex = useMemo(() => {
     if (!selectedEntryId) return -1;
@@ -173,12 +182,14 @@ export const ManifestEditor: React.FC<ManifestEditorProps> = ({
               onSelectEntry={handleSelectEntry}
               onToggleCollapse={handleToggleCollapse}
               className="w-full border-r-0 h-full"
+              theme={activeTheme}
             />
           </TabsContent>
           <TabsContent value="page" className="flex-1 m-0 flex flex-col overflow-hidden data-[state=inactive]:hidden">
             <ManifestBreadcrumb
               path={breadcrumbPath}
               onSelectEntry={handleSelectEntry}
+              theme={activeTheme}
             />
             <ManifestContentPane
               entry={selectedEntry}
@@ -186,6 +197,7 @@ export const ManifestEditor: React.FC<ManifestEditorProps> = ({
               workspaceId={workspaceId}
               onPrevious={currentIndex > 0 ? handlePrevious : undefined}
               onNext={currentIndex < flattenedToc.length - 1 ? handleNext : undefined}
+              theme={activeTheme}
             />
           </TabsContent>
         </Tabs>
@@ -198,6 +210,7 @@ export const ManifestEditor: React.FC<ManifestEditorProps> = ({
             collapsedSections={collapsedSections}
             onSelectEntry={handleSelectEntry}
             onToggleCollapse={handleToggleCollapse}
+            theme={activeTheme}
           />
 
           {/* Content pane */}
@@ -206,6 +219,7 @@ export const ManifestEditor: React.FC<ManifestEditorProps> = ({
             <ManifestBreadcrumb
               path={breadcrumbPath}
               onSelectEntry={handleSelectEntry}
+              theme={activeTheme}
             />
 
             {/* Content */}
@@ -215,6 +229,7 @@ export const ManifestEditor: React.FC<ManifestEditorProps> = ({
               workspaceId={workspaceId}
               onPrevious={currentIndex > 0 ? handlePrevious : undefined}
               onNext={currentIndex < flattenedToc.length - 1 ? handleNext : undefined}
+              theme={activeTheme}
             />
           </div>
         </div>

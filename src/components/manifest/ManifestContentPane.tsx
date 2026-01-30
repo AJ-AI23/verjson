@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo } from 'react';
-import { TOCEntry, ManifestEmbed } from '@/types/manifest';
+import { TOCEntry, ManifestEmbed, ManifestTheme, defaultManifestTheme } from '@/types/manifest';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ChevronLeft, ChevronRight, FileText, ExternalLink, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileText, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DocumentContentRenderer } from '@/components/renderers';
 import { useManifestDocumentResolver } from '@/hooks/useManifestDocumentResolver';
@@ -14,6 +14,7 @@ interface ManifestContentPaneProps {
   workspaceId?: string;
   onPrevious?: () => void;
   onNext?: () => void;
+  theme?: ManifestTheme;
 }
 
 export const ManifestContentPane: React.FC<ManifestContentPaneProps> = ({
@@ -22,6 +23,7 @@ export const ManifestContentPane: React.FC<ManifestContentPaneProps> = ({
   workspaceId,
   onPrevious,
   onNext,
+  theme = defaultManifestTheme,
 }) => {
   const { resolveDocument, getDocument, isLoading, getError } = useManifestDocumentResolver();
 
@@ -68,20 +70,27 @@ export const ManifestContentPane: React.FC<ManifestContentPaneProps> = ({
     );
   }
 
+  const contentStyle: React.CSSProperties = {
+    backgroundColor: theme.content.background,
+    color: theme.content.text,
+  };
+
+  const linkStyle = { '--link-color': theme.content.linkColor } as React.CSSProperties;
+
   return (
-    <div className="flex-1 flex flex-col min-h-0">
+    <div className="flex-1 flex flex-col min-h-0" style={contentStyle}>
       <ScrollArea className="flex-1">
-        <div className="p-6 max-w-4xl mx-auto">
+        <div className="p-6 max-w-4xl mx-auto" style={linkStyle}>
           {/* Page title */}
           <h1 className="text-2xl font-bold mb-4">{entry.title}</h1>
 
           {/* Description */}
           {entry.description && (
-            <p className="text-muted-foreground mb-6">{entry.description}</p>
+            <p className="opacity-70 mb-6">{entry.description}</p>
           )}
 
           {/* Content area */}
-          <div className="prose dark:prose-invert max-w-none">
+          <div className="prose dark:prose-invert max-w-none [&_a]:text-[var(--link-color)]">
             {/* No reference and no children - empty page */}
             {!hasRef && !entry.children?.length && (
               <div className="text-center py-12 text-muted-foreground">
