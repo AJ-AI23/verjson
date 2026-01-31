@@ -90,7 +90,7 @@ const handler = async (req: Request): Promise<Response> => {
           logger.logDatabaseQuery('workspaces', 'SELECT own workspaces', { userId: user.id });
           const { data: ownWorkspaces, error: ownError } = await supabaseClient
             .from('workspaces')
-            .select('*, collaboratorCount:workspace_permissions(count)')
+            .select('*')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
 
@@ -102,6 +102,28 @@ const handler = async (req: Request): Promise<Response> => {
               status: 500,
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
+          }
+
+          // Get collaborator counts for owned workspaces (only accepted, non-owner permissions)
+          const ownWorkspaceIds = (ownWorkspaces || []).map(ws => ws.id);
+          let collaboratorCounts: Record<string, number> = {};
+          
+          if (ownWorkspaceIds.length > 0) {
+            logger.logDatabaseQuery('workspace_permissions', 'SELECT collaborator counts', { workspaceIds: ownWorkspaceIds });
+            const { data: collabData, error: collabError } = await supabaseClient
+              .from('workspace_permissions')
+              .select('workspace_id')
+              .in('workspace_id', ownWorkspaceIds)
+              .eq('status', 'accepted')
+              .neq('role', 'owner');
+            
+            if (!collabError && collabData) {
+              // Count collaborators per workspace
+              collabData.forEach(item => {
+                collaboratorCounts[item.workspace_id] = (collaboratorCounts[item.workspace_id] || 0) + 1;
+              });
+            }
+            logger.logDatabaseResult('workspace_permissions', 'SELECT collaborator counts', collabData?.length, collabError);
           }
 
           // Get workspaces user has been invited to
@@ -117,8 +139,7 @@ const handler = async (req: Request): Promise<Response> => {
                 description,
                 created_at,
                 updated_at,
-                user_id,
-                collaboratorCount:workspace_permissions(count)
+                user_id
               )
             `)
             .eq('user_id', user.id)
@@ -140,7 +161,7 @@ const handler = async (req: Request): Promise<Response> => {
             ...ws,
             isOwner: true,
             role: 'owner',
-            collaboratorCount: ws.collaboratorCount?.[0]?.count || 0
+            collaboratorCount: collaboratorCounts[ws.id] || 0
           }));
 
           const formattedInvitedWorkspaces = (invitedWorkspaces || [])
@@ -149,7 +170,7 @@ const handler = async (req: Request): Promise<Response> => {
               ...item.workspace,
               isOwner: false,
               role: item.role,
-              collaboratorCount: (item.workspace as any).collaboratorCount?.[0]?.count || 0
+              collaboratorCount: 0 // For invited workspaces, we don't show the Shared badge (they see "Invited" instead)
             }));
 
           const allWorkspaces = [...formattedOwnWorkspaces, ...formattedInvitedWorkspaces]
