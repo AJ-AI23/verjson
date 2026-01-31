@@ -194,36 +194,37 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
                 <p className="text-sm text-muted-foreground">Loading collaborators...</p>
               ) : (
                 <>
-                  {/* Owner or Current User Status */}
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        {isOwner ? (
-                          <>
-                            <Crown className="h-4 w-4 text-yellow-600" />
+                  {/* Current User Status - show actual role from permissions */}
+                  {(() => {
+                    const currentUserPermission = allPermissions.find(p => p.user_id === user?.id);
+                    const currentUserRole = currentUserPermission?.role || (isOwner ? 'owner' : 'viewer');
+                    const isCurrentUserOwner = currentUserRole === 'owner';
+                    
+                    return (
+                      <div className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2">
+                            {isCurrentUserOwner ? (
+                              <Crown className="h-4 w-4 text-yellow-600" />
+                            ) : (
+                              getRoleIcon(currentUserRole)
+                            )}
                             <div className="flex flex-col">
                               <span className="font-medium">You</span>
+                              {!isCurrentUserOwner && (
+                                <span className="text-xs text-muted-foreground">
+                                  You have access to this {showWorkspaceCollaborators ? 'workspace' : 'document'}
+                                </span>
+                              )}
                             </div>
-                            <Badge className={getRoleColor('owner')}>
-                              Owner
+                            <Badge className={getRoleColor(currentUserRole)}>
+                              {currentUserRole.charAt(0).toUpperCase() + currentUserRole.slice(1)}
                             </Badge>
-                          </>
-                        ) : (
-                          <>
-                            <div className="flex flex-col">
-                              <span className="font-medium">Invited</span>
-                              <span className="text-xs text-muted-foreground">
-                                You have access to this {showWorkspaceCollaborators ? 'workspace' : 'document'}
-                              </span>
-                            </div>
-                            <Badge className={getRoleColor(allPermissions.find(p => p.user_id === user?.id)?.role || 'viewer')}>
-                              {allPermissions.find(p => p.user_id === user?.id)?.role || 'Viewer'}
-                            </Badge>
-                          </>
-                        )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
 
                   {/* Collaborators */}
                   {collaboratorPermissions.map((permission) => (
