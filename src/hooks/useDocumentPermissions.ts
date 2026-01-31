@@ -50,8 +50,56 @@ export function useDocumentPermissions(documentId?: string, document?: any) {
       if (error) throw error;
 
       console.log('Document permissions from edge function:', data.permissions);
-      
-      setPermissions(data.permissions || []);
+
+      // In shared workspaces, only the workspace owner should appear as "Owner".
+      // The RPC can return an explicit document permission with role=owner (e.g. for a
+      // user who created a document while being invited to the workspace as editor).
+      // For UI purposes, we normalize any such "owner" document permission to match
+      // that user's accepted workspace role (editor/viewer) unless they are the workspace owner.
+      const rawPermissions: DocumentPermission[] = data.permissions || [];
+      let normalizedPermissions = rawPermissions;
+
+      try {
+        const workspaceId = rawPermissions.find(p => p.workspace_id)?.workspace_id;
+        const hasSuspiciousOwner = rawPermissions.some(p => p.inherited_from === 'document' && p.role === 'owner');
+
+        if (workspaceId && hasSuspiciousOwner) {
+          const [{ data: workspaceRow }, { data: wsPermissions }] = await Promise.all([
+            supabase
+              .from('workspaces')
+              .select('user_id')
+              .eq('id', workspaceId)
+              .maybeSingle(),
+            supabase
+              .from('workspace_permissions')
+              .select('user_id, role')
+              .eq('workspace_id', workspaceId)
+              .eq('status', 'accepted')
+          ]);
+
+          const workspaceOwnerId = (workspaceRow as any)?.user_id as string | undefined;
+          const workspaceRoleByUserId = new Map<string, DocumentPermission['role']>();
+          (wsPermissions || []).forEach((row: any) => {
+            if (row?.user_id && row?.role) workspaceRoleByUserId.set(row.user_id, row.role);
+          });
+
+          normalizedPermissions = rawPermissions.map(p => {
+            if (p.inherited_from !== 'document' || p.role !== 'owner') return p;
+            if (!workspaceOwnerId || p.user_id === workspaceOwnerId) return p;
+
+            const wsRole = workspaceRoleByUserId.get(p.user_id);
+            if (wsRole && wsRole !== 'owner') {
+              return { ...p, role: wsRole };
+            }
+
+            return p;
+          });
+        }
+      } catch (normalizeError) {
+        console.warn('[useDocumentPermissions] Failed to normalize role from workspace permissions:', normalizeError);
+      }
+
+      setPermissions(normalizedPermissions);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch permissions';
       setError(message);
