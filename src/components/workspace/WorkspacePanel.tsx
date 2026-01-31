@@ -315,8 +315,10 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
     }
   };
 
+  // In a shared workspace, the workspace owner should be considered the "owner" for collaboration management.
+  // A collaborator might create a document, but that shouldn't elevate them to "Owner" in the UI.
   const isDocumentOwner = selectedDocument && user ? selectedDocument.user_id === user.id : false;
-  const isWorkspaceOwner = selectedWorkspace && workspaces.find(w => w.id === selectedWorkspace)?.user_id === user?.id;
+  const isWorkspaceOwner = Boolean(selectedWorkspace) && workspaces.find(w => w.id === selectedWorkspace)?.user_id === user?.id;
 
   const handleWorkspaceInvite = async (email: string, role: 'editor' | 'viewer') => {
     const workspace = workspaces.find(w => w.id === selectedWorkspace);
@@ -831,7 +833,7 @@ export function WorkspacePanel({ onDocumentSelect, onDocumentDeleted, selectedDo
 
       <CollaboratorsPanel 
         document={selectedDocument}
-        isOwner={isDocumentOwner}
+        isOwner={isWorkspaceOwner}
       />
 
       <DeleteConfirmationDialog
