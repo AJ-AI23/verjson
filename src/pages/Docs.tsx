@@ -91,11 +91,11 @@ const Docs: React.FC = () => {
               className="h-9 w-auto"
             />
           </Link>
-          <div className="flex items-center gap-6">
-            <Link to="/docs" className="text-muted-foreground font-medium text-[0.9375rem] hover:text-foreground transition-colors">
+          <div className="flex items-center gap-4 md:gap-6">
+            <Link to="/docs" className="hidden md:block text-muted-foreground font-medium text-[0.9375rem] hover:text-foreground transition-colors">
               Documentation
             </Link>
-            <Link to="/api-docs" className="text-muted-foreground font-medium text-[0.9375rem] hover:text-foreground transition-colors">
+            <Link to="/api-docs" className="hidden md:block text-muted-foreground font-medium text-[0.9375rem] hover:text-foreground transition-colors">
               API
             </Link>
             <Button asChild>
