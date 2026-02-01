@@ -80,9 +80,9 @@ const Docs: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Header - matching landing.html style */}
-      <header className="border-b bg-background sticky top-0 z-50">
+      <header className="border-b bg-background sticky top-0 z-50 shrink-0">
         <div className="max-w-[1200px] mx-auto px-6 py-4 flex items-center justify-between">
           <Link to="/landing.html" className="hover:opacity-80 transition-opacity">
             <img 
@@ -106,7 +106,7 @@ const Docs: React.FC = () => {
       </header>
 
       {/* Manifest Viewer */}
-      <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <main className="flex-1 min-h-0 overflow-hidden">
         <ManifestEditor
           document={manifest}
           onDocumentChange={() => {}} // Read-only, no changes
