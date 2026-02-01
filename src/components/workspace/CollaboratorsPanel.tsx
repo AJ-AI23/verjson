@@ -203,24 +203,15 @@ export function CollaboratorsPanel({ document, isOwner, workspaceId, showWorkspa
                     return (
                       <div className="flex items-center justify-between p-3 border rounded-lg">
                         <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-2">
-                            {isCurrentUserOwner ? (
-                              <Crown className="h-4 w-4 text-yellow-600" />
-                            ) : (
-                              getRoleIcon(currentUserRole)
-                            )}
-                            <div className="flex flex-col">
-                              <span className="font-medium">You</span>
-                              {!isCurrentUserOwner && (
-                                <span className="text-xs text-muted-foreground">
-                                  You have access to this {showWorkspaceCollaborators ? 'workspace' : 'document'}
-                                </span>
-                              )}
-                            </div>
-                            <Badge className={getRoleColor(currentUserRole)}>
-                              {currentUserRole.charAt(0).toUpperCase() + currentUserRole.slice(1)}
-                            </Badge>
-                          </div>
+                          {isCurrentUserOwner ? (
+                            <Crown className="h-4 w-4 text-yellow-600" />
+                          ) : (
+                            getRoleIcon(currentUserRole)
+                          )}
+                          <span className="font-medium">You</span>
+                          <Badge className={getRoleColor(currentUserRole)}>
+                            {currentUserRole.charAt(0).toUpperCase() + currentUserRole.slice(1)}
+                          </Badge>
                         </div>
                       </div>
                     );
